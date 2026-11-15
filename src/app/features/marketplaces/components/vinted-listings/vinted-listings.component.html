@@ -76,13 +76,12 @@
             [attr.aria-disabled]="row.plan || row.running ? 'true' : null"
             [attr.tabindex]="row.plan || row.running ? -1 : null"
             class="block min-w-0 flex-1 rounded-t-xl focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
-            [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
           >
             <div class="relative overflow-hidden">
               <app-product-thumbnail
                 class="block w-full"
                 [src]="entry.imageUrl"
-                [alt]="entry.title"
+                alt=""
                 size="listing"
                 [flush]="true"
               />
@@ -107,12 +106,14 @@
               }
             </div>
             <div class="p-3">
+              <span class="sr-only">Inserat </span>
               <h2
                 class="truncate text-sm font-semibold text-fb-text-primary"
                 [attr.title]="entry.title"
               >
                 {{ entry.title }}
               </h2>
+              <span class="sr-only"> öffnen</span>
               @if (publicationBadge(entry.publicationState); as badge) {
                 <app-badge
                   class="mt-2"

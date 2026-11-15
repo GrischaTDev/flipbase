@@ -1,5 +1,5 @@
 -- Zweck: Persönliche OAuth-Freigaben und begrenzte MCP-Fachaktionen für Anwendung und Vinted.
--- Betroffen: ai_connections, ai_connection_accounts, ai_connection_requests und marketplace_listing_jobs.ai_connection_id.
+-- Betroffen: ai_connections, ai_connection_accounts, ai_connection_requests sowie marketplace_listing_jobs.ai_connection_id und marketplace_account_actions.ai_connection_id.
 create table "public"."ai_connection_accounts" (
     "id" bigint generated always as identity not null,
     "ai_connection_id" uuid not null,
@@ -34,6 +34,8 @@ create table "public"."ai_connections" (
 
 alter table "public"."ai_connections" enable row level security;
 
+alter table "public"."marketplace_account_actions" add column "ai_connection_id" uuid;
+
 alter table "public"."marketplace_listing_jobs" add column "ai_connection_id" uuid;
 
 create UNIQUE INDEX ai_connection_accounts_ai_connection_id_connection_id_key on public.ai_connection_accounts USING btree (ai_connection_id, connection_id);
@@ -57,6 +59,8 @@ create UNIQUE INDEX ai_connections_pkey on public.ai_connections USING btree (id
 create INDEX ai_connections_session_idx on public.ai_connections USING btree (session_id);
 
 create INDEX ai_connections_workspace_idx on public.ai_connections USING btree (workspace_id);
+
+create INDEX marketplace_account_actions_ai_connection_idx on public.marketplace_account_actions USING btree (ai_connection_id);
 
 create INDEX marketplace_listing_jobs_ai_connection_idx on public.marketplace_listing_jobs USING btree (ai_connection_id);
 
@@ -98,6 +102,10 @@ alter table "public"."ai_connections" add constraint "ai_connections_workspace_i
 
 alter table "public"."ai_connections" validate constraint "ai_connections_workspace_id_fkey";
 
+alter table "public"."marketplace_account_actions" add constraint "marketplace_account_actions_ai_connection_id_fkey" FOREIGN KEY (ai_connection_id) REFERENCES public.ai_connections(id) on delete RESTRICT not valid;
+
+alter table "public"."marketplace_account_actions" validate constraint "marketplace_account_actions_ai_connection_id_fkey";
+
 alter table "public"."marketplace_listing_jobs" add constraint "marketplace_listing_jobs_ai_connection_id_fkey" FOREIGN KEY (ai_connection_id) REFERENCES public.ai_connections(id) on delete RESTRICT not valid;
 
 alter table "public"."marketplace_listing_jobs" validate constraint "marketplace_listing_jobs_ai_connection_id_fkey";
@@ -134,7 +142,7 @@ declare
   ctx jsonb:=public.ai_connection_context(); original_claims text:=current_setting('request.jwt.claims',true);
   ws uuid:=(ctx->>'workspace_id')::uuid; actor uuid:=(ctx->>'user_id')::uuid;
   result jsonb; prior public.ai_connection_requests; entity text; row_data jsonb; source_id uuid;
-  account_id uuid; draft public.marketplace_listing_drafts; saved public.sale_drafts;
+  account_id uuid; queued_action_id uuid; draft public.marketplace_listing_drafts; saved public.sale_drafts;
   write_action boolean:=p_action not in ('read_records','read_vinted_draft','list_vinted_drafts','read_vinted_job','read_vinted_entries','export_audit_snapshot','read_action_result','read_file');
   invoice_data jsonb; invoice_items jsonb; subtotal numeric; shipping numeric; item public.inventory_items;
   bank public.bank_transactions; target_amount numeric; target_title text; target_type text; order_id uuid; tax_mode text;
@@ -154,7 +162,8 @@ begin
       if prior.ai_connection_id<>(ctx->>'id')::uuid or prior.action<>p_action or prior.input<>p_input then
         raise exception 'Die Vorgangskennung gehört zu anderen Daten.' using errcode='22023';
       end if;
-      return prior.result-array['browserSessionId','leaseExpiresAt'];
+      if p_action='set_vinted_price' then return public.ai_connection_call('read_action_result',jsonb_build_object('action_id',p_request_id),null); end if;
+      return prior.result;
     end if;
   end if;
   -- Nur innerhalb dieser geprüften Transaktion erhält die bestehende Fachlogik den echten Akteur.
@@ -164,7 +173,12 @@ begin
     select * into prior from public.ai_connection_requests r where r.id=(p_input->>'action_id')::uuid and r.ai_connection_id=(ctx->>'id')::uuid;
     if not found then raise no_data_found; end if;
     if prior.action like '%vinted%' and not public.marketplace_can_manage(ws) then raise insufficient_privilege; end if;
-    result:=prior.result-array['browserSessionId','leaseExpiresAt'];
+    if prior.action='set_vinted_price' then
+      select jsonb_build_object('action',public.marketplace_account_action_public(a)) into result from public.marketplace_account_actions a
+        join public.ai_connection_accounts c on c.connection_id=a.connection_id and c.ai_connection_id=a.ai_connection_id
+        where a.ai_connection_id=(ctx->>'id')::uuid and a.workspace_id=ws and a.public_id=(prior.result#>>'{action,id}')::uuid;
+      if result is null then raise no_data_found; end if;
+    else result:=prior.result; end if;
   elsif p_action='read_records' then
     entity:=p_input->>'entity';
     if entity not in ('inventory_items','catalog_products','purchases','purchase_lines','sale_drafts','sales','sale_lines','invoices','store_orders','expenses','expense_categories','sources','suppliers','bank_transactions','purchase_documents','expense_documents') then
@@ -336,7 +350,13 @@ begin
         or not exists(select 1 from public.marketplace_account_entries where workspace_id=ws and connection_id=account_id and id=(p_input->>'entry_id')::uuid and kind='publication')
         or jsonb_typeof(p_input->'expected_price_cents') is distinct from 'number' or jsonb_typeof(p_input->'price_cents') is distinct from 'number'
         or p_input->>'expected_price_cents' !~ '^[1-9][0-9]{0,7}$' or p_input->>'price_cents' !~ '^[1-9][0-9]{0,7}$' then raise insufficient_privilege; end if;
-      result:=jsonb_build_object('status','accepted','requestId',p_request_id);
+      perform pg_advisory_xact_lock(91731,1);
+      if exists(select 1 from public.marketplace_account_actions a where a.workspace_id=ws and a.connection_id=account_id and a.request_id=p_request_id
+        and a.ai_connection_id is distinct from (ctx->>'id')::uuid) then raise unique_violation; end if;
+      result:=public.marketplace_account_action_enqueue(ws,account_id,p_request_id,'price_save',
+        jsonb_build_object('entryId',p_input->'entry_id','expectedPriceCents',p_input->'expected_price_cents','priceCents',p_input->'price_cents'));
+      queued_action_id:=(result#>>'{action,id}')::uuid;
+      update public.marketplace_account_actions set ai_connection_id=(ctx->>'id')::uuid where public_id=queued_action_id and requested_by=actor;
     elsif p_action='read_vinted_entries' then
       if account_id is null or coalesce(p_input->>'kind','') not in ('profile','publication','conversation','message','sale','activity') then raise insufficient_privilege; end if;
       select coalesce(jsonb_agg(to_jsonb(e)),'[]'::jsonb) into result from (select e.* from public.marketplace_account_entries e
@@ -359,6 +379,9 @@ begin
     elsif p_action='save_vinted_draft' then result:=public.marketplace_save_listing_draft(draft.id::text,(p_input->>'expected_revision')::bigint,p_input->'content',account_id);
     elsif p_action='enqueue_vinted_listing' then
       if account_id is null then raise insufficient_privilege; end if;
+      perform pg_advisory_xact_lock(91731,1);
+      if exists(select 1 from public.marketplace_listing_jobs j where j.workspace_id=ws and j.requested_by=actor and j.request_id=p_request_id
+        and j.ai_connection_id is distinct from (ctx->>'id')::uuid) then raise unique_violation; end if;
       result:=public.marketplace_enqueue_listing(draft.id::text,(p_input->>'expected_revision')::bigint,p_input->>'action',p_request_id,false,
         nullif(p_input->>'scheduled_at','')::timestamptz,p_input->>'time_zone','pause_after_30_minutes');
       update public.marketplace_listing_jobs set ai_connection_id=(ctx->>'id')::uuid where id=(result->>'id')::bigint and requested_by=actor;
@@ -412,6 +435,22 @@ begin
     'accounts',case when v_role in ('owner','admin') then coalesce((select jsonb_agg(jsonb_build_object('id',c.id,'display_name',c.display_name,'status',c.status,'execution_mode',c.execution_mode))
       from public.ai_connection_accounts a join public.marketplace_connections c on c.id=a.connection_id where a.ai_connection_id=g.id and c.workspace_id=g.workspace_id and c.marketplace='vinted'),'[]'::jsonb) else '[]'::jsonb end);
 end $function$;
+
+create or replace function public.ai_connection_execution_valid(p_grant_id uuid, p_requested_by uuid, p_workspace_id uuid, p_connection_id uuid)
+ returns boolean
+ language sql
+ stable security definer
+ set search_path to ''
+as $function$
+  select p_grant_id is null or exists(
+    select 1 from public.ai_connections g join public.ai_connection_accounts a on a.ai_connection_id=g.id
+    join auth.users u on u.id=g.user_id join public.workspace_members m on m.workspace_id=g.workspace_id and m.user_id=g.user_id
+    where g.id=p_grant_id and g.user_id=p_requested_by and g.workspace_id=p_workspace_id and m.role in ('owner','admin')
+      and g.access_mode='edit' and g.revoked_at is null and a.connection_id=p_connection_id
+      and u.deleted_at is null and not coalesce(u.is_anonymous,false) and (u.banned_until is null or u.banned_until<now())
+      and exists(select 1 from auth.sessions s where s.user_id=g.user_id and s.oauth_client_id=g.client_id and s.created_at>=g.created_at and (s.not_after is null or s.not_after>now()))
+  );
+$function$;
 
 create or replace function public.ai_connection_grant(p_authorization_id text, p_workspace_id uuid, p_access_mode text, p_connection_ids uuid[] default '{}'::uuid[])
  returns uuid
@@ -506,21 +545,12 @@ end $function$;
 
 create or replace function public.ai_connection_listing_job_valid(p_job public.marketplace_listing_jobs)
  returns boolean
- language plpgsql
+ language sql
  stable security definer
  set search_path to ''
 as $function$
-begin
-  if p_job.ai_connection_id is not null and not exists(
-    select 1 from public.ai_connections g join public.ai_connection_accounts a on a.ai_connection_id=g.id
-    join auth.users u on u.id=g.user_id
-    where g.id=p_job.ai_connection_id and g.user_id=p_job.requested_by and g.workspace_id=p_job.workspace_id
-      and g.access_mode='edit' and g.revoked_at is null and a.connection_id=p_job.connection_id
-      and u.deleted_at is null and not coalesce(u.is_anonymous,false) and (u.banned_until is null or u.banned_until<now())
-      and exists(select 1 from auth.sessions s where s.user_id=g.user_id and s.oauth_client_id=g.client_id and s.created_at>=g.created_at and (s.not_after is null or s.not_after>now()))
-  ) then return false; end if;
-  return true;
-end $function$;
+  select public.ai_connection_execution_valid(p_job.ai_connection_id,p_job.requested_by,p_job.workspace_id,p_job.connection_id);
+$function$;
 
 create or replace function public.ai_connection_original_photos(p_grant_id uuid, p_auth_session_id uuid, p_request_id uuid, p_operation text)
  returns jsonb
@@ -554,71 +584,6 @@ begin
     result:=jsonb_build_object('status','incomplete','requestId',r.id,'error','Der Originalfoto-Transfer ist unvollständig. Bitte den Entwurf neu lesen oder im Vinted-Editor öffnen.');
     update public.ai_connection_requests as requests set result=ai_connection_original_photos.result where requests.id=r.id and requests.result->>'status'<>'completed';
   else raise invalid_parameter_value; end if;
-  perform set_config('request.jwt.claims',original_claims,true);
-  return result;
-exception when others then perform set_config('request.jwt.claims',original_claims,true); raise;
-end $function$;
-
-create or replace function public.ai_connection_price_worker(p_grant_id uuid, p_auth_session_id uuid, p_request_id uuid, p_operation text, p_browser_session_id uuid default NULL::uuid, p_result jsonb default NULL::jsonb, p_attempt_id uuid default NULL::uuid)
- returns jsonb
- language plpgsql
- security definer
- set search_path to ''
-as $function$
-declare
-  original_claims text:=current_setting('request.jwt.claims',true); g public.ai_connections; r public.ai_connection_requests;
-  ctx jsonb; result jsonb; account public.marketplace_connections; entry public.marketplace_account_entries; plan jsonb;
-begin
-  if auth.role()<>'service_role' then raise insufficient_privilege; end if;
-  select * into g from public.ai_connections where id=p_grant_id;
-  select * into r from public.ai_connection_requests where id=p_request_id and ai_connection_id=g.id and action='set_vinted_price' for update;
-  if g.id is null or r.id is null then raise insufficient_privilege; end if;
-  if p_operation<>'begin' and (p_attempt_id is null or r.result->>'attemptId' is distinct from p_attempt_id::text) then raise insufficient_privilege; end if;
-  if p_operation='finish' then
-    if jsonb_typeof(p_result) is distinct from 'object' or octet_length(p_result::text)>16384 then raise invalid_parameter_value; end if;
-    if r.result->>'status'='running' then
-      update public.ai_connection_requests set result=p_result||jsonb_build_object('requestId',p_request_id) where id=r.id;
-    end if;
-    return '{}'::jsonb;
-  end if;
-  perform set_config('request.jwt.claims',jsonb_build_object('sub',g.id,'role','anon','client_id',g.client_id,'session_id',p_auth_session_id)::text,true);
-  ctx:=public.ai_connection_context();
-  if g.access_mode<>'edit' then raise insufficient_privilege; end if;
-  perform set_config('request.jwt.claims',jsonb_build_object('sub',g.user_id,'role','authenticated')::text,true);
-  if not public.marketplace_can_manage_cloud(g.workspace_id) then raise insufficient_privilege; end if;
-  select * into account from public.marketplace_connections c where c.id=(r.input->>'connection_id')::uuid and c.workspace_id=g.workspace_id
-    and c.marketplace='vinted' and c.execution_mode='cloud' and c.status='connected'
-    and exists(select 1 from public.ai_connection_accounts a where a.ai_connection_id=g.id and a.connection_id=c.id);
-  select * into entry from public.marketplace_account_entries where id=(r.input->>'entry_id')::uuid and connection_id=account.id and workspace_id=g.workspace_id and kind='publication';
-  if account.id is null or entry.id is null then raise insufficient_privilege; end if;
-  if p_operation='begin' then
-    if r.result->>'status' in ('confirmed','conflict','failed') then result:=jsonb_build_object('completed',r.result);
-    elsif r.result->>'status'='running' and (r.result->>'leaseExpiresAt')::timestamptz>clock_timestamp() then result:=jsonb_build_object('busy',true);
-    else
-      update public.ai_connection_requests set result=jsonb_build_object('status','running','requestId',r.id,'attemptId',gen_random_uuid(),'leaseExpiresAt',clock_timestamp()+interval '11 minutes') where id=r.id returning ai_connection_requests.result->'attemptId' into result;
-      result:=jsonb_build_object('grantId',g.id,'authSessionId',p_auth_session_id,'workspaceId',g.workspace_id,'connectionId',account.id,'userId',g.user_id,
-        'attemptId',result,
-        'entryId',entry.id,'expectedPriceCents',r.input->'expected_price_cents','priceCents',r.input->'price_cents',
-        'previousOutcomeUnknown',r.result->>'status' in ('running','outcome_unknown'));
-    end if;
-  else
-    if r.result->>'status'<>'running' or (r.result->>'leaseExpiresAt')::timestamptz<=clock_timestamp() then raise insufficient_privilege; end if;
-    if p_operation='entry' then
-      for plan in select value->'job' from jsonb_array_elements(public.marketplace_read_relisting_plans(g.workspace_id,account.id)->'items') loop
-        if plan->>'relistEntryId'=entry.id::text or plan->>'relistExternalId'=entry.external_id or plan->>'externalId'=entry.external_id then
-          raise exception 'Dieses Inserat wird gerade relistet.' using errcode='42501';
-        end if;
-      end loop;
-      result:=jsonb_build_object('externalId',entry.external_id,'accountId',account.external_account_id);
-    elsif p_operation='authorize' then result:='true'::jsonb;
-    elsif p_operation='reserve' then
-      result:=public.marketplace_browser_session_reserve(g.workspace_id,account.id);
-      update public.ai_connection_requests set result=r.result||jsonb_build_object('browserSessionId',ai_connection_price_worker.result->>'id') where id=r.id;
-    elsif p_operation='check' then
-      if r.result->>'browserSessionId' is distinct from p_browser_session_id::text then raise insufficient_privilege; end if;
-      result:=public.marketplace_browser_session_check(g.workspace_id,account.id,p_browser_session_id);
-    else raise invalid_parameter_value; end if;
-  end if;
   perform set_config('request.jwt.claims',original_claims,true);
   return result;
 exception when others then perform set_config('request.jwt.claims',original_claims,true); raise;
@@ -709,6 +674,40 @@ begin
   end loop;
   return true;
 end $function$;
+
+create or replace function public.marketplace_account_action_authorized(p_action public.marketplace_account_actions)
+ returns boolean
+ language plpgsql
+ set search_path to ''
+as $function$
+declare v_connection public.marketplace_connections;
+begin
+  if p_action.ai_connection_id is not null and (p_action.kind<>'price_save' or not public.ai_connection_execution_valid(
+    p_action.ai_connection_id,p_action.requested_by,p_action.workspace_id,p_action.connection_id)) then return false; end if;
+  if not public.marketplace_account_action_user_authorized(p_action.workspace_id,p_action.requested_by) then return false; end if;
+  select * into v_connection from public.marketplace_connections where workspace_id=p_action.workspace_id and id=p_action.connection_id and marketplace='vinted' for share;
+  if not found then return false; end if;
+  if p_action.kind='cloud_session_open' then
+    return v_connection.execution_mode='cloud' and v_connection.status not in ('paused','blocked')
+      and v_connection.browser_dialog_id=(p_action.payload->>'dialogId')::uuid and v_connection.browser_dialog_user_id=p_action.requested_by
+      and v_connection.browser_presence_expires_at>clock_timestamp() and exists(select 1 from public.marketplace_browser_profiles
+        where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id and provider_profile_id=p_action.provider_profile_id);
+  end if;
+  if p_action.kind='cloud_setup_open' then
+    return exists(select 1 from public.marketplace_cloud_setups setup where setup.public_id=(p_action.payload->>'setupId')::uuid
+      and setup.workspace_id=p_action.workspace_id and setup.connection_id=p_action.connection_id and setup.requested_by=p_action.requested_by
+      and setup.state in ('login','verified') and setup.expires_at>clock_timestamp() and setup.provider_profile_id=p_action.provider_profile_id
+      and setup.browser_dialog_id=(p_action.payload->>'dialogId')::uuid and setup.browser_presence_expires_at>clock_timestamp());
+  end if;
+  if v_connection.execution_mode<>'cloud' or v_connection.status not in ('connected','needs_login','paused') or v_connection.external_account_id is distinct from p_action.external_account_id
+    or not public.marketplace_cloud_network_valid(p_action.workspace_id,p_action.connection_id)
+    or not exists(select 1 from public.marketplace_browser_profiles where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id and provider_profile_id=p_action.provider_profile_id) then return false; end if;
+  if p_action.entry_id is not null and not exists(select 1 from public.marketplace_account_entries where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id
+      and id=p_action.entry_id and kind=p_action.entry_kind and external_id=p_action.external_id) then return false; end if;
+  -- Ein eigener wartender direkter Auftrag bleibt gültig; die gemeinsame Ressourcenauswahl ordnet Relist und Änderungen.
+  return true;
+end;
+$function$;
 
 create or replace function public.marketplace_listing_job_valid(p_job public.marketplace_listing_jobs)
  returns boolean
@@ -938,7 +937,7 @@ revoke all on function public.ai_connection_image_upload(uuid,uuid,text,text,big
 grant execute on function public.ai_connection_image_upload(uuid,uuid,text,text,bigint,uuid) to service_role;
 revoke all on function public.ai_connection_original_photos(uuid,uuid,uuid,text) from public,anon,authenticated;
 grant execute on function public.ai_connection_original_photos(uuid,uuid,uuid,text) to service_role;
-revoke all on function public.ai_connection_price_worker(uuid,uuid,uuid,text,uuid,jsonb,uuid) from public,anon,authenticated;
-grant execute on function public.ai_connection_price_worker(uuid,uuid,uuid,text,uuid,jsonb,uuid) to service_role;
+revoke all on function public.ai_connection_execution_valid(uuid,uuid,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.ai_connection_execution_valid(uuid,uuid,uuid,uuid) to service_role;
 revoke all on function public.ai_connection_listing_job_valid(public.marketplace_listing_jobs) from public,anon,authenticated;
 grant execute on function public.ai_connection_listing_job_valid(public.marketplace_listing_jobs) to service_role;

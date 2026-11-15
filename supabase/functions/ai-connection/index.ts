@@ -207,22 +207,6 @@ const handler = createAiConnectionHandler(
           expiresIn: 60,
         };
       }
-      if (action === 'set_vinted_price' && data?.status !== 'confirmed') {
-        const worker =
-          Deno.env.get('AI_CONNECTION_MARKETPLACE_WORKER_URL') ??
-          'http://flipbase-marketplace-worker:4179';
-        EdgeRuntime.waitUntil(
-          fetch(new URL('/marketplace-browser/ai/listings/price/save', worker), {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ requestId }),
-            signal: AbortSignal.timeout(120000),
-            redirect: 'error',
-          })
-            .then((response) => response.body?.cancel())
-            .catch(() => undefined),
-        );
-      }
       return data;
     },
   },

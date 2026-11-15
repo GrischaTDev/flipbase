@@ -3572,6 +3572,158 @@ export type Database = {
           },
         ]
       }
+      marketplace_account_actions: {
+        Row: {
+          absolute_expires_at: string | null
+          ai_connection_id: string | null
+          attempts: number
+          browser_session_id: string | null
+          claim_token: string | null
+          connection_id: string
+          created_at: string
+          entry_id: string | null
+          entry_kind: string | null
+          error_code: string | null
+          external_account_id: string | null
+          external_id: string | null
+          finished_at: string | null
+          history_purged_at: string | null
+          id: number
+          is_write: boolean
+          kind: string
+          lease_expires_at: string | null
+          payload: Json | null
+          provider_profile_id: string | null
+          public_id: string
+          queue_order: number
+          reconciliation_action_id: string | null
+          request_hash: string
+          request_id: string
+          requested_by: string
+          resource_key: string | null
+          result: Json | null
+          runner_id: string | null
+          started_at: string | null
+          state: string
+          title: string | null
+          updated_at: string
+          version: number
+          worker_epoch: number | null
+          worker_id: string | null
+          workspace_id: string
+          write_started_at: string | null
+        }
+        Insert: {
+          absolute_expires_at?: string | null
+          ai_connection_id?: string | null
+          attempts?: number
+          browser_session_id?: string | null
+          claim_token?: string | null
+          connection_id: string
+          created_at?: string
+          entry_id?: string | null
+          entry_kind?: string | null
+          error_code?: string | null
+          external_account_id?: string | null
+          external_id?: string | null
+          finished_at?: string | null
+          history_purged_at?: string | null
+          id?: never
+          is_write: boolean
+          kind: string
+          lease_expires_at?: string | null
+          payload?: Json | null
+          provider_profile_id?: string | null
+          public_id?: string
+          queue_order?: number
+          reconciliation_action_id?: string | null
+          request_hash: string
+          request_id: string
+          requested_by: string
+          resource_key?: string | null
+          result?: Json | null
+          runner_id?: string | null
+          started_at?: string | null
+          state?: string
+          title?: string | null
+          updated_at?: string
+          version?: number
+          worker_epoch?: number | null
+          worker_id?: string | null
+          workspace_id: string
+          write_started_at?: string | null
+        }
+        Update: {
+          absolute_expires_at?: string | null
+          ai_connection_id?: string | null
+          attempts?: number
+          browser_session_id?: string | null
+          claim_token?: string | null
+          connection_id?: string
+          created_at?: string
+          entry_id?: string | null
+          entry_kind?: string | null
+          error_code?: string | null
+          external_account_id?: string | null
+          external_id?: string | null
+          finished_at?: string | null
+          history_purged_at?: string | null
+          id?: never
+          is_write?: boolean
+          kind?: string
+          lease_expires_at?: string | null
+          payload?: Json | null
+          provider_profile_id?: string | null
+          public_id?: string
+          queue_order?: number
+          reconciliation_action_id?: string | null
+          request_hash?: string
+          request_id?: string
+          requested_by?: string
+          resource_key?: string | null
+          result?: Json | null
+          runner_id?: string | null
+          started_at?: string | null
+          state?: string
+          title?: string | null
+          updated_at?: string
+          version?: number
+          worker_epoch?: number | null
+          worker_id?: string | null
+          workspace_id?: string
+          write_started_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_account_actions_ai_connection_id_fkey"
+            columns: ["ai_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketplace_account_actions_browser_session_id_fkey"
+            columns: ["browser_session_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_browser_sessions"
+            referencedColumns: ["public_id"]
+          },
+          {
+            foreignKeyName: "marketplace_account_actions_reconciliation_action_id_fkey"
+            columns: ["reconciliation_action_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_actions"
+            referencedColumns: ["public_id"]
+          },
+          {
+            foreignKeyName: "marketplace_account_actions_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
       marketplace_account_entries: {
         Row: {
           body: Json
@@ -3680,6 +3832,27 @@ export type Database = {
           },
         ]
       }
+      marketplace_browser_pool_settings: {
+        Row: {
+          id: number
+          max_browsers: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: never
+          max_browsers?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: never
+          max_browsers?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       marketplace_browser_profiles: {
         Row: {
           connection_id: string
@@ -3715,6 +3888,7 @@ export type Database = {
       marketplace_browser_sessions: {
         Row: {
           absolute_expires_at: string | null
+          account_action_id: string | null
           cloud_setup_id: string | null
           connection_id: string
           created_at: string
@@ -3734,6 +3908,7 @@ export type Database = {
         }
         Insert: {
           absolute_expires_at?: string | null
+          account_action_id?: string | null
           cloud_setup_id?: string | null
           connection_id: string
           created_at?: string
@@ -3753,6 +3928,7 @@ export type Database = {
         }
         Update: {
           absolute_expires_at?: string | null
+          account_action_id?: string | null
           cloud_setup_id?: string | null
           connection_id?: string
           created_at?: string
@@ -3771,6 +3947,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketplace_browser_sessions_account_action_id_fkey"
+            columns: ["account_action_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_account_actions"
+            referencedColumns: ["public_id"]
+          },
           {
             foreignKeyName: "marketplace_browser_sessions_cloud_setup_id_fkey"
             columns: ["cloud_setup_id"]
@@ -4023,6 +4206,8 @@ export type Database = {
       }
       marketplace_cloud_setups: {
         Row: {
+          browser_dialog_id: string | null
+          browser_presence_expires_at: string | null
           cloud_ip_id: number
           connection_id: string
           created_at: string
@@ -4047,6 +4232,8 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          browser_dialog_id?: string | null
+          browser_presence_expires_at?: string | null
           cloud_ip_id: number
           connection_id: string
           created_at?: string
@@ -4071,6 +4258,8 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          browser_dialog_id?: string | null
+          browser_presence_expires_at?: string | null
           cloud_ip_id?: number
           connection_id?: string
           created_at?: string
@@ -4113,6 +4302,9 @@ export type Database = {
       }
       marketplace_connections: {
         Row: {
+          browser_dialog_id: string | null
+          browser_dialog_user_id: string | null
+          browser_presence_expires_at: string | null
           capabilities: Json
           created_at: string
           display_name: string
@@ -4128,6 +4320,9 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          browser_dialog_id?: string | null
+          browser_dialog_user_id?: string | null
+          browser_presence_expires_at?: string | null
           capabilities?: Json
           created_at?: string
           display_name: string
@@ -4143,6 +4338,9 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          browser_dialog_id?: string | null
+          browser_dialog_user_id?: string | null
+          browser_presence_expires_at?: string | null
           capabilities?: Json
           created_at?: string
           display_name?: string
@@ -4195,6 +4393,7 @@ export type Database = {
           offer_error_code: string | null
           offer_price_cents: number | null
           offer_state: string
+          queue_order: number
           setting_version: number
           state: string
           title: string
@@ -4228,6 +4427,7 @@ export type Database = {
           offer_error_code?: string | null
           offer_price_cents?: number | null
           offer_state?: string
+          queue_order?: number
           setting_version: number
           state?: string
           title: string
@@ -4261,6 +4461,7 @@ export type Database = {
           offer_error_code?: string | null
           offer_price_cents?: number | null
           offer_state?: string
+          queue_order?: number
           setting_version?: number
           state?: string
           title?: string
@@ -4663,6 +4864,7 @@ export type Database = {
           permission_id: number | null
           provider_result: Json | null
           provider_state: string | null
+          queue_order: number
           relist_delay_seconds: number
           relist_entry_id: string | null
           relist_imported_at: string | null
@@ -4711,6 +4913,7 @@ export type Database = {
           permission_id?: number | null
           provider_result?: Json | null
           provider_state?: string | null
+          queue_order?: number
           relist_delay_seconds?: number
           relist_entry_id?: string | null
           relist_imported_at?: string | null
@@ -4759,6 +4962,7 @@ export type Database = {
           permission_id?: number | null
           provider_result?: Json | null
           provider_state?: string | null
+          queue_order?: number
           relist_delay_seconds?: number
           relist_entry_id?: string | null
           relist_imported_at?: string | null
@@ -5195,6 +5399,7 @@ export type Database = {
           lease_expires_at: string | null
           message_text: string
           payload_hash: string
+          queue_order: number
           request_id: string
           requested_by: string
           started_at: string | null
@@ -5225,6 +5430,7 @@ export type Database = {
           lease_expires_at?: string | null
           message_text: string
           payload_hash: string
+          queue_order?: number
           request_id: string
           requested_by: string
           started_at?: string | null
@@ -5255,6 +5461,7 @@ export type Database = {
           lease_expires_at?: string | null
           message_text?: string
           payload_hash?: string
+          queue_order?: number
           request_id?: string
           requested_by?: string
           started_at?: string | null
@@ -5469,6 +5676,7 @@ export type Database = {
           lease_expires_at: string | null
           message_id: string | null
           predecessor_id: string | null
+          queue_order: number
           request_id: string | null
           requested_by: string
           setting_version: number | null
@@ -5507,6 +5715,7 @@ export type Database = {
           lease_expires_at?: string | null
           message_id?: string | null
           predecessor_id?: string | null
+          queue_order?: number
           request_id?: string | null
           requested_by: string
           setting_version?: number | null
@@ -5545,6 +5754,7 @@ export type Database = {
           lease_expires_at?: string | null
           message_id?: string | null
           predecessor_id?: string | null
+          queue_order?: number
           request_id?: string | null
           requested_by?: string
           setting_version?: number | null
@@ -5716,6 +5926,7 @@ export type Database = {
           kind: string
           lease_expires_at: string | null
           observed_at: string | null
+          queue_order: number
           requested_by: string
           runner_id: string | null
           schedule_authorization_version: number | null
@@ -5741,6 +5952,7 @@ export type Database = {
           kind?: string
           lease_expires_at?: string | null
           observed_at?: string | null
+          queue_order?: number
           requested_by: string
           runner_id?: string | null
           schedule_authorization_version?: number | null
@@ -5766,6 +5978,7 @@ export type Database = {
           kind?: string
           lease_expires_at?: string | null
           observed_at?: string | null
+          queue_order?: number
           requested_by?: string
           runner_id?: string | null
           schedule_authorization_version?: number | null
@@ -5948,6 +6161,8 @@ export type Database = {
       }
       marketplace_worker_runtime: {
         Row: {
+          broker_capacity: number
+          broker_capacity_verified_at: string | null
           expires_at: string
           heartbeat_at: string
           id: number
@@ -5955,6 +6170,8 @@ export type Database = {
           worker_id: string
         }
         Insert: {
+          broker_capacity?: number
+          broker_capacity_verified_at?: string | null
           expires_at: string
           heartbeat_at: string
           id?: never
@@ -5962,6 +6179,8 @@ export type Database = {
           worker_id: string
         }
         Update: {
+          broker_capacity?: number
+          broker_capacity_verified_at?: string | null
           expires_at?: string
           heartbeat_at?: string
           id?: never
@@ -10309,6 +10528,15 @@ export type Database = {
       }
       ai_connection_connected: { Args: never; Returns: undefined }
       ai_connection_context: { Args: never; Returns: Json }
+      ai_connection_execution_valid: {
+        Args: {
+          p_connection_id: string
+          p_grant_id: string
+          p_requested_by: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
       ai_connection_grant: {
         Args: {
           p_access_mode: string
@@ -10341,18 +10569,6 @@ export type Database = {
           p_grant_id: string
           p_operation: string
           p_request_id: string
-        }
-        Returns: Json
-      }
-      ai_connection_price_worker: {
-        Args: {
-          p_attempt_id?: string
-          p_auth_session_id: string
-          p_browser_session_id?: string
-          p_grant_id: string
-          p_operation: string
-          p_request_id: string
-          p_result?: Json
         }
         Returns: Json
       }
@@ -11923,6 +12139,137 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_account_action_authorized: {
+        Args: {
+          p_action: Database["public"]["Tables"]["marketplace_account_actions"]["Row"]
+        }
+        Returns: boolean
+      }
+      marketplace_account_action_begin_write: {
+        Args: {
+          p_action_id: string
+          p_claim_token: string
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_account_action_cancel: {
+        Args: {
+          p_action_id: string
+          p_connection_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_check: {
+        Args: {
+          p_action_id: string
+          p_claim_token: string
+          p_renew?: boolean
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_claim: {
+        Args: {
+          p_runner_id: string
+          p_target_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_enqueue: {
+        Args: {
+          p_connection_id: string
+          p_kind: string
+          p_payload: Json
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_find: {
+        Args: {
+          p_connection_id: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_finish: {
+        Args: {
+          p_action_id: string
+          p_claim_token: string
+          p_error_code?: string
+          p_result?: Json
+          p_runner_id: string
+          p_state: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_account_action_public: {
+        Args: {
+          p_action: Database["public"]["Tables"]["marketplace_account_actions"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_account_action_read: {
+        Args: {
+          p_action_id: string
+          p_connection_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_reconcile: {
+        Args: {
+          p_action_id: string
+          p_connection_id: string
+          p_request_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_account_action_retry: {
+        Args: {
+          p_action_id: string
+          p_claim_token: string
+          p_error_code: string
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
+      marketplace_account_action_target: {
+        Args: {
+          p_action: Database["public"]["Tables"]["marketplace_account_actions"]["Row"]
+        }
+        Returns: Json
+      }
+      marketplace_account_action_user_authorized: {
+        Args: { p_user_id: string; p_workspace_id: string }
+        Returns: boolean
+      }
+      marketplace_account_actions_purge_history: {
+        Args: { p_limit?: number }
+        Returns: number
+      }
+      marketplace_account_actions_read: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_account_actions_recover: {
+        Args: { p_worker_epoch: number; p_worker_id: string }
+        Returns: number
+      }
       marketplace_apply_vinted_import: {
         Args: {
           p_connection_id: string
@@ -11992,6 +12339,14 @@ export type Database = {
         }
         Returns: string
       }
+      marketplace_browser_capacity_report: {
+        Args: {
+          p_capacity: number
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: boolean
+      }
       marketplace_browser_confirm_account: {
         Args: {
           p_connection_id: string
@@ -12002,6 +12357,51 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      marketplace_browser_dialog_presence: {
+        Args: {
+          p_connected: boolean
+          p_connection_id: string
+          p_dialog_id: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_browser_effective_capacity: { Args: never; Returns: number }
+      marketplace_browser_job_eligible: {
+        Args: { p_job_id: string; p_kind: string }
+        Returns: boolean
+      }
+      marketplace_browser_job_ready: {
+        Args: { p_job_id: string; p_kind: string }
+        Returns: boolean
+      }
+      marketplace_browser_next_work: {
+        Args: { p_enabled_kinds?: string[]; p_include_scheduled?: boolean }
+        Returns: Json
+      }
+      marketplace_browser_prepare_work: {
+        Args: {
+          p_include_scheduled: boolean
+          p_worker_epoch: number
+          p_worker_id: string
+        }
+        Returns: undefined
+      }
+      marketplace_browser_queue_entries: {
+        Args: never
+        Returns: {
+          connection_id: string
+          created_at: string
+          is_user: boolean
+          is_write: boolean
+          job_id: string
+          kind: string
+          queue_order: number
+          resource_key: string
+          state: string
+          workspace_id: string
+        }[]
       }
       marketplace_browser_session_bind_worker: {
         Args: {
@@ -12028,6 +12428,20 @@ export type Database = {
           p_connection_id: string
           p_session_id: string
           p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_browser_slot_status: {
+        Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: string
+      }
+      marketplace_browser_work_claim: {
+        Args: {
+          p_enabled_kinds?: string[]
+          p_include_scheduled?: boolean
+          p_runner_id: string
+          p_worker_epoch: number
+          p_worker_id: string
         }
         Returns: Json
       }
@@ -12104,6 +12518,7 @@ export type Database = {
       marketplace_cloud_favorite_claim: {
         Args: {
           p_runner_id: string
+          p_target_id?: string
           p_worker_epoch: number
           p_worker_id: string
         }
@@ -12173,6 +12588,7 @@ export type Database = {
       marketplace_cloud_listing_claim: {
         Args: {
           p_runner_id: string
+          p_target_id?: string
           p_worker_epoch: number
           p_worker_id: string
         }
@@ -12216,6 +12632,7 @@ export type Database = {
       marketplace_cloud_message_claim: {
         Args: {
           p_runner_id: string
+          p_target_id?: string
           p_worker_epoch: number
           p_worker_id: string
         }
@@ -12269,6 +12686,7 @@ export type Database = {
       marketplace_cloud_negotiation_claim: {
         Args: {
           p_runner_id: string
+          p_target_id?: string
           p_worker_epoch: number
           p_worker_id: string
         }
@@ -12303,6 +12721,15 @@ export type Database = {
       }
       marketplace_cloud_setup_cancel: {
         Args: { p_setup_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_cloud_setup_presence: {
+        Args: {
+          p_connected: boolean
+          p_dialog_id: string
+          p_setup_id: string
+          p_workspace_id: string
+        }
         Returns: Json
       }
       marketplace_cloud_setup_public: {
@@ -13456,6 +13883,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_set_browser_pool_size: {
+        Args: { p_max_browsers: number }
+        Returns: Json
+      }
       marketplace_set_favorite_notification_settings: {
         Args: {
           p_connection_id: string
@@ -13534,6 +13965,7 @@ export type Database = {
         Args: {
           p_include_scheduled?: boolean
           p_runner_id: string
+          p_target_id?: string
           p_worker_epoch: number
           p_worker_id: string
         }
@@ -13560,6 +13992,7 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_sync_prepare_scheduled: { Args: never; Returns: undefined }
       marketplace_sync_progress: {
         Args: {
           p_operation_id: string

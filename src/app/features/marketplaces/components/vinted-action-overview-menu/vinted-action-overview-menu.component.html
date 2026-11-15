@@ -1,4 +1,10 @@
-@if (store.enabled() || kleinanzeigen.entries().length || listingOperations.entries().length) {
+@if (
+  store.enabled() ||
+  kleinanzeigen.entries().length ||
+  listingOperations.entries().length ||
+  accountActions.entries().length ||
+  accountActions.error()
+) {
   <span class="relative inline-flex">
     <app-button
       data-action-overview-trigger
@@ -81,6 +87,61 @@
 }
 <ng-template #actions>
   <div class="space-y-1.5">
+    @if (accountActions.error(); as error) {
+      <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+    }
+    @for (entry of accountActions.entries(); track entry.action.id) {
+      <div
+        class="flex min-w-0 items-start gap-2.5 rounded-lg bg-fb-surface-hover p-3"
+        [attr.data-account-action-id]="entry.action.id"
+        [attr.data-account-action-state]="entry.action.state"
+      >
+        <app-action-status-indicator [state]="accountActionIndicator(entry.action)" />
+        <div class="min-w-0 flex-1 space-y-1">
+          <p class="text-[13px] font-medium text-fb-text-primary">
+            {{ accountActionTitle(entry.action.kind) }}
+          </p>
+          <p class="truncate text-xs text-fb-text-secondary">{{ entry.accountName }}</p>
+          @if (entry.action.title) {
+            <p class="truncate text-xs text-fb-text-secondary">{{ entry.action.title }}</p>
+          }
+          <p role="status" class="text-xs text-fb-text-secondary">
+            {{ accountActionStatus(entry.action) }}
+          </p>
+          @if (entry.action.state === 'queued') {
+            <app-button
+              variant="ghost"
+              size="slim"
+              [disabled]="accountActions.busy() !== null"
+              (clicked)="accountActions.cancel(entry.action)"
+              >Abbrechen</app-button
+            >
+          } @else if (entry.action.state === 'outcome_unknown') {
+            <app-button
+              variant="secondary"
+              size="slim"
+              [disabled]="accountActions.busy() !== null"
+              (clicked)="accountActions.reconcile(entry.action)"
+              >Ergebnis nachprüfen</app-button
+            >
+          }
+        </div>
+        @if (
+          entry.action.state === 'succeeded' ||
+          entry.action.state === 'failed' ||
+          entry.action.state === 'cancelled'
+        ) {
+          <app-button
+            variant="ghost"
+            size="slim"
+            [icon]="closeIcon"
+            [iconOnly]="true"
+            ariaLabel="Meldung ausblenden"
+            (clicked)="accountActions.dismiss(entry.action)"
+          />
+        }
+      </div>
+    }
     @if (store.error(); as error) {
       <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
     }
@@ -166,7 +227,9 @@
       !store.groups().length &&
       !store.listings().length &&
       !kleinanzeigen.entries().length &&
-      !listingOperations.entries().length
+      !listingOperations.entries().length &&
+      !accountActions.entries().length &&
+      !accountActions.error()
     ) {
       @if (store.loading() && !store.loaded()) {
         <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">

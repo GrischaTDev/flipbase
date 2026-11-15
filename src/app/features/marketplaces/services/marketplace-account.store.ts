@@ -32,7 +32,6 @@ import { MarketplaceResponseError } from '../models/marketplace-response';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import {
   MarketplaceBrowserTestApiService,
-  MarketplaceCloudAccountBusyError,
   MarketplaceConnectionRemovalError,
   MarketplaceWorkerOutdatedError,
   MarketplaceImportError,
@@ -40,10 +39,9 @@ import {
   type MarketplaceSyncProgress,
   type VintedListingEditFields,
 } from './marketplace-browser-test-api.service';
+import type { VintedListingEditIntent } from '../../../../../supabase/functions/_shared/vinted-listing-edit-intent.mjs';
 
 // Eine Cloud-Synchronisierung belegt den Browser des Kontos meist unter einer Minute.
-const cloudBusyRetryDelayMs = 3_000;
-const cloudBusyRetryLimitMs = 90_000;
 
 const snapshotPages = {
   publication: 'publications',
@@ -622,19 +620,7 @@ export class MarketplaceAccountStore {
     )
       return { status: 'cancelled' };
     try {
-      const deadline = Date.now() + cloudBusyRetryLimitMs;
-      let observedAt: string;
-      for (;;) {
-        try {
-          observedAt = await this.browserApi.readConversation(this.scope(connection), id, token);
-          break;
-        } catch (error) {
-          if (!(error instanceof MarketplaceCloudAccountBusyError) || Date.now() >= deadline)
-            throw error;
-        }
-        await new Promise((resolve) => setTimeout(resolve, cloudBusyRetryDelayMs));
-        if (!valid()) return { status: 'cancelled' };
-      }
+      const observedAt = await this.browserApi.readConversation(this.scope(connection), id, token);
       if (!valid()) return { status: 'cancelled' };
       await this.checkLatestImport(true);
       if (!valid()) return { status: 'cancelled' };
@@ -1139,6 +1125,30 @@ export class MarketplaceAccountStore {
   }
 
   /** Speichert geänderte Angaben bei Vinted; die Lesekopie folgt erst nach der Bestätigung. */
+  async saveListingIntent(
+    connectionId: string,
+    entryId: string,
+    intent: VintedListingEditIntent,
+  ): Promise<void> {
+    const connection = this.selectedConnection();
+    const token = this.auth.session()?.access_token;
+    const key = this.contextKey(),
+      selection = this.selectionRevision;
+    if (
+      !key ||
+      !this.canManage() ||
+      connection?.connectionId !== connectionId ||
+      connection.executionMode !== 'cloud' ||
+      connection.status !== 'connected' ||
+      !token
+    )
+      throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    await this.browserApi.saveListingIntent(this.scope(connection), entryId, intent, token);
+    if (this.isCurrent(key) && selection === this.selectionRevision)
+      await this.reloadImportedSnapshot(this.scope(connection));
+  }
+
+  /** Speichert geänderte Angaben bei Vinted; die Lesekopie folgt erst nach der Bestätigung. */
   async saveListingContent(
     connectionId: string,
     entryId: string,
@@ -1385,12 +1395,15 @@ export class MarketplaceAccountStore {
     expected: VintedProfileDetails,
   ) {
     const { connection, token } = this.profileAccess(connectionId);
+    const key = this.contextKey(),
+      selection = this.selectionRevision;
     const result = await this.browserApi.saveProfileDetails(
       this.scope(connection),
       changes,
       expected,
       token,
     );
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision) return result;
     this.accountSnapshot.update((snapshot) =>
       snapshot?.connectionId === connectionId &&
       snapshot.workspaceId === connection.workspaceId &&
@@ -1414,6 +1427,8 @@ export class MarketplaceAccountStore {
     about: string,
     expectedAbout?: string,
   ): Promise<void> {
+    const key = this.contextKey(),
+      selection = this.selectionRevision;
     const connection = this.selectedConnection();
     const token = this.auth.session()?.access_token;
     if (
@@ -1425,6 +1440,7 @@ export class MarketplaceAccountStore {
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
     await this.browserApi.saveProfileAbout(this.scope(connection), about, token, expectedAbout);
+    if (!key || !this.isCurrent(key) || selection !== this.selectionRevision) return;
     this.accountSnapshot.update((value) =>
       value && value.connectionId === connectionId && value.profile
         ? { ...value, profile: { ...value.profile, bio: about, bioState: 'loaded' } }

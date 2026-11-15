@@ -3,7 +3,61 @@ import { test } from 'node:test';
 import { chromium } from 'playwright';
 import { updateVintedListing } from '../../src/vinted-browser-listing-edit.ts';
 import { updateVintedListingPrice } from '../../src/vinted-browser-listing-price.ts';
+import { readVintedListingPresence } from '../../src/vinted-browser-listing-delete.ts';
 import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
+
+test('fehlende dauerhafte Schreibfreigabe verhindert den echten Speicherklick', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      form = await createVintedListingEditFormFixture(page);
+    let markers = 0;
+    const authorize = Object.assign(async () => undefined, {
+      beforeWrite: async () => {
+        markers++;
+        throw new Error('begin ACK fehlt');
+      },
+    });
+    const result = await updateVintedListingPrice(page, '98765', '123', 2050, 1000, authorize);
+    assert.equal(result.status, 'unconfirmed');
+    assert.equal(form.saves(), 0);
+    assert.equal(markers, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('Lösch-Nachprüfung unterscheidet 404 und technische Fehler ohne eine Schreibanfrage', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await createVintedListingEditFormFixture(page);
+    await page.goto('https://www.vinted.de/items/98765/edit');
+    let status = 404,
+      writes = 0;
+    await page.route('https://www.vinted.de/api/v2/item_upload/items/98765', (route) => {
+      if (route.request().method() !== 'GET') writes++;
+      return route.fulfill({ status, json: status === 200 ? { item: { id: 98765 } } : {} });
+    });
+    assert.equal(
+      await readVintedListingPresence(page, '123', '98765', async () => undefined),
+      'absent',
+    );
+    status = 503;
+    assert.equal(
+      await readVintedListingPresence(page, '123', '98765', async () => undefined),
+      'unknown',
+    );
+    status = 200;
+    assert.equal(
+      await readVintedListingPresence(page, '123', '98765', async () => undefined),
+      'present',
+    );
+    assert.equal(writes, 0);
+  } finally {
+    await browser.close();
+  }
+});
 
 test('ändert nur den Preis ohne Auswahllisten und bestätigt den gespeicherten Stand', async () => {
   const browser = await chromium.launch();

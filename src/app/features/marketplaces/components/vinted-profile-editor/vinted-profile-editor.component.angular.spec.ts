@@ -20,9 +20,10 @@ const original = {
   languages: [{ id: 'de-DE', label: 'Deutsch' }],
   canUploadPhoto: true,
 };
-const selectedConnection = signal({ connectionId: 'account-a' });
+const selectedConnection = signal({ connectionId: 'account-a', workspaceId: 'workspace-a' });
 const store = {
   selectedConnection,
+  selectionVersion: signal(1),
   readProfileDetails: vi.fn(),
   searchProfileCities: vi.fn(),
   saveProfileDetails: vi.fn(),
@@ -50,7 +51,8 @@ beforeAll(async () => {
 afterAll(() => restore?.());
 
 beforeEach(async () => {
-  selectedConnection.set({ connectionId: 'account-a' });
+  store.selectionVersion.set(1);
+  selectedConnection.set({ connectionId: 'account-a', workspaceId: 'workspace-a' });
   store.readProfileDetails.mockReset().mockResolvedValue(original);
   store.searchProfileCities.mockReset().mockResolvedValue([{ id: '796', label: 'Hamburg' }]);
   store.saveProfileDetails
@@ -105,9 +107,24 @@ it('verwirft verspätete Profildaten nach einem Kontowechsel', async () => {
   );
   const component = editor();
   const pending = component.open();
-  selectedConnection.set({ connectionId: 'account-b' });
+  selectedConnection.set({ connectionId: 'account-b', workspaceId: 'workspace-a' });
   resolveProfile(original);
   await pending;
+  expect(component.editing()).toBe(false);
+});
+it('verwirft einen alten Profilabruf auch bei gleicher Konto-ID nach A–B–A', async () => {
+  let complete: (profile: typeof original) => void = () => undefined;
+  store.readProfileDetails.mockReturnValueOnce(
+    new Promise((resolve) => {
+      complete = resolve;
+    }),
+  );
+  const component = editor();
+  const reading = component.open();
+  store.selectionVersion.update((version) => version + 2);
+  complete(original);
+  await reading;
+  expect(component.original()).toBeNull();
   expect(component.editing()).toBe(false);
 });
 
@@ -120,4 +137,52 @@ it('verhindert erneutes Speichern nach einem unbestätigten Ergebnis bis zum Neu
   await component.save();
   expect(store.saveProfileDetails).toHaveBeenCalledTimes(1);
   expect(component.requiresReload()).toBe(true);
+});
+
+it('schließt nach gespeicherter Annahme und lässt ein späteres Ergebnis keinen neu geöffneten Editor verändern', async () => {
+  const component = editor();
+  await component.open();
+  let complete: (result: { profile: typeof original; cachePending: boolean }) => void = () =>
+    undefined;
+  store.saveProfileDetails.mockReturnValueOnce(
+    new Promise((resolve) => {
+      complete = resolve;
+    }),
+  );
+  const saving = component.save();
+  window.dispatchEvent(
+    new CustomEvent('flipbase-account-action-accepted', {
+      detail: {
+        id: '11111111-1111-4111-8111-111111111111',
+        requestId: '22222222-2222-4222-8222-222222222222',
+        workspaceId: 'workspace-a',
+        connectionId: 'account-a',
+        entryId: null,
+        title: null,
+        kind: 'profile_details_save',
+        state: 'queued',
+        version: 1,
+        waitReason: 'pool_busy',
+        errorCode: null,
+        result: null,
+        blockedByActionId: null,
+        historyPurged: false,
+        resultExpired: false,
+        createdAt: '2026-11-14T12:00:00Z',
+        updatedAt: '2026-11-14T12:00:00Z',
+        startedAt: null,
+        finishedAt: null,
+      },
+    }),
+  );
+  expect(component.editing()).toBe(false);
+  expect(component.busy()).toBe(false);
+  expect(component.saved()).toBe(false);
+  await component.open();
+  component.form.controls.about.setValue('Neue Eingabe');
+  complete({ profile: original, cachePending: false });
+  await saving;
+  expect(component.editing()).toBe(true);
+  expect(component.form.controls.about.value).toBe('Neue Eingabe');
+  expect(component.saved()).toBe(false);
 });

@@ -240,7 +240,7 @@ test('Sichtbarkeit bleibt nach Neuladen erhalten und alle Accountlisten bleiben 
   await page.getByRole('button', { name: 'Marktplätze verwalten', exact: true }).click();
   const platforms = page.getByRole('dialog', { name: 'Marktplätze verwalten', exact: true });
   await expect(platforms.getByRole('link')).toHaveCount(0);
-  await platforms.getByRole('button', { name: 'Kleinanzeigen', exact: true }).click();
+  await platforms.getByRole('button', { name: 'Kleinanzeigen Sichtbar', exact: true }).click();
   await platforms.getByRole('button', { name: 'Schließen', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Kleinanzeigen', exact: true })).toHaveCount(0);
   await page.reload();
@@ -335,7 +335,7 @@ for (const theme of ['light', 'dark'] as const)
         await dialog.getByRole('button', { name: 'Schließen', exact: true }).last().click();
         await page.getByRole('button', { name: 'Marktplätze verwalten', exact: true }).click();
         const platforms = page.getByRole('dialog', { name: 'Marktplätze verwalten', exact: true });
-        await platforms.getByRole('button', { name: 'Kleinanzeigen', exact: true }).tap();
+        await platforms.getByRole('button', { name: 'Kleinanzeigen Sichtbar', exact: true }).tap();
         expect(
           await platforms.evaluate(
             async (element) =>
@@ -520,12 +520,16 @@ test('Marktplatzeinstellungen können einen fehlgeschlagenen Abruf erneut laden 
   await page.goto('/settings/marketplaces');
   const settings = page.locator('app-marketplaces-settings');
   await expect(settings.getByRole('alert')).toBeVisible();
-  await expect(settings.getByRole('button', { name: 'Kleinanzeigen', exact: true })).toBeDisabled();
+  await expect(
+    settings.getByRole('button', { name: /^Kleinanzeigen (Sichtbar|Ausgeblendet)$/ }),
+  ).toBeDisabled();
   const failedReads = reads;
   expect(failedReads).toBeGreaterThan(1);
   unavailable = false;
   await settings.getByRole('button', { name: 'Erneut versuchen', exact: true }).click();
-  await expect(settings.getByRole('button', { name: 'Kleinanzeigen', exact: true })).toBeEnabled();
+  await expect(
+    settings.getByRole('button', { name: /^Kleinanzeigen (Sichtbar|Ausgeblendet)$/ }),
+  ).toBeEnabled();
   await expect(settings.getByRole('alert')).toHaveCount(0);
   expect(reads).toBeGreaterThan(failedReads);
 });

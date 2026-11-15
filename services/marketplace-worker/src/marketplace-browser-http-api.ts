@@ -3,8 +3,16 @@ import type {
   SupabaseShippingLabelStore,
 } from './supabase-shipping-label-store.ts';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
-import type { AiConnectionPriceStore } from './ai-connection-price-store.ts';
-import { runAiConnectionPrice } from './ai-connection-price-runner.ts';
+import type { MarketplaceBrowserDialog } from './marketplace-browser-dialog.ts';
+import {
+  accountActionRoutes,
+  validateAccountActionPayload,
+} from './marketplace-account-action-runner.ts';
+import {
+  AccountActionRequestError,
+  actionRecord,
+  type SupabaseMarketplaceAccountActionStore,
+} from './supabase-marketplace-account-action-store.ts';
 import type { VintedListingPhotoSource } from './vinted-listing-photo-source.ts';
 
 import type { VintedPublicationVersion } from './vinted-publication-age.ts';
@@ -89,7 +97,8 @@ interface BrowserUserVerifier {
 }
 
 interface BrowserApiOptions {
-  aiPrices?: AiConnectionPriceStore;
+  accountActions?: SupabaseMarketplaceAccountActionStore;
+  browserDialogs?: Pick<MarketplaceBrowserDialog, 'connectPresence' | 'requestOpen'>;
   broker: BrowserBroker;
   users: BrowserUserVerifier;
   profiles?: {
@@ -140,7 +149,15 @@ interface BrowserApiOptions {
   listingPublishingEnabled?: boolean;
   cloudSetups?: Pick<
     MarketplaceCloudSetup,
-    'availability' | 'begin' | 'read' | 'open' | 'authorize' | 'verify' | 'complete' | 'cancel'
+    | 'availability'
+    | 'begin'
+    | 'read'
+    | 'requestOpen'
+    | 'connectPresence'
+    | 'authorize'
+    | 'verify'
+    | 'complete'
+    | 'cancel'
   >;
   scheduledSync?: () => {
     enabled: boolean;
@@ -322,7 +339,6 @@ export function listingFailureContext(
 }
 
 export class MarketplaceBrowserHttpApi {
-  private readonly aiPrices?: AiConnectionPriceStore;
   private readonly broker: BrowserBroker;
   private readonly users: BrowserUserVerifier;
   private readonly profiles?: BrowserApiOptions['profiles'];
@@ -342,11 +358,14 @@ export class MarketplaceBrowserHttpApi {
   private readonly cloudSetups?: BrowserApiOptions['cloudSetups'];
   private readonly scheduledSync?: BrowserApiOptions['scheduledSync'];
   private readonly inFlight = new Set<string>();
+  private readonly accountActions?: SupabaseMarketplaceAccountActionStore;
+  private readonly browserDialogs?: BrowserApiOptions['browserDialogs'];
   /** Fester Abschnitt, in dem eine Inseratroute scheiterte; nur für das Protokoll. */
   private readonly listingFailurePhases = new WeakMap<object, string>();
 
   constructor(options: BrowserApiOptions) {
-    this.aiPrices = options.aiPrices;
+    this.accountActions = options.accountActions;
+    this.browserDialogs = options.browserDialogs;
     this.broker = options.broker;
     this.users = options.users;
     this.profiles = options.profiles;
@@ -437,6 +456,7 @@ export class MarketplaceBrowserHttpApi {
           ok: true,
           readOnly: this.readOnly,
           apiVersion: 2,
+          accountActionsEnabled: !!this.accountActions,
           dragSupported: !this.readOnly,
           ...(this.listingPublishingEnabled !== undefined
             ? { listingPublishingEnabled: !this.readOnly && this.listingPublishingEnabled === true }
@@ -448,29 +468,6 @@ export class MarketplaceBrowserHttpApi {
       if (request.method !== 'POST') throw new RequestError(404);
       const token = request.headers.authorization?.match(/^Bearer ([^\s]{1,4096})$/)?.[1];
       if (!token) throw new RequestError(401);
-      if (path === '/marketplace-browser/ai/listings/price/save') {
-        if (this.readOnly || !this.aiPrices) throw new RequestError(403);
-        const payload = await readBody(request, 256);
-        const requestId = payload['requestId'];
-        if (
-          Object.keys(payload).length !== 1 ||
-          typeof requestId !== 'string' ||
-          !uuidPattern.test(requestId)
-        )
-          throw new RequestError(400);
-        json(
-          response,
-          200,
-          await runAiConnectionPrice(
-            token,
-            requestId,
-            this.aiPrices,
-            this.broker,
-            this.listingCache,
-          ),
-        );
-        return;
-      }
       let userId: string;
       try {
         userId = await this.users.userId(token);
@@ -480,7 +477,11 @@ export class MarketplaceBrowserHttpApi {
       if (!uuidPattern.test(userId)) throw new RequestError(401);
       const body = await readBody(
         request,
-        path === '/marketplace-browser/profile/details/save' ? 384 * 1024 : bodyLimit,
+        path === '/marketplace-browser/listings/edit/intent'
+          ? 1024 * 1024 + 4096
+          : path === '/marketplace-browser/profile/details/save'
+            ? 384 * 1024
+            : bodyLimit,
       );
       if (
         path === '/marketplace-browser/cloud-setups/availability' ||
@@ -534,21 +535,106 @@ export class MarketplaceBrowserHttpApi {
         return;
       }
       let scope = scopeOf(body, userId, token);
+      if (this.accountActions && (path === pathPrefix || path === pathPrefix + '/presence')) {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.browserDialogs) throw new RequestError(503);
+        if (typeof body.dialogId !== 'string' || !uuidPattern.test(body.dialogId))
+          throw new RequestError(400);
+        if (path.endsWith('/presence')) {
+          await this.browserDialogs.connectPresence(scope, body.dialogId, response);
+          return;
+        }
+        if (body.requestId !== body.dialogId) throw new RequestError(400);
+        json(
+          response,
+          202,
+          actionRecord(await this.browserDialogs.requestOpen(scope, body.dialogId)),
+        );
+        return;
+      }
+      if (this.accountActions && path === '/marketplace-browser/connections/sync') {
+        if (this.readOnly) throw new RequestError(403);
+        if (!this.operations) throw new RequestError(503);
+        json(response, 202, { id: await this.operations.start(scope) });
+        return;
+      }
+      if (this.accountActions && path.startsWith('/marketplace-browser/actions/')) {
+        const action = path.slice('/marketplace-browser/actions/'.length);
+        const parameters: Record<string, unknown> = {
+          p_workspace_id: scope.workspaceId,
+          p_connection_id: scope.connectionId,
+        };
+        let rpc: string;
+        if (action === 'find') {
+          if (typeof body.requestId !== 'string' || !uuidPattern.test(body.requestId))
+            throw new RequestError(400);
+          parameters.p_request_id = body.requestId;
+          rpc = 'marketplace_account_action_find';
+        } else if (action === 'status' || action === 'cancel' || action === 'reconcile') {
+          if (typeof body.actionId !== 'string' || !uuidPattern.test(body.actionId))
+            throw new RequestError(400);
+          parameters.p_action_id = body.actionId;
+          rpc =
+            action === 'status'
+              ? 'marketplace_account_action_read'
+              : action === 'cancel'
+                ? 'marketplace_account_action_cancel'
+                : 'marketplace_account_action_reconcile';
+          if (action === 'reconcile') {
+            if (typeof body.requestId !== 'string' || !uuidPattern.test(body.requestId))
+              throw new RequestError(400);
+            parameters.p_request_id = body.requestId;
+          }
+        } else throw new RequestError(404);
+        json(response, 200, actionRecord(await this.accountActions.rpc(rpc, parameters, token)));
+        return;
+      }
+      const actionKind = accountActionRoutes[path];
+      if (this.accountActions && actionKind) {
+        if (this.readOnly) throw new RequestError(403);
+        if (typeof body.requestId !== 'string' || !uuidPattern.test(body.requestId))
+          throw new RequestError(400);
+        const payload = Object.fromEntries(
+          Object.entries(body).filter(
+            ([key]) => !['workspaceId', 'connectionId', 'requestId'].includes(key),
+          ),
+        );
+        try {
+          validateAccountActionPayload(actionKind, payload);
+        } catch {
+          throw new RequestError(400);
+        }
+        const accepted = actionRecord(
+          await this.accountActions.enqueue(scope, body.requestId, actionKind, payload),
+        );
+        json(response, 202, accepted);
+        return;
+      }
       let accounts = this.accounts;
       const setupMatch = path.match(
-        /^\/marketplace-browser\/cloud-setups\/([0-9a-f-]{36})\/(read|open|complete|cancel|frame|input|login|verify|identify)$/i,
+        /^\/marketplace-browser\/cloud-setups\/([0-9a-f-]{36})\/(presence|read|open|complete|cancel|frame|input|login|verify|identify)$/i,
       );
       if (setupMatch) {
         const setupId = setupMatch[1];
         const action = setupMatch[2];
         if (!setupId || !uuidPattern.test(setupId) || !this.cloudSetups || this.readOnly)
           throw new RequestError(404);
+        if (action === 'presence') {
+          if (typeof body.dialogId !== 'string' || !uuidPattern.test(body.dialogId))
+            throw new RequestError(400);
+          await this.cloudSetups.connectPresence(scope, setupId, body.dialogId, response);
+          return;
+        }
         if (action === 'read' || action === 'complete' || action === 'cancel') {
           json(response, 200, { ...(await this.cloudSetups[action](scope, setupId)) });
           return;
         }
         if (action === 'open') {
-          json(response, 201, { id: await this.cloudSetups.open(scope, setupId) });
+          if (typeof body.dialogId !== 'string' || !uuidPattern.test(body.dialogId))
+            throw new RequestError(400);
+          json(response, 202, {
+            ...(await this.cloudSetups.requestOpen(scope, setupId, body.dialogId)),
+          });
           return;
         }
         scope = await this.cloudSetups.authorize(scope, setupId);
@@ -1669,6 +1755,10 @@ export class MarketplaceBrowserHttpApi {
         this.inFlight.delete(inFlightKey);
       }
     } catch (error) {
+      if (error instanceof AccountActionRequestError) {
+        json(response, error.status, { code: error.code, error: error.message });
+        return;
+      }
       const failedPath = new URL(request.url ?? '/', 'http://localhost').pathname;
       if (failedPath.startsWith('/marketplace-browser/listings/')) {
         // Nur feste Kategorien protokollieren, keine Kennungen, Inhalte oder Anbieterantworten.

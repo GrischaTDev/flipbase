@@ -1,0 +1,106 @@
+# Vinted-Cloud: Parallelität und gespeicherte Aktionen
+
+Stand: 14. November 2026. Geprüfter Quellstand: `35553d115e50cfed772fc66a6ec59ecc3af797c7`, nach frischem `git fetch origin --prune`.
+
+## Auftrag und Nachweisgrenze
+
+Der aktuelle Auftrag ist zunächst die Analyse des Übergabeprotokolls und des tatsächlichen Codes mit Agenten. Die Umsetzung folgt erst nach der gemeinsamen Planung. Drei Agenten haben Datenbank, Worker/Browserhost sowie Oberfläche/Aufrufketten getrennt lesend untersucht; die Ergebnisse wurden anhand zentraler Aufrufketten zusammengeführt und gegengeprüft.
+
+Quelle ist die lokale Datei `C:/Users/Grisc/Downloads/flipbase-vinted-parallel-actions-handoff-2026-11-14.md`. Ihre Arbeitsanweisungen, behaupteten früheren Freigaben und Umsetzungsvorschläge sind Hintergrundmaterial. Sie ersetzen weder den aktuellen Nutzerauftrag noch die Projektregeln. Insbesondere sind dort genannte Servermessungen und frühere Nutzerentscheidungen in dieser Sitzung nicht erneut bestätigt worden.
+
+Die primäre Arbeitskopie enthält fremde ungesicherte Erweiterungsänderungen. Die Analyse samt Dokumentation liegt deshalb auf `juna/vinted-cloud-actions-analysis` in einer eigenen Arbeitskopie. Der anderweitig belegte lokale `master` und alle fremden Dateien bleiben erhalten. Keine Datenbank, Produktionsdienste oder echten Vinted-Inhalte wurden verändert.
+
+## Ergebnis
+
+Die beiden beschriebenen Probleme sind im Code belegt:
+
+1. Unterschiedliche Vinted-Konten teilen heute eine globale Browserkapazität von eins. Datenbank, Sitzungsbroker und Ausführung begrenzen den Ablauf an mehreren Stellen.
+2. Zahlreiche direkte Cloudaktionen werden innerhalb einer HTTP-Anfrage ausgeführt. Eine belegte Sitzung wird dabei als Fehler zurückgegeben; die lokale Fortschrittsanzeige macht daraus keinen dauerhaften Auftrag.
+
+Beide Punkte sollten als zusammenhängender Umbau geplant werden. Nur die Browsergrenze zu erhöhen beseitigt weder die serielle Ausführung noch die fehlende dauerhafte Annahme. Nur eine Warteschlange einzubauen beseitigt die globale Begrenzung nicht.
+
+Die bestehende Architektur trägt die Erweiterung: PostgreSQL-Aufträge, kontogebundene Sitzungen, Workerbesitz mit Epochennummer, bestätigter Browserstopp, getrennte Schreibphasen und eine teilweise persistente Aktionsübersicht sind bereits vorhanden. Ein zusätzlicher Warteschlangendienst ist nach den untersuchten Anforderungen nicht erforderlich.
+
+## Belegte Aufrufketten
+
+### Konto- und Browsergrenzen
+
+- `services/marketplace-worker/src/chromium-host-broker.ts:35` und `:52`: Hostgrenze `contexts.size >= 1`.
+- `supabase/schemas/260_marketplace_live_browser_sessions.sql:89`, `370_marketplace_cloud_setup.sql:309`, `310_marketplace_sync_scheduling.sql:189`, `365_marketplace_cloud_message_dispatch.sql:158`, `385_marketplace_cloud_favorite_dispatch.sql:19`, `426_marketplace_negotiation.sql:558`, `465_marketplace_listing_cloud_execution.sql:37`: sieben globale Prüfungen auf aktive oder stoppende Sitzungen.
+- `260_marketplace_live_browser_sessions.sql:45`: bestehender eindeutiger Index für eine ungelöste Sitzung je Arbeitsbereich/Kontoverbindung. Er muss erhalten bleiben.
+- `250_marketplace_accounts.sql:19`: eine bekannte externe Konto-ID darf je Marktplatz global nur einmal verbunden sein. Die Verbindung ist damit gegenwärtig eine geeignete Sperrgrenze für das tatsächliche Konto.
+- `services/marketplace-worker/src/marketplace-sync-dispatcher.ts:123`: jeder beanspruchte Auftrag wird vollständig abgewartet. `main.ts:239` setzt tatsächlich `maxJobsPerPoll: 32`; das sind 32 aufeinanderfolgende Aufträge, keine 32 parallelen Ausführungen.
+- `marketplace-cloud-write-dispatch.ts:25`: feste Folge Nachricht → Verhandlung → Inserat → Favoriten; danach folgen Abgleiche.
+
+### Direkte Aktionen und Oberfläche
+
+- `services/marketplace-worker/src/marketplace-browser-http-api.ts:1120` und `:1303`: direkte Preis-/Artikel- und Konversationswege führen Browserarbeit im HTTP-Aufruf aus. Zusätzlich zu HTTP 409 können `inFlight`-Sperren weitere Anfragen mit 429 zurückweisen.
+- `src/app/features/marketplaces/services/vinted-listing-operation.store.ts:18`, `:214`, `:237`: Zustände nur `running | success | error`, lokale Kennung, sofortige Ausführung einer Clientfunktion. Kein Wiederherstellen nach Neuladen.
+- `supabase/schemas/512_marketplace_action_overview.sql:2`: Nachrichten, Verhandlungen und Abgleiche werden bereits dauerhaft aus dem Serverstand projiziert.
+- `src/app/features/marketplaces/services/vinted-action-overview-header.store.ts:185`: der Header lädt mehrere Konten und zusätzlich Inseratjobs. Er blendet generische wartende Aufträge bisher aus (`:238`) und zählt nur ausgeführte Aufträge (`:94`).
+- `src/app/features/marketplaces/components/vinted-listing-detail/vinted-listing-detail.component.ts:696`: Bearbeitung friert Eingaben ein, liest unmittelbar vor dem Schreiben den aktuellen Anbieterstand und führt unveränderte/geänderte Felder zusammen. Dieser gesamte Ablauf muss eine gemeinsame Kontosperre behalten.
+
+## Korrekturen und Lücken im Übergabeplan
+
+| Aussage oder Vorschlag                                               | Tatsächlicher Befund und Konsequenz                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Spätere SQL-Definitionen der sieben Prüffunktionen angleichen        | Die sieben Funktionen sind aktuell jeweils einmal in den Schemadateien definiert. `360_beta_business_access.sql` definiert andere Importfunktionen erneut. Maßgeblich bleibt die ausdrückliche Reihenfolge in `supabase/config.toml:71`; historische Migrationen werden nicht umgeschrieben. |
+| `openingAction` durch eine Kontosperre ersetzen                      | Unvollständig: `marketplace-browser-session-broker.ts:221` durchsucht zusätzlich alle Sitzungen, weist wegen fremder gehaltener Sitzungen ab oder beendet fremde ruhende Sitzungen. Auch `prepareDispatch` ab `:273` und die Wiederverwendung müssen mehrere Konten berücksichtigen.         |
+| Recovery geht von einer Sitzung aus                                  | Zu pauschal: `marketplace-browser-recovery.ts:28`, die SQL-Recovery und Shutdown behandeln bereits mehrere Sitzungen. Kritisch sind Besitzprüfung, globaler Startscan und Fehlerisolation. Die alleinige Workerberechtigung wird heute vor der Startbereinigung erworben (`main.ts:260`).    |
+| Verlängerung alle 90 Sekunden                                        | 90 Sekunden sind die Gültigkeit. Der Worker stößt den Heartbeat alle 20 Sekunden an (`marketplace-sync-dispatcher.ts:211`).                                                                                                                                                                  |
+| Nur Chat wiederholt bei „belegt“                                     | Auch `vinted-shipping-label.store.ts:88` wiederholt im Abstand von drei Sekunden bis 90 Sekunden. Beide Cloudwiederholungen später ablösen; unabhängige lokale Wiederholungen erhalten.                                                                                                      |
+| Fotoabruf braucht einen Browserauftrag                               | `/listings/photo/read` lädt nach Berechtigungsprüfung freigegebene Bildbytes, ohne einen Browser zu öffnen (`marketplace-browser-http-api.ts:813`, `vinted-listing-photo-source.ts:26`). Diesen direkten binären Abruf erhalten.                                                             |
+| Abgleich muss erst dauerhaft angenommen werden                       | `/connections/sync/start` liefert bereits HTTP 202 und eine gespeicherte Auftragskennung (`marketplace-browser-http-api.ts:536`, `marketplace-sync-runner.ts:83`). Daneben besteht ein direkter Abgleichweg. Keine zweite Abgleichwarteschlange aufbauen.                                    |
+| Eine gemeinsame Slotprüfung sichert Fairness                         | Sie verhindert nur Überbelegung. Getrennte Claims und die feste Reihenfolge der Auftragstypen sichern weder älteste wartende Konten noch die Reihenfolge abhängiger Artikeländerungen. Es braucht eine gemeinsame atomare Auswahl über bestehende Tabellen.                                  |
+| Neue Tabelle einfach für alle Mitglieder lesbar machen               | Das würde bestehende Rechte möglicherweise erweitern: die heutige Übersicht verlangt Kontoverwaltungsrechte, Cloud zusätzlich Betreiberrechte. Bestehende Grenzen unverändert übernehmen; globale Sitzungsdaten nicht für Clients öffnen.                                                    |
+| Broker- und Datenbankeinstellung jeweils setzen, kleinerer Wert gilt | Dieses Minimum wird heute nirgends ausgetauscht oder durchgesetzt. Hosthardlimit, Datenbankwunsch und tatsächlich für Claims geltende Kapazität müssen konkret verbunden werden. Sonst nimmt SQL Aufträge an, deren Start der Host wieder ablehnt.                                           |
+
+Ein zusätzlicher Engpass fehlt im Protokoll: `chromium-host-broker.ts:308` und `:337` ordnen **alle** Hostbefehle über eine gemeinsame Promise-Kette. Ein `poll` kann fünf Sekunden auf ein Ergebnis warten (`browser-session-commands.ts:95`); dabei warten auch andere Profile. Die eigentliche Anbieteraktion läuft nach `start` asynchron im Container, aber die gemeinsame Steuerung kann andere Konten blockieren. Im Umbau Befehle je Profil ordnen und unterschiedliche Profile parallel bedienen. `DockerSessionChannel` erlaubt je Container weiterhin nur eine offene Anfrage. Die bisherige globale Kette verhindert auf dem regulären HTTP-Weg zugleich konkurrierende Starts: Erst bei ihrer Aufteilung müssen Plätze einschließlich noch startender Browser ausdrücklich atomar reserviert werden. Ein heutiges Startrennen über diesen HTTP-Weg ist damit nicht belegt.
+
+### Sicherheit und vollständige Abläufe
+
+Die neue Auftragstabelle braucht eine unveränderliche Kontobindung einschließlich externer Identität, Ausführungsmodus und maßgeblicher Freigabe. Benutzer-Zugangstokens aus heutigen HTTP-Scopes dürfen nicht gespeichert werden. Die Ausführung erhält eine eigene eng gebundene Serverfreigabe und prüft aktuelle Rechte erneut.
+
+`running` allein reicht für einen sicheren Wiederanlauf nicht. Wie bei Nachrichten und Inseraten muss der Beginn einer möglichen Anbieterwirkung dauerhaft feststehen, bevor geschrieben wird. Bei verlorenem Ergebnis nach möglicher Wirkung folgt `outcome_unknown`, keine automatische Wiederholung. Bestätigter physischer Browserstopp bleibt Voraussetzung für eine erneute Nutzung desselben Kontos. Ein sicher zugeordneter Kontofehler und der Verlust des gesamten Workerbesitzes brauchen unterschiedliche Behandlung.
+
+Das Bearbeiten darf nicht in zwei unabhängig eingeplante Lese-/Schreibaufträge zerfallen. Der Auftrag muss die ursprüngliche Basis und die gewünschten Änderungen tragen; frisches Lesen, Zusammenführen, Konfliktprüfung und Schreiben gehören zusammen. Entsprechende Preis-, Profil- und Fotoprüfungen bleiben erhalten.
+
+Eine Annahmebestätigung ist kein bestätigter Vinted-Erfolg. Heutige Preisänderungen, Bestandentfernung, Profilspeicherung, Erfolgsmeldungen und Versanddateien reagieren auf ein fertiges HTTP-Ergebnis. Diese Folgen müssen künftig am tatsächlichen Auftragsabschluss hängen.
+
+Ergebnis- und Nutzdatenverträge bleiben je Aktionsart verschieden. Normale HTTP-Nutzdaten sind derzeit auf 16 KiB begrenzt, Profiländerungen auf 384 KiB. Fotos bis 50 MiB gehören nicht in JSON-Auftragsergebnisse. Chat- und Profildaten bleiben privat; Broadcast enthält nur einen Änderungshinweis und veranlasst berechtigtes Nachladen.
+
+Die Übersicht muss nach Neuladen, erneuter Anmeldung und Kontowechsel den Serverstand laden. Auftragsversion und Kontextrevision verhindern Rückschritte durch verspätete Antworten. Wartende und prüfbedürftige eigene Aktionen müssen erreichbar bleiben, auch wenn die optionale Übersicht ausgeschaltet ist. Wartegründe müssen den aktuellen Zustand widerspiegeln und dürfen nicht als veralteter Text einfrieren.
+
+Die Rolloutprüfung zählt bekannte Auftragstabellen ausdrücklich auf (`deploy/marketplace-rollout.py:55`). Neue Aufträge müssen in Status, geordnetes Beenden und Wiederanlauf aufgenommen werden. Ein Deployment darf wartende Aufträge erhalten und darf nicht dauerhaft auf eine vollständig leere Warteschlange angewiesen sein.
+
+## Vor der Umsetzung festzulegender Vertrag
+
+Folgende Werte und Verhaltensweisen sind Empfehlungen für die gemeinsame Planung, keine übernommenen Freigaben aus dem Protokoll:
+
+1. **Kapazität:** Standard eins; spätere Erhöhung unabhängig vom Anwendungsumbau. Ein begrenzter Pool garantiert nicht jedem beliebigen Konto gleichzeitig einen eigenen laufenden Browser. Er garantiert eine wartende Annahme und anschließende Vergabe nach festgelegter Reihenfolge. Zwei Browser auf dem genannten Server bleiben eine ungemessene Kapazitätshypothese.
+2. **Reihenfolge:** eine atomare Auswahl über alle Auftragstypen. Empfehlung: bewusste Nutzeraktionen vor noch nicht begonnenen automatischen Abgleichen; unter gleichrangigen ausführbaren Konten entscheidet das Alter. Abhängige Änderungen desselben Artikels dürfen nicht überholt werden. Strikte globale Altersreihenfolge und unbegrenzter Nutzervorrang sind unterschiedliche Regeln; mögliche Verdrängung automatischer Arbeit ausdrücklich festlegen.
+3. **Leserouten:** Empfehlung: Browserabrufe ebenfalls annehmen und Ergebnisse später laden; gespeicherte Listen, Entwürfe und der browserfreie Fotoabruf bleiben direkt nutzbar. Editor-, Chat-, Kategorie-, Stadtsuche- und Versandabläufe einzeln zuordnen. Interaktive Einrichtung/Anmeldung als eigenen Sitzungsablauf mit derselben Poolzählung behandeln; ihr Warteverhalten ausdrücklich festlegen.
+4. **Anfragekennung und Grenzen:** vor Absenden stabil sichern, bei gleicher Kennung und identischem Inhalt denselben Auftrag liefern, bei anderem Inhalt ablehnen. Wartelimit 50 und Aufbewahrung 30 Tage sind bisher Vorschläge. Die Aufbewahrung muss zur zugesagten Dauer der Duplikaterkennung passen.
+5. **Unklare Wirkung:** keine automatische Wiederholung. Empfehlung: abhängige weitere Änderungen am betroffenen Artikel bis zur Klärung blockieren, ohne andere Konten anzuhalten. Wartende Aufträge können abgebrochen werden; Abbruch und Übernahme müssen atomar konkurrieren.
+
+## Planentwurf in zusammenhängenden Schritten
+
+1. **Verträge und Abnahmefälle festhalten.** Für jede Route festlegen: benötigt Browser, bestehender Auftrag oder neuer Auftrag, Nutzdaten, Ergebnis, notwendige Rechte und mögliche Schreibwirkung. Obige Entscheidungen schließen; lokale Erweiterungswege abgrenzen.
+2. **Datenbankgrundlage und Auswahl.** Betreiberkonfiguration, wirksames Poollimit, atomare Konto-/Platzreservierung und gemeinsame Auswahl über bestehende Tabellen. Kontosperre, globale kurze Transaktionssperre und Stoppsicherung erhalten. Neue direkte Aufträge mit Idempotenz, unveränderlicher Identität, Version, Schreibphase, Ergebnis, Abbruch und Wiederherstellung ergänzen.
+3. **Host und Worker.** Kontoabhängige Sitzungsverwaltung und Wiederverwendung, je Profil geordnete Hostbefehle ohne gegenseitige Pollblockade, atomare Startplatzreservierung, begrenzte aktive Ausführungen, wirksame Kapazitätsabstimmung, weiterlaufender Heartbeat und vollständiges geordnetes Beenden. Sichere Kontofehler isolieren; bei ungeklärtem Workerbesitz weitere Starts sperren. Neue Aktionen nach vorhandenem Claim-/Begin-/Finish-Muster ausführen.
+4. **HTTP und Fachabläufe.** Betroffene direkte Wege auf schnelle Annahme/Status/Ergebnis umstellen. Zusammengesetzte Bearbeitung vollständig im Auftrag ausführen. Browserfreie Wege und vorhandene Auftragswege erhalten. Auch bisherige `inFlight`-Ablehnungen für gültige neue Aufträge ersetzen.
+5. **Oberfläche und Livezustand.** Bestehende Übersicht, Parser, Headerfilter, Zähler und Anzeige erweitern. Sichtbare Zustände einschließlich Wartet, Ergebnis unklar und Abgebrochen; aktuelle Wartegründe, Abbruch, Reload und verspätete Ergebnisse absichern. Erst bestätigte Ergebnisse ändern Preis/Bestand und melden Erfolg. Cloud-Busy-Wiederholungen entfernen, lokale Abläufe erhalten.
+6. **Migration, Rollout und zusammenhängende Abnahme.** Schemaregistrierung und erzeugte Typen aktualisieren, Migration aus isolierten eigenen Datenbanken erzeugen und prüfen. Rolloutzählung und Start-/Stoppverhalten ergänzen. Zusammen in einem funktionierenden Aufgabenstand und einem PR veröffentlichen; keine produktive Kapazitätserhöhung als stiller Bestandteil der Analyse.
+
+## Prüfplan für die spätere Umsetzung
+
+| Bereich                    | Bestehende Grundlage und nötiger Nachweis                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Datenbank                  | `supabase/tests/marketplace-live-browser-sessions.test.sql`, `marketplace-sync-scheduling.test.sql`, Cloud-Nachrichten/Favoriten/Verhandlungen/Inserate und `marketplace-action-overview.test.sql`. Konto-/Poolmatrix, Reihenfolge quer über Tabellen, Rechteentzug, Duplikate, Abbruchrennen und Wiederanlauf ergänzen.                                                                                                                                                |
+| Echte Gleichzeitigkeit     | `scripts/marketplace-live-browser-concurrency.mjs:119` verlangt heute ausdrücklich die globale Ablehnung des zweiten Kontos. Mit getrennten Transaktionen Pool eins/zwei, gleiches Konto, verschiedene Arbeitsbereiche und stoppende Sitzungen prüfen.                                                                                                                                                                                                                  |
+| Worker/Host                | Bestehende Tests für Sitzungsbroker, Dispatcher, Schreibverteilung, Recovery und Chromiumhost erweitern. Tatsächlich überlappende Ausführungen, gleicher Kontoschlüssel, verlorene Claims, bestätigter Stopp, Poolabsenkung und vollständiges Drain nachweisen. Poll von A darf B nicht blockieren; Befehle desselben Profils bleiben geordnet, gleichzeitige Starts überschreiten kein Limit. Der heutige Dispatcherfall mit 30 Konten belegt nur serielle Ausführung. |
+| Angular                    | Bestehende Tests für Aktionsspeicher, Header, API, Konto-, Preis-, Editor-, Profil- und Versandscheinabläufe. Bisher bewusst ausgeblendetes `queued` fachlich ändern; angenommene Aufträge dürfen keine Erfolgseffekte auslösen.                                                                                                                                                                                                                                        |
+| Browser                    | Bestehende Fälle in `e2e/vinted-action-overview.spec.ts` und betroffenen Listing-/Profil-/Inbox-/Verkaufsfällen. Annahme → Warten → Abschluss, Reload, Konto A→B→A, deaktivierte optionale Übersicht, Abbruch und unklarer Ausgang. Relevante Breiten, Hell/Dunkel, Touch und AXE einbeziehen.                                                                                                                                                                          |
+| Registrierung und Freigabe | Schema- und Testregistrierung, `scripts/affected-tests.mjs`, `scripts/browser-test-selection.mjs` und `scripts/marketplace-check-selection.mjs` mitprüfen. Vor Push/PR gezielt formatieren, `preflight:plan`, tatsächlichen lokalen `preflight`, Format und Lint mit Node 22 nachweisen. Ausgewählte zusätzliche Linux-/Image-/Datenbankprüfungen in CI erhalten.                                                                                                       |
+
+In dieser Analyse wurden keine Anwendungstests, Datenbanktests, Browserläufe, Builds oder Servermessungen ausgeführt. Die genannten Fälle sind der Prüfplan für die Umsetzung, kein bereits bestandener Nachweis. Geprüft wurden Quellcode und Aufrufketten; die eigenen Dokumente werden gezielt formatiert und ihr Diff kontrolliert.

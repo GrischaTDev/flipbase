@@ -1,5 +1,6 @@
 import { computed, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import type { CloudSetupView } from '../models/marketplace-cloud-setup';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
@@ -25,6 +26,9 @@ let session: ReturnType<typeof signal<{ access_token: string } | null>>;
 let api: {
   available: ReturnType<typeof vi.fn>;
   open: ReturnType<typeof vi.fn>;
+  openCloud: ReturnType<typeof vi.fn>;
+  listenCloudSetup: ReturnType<typeof vi.fn>;
+  listenBrowserSessionPresence: ReturnType<typeof vi.fn>;
   frame: ReturnType<typeof vi.fn>;
   input: ReturnType<typeof vi.fn>;
   identify: ReturnType<typeof vi.fn>;
@@ -52,6 +56,55 @@ beforeEach(async () => {
   api = {
     available: vi.fn().mockResolvedValue({ available: true, readOnly: false }),
     open: vi.fn().mockResolvedValue(id),
+    listenBrowserSessionPresence: vi.fn(
+      async (
+        _scope: unknown,
+        _dialogId: string,
+        _token: string,
+        ready: () => void,
+        signal: AbortSignal,
+      ) => {
+        ready();
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+      },
+    ),
+    openCloud: vi.fn().mockResolvedValue({
+      workspaceId: accountA.workspaceId,
+      connectionId: accountA.connectionId,
+      setupId: id,
+      state: 'login',
+      sessionId: id,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'running',
+      waitReason: null,
+      version: 2,
+    }),
+    listenCloudSetup: vi.fn(
+      async (
+        _scope: unknown,
+        _dialogId: string,
+        _token: string,
+        changed: (setup: unknown) => void,
+        signal: AbortSignal,
+      ) => {
+        changed({
+          workspaceId: accountA.workspaceId,
+          connectionId: accountA.connectionId,
+          setupId: id,
+          state: 'reserved',
+          sessionId: null,
+          startActionId: '70000000-0000-4000-8000-000000000001',
+          startState: 'idle',
+          waitReason: null,
+          version: 1,
+        });
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+      },
+    ),
     frame: vi.fn().mockResolvedValue(jpeg),
     input: vi.fn().mockResolvedValue(undefined),
     identify: vi.fn().mockResolvedValue({ externalAccountId: '12345', username: 'my-vinted' }),
@@ -95,6 +148,164 @@ beforeEach(async () => {
 });
 
 describe('Kontogebundener Browser-Testbereich', () => {
+  it('öffnet eine erneute Anmeldung erst nach Bestätigung des verbundenen Dialogs', async () => {
+    let confirm: (() => void) | null = null;
+    api.listenBrowserSessionPresence.mockImplementationOnce(
+      async (_scope, _id, _token, ready: () => void, signal: AbortSignal) => {
+        confirm = ready;
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+      },
+    );
+    const starting = store.startManualLogin();
+    expect(api.open).not.toHaveBeenCalled();
+    const ready = confirm as (() => void) | null;
+    if (!ready) throw new Error('Dialogverbindung fehlt.');
+    ready();
+    await starting;
+    expect(api.open).toHaveBeenCalledWith(
+      { workspaceId: accountA.workspaceId, connectionId: accountA.connectionId },
+      'token-a',
+      expect.any(String),
+      expect.any(Function),
+    );
+  });
+  it('öffnet nach Schließen vor der Dialogbestätigung keine verspätete Sitzung', async () => {
+    api.listenBrowserSessionPresence.mockImplementationOnce(
+      async (_scope, _id, _token, _ready, signal: AbortSignal) => {
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+      },
+    );
+    const starting = store.startManualLogin();
+    await store.close();
+    await starting;
+    expect(api.open).not.toHaveBeenCalled();
+    expect(api.login).not.toHaveBeenCalled();
+  });
+  it('wartet bei der Einrichtung auf einen freien Platz und startet keine Browserinteraktion vor running', async () => {
+    let changed: ((setup: CloudSetupView) => void) | null = null;
+    const queued: CloudSetupView = {
+      workspaceId: accountA.workspaceId,
+      connectionId: accountA.connectionId,
+      setupId: id,
+      state: 'reserved',
+      sessionId: null,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'queued',
+      waitReason: 'pool_busy',
+      version: 2,
+    };
+    api.listenCloudSetup.mockImplementationOnce(
+      async (
+        _scope,
+        _dialogId,
+        _token,
+        update: (setup: CloudSetupView) => void,
+        signal: AbortSignal,
+      ) => {
+        changed = update;
+        update({
+          ...queued,
+          startActionId: '70000000-0000-4000-8000-000000000001',
+          startState: 'idle',
+          waitReason: null,
+          version: 1,
+        });
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+      },
+    );
+    api.openCloud.mockResolvedValueOnce(queued);
+    store.configureCloudSetup(id);
+    const starting = store.startManualLogin();
+    for (let attempt = 0; attempt < 10; attempt++) await Promise.resolve();
+    expect(store.progress()).toContain('Alle Browserplätze sind belegt');
+    expect(api.frame).not.toHaveBeenCalled();
+    expect(api.login).not.toHaveBeenCalled();
+    const update = changed as ((setup: CloudSetupView) => void) | null;
+    if (!update) throw new Error('Einrichtungsverbindung fehlt.');
+    update({
+      ...queued,
+      startActionId: '70000000-0000-4000-8000-000000000099',
+      startState: 'running',
+      sessionId: id,
+      version: 99,
+    });
+    await Promise.resolve();
+    expect(api.frame).not.toHaveBeenCalled();
+    update({
+      ...queued,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'starting',
+      sessionId: id,
+      version: 3,
+    });
+    await Promise.resolve();
+    expect(api.frame).not.toHaveBeenCalled();
+    update({
+      ...queued,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'running',
+      state: 'login',
+      sessionId: id,
+      waitReason: null,
+      version: 4,
+    });
+    await starting;
+    expect(api.frame).toHaveBeenCalledOnce();
+  });
+  it('widerruft die verbundene Einrichtung bei Schließen auch ohne gestartete Sitzung', async () => {
+    let streamSignal: AbortSignal | null = null;
+    api.listenCloudSetup.mockImplementationOnce(
+      async (
+        _scope,
+        _dialogId,
+        _token,
+        changed: (setup: CloudSetupView) => void,
+        signal: AbortSignal,
+      ) => {
+        streamSignal = signal;
+        changed({
+          workspaceId: accountA.workspaceId,
+          connectionId: accountA.connectionId,
+          setupId: id,
+          state: 'reserved',
+          sessionId: null,
+          startActionId: '70000000-0000-4000-8000-000000000001',
+          startState: 'idle',
+          waitReason: null,
+          version: 1,
+        });
+        await new Promise<void>((_resolve, reject) =>
+          signal.addEventListener('abort', () => reject(new Error('geschlossen')), { once: true }),
+        );
+      },
+    );
+    api.openCloud.mockResolvedValueOnce({
+      workspaceId: accountA.workspaceId,
+      connectionId: accountA.connectionId,
+      setupId: id,
+      state: 'reserved',
+      sessionId: null,
+      startActionId: '70000000-0000-4000-8000-000000000001',
+      startState: 'queued',
+      waitReason: 'pool_busy',
+      version: 2,
+    });
+    store.configureCloudSetup(id);
+    const starting = store.startManualLogin();
+    for (let attempt = 0; attempt < 10; attempt++) await Promise.resolve();
+    await store.close();
+    await starting;
+    const connected = streamSignal as AbortSignal | null;
+    expect(connected?.aborted).toBe(true);
+    expect(api.frame).not.toHaveBeenCalled();
+    expect(api.login).not.toHaveBeenCalled();
+  });
   it('activates a newly created Cloud account immediately after verified login', async () => {
     store.configureCloudSetup(id, true);
     await store.login({ username: 'synthetic', password: 'synthetic' });

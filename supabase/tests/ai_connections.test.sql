@@ -34,7 +34,7 @@ begin
     or has_function_privilege('anon','public.ai_connection_grant(text,uuid,text,uuid[])','execute')
     or has_function_privilege('anon','public.ai_connection_access_token_hook(jsonb)','execute')
     or has_function_privilege('anon','public.ai_connection_image_upload(uuid,uuid,text,text,bigint,uuid)','execute')
-    or has_function_privilege('authenticated','public.ai_connection_price_worker(uuid,uuid,uuid,text,uuid,jsonb,uuid)','execute') then raise exception 'Direkter Schreib-/Benutzerzugriff möglich'; end if;
+    or has_function_privilege('authenticated','public.ai_connection_execution_valid(uuid,uuid,uuid,uuid)','execute') then raise exception 'Direkter Schreib-/Benutzerzugriff möglich'; end if;
   foreach action in array array['create_purchase','update_purchase_draft','finalize_purchase','receive_purchase_lines','record_sale','save_sale_draft','create_invoice','create_expense','update_inventory_item','assign_bank_transaction','book_bank_transaction','create_vinted_draft','create_vinted_relist','save_vinted_draft','enqueue_vinted_listing','set_vinted_price','prepare_vinted_image_upload','import_vinted_original_photos'] loop
     begin
       perform public.ai_connection_call(action,'{}',gen_random_uuid());
@@ -153,7 +153,7 @@ do $$
 declare
   actor uuid:=gen_random_uuid(); client uuid:=gen_random_uuid(); ws uuid:=gen_random_uuid(); grant_id uuid:=gen_random_uuid(); session uuid:=gen_random_uuid();
   account uuid:=gen_random_uuid(); local_account uuid:=gen_random_uuid(); unselected_account uuid:=gen_random_uuid(); entry uuid:=gen_random_uuid();
-  request uuid:=gen_random_uuid(); first_attempt uuid; next_attempt uuid; result jsonb; claims jsonb;
+  request uuid:=gen_random_uuid(); collision uuid:=gen_random_uuid(); action_id uuid; draft_id bigint; listing_request uuid:=gen_random_uuid(); result jsonb; claims jsonb; input jsonb; queued public.marketplace_account_actions;
 begin
   insert into auth.users(id,email) values(actor,actor::text||'@example.test');
   insert into public.workspaces(id,name) values(ws,'Preisversuche');
@@ -166,6 +166,8 @@ begin
   insert into auth.sessions(id,user_id,oauth_client_id,created_at) values(session,actor,client,clock_timestamp());
   insert into public.marketplace_connections(id,workspace_id,marketplace,display_name,execution_mode,status)
     values(account,ws,'vinted','Cloud','cloud','connected'),(local_account,ws,'vinted','Lokal','local','connected'),(unselected_account,ws,'vinted','Nicht freigegeben','cloud','connected');
+  update public.marketplace_connections set external_account_id='123' where id=account;
+  insert into public.marketplace_browser_profiles(workspace_id,connection_id,provider_profile_id) values(ws,account,'mcp_test_profile');
   insert into public.ai_connection_accounts(ai_connection_id,connection_id) values(grant_id,account),(grant_id,local_account);
   insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body) values(entry,ws,account,'publication','123','{}');
   claims:=jsonb_build_object('sub',grant_id,'role','anon','client_id',client,'session_id',session);
@@ -176,24 +178,45 @@ begin
   begin
     perform public.ai_connection_call('set_vinted_price',jsonb_build_object('connection_id',local_account,'entry_id',entry,'expected_price_cents',2500,'price_cents',2000),gen_random_uuid()); raise exception 'Lokales Konto als Cloud-Auftrag angenommen';
   exception when insufficient_privilege then null; end;
-  result:=public.ai_connection_call('set_vinted_price',jsonb_build_object('connection_id',account,'entry_id',entry,'expected_price_cents',2500,'price_cents',2000),request);
-  if result->>'status'<>'accepted' then raise exception 'Kein Preisauftrag'; end if;
-  perform set_config('request.jwt.claims',jsonb_build_object('role','service_role')::text,true);
-  result:=public.ai_connection_price_worker(grant_id,session,request,'begin'); first_attempt:=(result->>'attemptId')::uuid;
-  if first_attempt is null then raise exception 'Ausführungskennung fehlt'; end if;
-  if public.ai_connection_price_worker(grant_id,session,request,'begin')->>'busy'<>'true' then raise exception 'Parallele Ausführung möglich'; end if;
-  update public.ai_connection_requests set result=ai_connection_requests.result||jsonb_build_object('leaseExpiresAt',clock_timestamp()-interval '1 second') where id=request;
-  result:=public.ai_connection_price_worker(grant_id,session,request,'begin'); next_attempt:=(result->>'attemptId')::uuid;
-  if next_attempt=first_attempt or result->>'previousOutcomeUnknown'<>'true' then raise exception 'Wiederaufnahme verliert den vorherigen Ausgang'; end if;
-  begin
-    perform public.ai_connection_price_worker(grant_id,session,request,'finish',null,'{"status":"failed"}',first_attempt); raise exception 'Verspätete Antwort überschreibt neuen Versuch';
-  exception when insufficient_privilege then null; end;
-  perform public.ai_connection_price_worker(grant_id,session,request,'finish',null,'{"status":"outcome_unknown"}',next_attempt);
-  perform set_config('request.jwt.claims',claims::text,true);
+  input:=jsonb_build_object('connection_id',account,'entry_id',entry,'expected_price_cents',2500,'price_cents',2000);
+  result:=public.ai_connection_call('set_vinted_price',input,request);
+  action_id:=(result#>>'{action,id}')::uuid;
+  if action_id is null or result#>>'{action,state}' is distinct from 'queued' then raise exception 'Kein dauerhafter Preisauftrag'; end if;
+  if public.ai_connection_call('set_vinted_price',input,request) is distinct from result
+    or (select count(*) from public.marketplace_account_actions where request_id=request)<>1 then raise exception 'Doppelter Preisauftrag'; end if;
+  select * into queued from public.marketplace_account_actions where public_id=action_id;
+  if queued.ai_connection_id is distinct from grant_id or not public.marketplace_account_action_authorized(queued) then raise exception 'KI-Auftrag nicht gebunden/freigegeben'; end if;
+  update public.workspace_members set role='member' where workspace_id=ws and user_id=actor;
+  if public.marketplace_account_action_authorized(queued) then raise exception 'Entzogene Rolle ignoriert'; end if;
+  update public.workspace_members set role='owner' where workspace_id=ws and user_id=actor;
+  delete from public.ai_connection_accounts where ai_connection_id=grant_id and connection_id=account;
+  if public.marketplace_account_action_authorized(queued) then raise exception 'Entzogenes Konto ignoriert'; end if;
+  insert into public.ai_connection_accounts(ai_connection_id,connection_id) values(grant_id,account);
+  update public.marketplace_account_actions set state='outcome_unknown',error_code='interrupted' where public_id=action_id;
   result:=public.ai_connection_call('read_action_result',jsonb_build_object('action_id',request));
-  if result->>'status'<>'outcome_unknown' then raise exception 'Falscher Ergebnisstand'; end if;
+  if result#>>'{action,state}' is distinct from 'outcome_unknown' then raise exception 'Falscher Ergebnisstand'; end if;
+  if public.ai_connection_call('set_vinted_price',input,request) is distinct from result then raise exception 'Wiederholung verliert aktuellen Zustand'; end if;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',actor,'role','authenticated')::text,true);
+  perform public.marketplace_account_action_enqueue(ws,account,collision,'price_save',jsonb_build_object('entryId',entry,'expectedPriceCents',2500,'priceCents',2000));
+  perform set_config('request.jwt.claims',claims::text,true);
+  begin
+    perform public.ai_connection_call('set_vinted_price',input,collision); raise exception 'Manueller Auftrag einer KI-Freigabe zugeordnet';
+  exception when unique_violation then null; end;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',actor,'role','authenticated')::text,true);
+  draft_id:=(public.marketplace_create_listing_draft(ws,account,'{}')->>'id')::bigint;
+  insert into public.marketplace_listing_jobs(workspace_id,connection_id,draft_id,requested_by,request_id,request_hash,draft_revision,authorization_version,external_account_id,execution_mode,action,snapshot,state)
+    values(ws,account,draft_id,actor,listing_request,repeat('0',64),1,1,'123','cloud','publish','{}','failed');
+  perform set_config('request.jwt.claims',claims::text,true);
+  begin
+    perform public.ai_connection_call('enqueue_vinted_listing',jsonb_build_object('draft_id',draft_id,'expected_revision',1,'action','publish'),listing_request);
+    raise exception 'Manueller Inseratauftrag einer KI-Freigabe zugeordnet';
+  exception when unique_violation then null; end;
+  update public.ai_connections set revoked_at=clock_timestamp() where id=grant_id;
+  if public.marketplace_account_action_authorized(queued) then raise exception 'Widerruf vor Ausführung ignoriert'; end if;
+  select * into queued from public.marketplace_account_actions where request_id=collision;
+  if not public.marketplace_account_action_authorized(queued) then raise exception 'Manueller Auftrag durch KI-Widerruf gesperrt'; end if;
 end $$;
-select pass('Vinted-Kontenauswahl und Cloud-Grenze gelten; verspätete Preisversuche überschreiben keine neue Ausführung');
+select pass('Vinted-Preisaufträge nutzen die gemeinsame Warteschlange, aktuelle Ergebnisse und widerrufbare KI-Grenzen');
 do $$
 declare
   actor uuid:=gen_random_uuid(); client uuid:=gen_random_uuid(); ws uuid:=gen_random_uuid(); grant_id uuid:=gen_random_uuid(); session uuid:=gen_random_uuid();

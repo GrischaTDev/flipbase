@@ -137,7 +137,7 @@
           <app-button
             variant="plain"
             link="/marketplaces/vinted/messages"
-            ariaLabel="Alle gespeicherten Gespräche ansehen"
+            ariaLabel="Alle ansehen – gespeicherte Gespräche"
           >
             Alle ansehen
           </app-button>
@@ -151,7 +151,6 @@
                 contentAlign="start"
                 link="/marketplaces/vinted/messages"
                 [queryParams]="{ connectionId: snapshot.connectionId, conversationId: entry.id }"
-                [ariaLabel]="'Gespräch ' + entry.title + ' öffnen'"
               >
                 <div class="flex w-full min-w-0 items-center justify-between gap-3 py-1">
                   <div class="flex min-w-0 items-center gap-3">
@@ -207,7 +206,7 @@
           <app-button
             variant="plain"
             link="/marketplaces/vinted/sales"
-            ariaLabel="Alle Verkäufe ansehen"
+            ariaLabel="Alle ansehen – Verkäufe"
           >
             Alle ansehen
           </app-button>

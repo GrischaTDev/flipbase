@@ -44,14 +44,13 @@
       <a
         [routerLink]="draft.detailLink"
         class="block min-w-0 rounded-xl focus-visible:outline-2 focus-visible:outline-[color:var(--fb-control-focus)]"
-        [attr.aria-label]="draft.title + ' bearbeiten · Vinted-Entwurf'"
       >
         <app-card padding="none" class="h-full min-w-0 overflow-hidden">
           <div [class]="viewMode() === 'grid' ? 'min-w-0' : 'flex min-w-0 items-center gap-3 p-3'">
             <app-product-thumbnail
               [class]="viewMode() === 'grid' ? 'block w-full' : 'block shrink-0'"
               [src]="draft.imageUrl"
-              [alt]="draft.title"
+              alt=""
               [size]="viewMode() === 'grid' ? 'listing' : 'md'"
               [flush]="viewMode() === 'grid'"
             />
@@ -73,6 +72,7 @@
             </div>
           </div>
         </app-card>
+        <span class="sr-only"> bearbeiten</span>
       </a>
     }
   </div>

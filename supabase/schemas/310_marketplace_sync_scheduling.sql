@@ -119,7 +119,7 @@ begin
     insert into public.marketplace_worker_runtime(id,worker_id,worker_epoch,heartbeat_at,expires_at) overriding system value
       values(1,p_worker_id,1,clock_timestamp(),clock_timestamp()+interval '90 seconds') returning * into v_runtime;
   elsif v_runtime.expires_at <= clock_timestamp() then
-    update public.marketplace_worker_runtime set worker_id=p_worker_id,worker_epoch=worker_epoch+1,
+    update public.marketplace_worker_runtime set worker_id=p_worker_id,worker_epoch=worker_epoch+1,broker_capacity=0,broker_capacity_verified_at=null,
       heartbeat_at=clock_timestamp(),expires_at=clock_timestamp()+interval '90 seconds' where id=1 returning * into v_runtime;
   end if;
   return jsonb_build_object('workerId',v_runtime.worker_id,'workerEpoch',v_runtime.worker_epoch,'expiresAt',v_runtime.expires_at);
@@ -160,10 +160,10 @@ begin
 end;
 $$;
 
-create or replace function public.marketplace_sync_dispatch_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_include_scheduled boolean default false)
+create or replace function public.marketplace_sync_dispatch_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_include_scheduled boolean default false,p_target_id uuid default null)
 returns jsonb language plpgsql volatile security invoker set search_path = '' as $$
 declare v_runtime public.marketplace_worker_runtime; v_schedule public.marketplace_sync_schedules; v_operation public.marketplace_operations;
-  v_connection public.marketplace_connections; v_session public.marketplace_browser_sessions; v_profile text;
+  v_connection public.marketplace_connections; v_session public.marketplace_browser_sessions; v_profile text; v_next jsonb;
 begin
   if p_runner_id is null then raise exception 'Auftragskennung fehlt' using errcode = '22023'; end if;
   perform pg_advisory_xact_lock(91731,1);
@@ -186,9 +186,15 @@ begin
       update public.marketplace_sync_schedules set next_due_at=clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),updated_at=clock_timestamp() where id=v_schedule.id;
     end loop;
   end if;
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
+  if p_target_id is null then
+    v_next:=public.marketplace_browser_next_work(p_include_scheduled);
+    if v_next is null or v_next->>'kind'<>'sync' then return null; end if;
+    p_target_id:=(v_next->>'jobId')::uuid;
+  end if;
+  if not public.marketplace_browser_job_eligible('sync',p_target_id::text) then return null; end if;
   for v_operation in select * from public.marketplace_operations where state='queued' and authorization_version=1
-    and (authorization_kind='manual_read' or p_include_scheduled) order by (authorization_kind='manual_read') desc,created_at,id loop
+    and id=p_target_id and public.marketplace_browser_slot_status(workspace_id,connection_id) is null
+    and (authorization_kind='manual_read' or p_include_scheduled) order by created_at,id loop
     select * into v_connection from public.marketplace_connections where workspace_id=v_operation.workspace_id and id=v_operation.connection_id and marketplace='vinted' for update;
     v_schedule := null;
     if v_operation.authorization_kind='scheduled_read' then

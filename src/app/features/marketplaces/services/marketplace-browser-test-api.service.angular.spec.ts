@@ -13,6 +13,91 @@ import {
   VintedEditUnconfirmedError,
 } from './marketplace-browser-test-api.service';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
+import { vintedAccountActionKind } from './vinted-account-action-transport';
+import type { VintedAccountAction } from '../models/vinted-account-action';
+
+/** Ergebnisfälle laufen durch denselben Annahmevertrag; explizite Protokollfehler bleiben unverändert. */
+function mockWorkerFetch(
+  implementation: (input: RequestInfo | URL, init?: RequestInit) => Response | Promise<Response>,
+): void {
+  const receipts = new Map<string, VintedAccountAction>();
+  const payloads = new Map<string, string>();
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path =
+      typeof input === 'string' ? input : input instanceof URL ? input.pathname : input.url;
+    if (path === '/marketplace-browser/healthz')
+      return Response.json({
+        ok: true,
+        apiVersion: 2,
+        readOnly: false,
+        accountActionsEnabled: true,
+      });
+    const kind = vintedAccountActionKind(path);
+    if (!kind || !init?.body || typeof init.body !== 'string') return implementation(input, init);
+    const requested: unknown = JSON.parse(init.body);
+    if (
+      !requested ||
+      typeof requested !== 'object' ||
+      !('requestId' in requested) ||
+      typeof requested.requestId !== 'string'
+    )
+      return implementation(input, init);
+    if (
+      !('workspaceId' in requested) ||
+      typeof requested.workspaceId !== 'string' ||
+      !('connectionId' in requested) ||
+      typeof requested.connectionId !== 'string'
+    )
+      throw new Error('Der Testauftrag hat keinen Kontobezug.');
+    const previous = receipts.get(requested.requestId);
+    if (previous) {
+      if (payloads.get(requested.requestId) !== init.body || previous.kind !== kind)
+        throw new Error('Die Testanfragekennung wurde verändert.');
+      return Response.json({ action: previous }, { status: 202 });
+    }
+    const response = await implementation(input, init);
+    if (response.status !== 200) return response;
+    const result: unknown = await response.json().catch(() => null);
+    const status =
+      result && typeof result === 'object' && 'status' in result ? result.status : null;
+    const action: VintedAccountAction = {
+      workspaceId: requested.workspaceId,
+      connectionId: requested.connectionId,
+      id: `eeeeeeee-eeee-4eee-8eee-${String(receipts.size + 1).padStart(12, '0')}`,
+      requestId: requested.requestId,
+      kind,
+      entryId:
+        'entryId' in requested && typeof requested.entryId === 'string' ? requested.entryId : null,
+      title: null,
+      state:
+        status === 'unconfirmed' || status === 'outcome_unknown'
+          ? 'outcome_unknown'
+          : status === 'conflict' ||
+              status === 'failed' ||
+              (result &&
+                typeof result === 'object' &&
+                'outcome' in result &&
+                result.outcome === 'failed') ||
+              result === null
+            ? 'failed'
+            : 'succeeded',
+      version: 1,
+      waitReason: null,
+      errorCode: null,
+      result,
+      blockedByActionId: null,
+      historyPurged: false,
+      resultExpired: false,
+      createdAt: '2026-11-14T12:00:00Z',
+      updatedAt: '2026-11-14T12:00:00Z',
+      startedAt: null,
+      finishedAt: null,
+    };
+    receipts.set(requested.requestId, action);
+    payloads.set(requested.requestId, init.body);
+    return Response.json({ action }, { status: 202 });
+  });
+}
 
 const scope = {
   workspaceId: '25600000-0000-4000-8000-000000000011',
@@ -20,6 +105,46 @@ const scope = {
 };
 const id = '25600000-0000-4000-8000-000000000031';
 const api = new MarketplaceBrowserTestApiService();
+it('verbindet die Setup-Präsenz vor dem Start und liest geteilte SSE-Nachrichten kontogebunden', async () => {
+  const setup = {
+    ...scope,
+    setupId: id,
+    state: 'reserved',
+    sessionId: null,
+    startActionId: '70000000-0000-4000-8000-000000000001',
+    startState: 'queued',
+    waitReason: 'pool_busy',
+    version: 2,
+  };
+  const controller = new AbortController();
+  const encoded = new TextEncoder().encode(
+    `event: setup_changed\r\ndata: ${JSON.stringify(setup)}\r\n\r\n`,
+  );
+  const stream = new ReadableStream<Uint8Array>({
+    start(output) {
+      output.enqueue(encoded.slice(0, 19));
+      output.enqueue(encoded.slice(19));
+      output.close();
+    },
+  });
+  const request = vi
+    .fn()
+    .mockResolvedValueOnce(
+      new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } }),
+    );
+  mockWorkerFetch(request);
+  const changed = vi.fn(() => controller.abort());
+  await api.listenCloudSetup(
+    { ...scope, cloudSetupId: id },
+    id,
+    'token',
+    changed,
+    controller.signal,
+  );
+  expect(changed).toHaveBeenCalledWith(setup);
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, dialogId: id });
+  expect(request.mock.calls[0][0]).toBe(`/marketplace-browser/cloud-setups/${id}/presence`);
+});
 it('liest vollständige Profildaten und verwirft unbestätigte oder abweichende Speicherantworten', async () => {
   const profile = {
     about: 'Shop',
@@ -33,7 +158,7 @@ it('liest vollständige Profildaten und verwirft unbestätigte oder abweichende 
   };
   const changes = { about: 'Neu', city: 'Berlin', showCity: true, language: 'de-DE' };
   const request = vi.fn().mockResolvedValueOnce(Response.json({ profile }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   expect(await api.readProfileDetails(scope, 'token')).toEqual(profile);
   request.mockResolvedValueOnce(
     Response.json({ status: 'confirmed', profile: { ...profile, about: 'Neu' }, cache: 'pending' }),
@@ -43,6 +168,7 @@ it('liest vollständige Profildaten und verwirft unbestätigte oder abweichende 
     cachePending: true,
   });
   expect(JSON.parse(request.mock.calls[1][1].body)).toEqual({
+    requestId: expect.any(String),
     ...scope,
     changes,
     expected: profile,
@@ -71,9 +197,10 @@ it('liest vollständige Profildaten und verwirft unbestätigte oder abweichende 
 });
 it('sendet nur bisherigen und neuen Centpreis und wertet Konflikte sowie unbestätigte Antworten aus', async () => {
   const request = vi.fn().mockResolvedValue(Response.json({ status: 'confirmed' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await api.saveListingPrice(scope, id, 2050, 1000, 'token');
   expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
     ...scope,
     entryId: id,
     expectedPriceCents: 2050,
@@ -96,7 +223,7 @@ it('ordnet die bestätigte Relist-Sperre allen Inserat-Schreibaktionen mit derse
         { status: 409 },
       ),
     );
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   const content = listingCurrentContentFixture().content;
   for (const action of [
     () => api.saveListingPrice(scope, id, 1200, 1300, 'token'),
@@ -153,10 +280,14 @@ const categoryFields = {
 };
 it('liest ausschließlich Werte für die angeforderte Kategorie und das gebundene Konto', async () => {
   const request = vi.fn().mockResolvedValue(Response.json({ fields: categoryFields }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   expect(await api.readListingCategory(scope, 1223, 'token')).toEqual(categoryFields);
   expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/category/read');
-  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, categoryId: 1223 });
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
+    ...scope,
+    categoryId: 1223,
+  });
   request.mockResolvedValueOnce(Response.json({ fields: { ...categoryFields, categoryId: 2738 } }));
   await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow();
   request.mockResolvedValueOnce(Response.json({ fields: categoryFields, token: 'forbidden' }));
@@ -164,7 +295,7 @@ it('liest ausschließlich Werte für die angeforderte Kategorie und das gebunden
 });
 it('verweigert eine ungültige Kategorie vor dem Abruf und meldet einen veralteten Leser', async () => {
   const request = vi.fn().mockResolvedValue(new Response(null, { status: 404 }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await expect(api.readListingCategory(scope, 0, 'token')).rejects.toThrow();
   expect(request).not.toHaveBeenCalled();
   await expect(api.readListingCategory(scope, 1223, 'token')).rejects.toThrow('aktualisiert');
@@ -173,10 +304,14 @@ it('liest den Iststand eines bestehenden Inserats nur für das erwartete Konto',
   const listing = listingCurrentContentFixture();
   const expected = '123';
   const request = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ listing })));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   expect(await api.readListingContent(scope, id, expected, 'token')).toEqual(listing);
   expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/content/read');
-  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id });
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
+    ...scope,
+    entryId: id,
+  });
   await expect(api.readListingContent(scope, id, '124', 'token')).rejects.toThrow('ungültige');
   request.mockResolvedValueOnce(Response.json({ listing: { ...listing, externalId: 'abc' } }));
   await expect(api.readListingContent(scope, id, expected, 'token')).rejects.toThrow('ungültige');
@@ -197,10 +332,11 @@ it('meldet geänderte Inseratangaben nur nach Anbieterbestätigung als gespeiche
   const base = listingCurrentContentFixture().content;
   const content = { ...base, priceCents: 1800 };
   const request = vi.fn().mockResolvedValue(Response.json({ status: 'confirmed' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await expect(api.saveListingContent(scope, id, base, content, 'token')).resolves.toBeUndefined();
   expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/content/save');
   expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
     ...scope,
     entryId: id,
     base,
@@ -247,12 +383,13 @@ it('überträgt eine geänderte Fotoreihenfolge nur, wenn sie angegeben ist', as
   const base = listingCurrentContentFixture().content;
   const [first, second] = listingCurrentContentFixture().photoUrls;
   const request = vi.fn().mockImplementation(async () => Response.json({ status: 'confirmed' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await api.saveListingContent(scope, id, base, base, 'token', {
     base: [first!, second!],
     desired: [second!],
   });
   expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
     ...scope,
     entryId: id,
     base,
@@ -266,33 +403,35 @@ it('bestätigt einen Gesprächsabruf nur mit passender ID und gültigem Prüfzei
   const fetchMock = vi
     .fn()
     .mockResolvedValue(Response.json({ conversationId: id, observedAt: '2026-10-07T21:00:00Z' }));
-  vi.stubGlobal('fetch', fetchMock);
+  mockWorkerFetch(fetchMock);
   expect(await api.readConversation(scope, id, 'token')).toBe('2026-10-07T21:00:00Z');
   expect(fetchMock.mock.calls[0][0]).toBe('/marketplace-browser/conversations/read');
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ...scope, conversationId: id });
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
+    ...scope,
+    conversationId: id,
+  });
 });
 it.each([
   { conversationId: 'another-conversation', observedAt: '2026-10-07T21:00:00Z' },
   { conversationId: id, observedAt: 'invalid' },
   { conversationId: id },
 ])('verwirft eine unbestätigte Cloud-Gesprächsantwort (%j)', async (body) => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(body)));
+  mockWorkerFetch(vi.fn().mockResolvedValue(Response.json(body)));
   await expect(api.readConversation(scope, id, 'token')).rejects.toThrow();
 });
 it('meldet nur eine bestätigte Browserbelegung als beschäftigtes Cloud-Konto', async () => {
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi.fn().mockResolvedValue(Response.json({ code: 'browser_session_busy' }, { status: 409 })),
   );
   await expect(api.readConversation(scope, id, 'token')).rejects.toThrow('gerade verwendet');
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi.fn().mockResolvedValue(Response.json({ error: 'private server error' }, { status: 409 })),
   );
   await expect(api.readConversation(scope, id, 'token')).rejects.toThrow('Gesprächsverlaufs');
 });
 it('zeigt keine privaten Transportfehler beim Gesprächsabruf an', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('private connection details')));
+  mockWorkerFetch(vi.fn().mockRejectedValue(new Error('private connection details')));
   await expect(api.readConversation(scope, id, 'token')).rejects.toThrow('Gesprächsverlaufs');
 });
 
@@ -301,9 +440,18 @@ it('liest nach verlorener Abschlussantwort den bestätigten Zustand, ohne erneut
     .fn()
     .mockRejectedValueOnce(new Error('lost ACK'))
     .mockResolvedValueOnce(
-      Response.json({ ...scope, setupId: id, state: 'completed', sessionId: null }),
+      Response.json({
+        ...scope,
+        setupId: id,
+        state: 'completed',
+        sessionId: null,
+        startActionId: '70000000-0000-4000-8000-000000000001',
+        startState: 'idle',
+        waitReason: null,
+        version: 1,
+      }),
     );
-  vi.stubGlobal('fetch', fetchMock);
+  mockWorkerFetch(fetchMock);
   expect((await api.completeCloud({ ...scope, cloudSetupId: id }, 'token')).state).toBe(
     'completed',
   );
@@ -316,26 +464,48 @@ it('liest nach verlorener Abschlussantwort den bestätigten Zustand, ohne erneut
 it('öffnet und beendet Einrichtungen ausschließlich über ihren Setup-Pfad', async () => {
   const fetchMock = vi
     .fn()
-    .mockResolvedValueOnce(Response.json({ id }, { status: 201 }))
     .mockResolvedValueOnce(
-      Response.json({ ...scope, setupId: id, state: 'cleanup_pending', sessionId: null }),
+      Response.json(
+        {
+          ...scope,
+          setupId: id,
+          state: 'reserved',
+          sessionId: null,
+          startActionId: '70000000-0000-4000-8000-000000000001',
+          startState: 'queued',
+          waitReason: 'pool_busy',
+          version: 1,
+        },
+        { status: 202 },
+      ),
+    )
+    .mockResolvedValueOnce(
+      Response.json({
+        ...scope,
+        setupId: id,
+        state: 'cleanup_pending',
+        sessionId: null,
+        startActionId: '70000000-0000-4000-8000-000000000001',
+        startState: 'idle',
+        waitReason: null,
+        version: 1,
+      }),
     );
-  vi.stubGlobal('fetch', fetchMock);
+  mockWorkerFetch(fetchMock);
   const setupScope = { ...scope, cloudSetupId: id };
-  await api.open(setupScope, 'token');
+  await api.openCloud(setupScope, id, 'token');
   await api.close(setupScope, id, 'token');
   expect(fetchMock.mock.calls.map(([path]) => path)).toEqual([
     `/marketplace-browser/cloud-setups/${id}/open`,
     `/marketplace-browser/cloud-setups/${id}/cancel`,
   ]);
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual(scope);
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ...scope, dialogId: id });
 });
 
 it.each([false, true])(
   'unterscheidet Mensch-Prüfungen auch beim Hintergrundabruf (%s)',
   async (allowPending) => {
-    vi.stubGlobal(
-      'fetch',
+    mockWorkerFetch(
       vi
         .fn()
         .mockResolvedValue(Response.json({ code: 'vinted_interaction_required' }, { status: 422 })),
@@ -347,10 +517,7 @@ it.each([false, true])(
 );
 
 it('akzeptiert die Mensch-Prüfung nach einer Codebestätigung', async () => {
-  vi.stubGlobal(
-    'fetch',
-    vi.fn().mockResolvedValue(Response.json({ status: 'interaction_required' })),
-  );
+  mockWorkerFetch(vi.fn().mockResolvedValue(Response.json({ status: 'interaction_required' })));
   await expect(api.verify(scope, id, '123456', 'token')).resolves.toBe('interaction_required');
 });
 
@@ -370,8 +537,7 @@ const sourceResults = () => ({
 
 it('übernimmt getrennte Bereichsergebnisse eines erfolgreichen Auftrags', async () => {
   vi.useFakeTimers();
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi
       .fn()
       .mockImplementation(async (path: string) =>
@@ -395,8 +561,7 @@ it('übernimmt getrennte Bereichsergebnisse eines erfolgreichen Auftrags', async
 
 it('akzeptiert einen älteren Worker ohne Bereichsergebnisse', async () => {
   vi.useFakeTimers();
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi
       .fn()
       .mockImplementation(async (path: string) =>
@@ -421,8 +586,7 @@ it.each(
   ].map((results) => ({ results })),
 )('weist beschädigte oder unbekannte Bereichsergebnisse zurück: %j', async ({ results }) => {
   vi.useFakeTimers();
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi
       .fn()
       .mockImplementation(async (path: string) =>
@@ -469,7 +633,7 @@ describe('Browser-Test-API', () => {
 
   it('überträgt die manuelle Bewegung mit unverändertem Kontobezug und Zeitwerten', async () => {
     const request = vi.fn().mockResolvedValue(Response.json({ accepted: true }));
-    vi.stubGlobal('fetch', request);
+    mockWorkerFetch(request);
     const input = {
       kind: 'drag' as const,
       points: [
@@ -511,7 +675,7 @@ describe('Browser-Test-API', () => {
 
   it('sendet nur den angemeldeten Token und den gewählten Kontobezug', async () => {
     const request = vi.fn().mockResolvedValue(Response.json({ id }, { status: 201 }));
-    vi.stubGlobal('fetch', request);
+    mockWorkerFetch(request);
     expect(await api.open(scope, 'user-test-token')).toBe(id);
     const [path, options] = request.mock.calls[0] as [string, RequestInit];
     expect(path).toBe('/marketplace-browser/sessions');
@@ -521,8 +685,7 @@ describe('Browser-Test-API', () => {
   });
 
   it('erkennt den festen Code für das erreichte GoLogin-API-Limit', async () => {
-    vi.stubGlobal(
-      'fetch',
+    mockWorkerFetch(
       vi
         .fn()
         .mockResolvedValue(Response.json({ code: 'gologin_api_limit_reached' }, { status: 503 })),
@@ -537,14 +700,13 @@ describe('Browser-Test-API', () => {
     const request = vi
       .fn()
       .mockResolvedValue(Response.json({ code, error: 'secret-server-detail' }, { status: 409 }));
-    vi.stubGlobal('fetch', request);
+    mockWorkerFetch(request);
     await expect(api.open(scope, 'user-test-token')).rejects.toBeInstanceOf(errorType);
     expect(request).toHaveBeenCalledTimes(1);
   });
 
   it('verwendet bei einem unbekannten Konflikt weiterhin den neutralen Fehler', async () => {
-    vi.stubGlobal(
-      'fetch',
+    mockWorkerFetch(
       vi
         .fn()
         .mockResolvedValue(
@@ -557,8 +719,7 @@ describe('Browser-Test-API', () => {
   });
 
   it('nennt die erreichte GoLogin-Profilgrenze beim Browserstart', async () => {
-    vi.stubGlobal(
-      'fetch',
+    mockWorkerFetch(
       vi
         .fn()
         .mockResolvedValue(
@@ -572,15 +733,14 @@ describe('Browser-Test-API', () => {
     const bytes = new Uint8Array(512 * 1024 + 1);
     bytes[0] = 0xff;
     bytes[1] = 0xd8;
-    vi.stubGlobal(
-      'fetch',
+    mockWorkerFetch(
       vi.fn().mockResolvedValue(new Response(bytes, { headers: { 'Content-Type': 'image/jpeg' } })),
     );
     await expect(api.frame(scope, id, 'user-test-token')).rejects.toThrow('ungültig');
   });
 
   it('erkennt eine serverseitig bestätigte beendete Sitzung', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 410 })));
+    mockWorkerFetch(vi.fn().mockResolvedValue(new Response(null, { status: 410 })));
     await expect(api.frame(scope, id, 'user-test-token')).rejects.toBeInstanceOf(
       BrowserTestSessionEndedError,
     );
@@ -595,7 +755,7 @@ describe('Browser-Test-API', () => {
         username: 'my-vinted',
       }),
     );
-    vi.stubGlobal('fetch', request);
+    mockWorkerFetch(request);
     await expect(api.identify(scope, id, 'user-test-token')).resolves.toEqual({
       externalAccountId: '12345',
       username: 'my-vinted',
@@ -616,7 +776,7 @@ describe('Browser-Test-API', () => {
 
 it('sendet Zugangsdaten nur im begrenzten Loginauftrag und behandelt Ablauf getrennt', async () => {
   const request = vi.fn().mockResolvedValue(Response.json({ status: 'submitted' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await expect(
     api.login(scope, id, { username: 'synthetic', password: 'synthetic' }, 'token'),
   ).resolves.toBe('submitted');
@@ -645,22 +805,20 @@ it('sendet Zugangsdaten nur im begrenzten Loginauftrag und behandelt Ablauf getr
 
 it('unterscheidet eine noch offene Anmeldung von einer bestätigten Identität', async () => {
   const request = vi.fn().mockResolvedValue(new Response(null, { status: 422 }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await expect(api.identify(scope, id, 'token', true)).resolves.toBeNull();
   await expect(api.identify(scope, id, 'token')).rejects.toThrow();
 });
 
 it('meldet ein weiterhin sichtbares Vinted-Anmeldeformular gesondert', async () => {
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi.fn().mockResolvedValue(Response.json({ code: 'vinted_login_pending' }, { status: 422 })),
   );
   await expect(api.identify(scope, id, 'synthetic', true)).rejects.toThrow('Anmeldeformular');
 });
 
 it('zeigt abgelehnte Zugangsdaten statt eines endlosen Prüfstatus', async () => {
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi.fn().mockResolvedValue(Response.json({ code: 'vinted_login_rejected' }, { status: 422 })),
   );
   await expect(api.identify(scope, id, 'synthetic', true)).rejects.toThrow('Zugangsdaten');
@@ -670,7 +828,7 @@ it('meldet einen angeforderten Vinted-Code und sendet ihn an die gebundene Sitzu
   const request = vi
     .fn()
     .mockResolvedValue(Response.json({ code: 'vinted_verification_required' }, { status: 422 }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await expect(api.identify(scope, id, 'token', true)).rejects.toThrow('Bestätigungscode');
   request.mockResolvedValueOnce(Response.json({ status: 'submitted' }));
   await expect(api.verify(scope, id, '123456', 'token')).resolves.toBe('submitted');
@@ -679,7 +837,7 @@ it('meldet einen angeforderten Vinted-Code und sendet ihn an die gebundene Sitzu
 });
 
 it('meldet eine unbestätigte Kontolöschung gesondert', async () => {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 409 })));
+  mockWorkerFetch(vi.fn().mockResolvedValue(new Response(null, { status: 409 })));
   await expect(api.deleteConnection(scope, 'token')).rejects.toThrow(
     'noch nicht vollständig gelöscht',
   );
@@ -694,13 +852,18 @@ it('verweigert das Löschen über einen veralteten Worker vor einer Schreibanfra
 
 it('behandelt nur nachgelesene Vinted-Änderungen als gespeichert', async () => {
   const request = vi.fn().mockResolvedValue(Response.json({ status: 'unconfirmed' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   const fields = { title: 'Jacke', description: 'Beschreibung', price: '12,50' };
   await expect(api.saveListingEdit(scope, id, fields, 'token')).rejects.toThrow(
     'nicht eindeutig bestätigt',
   );
   expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/edit/save');
-  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id, fields });
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
+    ...scope,
+    entryId: id,
+    fields,
+  });
   request.mockResolvedValueOnce(Response.json({ status: 'confirmed' }));
   await expect(api.saveListingEdit(scope, id, fields, 'token')).resolves.toBeUndefined();
   request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
@@ -712,7 +875,7 @@ it('behandelt nur nachgelesene Vinted-Änderungen als gespeichert', async () => 
 it('bewahrt eine ausstehende Textspeicherung und bestätigt alte Antworten nicht', async () => {
   const fields = { title: 'Jacke', description: '', price: '12,50' };
   const request = vi.fn().mockResolvedValue(Response.json({ fields, cache: 'pending' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   expect(await api.readListingData(scope, id, 'token')).toEqual({ fields, cacheState: 'pending' });
   request.mockResolvedValueOnce(Response.json({ fields }));
   expect(await api.readListingData(scope, id, 'token')).toEqual({
@@ -725,38 +888,57 @@ it('bewahrt eine ausstehende Textspeicherung und bestätigt alte Antworten nicht
 
 it('akzeptiert nur die eindeutige Löschbestätigung und wiederholt weder unklare Antworten noch Netzfehler', async () => {
   const request = vi.fn().mockResolvedValueOnce(Response.json({ status: 'confirmed' }));
-  vi.stubGlobal('fetch', request);
+  mockWorkerFetch(request);
   await api.deleteListing(scope, id, 'token');
   expect(request.mock.calls[0][0]).toBe('/marketplace-browser/listings/delete');
-  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({ ...scope, entryId: id });
+  expect(JSON.parse(request.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
+    ...scope,
+    entryId: id,
+  });
   for (const response of [
     Response.json({ status: 'outcome_unknown' }),
-    Response.json({ status: 'failed' }),
     Response.json({ status: 'confirmed', unexpected: true }),
-    new Response('private invalid payload'),
   ]) {
     request.mockResolvedValueOnce(response);
     await expect(api.deleteListing(scope, id, 'token')).rejects.toThrow(
       'Die Löschung wurde nicht bestätigt.',
     );
   }
+  request.mockResolvedValueOnce(Response.json({ status: 'failed' }));
+  await expect(api.deleteListing(scope, id, 'token')).rejects.toThrow(
+    'Das Inserat konnte nicht gelöscht werden.',
+  );
+  request.mockResolvedValueOnce(new Response('private invalid payload'));
+  await expect(api.deleteListing(scope, id, 'token')).rejects.toThrow(
+    'Das Inserat konnte nicht gelöscht werden.',
+  );
   request.mockRejectedValueOnce(new Error('private network detail'));
   await expect(api.deleteListing(scope, id, 'token')).rejects.toThrow(
     'Die Löschung wurde nicht bestätigt.',
   );
   expect(request).toHaveBeenCalledTimes(6);
 });
+it('akzeptiert eine nachgewiesene Löschung ohne erneuten Anbieter-Schreibschritt', async () => {
+  mockWorkerFetch(
+    vi.fn().mockResolvedValue(Response.json({ status: 'confirmed', noWriteNeeded: true })),
+  );
+  await expect(api.deleteListing(scope, id, 'token')).resolves.toBeUndefined();
+});
 it('fordert einen Versandschein für den Verkauf an und übernimmt nur bekannte Ergebnisse', async () => {
   const fetchMock = vi.fn().mockResolvedValue(Response.json({ outcome: 'ready', requested: true }));
-  vi.stubGlobal('fetch', fetchMock);
+  mockWorkerFetch(fetchMock);
   expect(await api.requestShippingLabel(scope, id, 'token')).toEqual({
     outcome: 'ready',
     requested: true,
   });
   expect(fetchMock.mock.calls[0][0]).toBe('/marketplace-browser/shipping-labels/request');
-  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({ ...scope, saleId: id });
-  vi.stubGlobal(
-    'fetch',
+  expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    requestId: expect.any(String),
+    ...scope,
+    saleId: id,
+  });
+  mockWorkerFetch(
     vi
       .fn()
       .mockResolvedValue(
@@ -768,18 +950,17 @@ it('fordert einen Versandschein für den Verkauf an und übernimmt nur bekannte 
     requested: false,
     errorCode: 'phone_required',
   });
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ outcome: 'unknown' })));
+  mockWorkerFetch(vi.fn().mockResolvedValue(Response.json({ outcome: 'unknown' })));
   await expect(api.requestShippingLabel(scope, id, 'token')).rejects.toThrow('Versandschein');
 });
 it('meldet ein belegtes Cloud-Konto beim Versandschein als wiederholbar', async () => {
-  vi.stubGlobal(
-    'fetch',
+  mockWorkerFetch(
     vi.fn().mockResolvedValue(Response.json({ code: 'browser_session_busy' }, { status: 409 })),
   );
   await expect(api.requestShippingLabel(scope, id, 'token')).rejects.toBeInstanceOf(
     MarketplaceCloudAccountBusyError,
   );
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({}, { status: 403 })));
+  mockWorkerFetch(vi.fn().mockResolvedValue(Response.json({}, { status: 403 })));
   await expect(api.requestShippingLabel(scope, id, 'token')).rejects.toThrow(
     'gewählten Cloud-Konto',
   );

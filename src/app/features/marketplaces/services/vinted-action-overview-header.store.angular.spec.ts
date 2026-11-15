@@ -272,18 +272,24 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     await settle();
     expect(store.count()).toBe(0);
   });
-  it('liest nur nach Aktivierung und zeigt aus allen Konten ausschließlich laufende Vorgänge', async () => {
+  it('liest nach Aktivierung wartende und laufende Vorgänge aus allen Konten', async () => {
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();
     expect(list).not.toHaveBeenCalled();
     enabled.set(true);
     await settle();
     expect(read).toHaveBeenCalledTimes(2);
-    expect(store.count()).toBe(2);
+    expect(store.count()).toBe(4);
     expect(store.groups().map((group) => group.accountName)).toEqual(
       accounts.slice(0, 2).map((account) => account.displayName),
     );
-    expect(store.groups().flatMap((group) => group.actions)).toEqual([action, action]);
+    const queued = { ...action, id: 'queued', state: 'queued' };
+    expect(store.groups().flatMap((group) => group.actions)).toEqual([
+      action,
+      queued,
+      action,
+      queued,
+    ]);
   });
   it('zeigt wartende Inserataufträge zentral an und zählt sie als laufende Aktion', async () => {
     enabled.set(true);
@@ -313,7 +319,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();
     expect(store.listings().map(({ job }) => job.id)).toEqual([pending.id]);
-    expect(store.count()).toBe(3);
+    expect(store.count()).toBe(5);
     expect(store.hasRunning()).toBe(true);
     const onChange = listen.mock.calls[0]?.[2] as (() => void) | undefined;
     expect(onChange).toBeTypeOf('function');
@@ -326,7 +332,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     expect(TestBed.inject(ToastService).toasts()).toMatchObject([
       { type: 'success', title: 'Veröffentlicht' },
     ]);
-    expect(store.count()).toBe(2);
+    expect(store.count()).toBe(4);
     read.mockResolvedValue({ actions: [] });
     readListingJobs.mockResolvedValue([
       { ...pending, state: 'queued', scheduledAt: '2026-11-01T10:00:00Z' },
@@ -362,7 +368,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
     enabled.set(true);
     const store = TestBed.inject(VintedActionOverviewHeaderStore);
     await settle();
-    expect(store.count()).toBe(2);
+    expect(store.count()).toBe(4);
     workspace.set({ id: 'other-workspace', archived_at: null });
     expect(store.groups()).toEqual([]);
     await settle();
@@ -397,7 +403,7 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       .mockRejectedValueOnce(new Error('offline'))
       .mockRejectedValueOnce(new MarketplaceApiError('forbidden'));
     await store.refresh();
-    expect(store.count()).toBe(1);
+    expect(store.count()).toBe(2);
     expect(store.groups()[0].actions[0].state).toBe('running');
     expect(store.error()).toContain('nicht aktualisiert');
   });

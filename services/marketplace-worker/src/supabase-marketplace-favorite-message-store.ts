@@ -122,6 +122,14 @@ export class SupabaseMarketplaceFavoriteMessageStore {
       p_worker_epoch: version(epoch),
       p_runner_id: uuid(runnerId),
     });
+    return this.parseClaim(input, workerId, epoch, runnerId);
+  }
+  parseClaim(
+    input: unknown,
+    workerId: string,
+    epoch: number,
+    runnerId: string,
+  ): CloudFavoriteClaim | null {
     if (input === null) return null;
     const fields = record(input, [
       'eventId',

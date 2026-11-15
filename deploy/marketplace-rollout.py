@@ -34,7 +34,7 @@ GLOBAL_LOCK = Path("/opt/flipbase/deploy.lock")
 HEALTH_URL = "https://app.flipbase.de/marketplace-browser/healthz"
 COUNT_KEYS = (
     "listingJobs", "operations", "sessions", "messages", "favorites",
-    "negotiations", "setups",
+    "negotiations", "setups", "accountActions",
 )
 PHASES = (
     "preparing", "prepared", "worker_stop_started", "worker_stopped",
@@ -54,14 +54,66 @@ IMAGE_REPOSITORIES = (
 # Keine RPCs: Ein konsistenter Nur-Lese-Schnappschuss, auch für alte unbekannte Jobs.
 OPERATIONAL_STATE_SQL = """
  'counts', json_build_object(
-  'listingJobs',(select count(*) from public.marketplace_listing_jobs where state in ('queued','paused','claimed','writing','outcome_unknown')),
-  'operations',(select count(*) from public.marketplace_operations where state in ('queued','running','outcome_unknown')),
+  'listingJobs',(select count(*) from public.marketplace_listing_jobs j where execution_mode='cloud' and (state in ('claimed','writing') or (state='outcome_unknown' and not exists(select 1 from public.marketplace_browser_sessions s where s.public_id=j.cloud_browser_session_id and s.state='closed' and s.provider_stopped_at is not null)))),
+  'operations',(select count(*) from public.marketplace_operations where state='running'),
   'sessions',(select count(*) from public.marketplace_browser_sessions where state in ('active','stopping')),
-  'messages',(select count(*) from public.marketplace_local_message_outbox where execution_mode='cloud' and state in ('queued','claimed','sending')),
-  'favorites',(select count(*) from public.marketplace_favorite_message_events where state in ('queued','claimed','sending','outcome_unknown') or offer_state in ('pending','claimed','sending','outcome_unknown')),
-  'negotiations',(select count(*) from public.marketplace_negotiation_jobs where state in ('queued','claimed','sending','outcome_unknown')),
-  'setups',(select count(*) from public.marketplace_cloud_setups where state not in ('completed','cancelled'))
+  'messages',(select count(*) from public.marketplace_local_message_outbox where execution_mode='cloud' and state in ('claimed','sending')),
+  'favorites',(select count(*) from public.marketplace_favorite_message_events j where execution_mode='cloud' and (state in ('claimed','sending') or offer_state in ('claimed','sending') or ((state='outcome_unknown' or offer_state='outcome_unknown') and not exists(select 1 from public.marketplace_browser_sessions s where s.public_id=j.cloud_browser_session_id and s.state='closed' and s.provider_stopped_at is not null)))),
+  'negotiations',(select count(*) from public.marketplace_negotiation_jobs j where execution_mode='cloud' and (state in ('claimed','sending') or (state='outcome_unknown' and not exists(select 1 from public.marketplace_browser_sessions s where s.public_id=j.cloud_browser_session_id and s.state='closed' and s.provider_stopped_at is not null)))),
+  'setups',(select count(*) from public.marketplace_cloud_setups where state in ('finalizing','cleanup_pending')),
+  'accountActions',(select count(*) from public.marketplace_account_actions where state='running')
  ),
+ 'waitingCounts', json_build_object(
+  'listingJobs',(select count(*) from public.marketplace_listing_jobs where execution_mode='cloud' and state in ('queued','paused')),
+  'operations',(select count(*) from public.marketplace_operations where state='queued'),
+  'messages',(select count(*) from public.marketplace_local_message_outbox where execution_mode='cloud' and state='queued'),
+  'favorites',(select count(*) from public.marketplace_favorite_message_events where execution_mode='cloud' and (state='queued' or offer_state='pending')),
+  'negotiations',(select count(*) from public.marketplace_negotiation_jobs where execution_mode='cloud' and state='queued'),
+  'accountActions',(select count(*) from public.marketplace_account_actions where state='queued')
+ ),
+ 'liveSessions', coalesce((select json_agg(json_build_object('profileId',provider_profile_id,
+  'workerId',worker_id,'workerEpoch',worker_epoch,'state',state,'expiresAt',expires_at))
+  from public.marketplace_browser_sessions where state in ('active','stopping')),'[]'::json),
+ 'activeWork',coalesce((select json_agg(json_build_object(
+   'family',work.family,'id',work.id,'workerId',work.worker_id,'workerEpoch',work.worker_epoch,
+   'workspaceId',work.workspace_id,'connectionId',work.connection_id,'requestedBy',work.requested_by,
+   'sessionId',work.session_id,'leaseExpiresAt',work.lease_expires_at,
+   'session',json_build_object('id',session.public_id,'workerId',session.worker_id,'workerEpoch',session.worker_epoch,
+     'workspaceId',session.workspace_id,'connectionId',session.connection_id,'startedBy',session.started_by,
+     'state',session.state,'expiresAt',session.expires_at,'providerStoppedAt',session.provider_stopped_at)))
+ from (
+   select 'accountActions'::text family,job.public_id::text id,job.worker_id,job.worker_epoch,job.workspace_id,
+     job.connection_id,job.requested_by,job.browser_session_id session_id,job.lease_expires_at
+     from public.marketplace_account_actions job where job.state='running'
+   union all
+   select 'operations',job.id::text,session.worker_id,job.worker_epoch,job.workspace_id,
+     job.connection_id,job.requested_by,job.browser_session_id,job.lease_expires_at
+     from public.marketplace_operations job left join public.marketplace_browser_sessions session on session.public_id=job.browser_session_id where job.state='running'
+   union all
+   select 'messages',job.id::text,job.cloud_worker_id,job.cloud_worker_epoch,job.workspace_id,
+     job.connection_id,job.requested_by,job.cloud_browser_session_id,job.lease_expires_at
+     from public.marketplace_local_message_outbox job where job.execution_mode='cloud' and job.state in ('claimed','sending','outcome_unknown')
+   union all
+   select 'listingJobs',job.id::text,job.cloud_worker_id,job.cloud_worker_epoch,job.workspace_id,
+     job.connection_id,job.requested_by,job.cloud_browser_session_id,job.lease_expires_at
+     from public.marketplace_listing_jobs job where job.execution_mode='cloud' and (job.state in ('claimed','writing')
+       or (job.state='outcome_unknown' and not exists(select 1 from public.marketplace_browser_sessions closed where closed.public_id=job.cloud_browser_session_id and closed.state='closed' and closed.provider_stopped_at is not null)))
+   union all
+   select 'negotiations',job.id::text,job.cloud_worker_id,job.cloud_worker_epoch,job.workspace_id,
+     job.connection_id,job.requested_by,job.cloud_browser_session_id,job.lease_expires_at
+     from public.marketplace_negotiation_jobs job where job.execution_mode='cloud' and (job.state in ('claimed','sending')
+       or (job.state='outcome_unknown' and not exists(select 1 from public.marketplace_browser_sessions closed where closed.public_id=job.cloud_browser_session_id and closed.state='closed' and closed.provider_stopped_at is not null)))
+   union all
+   select 'favorites',job.id::text,job.cloud_worker_id,job.cloud_worker_epoch,job.workspace_id,
+     job.connection_id,settings.approved_by,job.cloud_browser_session_id,job.lease_expires_at
+     from public.marketplace_favorite_message_events job left join public.marketplace_favorite_message_settings settings using(workspace_id,connection_id)
+     where job.execution_mode='cloud' and (job.state in ('claimed','sending') or job.offer_state in ('claimed','sending')
+       or ((job.state='outcome_unknown' or job.offer_state='outcome_unknown') and not exists(select 1 from public.marketplace_browser_sessions closed where closed.public_id=job.cloud_browser_session_id and closed.state='closed' and closed.provider_stopped_at is not null)))
+   union all
+   select 'setups',job.public_id::text,job.worker_id,job.worker_epoch,job.workspace_id,job.connection_id,job.requested_by,
+     (select setup_session.public_id from public.marketplace_browser_sessions setup_session where setup_session.cloud_setup_id=job.public_id order by setup_session.created_at desc,setup_session.id desc limit 1),job.expires_at
+     from public.marketplace_cloud_setups job where job.state in ('finalizing','cleanup_pending')
+ ) work left join public.marketplace_browser_sessions session on session.public_id=work.session_id),'[]'::json),
  'runtime',coalesce((select json_build_object('live',expires_at>clock_timestamp(),
    'workerId',worker_id,'epoch',worker_epoch) from public.marketplace_worker_runtime where id=1),
    json_build_object('live',false)),
@@ -226,23 +278,33 @@ def build_release_config(config):
     result["services"][SERVICES[1]]["image"] = BROKER_IMAGE
     for service in SERVICES:
         result["services"][service]["environment"]["MARKETPLACE_CHROMIUM_IMAGE"] = SESSION_IMAGE
+    limit = result["services"][SERVICES[1]]["environment"].get("MARKETPLACE_BROWSER_MAX_CONCURRENT", "1")
+    require(isinstance(limit, str) and bool(re.fullmatch(r"[1-8]", limit)), "Ungültige Browserobergrenze.")
+    for service in SERVICES:
+        result["services"][service]["environment"]["MARKETPLACE_BROWSER_MAX_CONCURRENT"] = limit
     return result
 
 
 def assert_image_only_change(before, after):
-    require(after == build_release_config(before), "Compose-Abweichung außerhalb der vier freigegebenen Imagefelder.")
+    require(after == build_release_config(before), "Compose-Abweichung außerhalb der freigegebenen Abbilder und Browserobergrenze.")
 
 
-def assert_preflight(snapshot, drained=False):
+def assert_preflight(snapshot, drained=False, allow_active=False):
     require(isinstance(snapshot, dict), "Datenbank-Prüfung fehlt.")
     counts = snapshot.get("counts")
     require(isinstance(counts, dict) and set(counts) == set(COUNT_KEYS), "Unvollständige Auftragszähler.")
     for key in COUNT_KEYS:
         require(type(counts[key]) is int and counts[key] >= 0, "Ungültiger Auftragszähler.")
-        require(counts[key] == 0, "Offene oder unbekannte Aufträge/Sitzungen sperren den Rollout.")
+        require(allow_active or counts[key] == 0, "Aktive oder ungeklärt laufende Aufträge/Sitzungen sperren den Rollout.")
+    waiting = snapshot.get("waitingCounts")
+    require(isinstance(waiting, dict) and set(waiting) == set(COUNT_KEYS) - {"sessions", "setups"}
+            and all(type(value) is int and value >= 0 for value in waiting.values()), "Wartezähler unvollständig.")
     historical_unknown_hash(snapshot)
     runtime = snapshot.get("runtime")
     require(isinstance(runtime, dict) and type(runtime.get("live")) is bool, "Runtime-Lease nicht nachgewiesen.")
+    if allow_active:
+        # Auch ohne Dockerprüfung darf kein nackter Zähler alte Ausführungen freigeben.
+        verify_new_sessions({}, snapshot, [])
     if drained:
         require(runtime["live"] is False, "Worker-Runtime ist noch aktiv; Broker bleibt unverändert.")
 
@@ -374,6 +436,10 @@ def classify_unknown_messages(snapshot):
     require(isinstance(counts, dict) and type(counts.get("messages")) is int and counts["messages"] >= 0,
             "Cloud-Nachrichtenzähler ist nicht nachgewiesen.")
     completed = sorted((row for row in rows if completed_unknown_message(row)), key=lambda row: row["id"])
+    completed_ids = {row["id"] for row in completed}
+    work = snapshot.get("activeWork")
+    require(isinstance(work, list) and all(isinstance(row, dict) for row in work), "Aktive Auftragsbindungen fehlen.")
+    snapshot["activeWork"] = [row for row in work if row.get("family") != "messages" or row.get("id") not in completed_ids]
     counts["messages"] += len(rows) - len(completed)
     snapshot["historicalUnknownMessages"] = len(completed)
     snapshot["historicalUnknownMessagesHash"] = fingerprint(completed)
@@ -419,11 +485,15 @@ def runtime_identity(snapshot):
     return {"workerId": runtime["workerId"], "epoch": runtime["epoch"]}
 
 
-def fresh_preflight(context, *, drained=False, expected=None, expected_runtime=None):
+def fresh_preflight(context, *, drained=False, expected=None, expected_runtime=None, allow_active=False):
     assert_config_hashes(context)
-    require(not session_containers(), "Browsercontainer vorhanden; keine automatische Bereinigung.")
     snapshot = read_jobs()
-    assert_preflight(snapshot, drained=drained)
+    assert_preflight(snapshot, drained=drained, allow_active=allow_active)
+    containers = session_containers()
+    if allow_active:
+        verify_new_sessions(context, snapshot, containers)
+    else:
+        require(not containers, "Browsercontainer vorhanden; keine automatische Bereinigung.")
     if not drained:
         require(snapshot["runtime"]["live"] is True, "Ausgangsworker besitzt keine aktive Runtime-Lease.")
     if expected is not None:
@@ -431,6 +501,84 @@ def fresh_preflight(context, *, drained=False, expected=None, expected_runtime=N
     if expected_runtime is not None:
         require(runtime_identity(snapshot) == expected_runtime, "Worker-Runtime wurde zwischenzeitlich ersetzt.")
     return snapshot
+
+
+def verify_new_sessions(context, snapshot, containers):
+    runtime = runtime_identity(snapshot)
+    rows = snapshot.get("liveSessions")
+    require(isinstance(rows, list), "Neue Sitzungsbindungen fehlen.")
+    profiles = set()
+    now = datetime.datetime.now(datetime.timezone.utc)
+    def timestamp(value):
+        try:
+            parsed = datetime.datetime.fromisoformat(value.replace("Z", "+00:00"))
+            require(parsed.tzinfo is not None, "Zeitnachweis ohne Zeitzone.")
+            return parsed
+        except (AttributeError, TypeError, ValueError):
+            raise RolloutError("Zeitnachweis der neuen Ausführung fehlt.") from None
+    work = snapshot.get("activeWork")
+    require(isinstance(work, list), "Aktive Auftragsbindungen fehlen.")
+    bound_counts = {key: 0 for key in COUNT_KEYS if key != "sessions"}
+    identities = set()
+    for job in work:
+        require(isinstance(job, dict) and job.get("family") in bound_counts, "Unbekannte aktive Auftragsart.")
+        identity = (job["family"], job.get("id"))
+        require(isinstance(identity[1], str) and bool(re.fullmatch(r"(?:[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}|[1-9][0-9]*)", identity[1]))
+                and identity not in identities, "Auftragsbindung fehlt oder ist doppelt.")
+        identities.add(identity)
+        require(job.get("workerId") == runtime["workerId"] and type(job.get("workerEpoch")) is int
+                and job["workerEpoch"] == runtime["epoch"], "Aktiver Auftrag gehört einem alten Worker.")
+        for key in ("workspaceId", "connectionId", "requestedBy", "sessionId"):
+            require(isinstance(job.get(key), str) and bool(re.fullmatch(r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}", job[key])), "Aktive Auftragsbindung ist unvollständig.")
+        session = job.get("session")
+        require(isinstance(session, dict), "Die Auftragssitzung fehlt.")
+        for outer, inner in (("sessionId", "id"), ("workspaceId", "workspaceId"), ("connectionId", "connectionId"),
+                             ("requestedBy", "startedBy"), ("workerId", "workerId"), ("workerEpoch", "workerEpoch")):
+            require(type(session.get(inner)) is type(job[outer]) and session[inner] == job[outer], "Auftrag und Sitzung sind unterschiedlich gebunden.")
+        require(timestamp(job.get("leaseExpiresAt")) > now, "Aktiver Auftrag besitzt keine gültige Lease.")
+        if session.get("state") == "closed":
+            # Zwischen physischem Stopp und Finish darf derselbe neue Worker noch abschließen.
+            stopped = timestamp(session.get("providerStoppedAt"))
+            require(now - datetime.timedelta(seconds=90) <= stopped <= now, "Geschlossene Auftragssitzung ist nicht frisch beendet.")
+        else:
+            require(session.get("state") == "active" and timestamp(session.get("expiresAt")) > now, "Auftragssitzung ist nicht aktiv.")
+        bound_counts[job["family"]] += 1
+    require(all(snapshot["counts"][key] == value for key, value in bound_counts.items()), "Auftragszähler und Besitzerbindungen widersprechen sich.")
+    for row in rows:
+        require(isinstance(row, dict) and row.get("workerId") == runtime["workerId"]
+                and type(row.get("workerEpoch")) is int and row.get("workerEpoch") == runtime["epoch"] and row.get("state") == "active",
+                "Sitzung gehört nicht zur gesunden neuen Worker-Runtime.")
+        profile = row.get("profileId")
+        require(isinstance(profile, str) and bool(re.fullmatch(r"[a-zA-Z0-9_-]{1,128}", profile))
+                and profile not in profiles, "Ungültige neue Profilbindung.")
+        try:
+            expires = datetime.datetime.fromisoformat(row["expiresAt"].replace("Z", "+00:00"))
+            require(expires.tzinfo is not None and expires > now, "Neue Sitzung ist abgelaufen.")
+        except (KeyError, TypeError, ValueError):
+            raise RolloutError("Neue Sitzungsfrist fehlt.") from None
+        profiles.add(profile)
+    require(snapshot["counts"]["sessions"] == len(rows), "Sitzungszähler und Bindungen widersprechen sich.")
+    host = context.get("broker", {}).get("Config", {}).get("Env", [])
+    host_ids = [value.split("=", 1)[1] for value in host if value.startswith("MARKETPLACE_CHROMIUM_HOST_ID=")]
+    seen = set()
+    worker_started = None
+    for container_id in containers:
+        if worker_started is None:
+            worker_started = timestamp(context.get("worker", {}).get("State", {}).get("StartedAt"))
+        container = inspect_container(container_id)
+        labels = container.get("Config", {}).get("Labels", {})
+        profile = labels.get("de.flipbase.chromium.profile")
+        state = container.get("State", {})
+        require(len(host_ids) == 1 and labels.get("de.flipbase.chromium.role") == "session"
+                and labels.get("de.flipbase.chromium.host") == host_ids[0] and profile in profiles and profile not in seen
+                and container.get("Config", {}).get("Image") == SESSION_IMAGE
+                and state.get("Running") is True and state.get("Paused") is False
+                and state.get("Dead") is False and state.get("OOMKilled") is False,
+                "Browsercontainer ist keiner gesunden neuen Sitzung zugeordnet.")
+        created = timestamp(container.get("Created"))
+        started = timestamp(state.get("StartedAt"))
+        require(worker_started <= created <= started <= datetime.datetime.now(datetime.timezone.utc), "Browsercontainer stammt nicht aus dem neuen Workerstart.")
+        seen.add(profile)
 
 
 def ensure_state_dir():
@@ -728,7 +876,7 @@ def verify_release(plan):
                 and container.get("Image") == plan["images"][image], "Laufender Container verwendet nicht das freigegebene Image.")
         assert_runtime_output(run_command(["docker", "exec", container["Id"], "sha256sum", RUNTIME_PATH]))
     check_image_runtime(SESSION_IMAGE)
-    snapshot = fresh_preflight(context, expected=plan["authorization"])
+    snapshot = fresh_preflight(context, expected=plan["authorization"], allow_active=True)
     require(snapshot["runtime"]["live"] is True, "Neue Worker-Runtime besitzt noch keine aktive Lease.")
     runtime = runtime_identity(snapshot)
     require(runtime["epoch"] > plan["runtime"]["epoch"] and runtime["workerId"] != plan["runtime"]["workerId"],
@@ -742,7 +890,7 @@ def verify_release(plan):
         require(type(final[key].get("RestartCount")) is int and final[key]["RestartCount"] == 0,
                 "Container wurde während der Abschlussprüfung neu gestartet.")
     require(final["worker"].get("State", {}).get("Health", {}).get("Status") == "healthy", "Worker-Health ist nicht mehr healthy.")
-    fresh_preflight(final, expected=plan["authorization"], expected_runtime=runtime)
+    fresh_preflight(final, expected=plan["authorization"], expected_runtime=runtime, allow_active=True)
     return final
 
 
@@ -785,7 +933,7 @@ def deploy():
         write_journal("verified")
         print("Rollout verifiziert: Worker, Broker und Sitzungs-Runtime entsprechen " + RELEASE[:12] + ".")
         print("Beide RestartCount=0; neuer Workerbesitzer mit höherer Epoch bestätigt.")
-        print("Freigaben und Regeln unverändert; keine Publikation ausgelöst.")
+        print("Freigaben und Regeln unverändert; vorhandene Aufträge werden regulär fortgesetzt.")
 
 
 def verify():
@@ -797,7 +945,7 @@ def verify():
             write_journal("verified")
         print("Verifiziert: drei Runtime-Prüfsummen, aktive Images, Lease und öffentliche API.")
         print("Beide RestartCount=0; neuer Workerbesitzer mit höherer Epoch bestätigt.")
-        print("Keine offenen Jobs oder Browsercontainer; Freigaben unverändert.")
+        print("Nur aktuelle, vollständig gebundene Ausführungen und gespeicherte Warteschlangen; Freigaben unverändert.")
 
 
 def read_deployment_record():

@@ -12,7 +12,6 @@
           ? 'w-full justify-start gap-4 p-4 text-left hover:bg-fb-surface-hover'
           : 'min-h-24 min-w-28 flex-1 basis-28 flex-col justify-center gap-3 rounded-xl border border-fb-border bg-fb-surface p-4 hover:bg-[color-mix(in_srgb,var(--platform-color)_10%,var(--fb-bg-surface))]'
       "
-      [attr.aria-label]="label(platform)"
       [style.--platform-color]="appearance(platform).color"
       [style.background-color]="
         presentation() === 'tiles' && selectedPlatforms().includes(platform)
@@ -39,10 +38,7 @@
           aria-hidden="true"
         ></svg>
       } @else if (presentation() === 'list') {
-        <span
-          class="ml-auto flex shrink-0 items-center gap-2 text-xs text-fb-text-secondary"
-          aria-hidden="true"
-        >
+        <span class="ml-auto flex shrink-0 items-center gap-2 text-xs text-fb-text-secondary">
           <span>{{ selectedPlatforms().includes(platform) ? 'Sichtbar' : 'Ausgeblendet' }}</span>
           @if (selectedPlatforms().includes(platform)) {
             <svg [lucideIcon]="checkIcon" class="size-4" aria-hidden="true"></svg>

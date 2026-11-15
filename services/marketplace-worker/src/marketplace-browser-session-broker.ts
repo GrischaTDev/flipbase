@@ -16,8 +16,18 @@ export interface BrowserSessionScope {
   connectionId: string;
   userId: string;
   userAccessToken: string;
-  /** Ausschließlich nach verifiziertem MCP-Token und dauerhaftem Preisauftrag setzen. */
-  aiPrice?: { grantId: string; authSessionId: string; requestId: string; attemptId: string };
+  accountAction?: {
+    actionId: string;
+    setupId?: string;
+    dialogId?: string;
+    claimToken: string;
+    workerId: string;
+    workerEpoch: number;
+    runnerId: string;
+    sessionId: string;
+    expiresAt: string;
+    absoluteExpiresAt: string;
+  };
   /** Nur nach serverseitiger Einrichtungsprüfung setzen; niemals aus HTTP-Nutzdaten übernehmen. */
   cloudSetup?: { setupId: string };
   /** Interne, ausschließlich lesende Auftragserlaubnis; niemals aus HTTP-Nutzdaten übernehmen. */
@@ -111,6 +121,8 @@ interface BrowserLeaseStore {
   assertActive(lease: BrowserLease): Promise<boolean>;
   release(lease: BrowserLease): Promise<void>;
   authorizeScope?(scope: BrowserSessionScope): Promise<void>;
+  isClosed?(lease: BrowserLease): Promise<boolean>;
+  resolveForCleanup?(lease: BrowserLease): Promise<string>;
 }
 
 interface BrowserProfileStore {
@@ -161,16 +173,20 @@ function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boole
     left.workspaceId === right.workspaceId &&
     left.connectionId === right.connectionId &&
     left.userId === right.userId &&
-    left.aiPrice?.grantId === right.aiPrice?.grantId &&
-    left.aiPrice?.authSessionId === right.aiPrice?.authSessionId &&
-    left.aiPrice?.requestId === right.aiPrice?.requestId &&
-    left.aiPrice?.attemptId === right.aiPrice?.attemptId &&
     left.cloudSetup?.setupId === right.cloudSetup?.setupId &&
     Boolean(left.syncRead) === Boolean(right.syncRead) &&
     Boolean(left.messageWrite) === Boolean(right.messageWrite) &&
     Boolean(left.favoriteWrite) === Boolean(right.favoriteWrite) &&
     Boolean(left.negotiationWrite) === Boolean(right.negotiationWrite) &&
     Boolean(left.listingWrite) === Boolean(right.listingWrite) &&
+    Boolean(left.accountAction) === Boolean(right.accountAction) &&
+    (!left.accountAction ||
+      (left.accountAction.actionId === right.accountAction?.actionId &&
+        left.accountAction.claimToken === right.accountAction?.claimToken &&
+        left.accountAction.workerId === right.accountAction?.workerId &&
+        left.accountAction.workerEpoch === right.accountAction?.workerEpoch &&
+        left.accountAction.runnerId === right.accountAction?.runnerId &&
+        left.accountAction.sessionId === right.accountAction?.sessionId)) &&
     (!left.listingWrite ||
       (left.listingWrite.jobId === right.listingWrite?.jobId &&
         left.listingWrite.claimToken === right.listingWrite?.claimToken &&
@@ -212,19 +228,26 @@ export class MarketplaceBrowserSessionBroker {
   private readonly options: BrowserSessionBrokerOptions;
   private recovered = false;
   private recoveryPromise?: Promise<void>;
-  private openingAction = false;
+  private readonly openingActions = new Set<string>();
 
   constructor(options: BrowserSessionBrokerOptions) {
     this.options = options;
   }
 
   async openAction(scope: BrowserSessionScope): Promise<string> {
-    if (scope.syncRead || scope.cloudSetup) return this.open(scope);
-    if (this.openingAction) throw new MarketplaceBrowserSessionBusyError();
-    this.openingAction = true;
+    if (scope.syncRead || scope.cloudSetup || scope.accountAction) return this.open(scope);
+    const key = `${scope.workspaceId}:${scope.connectionId}`;
+    if (this.openingActions.has(key)) throw new MarketplaceBrowserSessionBusyError();
+    this.openingActions.add(key);
     try {
+      await this.options.leases.authorizeScope?.(scope);
       const now = this.options.now?.() ?? Date.now();
       for (const [id, session] of this.sessions) {
+        if (
+          session.lease.scope.workspaceId !== scope.workspaceId ||
+          session.lease.scope.connectionId !== scope.connectionId
+        )
+          continue;
         if (!session.reusable || session.reusable.held || session.stopPending)
           throw new MarketplaceBrowserSessionBusyError();
         if (
@@ -252,7 +275,7 @@ export class MarketplaceBrowserSessionBroker {
       };
       return id;
     } finally {
-      this.openingAction = false;
+      this.openingActions.delete(key);
     }
   }
 
@@ -275,16 +298,93 @@ export class MarketplaceBrowserSessionBroker {
     session.reusable.idleCleanup.unref();
   }
 
+  async handoffCloudSetup(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    setupId: string,
+    userAccessToken: string,
+  ): Promise<void> {
+    if (
+      !scope.accountAction ||
+      scope.accountAction.sessionId !== sessionId ||
+      scope.accountAction.setupId !== setupId ||
+      !userAccessToken ||
+      !(await this.runtimeAuthorized())
+    )
+      throw new Error('Einrichtungsübergabe verweigert');
+    const session = this.find(scope, sessionId);
+    if (session.stopPending) throw new Error('Sitzung wird beendet');
+    session.lease.scope = {
+      workspaceId: scope.workspaceId,
+      connectionId: scope.connectionId,
+      userId: scope.userId,
+      userAccessToken,
+      cloudSetup: { setupId },
+    };
+    session.lease.expiresAt = Date.parse(scope.accountAction.absoluteExpiresAt);
+  }
+
+  async handoffAccountSession(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    dialogId: string,
+    userAccessToken: string,
+  ): Promise<void> {
+    if (
+      !scope.accountAction ||
+      scope.accountAction.sessionId !== sessionId ||
+      scope.accountAction.dialogId !== dialogId ||
+      scope.accountAction.setupId ||
+      !userAccessToken ||
+      !(await this.runtimeAuthorized())
+    )
+      throw new Error('Anmeldeübergabe verweigert');
+    const session = this.find(scope, sessionId);
+    if (session.stopPending) throw new Error('Sitzung wird beendet');
+    session.lease.scope = {
+      workspaceId: scope.workspaceId,
+      connectionId: scope.connectionId,
+      userId: scope.userId,
+      userAccessToken,
+    };
+    session.lease.expiresAt = Date.parse(scope.accountAction.absoluteExpiresAt);
+  }
+
+  async discardUnstartedAction(scope: BrowserSessionScope): Promise<void> {
+    const binding = scope.accountAction;
+    if (!binding || !(await this.runtimeAuthorized()))
+      throw new Error('Auftragsbereinigung verweigert');
+    const existing = this.sessions.get(binding.sessionId);
+    if (existing) return this.terminate(binding.sessionId, this.find(scope, binding.sessionId));
+    const lease = {
+      id: binding.sessionId,
+      scope: { ...scope },
+      expiresAt: Date.parse(binding.expiresAt),
+      active: true,
+    };
+    if (await this.options.leases.isClosed?.(lease)) return;
+    const profileId = await (this.options.leases.resolveForCleanup?.(lease) ??
+      this.options.profiles.resolve(lease));
+    if (!(await this.runtimeAuthorized())) throw new Error('Auftragsbereinigung verweigert');
+    try {
+      await this.options.browsers.stop(profileId);
+    } catch (error) {
+      if (!(error instanceof CloudBrowserStoppedUncleanlyError)) throw error;
+    }
+    await this.options.leases.release(lease);
+  }
+
   /** Vor dem Queue-Claim den freien Browserplatz tatsächlich bereinigen. */
   async prepareDispatch(): Promise<void> {
-    if (this.openingAction) return;
-    this.openingAction = true;
-    try {
-      for (const [id, session] of this.sessions)
-        if (session.reusable && !session.reusable.held) await this.terminate(id, session);
-    } finally {
-      this.openingAction = false;
-    }
+    for (const [id, session] of this.sessions)
+      if (
+        session.reusable &&
+        !session.reusable.held &&
+        !this.openingActions.has(
+          `${session.lease.scope.workspaceId}:${session.lease.scope.connectionId}`,
+        )
+      )
+        await this.terminate(id, session);
   }
 
   async open(scope: BrowserSessionScope): Promise<string> {
@@ -299,7 +399,7 @@ export class MarketplaceBrowserSessionBroker {
           scope.favoriteWrite,
           scope.negotiationWrite,
           scope.listingWrite,
-          scope.aiPrice,
+          scope.accountAction,
         ].filter(Boolean).length > 1
       )
         throw new Error('Sitzungszugriff verweigert');

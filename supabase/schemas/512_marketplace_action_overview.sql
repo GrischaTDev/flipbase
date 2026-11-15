@@ -46,7 +46,10 @@ begin
   )
   select coalesce(jsonb_agg(jsonb_build_object('id',id,'source',source,'sourceId',source_id,'kind',kind,'isAutomated',is_automated,'state',state,
     'conversationId',conversation_id,'messageId',message_id,'offerId',offer_id,'partnerName',partner_name,'itemTitle',item_title,
-    'priceCents',price_cents,'currency',currency,'textPreview',text_preview,'createdAt',created_at,'updatedAt',updated_at,'errorCode',error_code)
+    'priceCents',price_cents,'currency',currency,'textPreview',text_preview,'createdAt',created_at,'updatedAt',updated_at,'errorCode',error_code,
+    'waitReason',case when state='queued' then case when error_code='dependency_unresolved' then 'dependency_unresolved'
+      when not public.marketplace_cloud_write_available(p_workspace_id,p_connection_id) then 'account_paused'
+      else public.marketplace_browser_slot_status(p_workspace_id,p_connection_id) end end)
     order by created_at,id),'[]'::jsonb) into v_actions from selected;
   return jsonb_build_object('ok',true,'workspaceId',p_workspace_id,'connectionId',p_connection_id,'actions',v_actions);
 end;

@@ -12,6 +12,7 @@ import {
   isVintedNegotiationEvent,
 } from './vinted-negotiation-contracts.ts';
 import type { BrowserInfo, BrowserDragPoint } from './gologin-cloud-browser.ts';
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import { parseVintedListingCatalogRead } from './vinted-listing-catalog.ts';
 import {
   parseVintedProfileChanges,
@@ -72,6 +73,7 @@ export interface BrowserAction {
 export type BrowserActionEvent =
   | { kind: 'wait' }
   | { kind: 'authorize'; sequence: number }
+  | { kind: 'before_write'; sequence: number }
   | { kind: 'offer_price'; sequence: number; original: number; offered: number }
   | { kind: 'listing_begin'; sequence: number }
   | { kind: 'listing_photo'; sequence: number; imageId: string; offset: number }
@@ -208,7 +210,9 @@ export async function executeBrowserAction(
     beforeWrite: () => Promise<void>;
     readPhotoChunk: (imageId: string, offset: number) => Promise<unknown>;
   },
+  beforeWrite?: () => Promise<void>,
 ): Promise<unknown> {
+  if (beforeWrite) Object.assign(authorize, { beforeWrite });
   const action = commandRecord(input);
   if (
     Object.keys(action).some((key) => !['name', 'arguments'].includes(key)) ||
@@ -228,6 +232,7 @@ export async function executeBrowserAction(
     login: [1],
     verify: [1],
     readListingEdit: [2],
+    readListingPresence: [2],
     readListingCategory: [3, 4],
     readListingContent: [2],
     deleteListing: [2],
@@ -241,7 +246,7 @@ export async function executeBrowserAction(
     updateProfileAbout: [3],
     sendNegotiation: [4],
     sendMessage: [2],
-    requestShippingLabel: [3],
+    requestShippingLabel: [3, 4],
     readFavoriteEvents: [1],
     readListingCatalog: [2],
     sendFavoriteMessage: [2],
@@ -256,6 +261,12 @@ export async function executeBrowserAction(
     throw new Error('Nicht erlaubte Browseraktion');
   await authorize();
   switch (action.name) {
+    case 'readListingPresence':
+      return required(browser.readListingPresence)(
+        identifier(argumentsList[0]),
+        identifier(argumentsList[1]),
+        authorize,
+      );
     case 'readListingCategory': {
       const categoryId = argumentsList[1],
         parents = argumentsList[2];
@@ -379,11 +390,14 @@ export async function executeBrowserAction(
         authorize,
       );
     case 'requestShippingLabel':
+      if (argumentsList.length === 4 && argumentsList[3] !== true)
+        throw new Error('Ungültige lesende Versandscheinprüfung');
       return required(browser.requestShippingLabel)(
         identifier(argumentsList[0]),
         identifier(argumentsList[1]),
         identifier(argumentsList[2]),
         authorize,
+        argumentsList[3] === true,
       );
     case 'readFavoriteEvents':
       return required(browser.readFavoriteEvents)(identifier(argumentsList[0]), authorize);
@@ -873,6 +887,7 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         }
         if (
           event.kind === 'authorize' ||
+          event.kind === 'before_write' ||
           event.kind === 'stage' ||
           event.kind === 'offer_price' ||
           event.kind === 'listing_begin' ||
@@ -881,6 +896,7 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
           if (event.sequence !== sequence + 1 || sequence >= 10000)
             throw new Error('Ungültige Browserfreigabe');
           await authorize();
+          if (event.kind === 'before_write') await beforeVintedWrite(authorize);
           if (event.kind === 'listing_begin') {
             if (name !== 'submitListing' || !listing || Object.keys(event).length !== 2)
               throw new Error('Inseratbeginn ungültig');
@@ -992,10 +1008,12 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         [account, command, sourceOffer, confirmedOffer],
         authorize,
       )) as Awaited<ReturnType<NonNullable<BrowserInfo['sendNegotiation']>>>,
-    requestShippingLabel: async (account, conversationId, transactionId, authorize) =>
+    requestShippingLabel: async (account, conversationId, transactionId, authorize, readOnly) =>
       (await run(
         'requestShippingLabel',
-        [account, conversationId, transactionId],
+        readOnly
+          ? [account, conversationId, transactionId, true]
+          : [account, conversationId, transactionId],
         authorize,
       )) as Awaited<ReturnType<NonNullable<BrowserInfo['requestShippingLabel']>>>,
     sendMessage: async (account, command, authorize) =>
@@ -1076,6 +1094,9 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         throw new VintedListingReadError('result');
       }
     },
+    readListingPresence: async (account, external, authorize) =>
+      (await run('readListingPresence', [account, external], authorize)) as
+        'present' | 'absent' | 'unknown',
     deleteListing: async (accountId, externalId, authorize) =>
       parseVintedListingDeleteResult(
         await run('deleteListing', [accountId, externalId], authorize),
@@ -1114,6 +1135,11 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
 
 /** Auch ein vollständig übernommener Auswerter darf keine Schreibziele bestimmen. */
 export function validateBrowserResult(name: BrowserActionName, input: unknown): unknown {
+  if (name === 'readListingPresence') {
+    if (!['present', 'absent', 'unknown'].includes(String(input)))
+      throw new Error('Ungültige Inseratprüfung');
+    return input;
+  }
   if (Buffer.byteLength(JSON.stringify(input) ?? '') > browserCommandLimit)
     throw new Error('Browserantwort zu groß');
   if (name === 'submitListing') {

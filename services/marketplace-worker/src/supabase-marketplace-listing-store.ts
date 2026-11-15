@@ -67,6 +67,14 @@ export class SupabaseMarketplaceListingStore {
       p_worker_epoch: integer(workerEpoch),
       p_runner_id: uuid(runnerId),
     });
+    return this.parseClaim(input, workerId, workerEpoch, runnerId);
+  }
+  parseClaim(
+    input: unknown,
+    workerId: string,
+    workerEpoch: number,
+    runnerId: string,
+  ): CloudListingClaim | null {
     if (input === null) return null;
     const value = fields(input, [
       'jobId',

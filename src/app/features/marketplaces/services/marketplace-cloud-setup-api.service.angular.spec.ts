@@ -36,6 +36,10 @@ it('wartet auf die bestellte IP mit derselben Anfrage statt einen neuen Kauf aus
     setupId: request.requestId,
     state: 'login',
     sessionId: null,
+    startActionId: '70000000-0000-4000-8000-000000000001',
+    startState: 'idle',
+    waitReason: null,
+    version: 1,
   };
   const fetchMock = vi
     .fn()
@@ -73,6 +77,10 @@ it('verwirft eine fremde Einrichtungsantwort', async () => {
         setupId: request.requestId,
         state: 'reserved',
         sessionId: null,
+        startActionId: '70000000-0000-4000-8000-000000000001',
+        startState: 'idle',
+        waitReason: null,
+        version: 1,
       }),
     ),
   );

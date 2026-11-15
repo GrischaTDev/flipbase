@@ -5,8 +5,7 @@
       @for (star of stars; track star) {
         <svg
           [lucideIcon]="starIcon"
-          class="size-3.5"
-          [class.fill-current]="star <= filledStars()"
+          [class]="star <= filledStars() ? 'size-3.5 fill-current' : 'size-3.5'"
           aria-hidden="true"
         ></svg>
       }

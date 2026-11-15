@@ -6,7 +6,6 @@ import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
 import type { VintedListingBrandSelection } from '../../models/vinted-listing-brand-selection';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
-import { applyVintedListingEdit } from '../../models/vinted-listing-edit-form';
 import { CurrencyPipe } from '@angular/common';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { createVintedListingPriceEditor } from '../../services/vinted-listing-price-editor';
@@ -48,7 +47,6 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import type { VintedListingDescription } from '../../models/vinted-listing-description';
 import {
-  parseVintedListingReadPriceCents,
   vintedListingEditOptions,
   vintedListingBrandValue,
   vintedListingEditSelection,
@@ -57,10 +55,7 @@ import {
   type VintedListingEditField,
   type VintedListingEditSnapshot,
 } from '../../models/vinted-listing-edit-form';
-import {
-  storedVintedListingEdit,
-  applyStoredVintedListingEdit,
-} from '../../models/vinted-stored-listing-edit';
+import { storedVintedListingEdit } from '../../models/vinted-stored-listing-edit';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
@@ -703,67 +698,14 @@ export class VintedListingDetailComponent {
     const categoryEdit = this.categoryEdit();
     const extras = this.extraValues();
     const arranged = this.arrangedPhotos();
-    return async () => {
-      if (!current) {
-        const fresh = await store.readListingEdit(connectionId, entryId);
-        const priceCents = parseVintedListingReadPriceCents(fresh.price);
-        await store.saveListingEdit(connectionId, entryId, {
-          title: fields.title === initial?.title ? fresh.title : fields.title,
-          description:
-            fields.description === initial?.description ? fresh.description : fields.description,
-          price:
-            fields.price === initial?.price && priceCents !== null
-              ? vintedListingPriceText(priceCents)
-              : fields.price,
-        });
-        return;
-      }
-      const fresh = await store.readListingContent(connectionId, entryId);
-      let content;
-      if (categoryEdit && categoryEdit.content.categoryId !== current.content.categoryId) {
-        if (!initial) throw new Error('Lade das Inserat erneut.');
-        const merged = applyStoredVintedListingEdit(current, fresh, {
-          ...initial,
-          title: fields.title,
-          description: fields.description,
-          price: fields.price,
-        });
-        const many = (field: 'color' | 'material') =>
-          fields[field]
-            .split(' · ')
-            .filter(Boolean)
-            .map((label) => {
-              const options = vintedListingEditOptions(categoryEdit.schema, field).filter(
-                (choice) => choice.label === label,
-              );
-              if (options.length !== 1) throw new Error('Die Auswahl ist nicht eindeutig.');
-              return options[0].value;
-            });
-        content = applyVintedListingEdit(
-          { ...fresh, ...categoryEdit },
-          {
-            title: merged.title,
-            description: merged.description,
-            price: vintedListingPriceText(merged.priceCents ?? 0),
-          },
-          { ...fields, color: many('color'), material: many('material') },
-        );
-      } else {
-        content = applyStoredVintedListingEdit(current, fresh, fields);
-      }
-      if (extras && extras.categoryId === content.categoryId)
-        content = {
-          ...content,
-          attributes: withVintedListingExtraValues(content.attributes, extras.values),
-        };
-      const photos = arranged ? { base: current.photoUrls, desired: arranged } : undefined;
-      await store.saveListingContent(
-        connectionId,
-        entryId,
-        fresh.content,
-        content,
-        ...(photos ? [photos] : []),
-      );
+    const intent = {
+      base: current,
+      fields,
+      initialFields: initial,
+      categoryEdit,
+      extras,
+      photos: arranged && current ? { base: current.photoUrls, desired: arranged } : null,
     };
+    return () => store.saveListingIntent(connectionId, entryId, intent);
   }
 }

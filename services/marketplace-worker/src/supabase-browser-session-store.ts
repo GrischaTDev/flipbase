@@ -4,7 +4,7 @@ import {
   type BrowserSessionScope,
 } from './marketplace-browser-session-broker.ts';
 import { validateMarketplaceMessageLease } from './supabase-marketplace-message-store.ts';
-import type { AiConnectionPriceStore } from './ai-connection-price-store.ts';
+import { SupabaseMarketplaceAccountActionStore } from './supabase-marketplace-account-action-store.ts';
 
 interface SupabaseBrowserSessionStoreOptions {
   url: string;
@@ -13,7 +13,6 @@ interface SupabaseBrowserSessionStoreOptions {
   fetch?: typeof fetch;
   runtime?: { workerId: string; workerEpoch: number };
   onReservationUncertain?: () => void;
-  aiPrices?: AiConnectionPriceStore;
 }
 
 const profileIdPattern = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -25,7 +24,6 @@ export class SupabaseBrowserSessionStore {
   private readonly request: typeof fetch;
   private readonly runtime?: SupabaseBrowserSessionStoreOptions['runtime'];
   private readonly onReservationUncertain?: () => void;
-  private readonly aiPrices?: AiConnectionPriceStore;
 
   constructor(options: SupabaseBrowserSessionStoreOptions) {
     if (!options.publishableKey || !options.serviceRoleKey) throw new Error('Browser-Zugang fehlt');
@@ -35,7 +33,6 @@ export class SupabaseBrowserSessionStore {
     this.request = options.fetch ?? fetch;
     this.runtime = options.runtime;
     this.onReservationUncertain = options.onReservationUncertain;
-    this.aiPrices = options.aiPrices;
   }
 
   async acquire(scope: BrowserSessionScope): Promise<BrowserLease> {
@@ -47,10 +44,20 @@ export class SupabaseBrowserSessionStore {
         scope.favoriteWrite,
         scope.negotiationWrite,
         scope.listingWrite,
-        scope.aiPrice,
+        scope.accountAction,
       ].filter(Boolean).length > 1
     )
       throw new Error('Sitzungszugriff verweigert');
+    if (scope.accountAction) {
+      const checked = await this.actionStore().check(scope);
+      if (!checked) throw new Error('Sitzungszugriff verweigert');
+      return {
+        id: scope.accountAction.sessionId,
+        scope: { ...scope },
+        expiresAt: checked.expiresAt,
+        active: true,
+      };
+    }
     if (scope.listingWrite) {
       const expiresAt = validateMarketplaceMessageLease(
         await this.callListingRpc(scope),
@@ -110,23 +117,20 @@ export class SupabaseBrowserSessionStore {
         throw new Error('Sitzungszugriff verweigert');
       return { id: scope.syncRead.sessionId, scope: { ...scope }, expiresAt, active: true };
     }
-    if (scope.aiPrice && !this.aiPrices) throw new Error('KI-Preisfreigabe fehlt');
-    if (!scope.aiPrice && (await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId)
+    if ((await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId)
       throw new Error('Sitzungszugriff verweigert');
-    const value = scope.aiPrice
-      ? await this.aiPrices!.call(scope.aiPrice, 'reserve')
-      : await this.callUserRpc(
-          scope.cloudSetup
-            ? 'marketplace_cloud_setup_session_reserve'
-            : 'marketplace_browser_session_reserve',
-          scope.userAccessToken,
-          {
-            p_workspace_id: scope.workspaceId,
-            ...(scope.cloudSetup
-              ? { p_setup_id: scope.cloudSetup.setupId }
-              : { p_connection_id: scope.connectionId }),
-          },
-        );
+    const value = await this.callUserRpc(
+      scope.cloudSetup
+        ? 'marketplace_cloud_setup_session_reserve'
+        : 'marketplace_browser_session_reserve',
+      scope.userAccessToken,
+      {
+        p_workspace_id: scope.workspaceId,
+        ...(scope.cloudSetup
+          ? { p_setup_id: scope.cloudSetup.setupId }
+          : { p_connection_id: scope.connectionId }),
+      },
+    );
     if (
       !isRecord(value) ||
       typeof value['id'] !== 'string' ||
@@ -171,11 +175,6 @@ export class SupabaseBrowserSessionStore {
 
   /** Ein fremdes Konto darf eine freie Sitzung erst nach eigener Zugangsprüfung ablösen. */
   async authorizeScope(scope: BrowserSessionScope): Promise<void> {
-    if (scope.aiPrice) {
-      if (!this.aiPrices || (await this.aiPrices.call(scope.aiPrice, 'authorize')) !== true)
-        throw new Error('KI-Preisfreigabe fehlt');
-      return;
-    }
     if (
       (await this.authenticatedUserId(scope.userAccessToken)) !== scope.userId ||
       (await this.callUserRpc('marketplace_can_manage_cloud', scope.userAccessToken, {
@@ -214,10 +213,17 @@ export class SupabaseBrowserSessionStore {
         lease.scope.favoriteWrite,
         lease.scope.negotiationWrite,
         lease.scope.listingWrite,
-        lease.scope.aiPrice,
+        lease.scope.accountAction,
       ].filter(Boolean).length > 1
     )
       return false;
+    if (lease.scope.accountAction) {
+      if (lease.id !== lease.scope.accountAction.sessionId) return false;
+      const checked = await this.actionStore().check(lease.scope);
+      if (!checked) return false;
+      lease.expiresAt = checked.expiresAt;
+      return true;
+    }
     if (lease.scope.listingWrite) {
       if (lease.id !== lease.scope.listingWrite.sessionId) return false;
       const expiresAt = validateMarketplaceMessageLease(
@@ -288,16 +294,6 @@ export class SupabaseBrowserSessionStore {
       lease.expiresAt = expiresAt;
       return true;
     }
-    if (lease.scope.aiPrice) {
-      const value = await this.aiPrices?.call(lease.scope.aiPrice, 'check', lease.id);
-      return (
-        isRecord(value) &&
-        value['id'] === lease.id &&
-        value['workspaceId'] === lease.scope.workspaceId &&
-        value['connectionId'] === lease.scope.connectionId &&
-        value['active'] === true
-      );
-    }
     if ((await this.authenticatedUserId(lease.scope.userAccessToken)) !== lease.scope.userId)
       return false;
     const value = await this.callUserRpc(
@@ -332,7 +328,9 @@ export class SupabaseBrowserSessionStore {
     url.searchParams.set('state', 'eq.active');
     url.searchParams.set(
       'cloud_setup_id',
-      lease.scope.cloudSetup ? `eq.${lease.scope.cloudSetup.setupId}` : 'is.null',
+      lease.scope.cloudSetup || lease.scope.accountAction?.setupId
+        ? `eq.${lease.scope.cloudSetup?.setupId ?? lease.scope.accountAction?.setupId}`
+        : 'is.null',
     );
     const rows = await this.read(
       await this.request(url, {
@@ -349,6 +347,11 @@ export class SupabaseBrowserSessionStore {
     )
       throw new Error('Browserprofil fehlt');
     return rows[0]['provider_profile_id'];
+  }
+
+  /** Ein widerrufener Dialog darf seinen unveränderlich gebundenen Browser weiterhin bereinigen. */
+  resolveForCleanup(lease: BrowserLease): Promise<string> {
+    return this.resolve(lease);
   }
 
   async release(lease: BrowserLease): Promise<void> {
@@ -374,6 +377,43 @@ export class SupabaseBrowserSessionStore {
       throw new Error('Browser-Sperre konnte nicht freigegeben werden');
   }
 
+  async isClosed(lease: BrowserLease): Promise<boolean> {
+    const binding = lease.scope.accountAction;
+    if (
+      !binding ||
+      !this.runtime ||
+      binding.workerId !== this.runtime.workerId ||
+      binding.workerEpoch !== this.runtime.workerEpoch
+    )
+      return false;
+    const url = new URL('/rest/v1/marketplace_browser_sessions', this.baseUrl);
+    for (const [key, value] of Object.entries({
+      public_id: lease.id,
+      workspace_id: lease.scope.workspaceId,
+      connection_id: lease.scope.connectionId,
+      started_by: lease.scope.userId,
+      worker_id: binding.workerId,
+      worker_epoch: String(binding.workerEpoch),
+      account_action_id: binding.actionId,
+      state: 'closed',
+    }))
+      url.searchParams.set(key, 'eq.' + value);
+    url.searchParams.set('select', 'provider_stopped_at');
+    const rows = await this.read(
+      await this.request(url, {
+        headers: this.serverHeaders(),
+        signal: AbortSignal.timeout(10_000),
+      }),
+    );
+    return (
+      Array.isArray(rows) &&
+      rows.length === 1 &&
+      isRecord(rows[0]) &&
+      typeof rows[0]['provider_stopped_at'] === 'string' &&
+      Number.isFinite(Date.parse(rows[0]['provider_stopped_at']))
+    );
+  }
+
   private async authenticatedUserId(userAccessToken: string): Promise<string> {
     const response = await this.request(new URL('/auth/v1/user', this.baseUrl), {
       headers: this.userHeaders(userAccessToken),
@@ -383,6 +423,14 @@ export class SupabaseBrowserSessionStore {
     if (!isRecord(value) || typeof value['id'] !== 'string')
       throw new Error('Anmeldung konnte nicht geprüft werden');
     return value['id'];
+  }
+
+  private actionStore(): SupabaseMarketplaceAccountActionStore {
+    return new SupabaseMarketplaceAccountActionStore({
+      url: this.baseUrl,
+      serviceRoleKey: this.serviceRoleKey,
+      fetch: this.request,
+    });
   }
 
   private async callReadRpc(scope: BrowserSessionScope, name: string): Promise<unknown> {

@@ -1110,8 +1110,8 @@ describe('Vinted-Bereich in Flipbase', () => {
   });
   it('öffnet ein Inserat nur innerhalb des ausgewählten Kontos', async () => {
     const { element, harness } = await render('/marketplaces/vinted/listings');
-    const link = element.querySelector<HTMLAnchorElement>(
-      'a[aria-label="Inserat Testschal öffnen"]',
+    const link = [...element.querySelectorAll<HTMLAnchorElement>('[data-listing-row] a')].find(
+      (anchor) => anchor.textContent?.replace(/\s+/g, ' ').includes('Inserat Testschal öffnen'),
     );
     expect(link?.getAttribute('href')).toBe(
       '/marketplaces/vinted/listings/fixture-account-a/publication-1',
@@ -1383,6 +1383,10 @@ describe('Vinted-Bereich in Flipbase', () => {
           setupId: '25500000-0000-4000-8000-000000000031',
           state: 'reserved',
           sessionId: null,
+          startActionId: '70000000-0000-4000-8000-000000000001',
+          startState: 'idle',
+          waitReason: null,
+          version: 1,
         },
       };
     });

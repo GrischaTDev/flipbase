@@ -10,6 +10,8 @@ export function createWorker({
   clients = [],
   navigator = { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
   maxActions = 2,
+  skipWaiting: onSkipWaiting = async () => {},
+  getClient,
 } = {}) {
   const resources = new Map([
     ['/index.html', '<html>build-a</html>'],
@@ -86,7 +88,7 @@ export function createWorker({
         return clients;
       },
       async get(id) {
-        return clients.find((client) => client.id === id);
+        return getClient ? getClient(id) : clients.find((client) => client.id === id);
       },
       async claim() {},
       async openWindow(url) {
@@ -98,6 +100,7 @@ export function createWorker({
     },
     async skipWaiting() {
       skipCount++;
+      await onSkipWaiting();
     },
   };
   const fetch = async (request) => {

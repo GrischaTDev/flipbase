@@ -1282,15 +1282,26 @@ test('Dateileser berücksichtigt unversionierte Quellen und Vorlagen, aber keine
   const directory = mkdtempSync(join(tmpdir(), 'flipbase-selection-files-'));
   try {
     assert.equal(spawnSync('git', ['init', '--quiet', directory]).status, 0);
-    for (const folder of ['src/app/features/purchases', 'src/node_modules', 'e2e'])
+    for (const folder of [
+      'src/app/features/purchases',
+      'src/node_modules',
+      'e2e',
+      'supabase/functions/_shared',
+    ])
       mkdirSync(join(directory, folder), { recursive: true });
     writeFileSync(join(directory, '.gitignore'), 'node_modules/\n');
     writeFileSync(join(directory, 'src/tracked.ts'), 'export const tracked = true;');
     assert.equal(spawnSync('git', ['add', 'src/tracked.ts'], { cwd: directory }).status, 0);
     const component = 'src/app/features/purchases/new-form';
+    const shared = 'supabase/functions/_shared/new-form.mjs';
+    writeFileSync(join(directory, shared), 'export const limit = 50;');
+    writeFileSync(
+      join(directory, shared.replace('.mjs', '.d.mts')),
+      'export declare const limit: number;',
+    );
     writeFileSync(
       join(directory, component + '.ts'),
-      "@Component({templateUrl: './new-form.html'}) export class Form {}",
+      "import '../../../../supabase/functions/_shared/new-form.mjs'; @Component({templateUrl: './new-form.html'}) export class Form {}",
     );
     writeFileSync(join(directory, component + '.html'), '<button>Speichern</button>');
     writeFileSync(join(directory, component + '.spec.ts'), "import './new-form';");
@@ -1305,12 +1316,19 @@ test('Dateileser berücksichtigt unversionierte Quellen und Vorlagen, aber keine
         component + '.spec.ts',
         component + '.ts',
         'src/tracked.ts',
+        shared,
+        shared.replace('.mjs', '.d.mts'),
       ].sort(),
     );
     const plan = selectAffectedTests([component + '.html'], discovered);
     assert.equal(plan.full, false);
     assert.deepEqual(plan.units.node, [component + '.spec.ts']);
     assert.deepEqual(selectedFeatureBrowserFiles(plan), ['e2e/purchase-profitability.spec.ts']);
+    const sharedPlan = selectAffectedTests([shared], discovered);
+    assert.deepEqual(sharedPlan.units.node, [component + '.spec.ts']);
+    assert.deepEqual(selectedFeatureBrowserFiles(sharedPlan), [
+      'e2e/purchase-profitability.spec.ts',
+    ]);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

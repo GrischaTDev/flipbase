@@ -21,7 +21,9 @@
   <div class="h-16 flex shrink-0 items-center justify-between px-3">
     <a
       routerLink="/dashboard"
-      [attr.aria-label]="replacedNavigationContext() ? 'Zurück zu Flipbase' : 'Zur Übersicht'"
+      [attr.aria-label]="
+        replacedNavigationContext() ? 'Zurück zu Flipbase' : 'Flipbase – Zur Übersicht'
+      "
       (click)="closed.emit()"
       class="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
     >
@@ -225,8 +227,10 @@
           }}</span>
           <svg
             [lucideIcon]="chevronIcon"
-            [class.rotate-90]="ideasExpanded()"
-            class="ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none"
+            [class]="
+              'ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none' +
+              (ideasExpanded() ? ' rotate-90' : '')
+            "
             aria-hidden="true"
           ></svg>
         </button>

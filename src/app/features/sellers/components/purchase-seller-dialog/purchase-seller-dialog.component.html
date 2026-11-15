@@ -59,11 +59,13 @@
           countryNameLocale="de"
           initialCountry="de"
           [dropdownParent]="phoneDropdownParent"
+          [fullscreenParent]="phoneDropdownParent"
           [inputAttributes]="phoneInputAttributes()"
           [separateDialCode]="true"
           [showFlags]="true"
           [strictMode]="true"
           [uiTranslations]="phoneTranslations"
+          (openCountrySelector)="labelPhoneCountrySelector()"
         />
       </div>
       @if (form.controls.phone.invalid && form.controls.phone.touched) {

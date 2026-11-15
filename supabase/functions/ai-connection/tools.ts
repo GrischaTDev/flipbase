@@ -310,7 +310,7 @@ export const tools = [
   ),
   tool(
     'set_vinted_price',
-    'Beauftragt eine Preisänderung an einem vorhandenen Vinted-Inserat über die bestehende Browserausführung. Nur freigegebene Cloud-Konten im Betreiberpilot. Alten und neuen Preis in ganzen Cent vorab mit dem Nutzer klären. Ein zwischenzeitlich geänderter Anbieterpreis wird nicht überschrieben. Ergebnis anschließend mit read_action_result prüfen.',
+    'Beauftragt eine Preisänderung an einem vorhandenen Vinted-Inserat über die bestehende Browserausführung. Nur freigegebene Cloud-Konten im Betreiberpilot. Alten und neuen Preis in ganzen Cent vorab mit dem Nutzer klären. Ein zwischenzeitlich geänderter Anbieterpreis wird nicht überschrieben. Ergebnis anschließend mit read_action_result prüfen: action.state, waitReason, errorCode und result enthalten den aktuellen Zustand der gemeinsamen Vinted-Warteschlange.',
     {
       connection_id: text('Freigegebene Vinted-Konto-UUID.'),
       entry_id: text('UUID des gespeicherten Vinted-Inserats.'),

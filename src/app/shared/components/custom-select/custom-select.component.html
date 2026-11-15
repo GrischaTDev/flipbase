@@ -139,8 +139,7 @@
             >
               <svg
                 [lucideIcon]="checkIcon"
-                class="size-3 shrink-0"
-                [class.invisible]="!isSelected"
+                [class]="isSelected ? 'size-3 shrink-0' : 'size-3 shrink-0 invisible'"
                 aria-hidden="true"
               ></svg>
               <div class="flex items-center gap-2 truncate">

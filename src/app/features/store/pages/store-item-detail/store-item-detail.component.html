@@ -16,8 +16,7 @@
     >
       <svg
         [lucideIcon]="linkCopied() ? copiedIcon : shareIcon"
-        class="w-3.5 h-3.5"
-        [class.text-emerald-600]="linkCopied()"
+        [class]="linkCopied() ? 'w-3.5 h-3.5 text-emerald-600' : 'w-3.5 h-3.5'"
       ></svg>
       <span>{{ linkCopied() ? 'Link kopiert!' : 'Teilen' }}</span>
     </button>

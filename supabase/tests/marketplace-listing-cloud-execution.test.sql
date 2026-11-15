@@ -25,6 +25,7 @@ update cloud_listing_context set job=public.marketplace_enqueue_listing(draft->>
 select throws_ok($$select public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061')$$,'42501',null,'Clients können keinen Cloud-Inseratversuch übernehmen');
 set local role service_role;
 select public.marketplace_worker_claim('46500000-0000-4000-8000-000000000051');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 select is(public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',2,'46500000-0000-4000-8000-000000000061'),null::jsonb,'Falsche Worker-Epoche übernimmt keinen Auftrag');
 update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061');
 select is((select claim->>'jobId' from cloud_listing_context),(select job->>'id' from cloud_listing_context),'Eigene Inseratfreigabe genügt ohne Cloud-Nachrichtenrechte');
@@ -98,6 +99,7 @@ set local role authenticated;
 update cloud_listing_context set job=public.marketplace_enqueue_relisting(draft->>'id',1,'46500000-0000-4000-8000-000000000071',false,clock_timestamp()+interval '1 hour','Europe/Berlin');
 set local role service_role;
 select public.marketplace_worker_claim('46500000-0000-4000-8000-000000000051');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061');
 select is((select claim->'snapshot'->>'relistStage' from cloud_listing_context),'delete','Geplantes Relisting löscht sofort, obwohl die Veröffentlichung erst später fällig ist');
 select is((select claim->'snapshot'->'photoOptions' from cloud_listing_context),'{"resize":null,"crops":{},"filter":"lighter","border":"medium"}'::jsonb,'Angenommener Lösch-/Veröffentlichungsauftrag enthält die vollständigen Bildausgabeparameter');
@@ -194,6 +196,7 @@ select is((select job->>'scheduledAt' from cloud_listing_context),null,'Relative
 select throws_ok($$select public.marketplace_enqueue_relisting((select draft->>'id' from cloud_listing_context),1,'46500000-0000-4000-8000-000000000073',false,null,null,60)$$,'23505',null,'Dieselbe Auftragskennung kann die Wartezeit nicht nachträglich verändern');
 set local role service_role;
 select public.marketplace_worker_claim('46500000-0000-4000-8000-000000000051');
+select public.marketplace_browser_capacity_report(worker_id,worker_epoch,1) from public.marketplace_worker_runtime where id=1;
 update cloud_listing_context set claim=public.marketplace_cloud_listing_claim('46500000-0000-4000-8000-000000000051',1,'46500000-0000-4000-8000-000000000061');
 select public.marketplace_cloud_listing_begin('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021',(select job->>'id' from cloud_listing_context),(select (claim->>'claimToken')::uuid from cloud_listing_context),'46500000-0000-4000-8000-000000000051',1);
 update cloud_listing_context set result=jsonb_build_object('outcome','relisting_deleted','externalId','98765','externalAccountId','46501','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));

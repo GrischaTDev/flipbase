@@ -1,3 +1,4 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
 import type { VintedEditResult } from './vinted-browser-listing-edit.ts';
@@ -41,6 +42,7 @@ export async function updateVintedProfileAbout(
     throw new Error('Profilspeichern nicht verfügbar');
   await authorize();
   try {
+    await beforeVintedWrite(authorize);
     await save.click({ timeout: 10_000 });
   } catch {
     // Auch bei Klick-Timeout kann die Änderung bereits gesendet worden sein.

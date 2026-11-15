@@ -5,6 +5,7 @@ import {
 } from './vinted-listing-contracts.ts';
 import { vintedCategoryFieldsForStorage } from './vinted-category-field-storage.ts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
+import { SupabaseMarketplaceAccountActionStore } from './supabase-marketplace-account-action-store.ts';
 import {
   SupabaseVintedListingCatalogStore,
   type VintedListingCatalogWork,
@@ -317,6 +318,18 @@ export class SupabaseVintedImportWriter {
   private async assertActive(scope: BrowserSessionScope, sessionId: string): Promise<void> {
     if (scope.messageWrite || scope.favoriteWrite || scope.negotiationWrite || scope.listingWrite)
       throw new Error('Kontozugriff abgelaufen');
+    if (scope.accountAction) {
+      if (
+        sessionId !== scope.accountAction.sessionId ||
+        !(await new SupabaseMarketplaceAccountActionStore({
+          url: this.baseUrl,
+          serviceRoleKey: this.serviceRoleKey,
+          fetch: this.request,
+        }).check(scope))
+      )
+        throw new Error('Kontozugriff abgelaufen');
+      return;
+    }
     if (scope.syncRead) {
       if (sessionId !== scope.syncRead.sessionId) throw new Error('Kontozugriff abgelaufen');
       const value = record(

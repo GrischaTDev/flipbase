@@ -1,6 +1,49 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+
+export async function readVintedListingPresence(
+  page: Page,
+  accountId: string,
+  externalId: string,
+  authorize: () => Promise<void>,
+): Promise<'present' | 'absent' | 'unknown'> {
+  await authorize();
+  if (
+    !/^[1-9][0-9]{0,31}$/.test(externalId) ||
+    (await readVintedAccountIdentity(page))?.id !== accountId
+  )
+    return 'unknown';
+  return page.evaluate(async (id) => {
+    if (location.origin !== 'https://www.vinted.de') return 'unknown';
+    const response = await fetch('/api/v2/item_upload/items/' + id, {
+      method: 'GET',
+      credentials: 'include',
+      cache: 'no-store',
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+    });
+    const url = new URL(response.url);
+    if (
+      url.origin !== 'https://www.vinted.de' ||
+      url.pathname !== '/api/v2/item_upload/items/' + id
+    )
+      return 'unknown';
+    if (response.status === 404) return 'absent';
+    if (response.status !== 200) return 'unknown';
+    const body: unknown = await response.json();
+    return body &&
+      typeof body === 'object' &&
+      'item' in body &&
+      body.item &&
+      typeof body.item === 'object' &&
+      'id' in body.item &&
+      String(body.item.id) === id
+      ? 'present'
+      : 'unknown';
+  }, externalId);
+}
 
 export interface VintedListingDeleteResult {
   status: 'confirmed' | 'failed' | 'outcome_unknown';
@@ -94,6 +137,7 @@ export async function deleteVintedListing(
     if ((await open.count()) !== 1 || !(await open.isVisible())) return { status: 'failed', step };
     await check();
     // Schon der erste Löschknopf kann bei verändertem Anbieteraufbau eine Wirkung haben.
+    await beforeVintedWrite(authorize);
     attempted = true;
     await open.click({ timeout: 5_000 });
     step = 'confirm';
@@ -104,6 +148,7 @@ export async function deleteVintedListing(
     if ((await confirm.count()) !== 1 || !(await confirm.isEnabled()))
       return { status: 'outcome_unknown', step };
     await check();
+    await beforeVintedWrite(authorize);
     attempted = true;
     await confirm.click({ timeout: 5_000 });
     step = 'verify';

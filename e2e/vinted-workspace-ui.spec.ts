@@ -239,6 +239,7 @@ for (const width of [1440, 390, 320]) {
             ok: true,
             readOnly: false,
             apiVersion: 2,
+            accountActionsEnabled: true,
             scheduledSync: {
               enabled: true,
               authorizationVersion: 2,
@@ -618,7 +619,12 @@ for (const width of [1440, 390, 320]) {
       expect(calls.filter((call) => call.name === 'browser_read_conversation')).toEqual([
         {
           name: 'browser_read_conversation',
-          body: { workspaceId, connectionId: accountIds[0], conversationId },
+          body: {
+            workspaceId,
+            connectionId: accountIds[0],
+            conversationId,
+            requestId: expect.stringMatching(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i),
+          },
         },
       ]);
       await expect(messageLog.locator('article')).toHaveCount(6);

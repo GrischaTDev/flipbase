@@ -27,6 +27,9 @@ export interface MarketplaceSyncTimers {
   clearInterval(handle: unknown): void;
 }
 interface DispatcherOptions<Job> {
+  work?: MarketplaceCloudWriteDispatch<Job>;
+  parallelism?: () => number;
+  beforeHeartbeat?: () => Promise<void>;
   writes?: MarketplaceCloudWriteDispatch<Job>;
   store: MarketplaceSyncDispatchStore;
   run(scope: BrowserSessionScope): Promise<void>;
@@ -65,6 +68,7 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
   private started = false;
   private stopped = false;
   private lost = false;
+  private readonly active = new Set<Promise<void>>();
 
   constructor(options: DispatcherOptions<Job>) {
     if (
@@ -123,9 +127,45 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
   private async drainAvailableJobs(): Promise<void> {
     // Der Heartbeat läuft weiter; wartende Aufträge bleiben bis zum Wiedereinschalten stehen.
     if (this.options.isPaused && (await this.options.isPaused())) return;
+    if (this.options.work) return this.startAvailableWork();
     // Erst nach bestätigtem Abschluss folgt das nächste Konto; kein zusätzlicher Timer-Leerlauf.
     for (let index = 0; index < (this.options.maxJobsPerPoll ?? 1); index++) {
       if (this.stopped || !this.checkRuntime() || !(await this.claimAndRun())) return;
+    }
+  }
+
+  private async startAvailableWork(): Promise<void> {
+    const work = this.options.work;
+    if (!work) return;
+    for (let index = 0; index < (this.options.maxJobsPerPoll ?? 1); index++) {
+      const limit = this.options.parallelism?.() ?? 1;
+      if (!Number.isInteger(limit) || limit < 0 || limit > 8)
+        throw new Error('Ungültige Browserkapazität');
+      if (this.stopped || !this.checkRuntime() || this.active.size >= limit) return;
+      const lease = this.lease;
+      if (!lease) return;
+      let job: Job | null;
+      try {
+        await this.options.prepareDispatch?.();
+        job = await work.claim(lease.workerId, lease.workerEpoch, this.createRunnerId());
+      } catch {
+        this.loseRuntime('claim_failed');
+        return;
+      }
+      if (job === null || !this.checkRuntime()) return;
+      const running = Promise.resolve()
+        .then(() => work.run(job))
+        .catch(() => {
+          this.loseRuntime('run_failed');
+        })
+        .finally(() => {
+          this.active.delete(running);
+          // Die Claim-Schleife hält keinen Poolplatz während einer Anbieteraktion fest.
+          queueMicrotask(() => {
+            void this.poll();
+          });
+        });
+      this.active.add(running);
     }
   }
 
@@ -186,6 +226,7 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
     if (!lease) return false;
     const renewStartedAt = this.now();
     try {
+      await this.options.beforeHeartbeat?.();
       const active = await this.options.store.heartbeatWorker(lease.workerId, lease.workerEpoch);
       if (!active || this.lost || renewStartedAt + 90_000 <= this.now()) {
         this.loseRuntime(active ? 'heartbeat_expired' : 'heartbeat_rejected');
@@ -234,6 +275,7 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
   async drain(): Promise<void> {
     this.stop();
     await this.polling;
+    await Promise.all(this.active);
     if (this.heartbeatTimer !== undefined) this.timers.clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = undefined;
     await this.heartbeating;

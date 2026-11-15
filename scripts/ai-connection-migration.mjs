@@ -5,9 +5,12 @@ import { normalizeGeneratedSqlKeywords } from './marketplace-migration-permissio
 export function completeAiConnectionMigration(generated, schema) {
   const statements = migrationStatements(generated).filter(
     (statement) =>
-      /\bai_connection(?:s|_[a-z_]+)?\b|\bai_sale_draft_valid\b|\bmarketplace_listing_job_valid\b/.test(
+      /\bai_connection(?:s|_[a-z_]+)?\b|\bai_sale_draft_valid\b|\bmarketplace_listing_job_valid\b|\bmarketplace_account_action_authorized\b/.test(
         statement,
-      ) || /validate constraint \"marketplace_listing_jobs_ai_connection_id_fkey\"/.test(statement),
+      ) ||
+      /validate constraint \"marketplace_(?:listing_jobs|account_actions)_ai_connection_id_fkey\"/.test(
+        statement,
+      ),
   );
   for (const name of ['ai_connections', 'ai_connection_accounts', 'ai_connection_requests']) {
     if (
@@ -29,7 +32,7 @@ export function completeAiConnectionMigration(generated, schema) {
   )
     throw new Error('Der Auth-Hook-Vertrag fehlt.');
   return `-- Zweck: Persönliche OAuth-Freigaben und begrenzte MCP-Fachaktionen für Anwendung und Vinted.
--- Betroffen: ai_connections, ai_connection_accounts, ai_connection_requests und marketplace_listing_jobs.ai_connection_id.
+-- Betroffen: ai_connections, ai_connection_accounts, ai_connection_requests sowie marketplace_listing_jobs.ai_connection_id und marketplace_account_actions.ai_connection_id.
 ${normalizeGeneratedSqlKeywords(statements.join(';\n\n'))};
 
 -- Explizite Rechte und Tabellenkommentare aus dem deklarativen Schema.
