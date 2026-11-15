@@ -630,7 +630,8 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
     complete.selected.filter(([file]) => coreFiles.has(file)).length,
     coreBrowserTests.length,
   );
-  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 57);
+  // Vier neue Kopierfälle und vier jetzt datenbankfreie Verkaufsfälle bleiben vollständig enthalten.
+  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 65);
   assert.deepEqual(
     [...new Set(complete.selected.map(([file]) => file))].sort(),
     [
@@ -638,6 +639,7 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
       'vinted-action-overview.spec.ts',
       'vinted-listing-drafts.spec.ts',
       'vinted-listing-edge-cases.spec.ts',
+      'vinted-sales.spec.ts',
       'vinted-workspace-ui.spec.ts',
     ].sort(),
   );

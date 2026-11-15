@@ -33,6 +33,7 @@ import {
   type VintedListingPhotoBorder,
 } from '../../models/vinted-listing-photo-options';
 import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
+import { VintedSoldItemCopyService } from '../../services/vinted-sold-item-copy.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -224,6 +225,11 @@ export class VintedListingEditorComponent {
   private readonly params = toSignal(this.route.paramMap, {
     initialValue: this.route.snapshot.paramMap,
   });
+  private readonly query = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  readonly copyingSale = computed(() => this.query().has('copySaleId'));
+  private readonly soldItems = inject(VintedSoldItemCopyService);
   private readonly context = computed(() => {
     const user = this.auth.currentUser();
     const workspace = this.workspace.currentWorkspace();
@@ -236,6 +242,10 @@ export class VintedListingEditorComponent {
           this.source()?.entry.connectionId,
           this.source()?.entry.id,
           this.source()?.mode,
+          this.query().get('copySaleId'),
+          this.query().get('copyItemId'),
+          this.copyingSale() ? this.query().get('connectionId') : null,
+          this.copyingSale() ? this.query().get('workspaceId') : null,
         ])
       : null;
   });
@@ -1010,7 +1020,9 @@ export class VintedListingEditorComponent {
       }
       return;
     }
-    await this.router.navigate(['/marketplaces/vinted/listing-drafts']);
+    await this.router.navigate([
+      this.copyingSale() ? '/marketplaces/vinted/sales' : '/marketplaces/vinted/listing-drafts',
+    ]);
   }
   beforeUnload(event: BeforeUnloadEvent): void {
     if (this.dirty() || this.saving() || this.imageEditing() || this.publicationBusy()) {
@@ -1133,7 +1145,43 @@ export class VintedListingEditorComponent {
         }
       }
       const source = this.source();
-      if (source) {
+      if (!id && this.copyingSale()) {
+        const connectionId = this.query().get('connectionId');
+        const account = this.store
+          .connections()
+          .find(
+            (account) =>
+              account.connectionId === connectionId &&
+              account.workspaceId === workspaceId &&
+              account.status === 'connected' &&
+              account.executionMode === 'cloud',
+          );
+        if (!account || this.query().get('workspaceId') !== workspaceId)
+          throw new Error('Wähle das verbundene Vinted-Konto dieses Verkaufs aus.');
+        const copied = await this.soldItems.read(
+          { workspaceId, connectionId: account.connectionId },
+          this.query().get('copySaleId')!,
+          this.query().get('copyItemId') ?? '',
+        );
+        if (!this.current(generation, context)) return;
+        this.referenceContent.set(copied.content);
+        this.patch(copied.content, account.connectionId);
+        this.images.set(
+          copied.files.map((file) => {
+            const previewUrl = URL.createObjectURL(file);
+            this.photoUrls.add(previewUrl);
+            return {
+              key: crypto.randomUUID(),
+              storagePath: null,
+              file,
+              fileName: file.name,
+              previewUrl,
+            };
+          }),
+        );
+        this.changed.update((value) => value + 1);
+        this.dirty.set(true);
+      } else if (source) {
         if (source.entry.workspaceId !== workspaceId)
           throw new Error('Der Arbeitsbereich hat sich geändert.');
         if (source.mode === 'relist') {

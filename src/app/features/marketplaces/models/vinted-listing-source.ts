@@ -6,6 +6,13 @@ export interface VintedListingEditorSource {
   readonly mode: 'relist' | 'template';
 }
 
+/** Verkaufskennungen sind keine Artikelkennungen; Pakete behalten ihre einzelnen Artikel. */
+export function vintedSaleItemIds(sale: MarketplaceEntry): readonly string[] {
+  return [
+    ...new Set(sale.itemIds?.length ? sale.itemIds : sale.itemId ? [sale.itemId] : []),
+  ].filter((id) => /^[1-9][0-9]{0,31}$/.test(id));
+}
+
 /** Öffnet mit dem letzten lokalen Stand; ein fehlender Text löst keinen Anbieterabruf aus. */
 export function vintedListingSourceContent(
   entry: MarketplaceEntry,

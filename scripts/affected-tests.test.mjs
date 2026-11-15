@@ -25,6 +25,24 @@ const files = {
   'e2e/purchase-profitability.spec.ts': '',
 };
 
+test('Verkaufsartikel kopieren wählt Verkaufs- und Editorfälle ohne fachfremde Kontenbrowser', () => {
+  const service = 'src/app/features/marketplaces/services/vinted-sold-item-copy.service';
+  const browserFiles = ['vinted-sales', 'vinted-listing-drafts', 'vinted-listing-edge-cases'].map(
+    (name) => `e2e/${name}.spec.ts`,
+  );
+  const sources = {
+    [service + '.ts']: 'export class Copy {}',
+    [service + '.angular.spec.ts']: "import './vinted-sold-item-copy.service';",
+    ...Object.fromEntries(browserFiles.map((file) => [file, 'test()'])),
+  };
+  const plan = selectAffectedTests([service + '.ts'], sources);
+  assert.deepEqual(plan.localUnits.angular, [service + '.angular.spec.ts']);
+  assert.deepEqual(plan.uiBrowserFiles, browserFiles.sort());
+  assert.deepEqual(plan.browserFiles, []);
+  assert.equal(plan.full, false);
+  assert.equal(plan.pwa, false);
+});
+
 test('Vinted-KI-Funktion und ihre Tests aktivieren die verbindlichen Edge-Prüfungen', () => {
   for (const file of ['index.ts', 'analysis.ts', 'index.test.ts']) {
     const path = 'supabase/functions/vinted-ai-search/' + file;

@@ -1,6 +1,26 @@
 import { parseVintedListingPhotoOptions } from './vinted-listing-photo-options';
 import { describe, expect, it } from 'vitest';
-import { vintedListingPhotoDimensions } from './vinted-listing-source';
+import { vintedListingPhotoDimensions, vintedSaleItemIds } from './vinted-listing-source';
+import { parseMarketplacePage } from './marketplace-response';
+
+it('trennt Artikel eines Verkaufs von seiner Transaktionskennung und verwirft ungültige Kennungen', () => {
+  const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
+  const entry = (values: Record<string, unknown>) =>
+    parseMarketplacePage(
+      {
+        items: [{ ...scope, id: 'sale-a', externalId: '999', ...values }],
+        total: 1,
+        nextCursor: null,
+      },
+      scope,
+    ).items[0];
+  expect(vintedSaleItemIds(entry({ itemIds: ['123', '456', '123', 'ungültig'] }))).toEqual([
+    '123',
+    '456',
+  ]);
+  expect(vintedSaleItemIds(entry({ itemId: '123' }))).toEqual(['123']);
+  expect(vintedSaleItemIds(entry({}))).toEqual([]);
+});
 
 describe('Bildauflösungen beim Relisten', () => {
   it('erhält den vollständigen Hoch- und Querformatausschnitt beim Verkleinern und Vergrößern', () => {
