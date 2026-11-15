@@ -83,6 +83,121 @@ export type Database = {
           },
         ]
       }
+      ai_connection_accounts: {
+        Row: {
+          ai_connection_id: string
+          connection_id: string
+          id: number
+        }
+        Insert: {
+          ai_connection_id: string
+          connection_id: string
+          id?: never
+        }
+        Update: {
+          ai_connection_id?: string
+          connection_id?: string
+          id?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_connection_accounts_ai_connection_id_fkey"
+            columns: ["ai_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_connections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ai_connection_accounts_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_connection_requests: {
+        Row: {
+          action: string
+          ai_connection_id: string
+          created_at: string
+          id: string
+          input: Json
+          result: Json
+        }
+        Insert: {
+          action: string
+          ai_connection_id: string
+          created_at?: string
+          id: string
+          input: Json
+          result: Json
+        }
+        Update: {
+          action?: string
+          ai_connection_id?: string
+          created_at?: string
+          id?: string
+          input?: Json
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_connection_requests_ai_connection_id_fkey"
+            columns: ["ai_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_connections: {
+        Row: {
+          access_mode: string
+          authorization_id: string
+          client_id: string
+          connected_at: string | null
+          created_at: string
+          id: string
+          revoked_at: string | null
+          session_id: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          access_mode: string
+          authorization_id: string
+          client_id: string
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          session_id?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          access_mode?: string
+          authorization_id?: string
+          client_id?: string
+          connected_at?: string | null
+          created_at?: string
+          id?: string
+          revoked_at?: string | null
+          session_id?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_connections_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_notifications: {
         Row: {
           created_at: string
@@ -3460,6 +3575,7 @@ export type Database = {
       marketplace_account_actions: {
         Row: {
           absolute_expires_at: string | null
+          ai_connection_id: string | null
           attempts: number
           browser_session_id: string | null
           claim_token: string | null
@@ -3499,6 +3615,7 @@ export type Database = {
         }
         Insert: {
           absolute_expires_at?: string | null
+          ai_connection_id?: string | null
           attempts?: number
           browser_session_id?: string | null
           claim_token?: string | null
@@ -3538,6 +3655,7 @@ export type Database = {
         }
         Update: {
           absolute_expires_at?: string | null
+          ai_connection_id?: string | null
           attempts?: number
           browser_session_id?: string | null
           claim_token?: string | null
@@ -3576,6 +3694,13 @@ export type Database = {
           write_started_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "marketplace_account_actions_ai_connection_id_fkey"
+            columns: ["ai_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_connections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "marketplace_account_actions_browser_session_id_fkey"
             columns: ["browser_session_id"]
@@ -4713,6 +4838,7 @@ export type Database = {
         Row: {
           absolute_expires_at: string | null
           action: string
+          ai_connection_id: string | null
           authorization_version: number
           claim_local_grant_generation: number | null
           claim_local_token_hash: string | null
@@ -4761,6 +4887,7 @@ export type Database = {
         Insert: {
           absolute_expires_at?: string | null
           action: string
+          ai_connection_id?: string | null
           authorization_version: number
           claim_local_grant_generation?: number | null
           claim_local_token_hash?: string | null
@@ -4809,6 +4936,7 @@ export type Database = {
         Update: {
           absolute_expires_at?: string | null
           action?: string
+          ai_connection_id?: string | null
           authorization_version?: number
           claim_local_grant_generation?: number | null
           claim_local_token_hash?: string | null
@@ -4855,6 +4983,13 @@ export type Database = {
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_jobs_ai_connection_id_fkey"
+            columns: ["ai_connection_id"]
+            isOneToOne: false
+            referencedRelation: "ai_connections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "marketplace_listing_jobs_cloud_browser_session_id_fkey"
             columns: ["cloud_browser_session_id"]
@@ -10386,6 +10521,67 @@ export type Database = {
         Args: { p_lines: Json; p_purchase_id: string; p_workspace_id: string }
         Returns: Json
       }
+      ai_connection_access_token_hook: { Args: { event: Json }; Returns: Json }
+      ai_connection_call: {
+        Args: { p_action: string; p_input?: Json; p_request_id?: string }
+        Returns: Json
+      }
+      ai_connection_connected: { Args: never; Returns: undefined }
+      ai_connection_context: { Args: never; Returns: Json }
+      ai_connection_execution_valid: {
+        Args: {
+          p_connection_id: string
+          p_grant_id: string
+          p_requested_by: string
+          p_workspace_id: string
+        }
+        Returns: boolean
+      }
+      ai_connection_grant: {
+        Args: {
+          p_access_mode: string
+          p_authorization_id: string
+          p_connection_ids?: string[]
+          p_workspace_id: string
+        }
+        Returns: string
+      }
+      ai_connection_image_upload: {
+        Args: {
+          p_auth_session_id: string
+          p_expected_revision?: number
+          p_grant_id: string
+          p_image_id: string
+          p_operation: string
+          p_request_id?: string
+        }
+        Returns: Json
+      }
+      ai_connection_listing_job_valid: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: boolean
+      }
+      ai_connection_original_photos: {
+        Args: {
+          p_auth_session_id: string
+          p_grant_id: string
+          p_operation: string
+          p_request_id: string
+        }
+        Returns: Json
+      }
+      ai_connection_revoke: { Args: { p_id: string }; Returns: undefined }
+      ai_connection_settings: {
+        Args: { p_workspace_id: string }
+        Returns: Json
+      }
+      ai_connection_token_grant: {
+        Args: { p_client_id: string; p_code: string }
+        Returns: string
+      }
+      ai_sale_draft_valid: { Args: { p_draft: Json }; Returns: boolean }
       allocate_integer_cents: {
         Args: { p_total_cents: number; p_weights: number[] }
         Returns: number[]
@@ -13923,11 +14119,31 @@ export type Database = {
         Args: { p_feature_key: string }
         Returns: boolean
       }
-      platform_system_health: { Args: never; Returns: Json }
+      platform_record_error: {
+        Args: {
+          p_account_label: string
+          p_area: string
+          p_code: string
+          p_detail: Json
+          p_message: string
+          p_reference_id: string
+          p_severity: string
+          p_source: string
+          p_user_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
+      }
       platform_report_app_error: {
-        Args: { p_code: string; p_device: string; p_message: string; p_page: string }
+        Args: {
+          p_code: string
+          p_device: string
+          p_message: string
+          p_page: string
+        }
         Returns: boolean
       }
+      platform_system_health: { Args: never; Returns: Json }
       prepare_beta_invitation: {
         Args: {
           p_application_id: string

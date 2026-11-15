@@ -1087,8 +1087,13 @@ for (const theme of ['light', 'dark'] as const) {
           const styles = getComputedStyle(input);
           const context = document.createElement('canvas').getContext('2d')!;
           context.font = styles.font;
+          // Die Außenbreite bleibt eindeutig, auch wenn der Browser clientWidth ohne Padding meldet.
           const available =
-            input.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
+            input.getBoundingClientRect().width -
+            parseFloat(styles.borderLeftWidth) -
+            parseFloat(styles.borderRightWidth) -
+            parseFloat(styles.paddingLeft) -
+            parseFloat(styles.paddingRight);
           return context.measureText(input.value).width <= available;
         });
         expect(priceTextFits).toBe(true);

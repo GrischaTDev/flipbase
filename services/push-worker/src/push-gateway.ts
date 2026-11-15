@@ -9,7 +9,7 @@ export function createPushGateway(options: {
   const upstream = options.upstream ?? 'http://push-functions:9000';
   const windows = new Map<string, { count: number; until: number }>();
   let globalWindow = { count: 0, until: 0 };
-  function admit(client: string): boolean {
+  function admit(client: string, perIp = options.perIp ?? 10): boolean {
     const now = Date.now();
     if (globalWindow.until <= now) {
       globalWindow = { count: 0, until: now + 60000 };
@@ -22,7 +22,7 @@ export function createPushGateway(options: {
     }
     if (
       globalWindow.count >= (options.global ?? 120) ||
-      window.count >= (options.perIp ?? 10) ||
+      window.count >= perIp ||
       (!windows.has(client) && windows.size >= 5000)
     )
       return false;
@@ -52,8 +52,13 @@ export function createPushGateway(options: {
       }
       return;
     }
-    const name =
-      path === '/functions/v1/push-settings'
+    const aiConnection =
+      path === '/functions/v1/ai-connection/oauth/token' ||
+      path === '/functions/v1/ai-connection' ||
+      path === '/functions/v1/ai-connection/.well-known/oauth-protected-resource';
+    const name = aiConnection
+      ? path.slice('/functions/v1/'.length)
+      : path === '/functions/v1/push-settings'
         ? 'push-settings'
         : path === '/functions/v1/push-revoke'
           ? 'push-revoke'
@@ -62,11 +67,16 @@ export function createPushGateway(options: {
       response.writeHead(404).end();
       return;
     }
-    if (request.method !== 'POST' && request.method !== 'OPTIONS') {
+    if (aiConnection) request.socket.setTimeout(25000);
+    if (
+      request.method !== 'POST' &&
+      request.method !== 'OPTIONS' &&
+      !(aiConnection && request.method === 'GET')
+    ) {
       response.writeHead(405).end();
       return;
     }
-    const limit = name === 'push-revoke' ? 512 : 4096;
+    const limit = aiConnection ? 300000 : name === 'push-revoke' ? 512 : 4096;
     if (Number(request.headers['content-length'] ?? 0) > limit) {
       response.writeHead(413).end();
       request.resume();
@@ -91,7 +101,10 @@ export function createPushGateway(options: {
         typeof forwarded === 'string'
           ? forwarded.slice(0, 128)
           : (request.socket.remoteAddress ?? 'unknown');
-      if (request.method !== 'OPTIONS' && !admit(client)) {
+      if (
+        request.method !== 'OPTIONS' &&
+        !admit(client, aiConnection ? (options.perIp ?? 60) : undefined)
+      ) {
         const origin = request.headers.origin;
         const allowed = (process.env.WEB_PUSH_ALLOWED_ORIGINS ?? 'https://app.flipbase.de').split(
           ',',
@@ -108,9 +121,16 @@ export function createPushGateway(options: {
         response.writeHead(429, headers).end('{"error":"rate_limit"}');
         return;
       }
-      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      const headers: Record<string, string> = {
+        'Content-Type':
+          typeof request.headers['content-type'] === 'string'
+            ? request.headers['content-type']
+            : 'application/json',
+      };
       for (const header of [
         'authorization',
+        'accept',
+        'mcp-protocol-version',
         'origin',
         'access-control-request-method',
         'access-control-request-headers',
@@ -122,7 +142,7 @@ export function createPushGateway(options: {
         method: request.method,
         headers,
         body: request.method === 'POST' ? Buffer.concat(chunks) : undefined,
-        signal: AbortSignal.timeout(10000),
+        signal: AbortSignal.timeout(aiConnection ? 20000 : 10000),
         redirect: 'error',
       });
       const resultHeaders: Record<string, string> = { 'Cache-Control': 'no-store' };
@@ -133,13 +153,29 @@ export function createPushGateway(options: {
         'access-control-allow-headers',
         'vary',
         'retry-after',
+        'www-authenticate',
+        'access-control-expose-headers',
       ]) {
         const value = result.headers.get(header);
         if (value) resultHeaders[header] = value;
       }
-      const body = await result.arrayBuffer();
-      if (body.byteLength > 16384) throw new Error('response');
-      response.writeHead(result.status, resultHeaders).end(Buffer.from(body));
+      const responseLimit = aiConnection ? 16 * 1024 * 1024 : 16384;
+      const responseReader = result.body?.getReader();
+      const responseChunks: Uint8Array[] = [];
+      let responseBytes = 0;
+      if (responseReader) {
+        while (true) {
+          const chunk = await responseReader.read();
+          if (chunk.done) break;
+          responseBytes += chunk.value.length;
+          if (responseBytes > responseLimit) {
+            await responseReader.cancel();
+            throw new Error('response');
+          }
+          responseChunks.push(chunk.value);
+        }
+      }
+      response.writeHead(result.status, resultHeaders).end(Buffer.concat(responseChunks));
     } catch {
       if (!response.headersSent)
         response

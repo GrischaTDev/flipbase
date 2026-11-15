@@ -146,12 +146,14 @@ export function pathsSelectPush(paths) {
         (sharedValidationPaths.has(path) ||
           path.startsWith('services/push-worker/') ||
           path.startsWith('supabase/functions/push-') ||
+          path.startsWith('supabase/functions/ai-connection/') ||
           path.startsWith('supabase/functions/ebay-order-observer/') ||
           path.startsWith('supabase/functions/_shared/') ||
           /^supabase\/schemas\/47[012]_web_push_/u.test(path) ||
           [
             'deploy/deploy.sh',
             'deploy/Caddyfile',
+            'deploy/docker-compose.ai-connections.yml',
             'docker/Dockerfile',
             '.dockerignore',
             'scripts/package-push-functions.mjs',

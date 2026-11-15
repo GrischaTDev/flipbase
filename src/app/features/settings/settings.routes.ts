@@ -9,6 +9,13 @@ export const SETTINGS_ROUTES: Routes = [
     children: [
       { path: '', redirectTo: 'account', pathMatch: 'full' },
       {
+        path: 'ai-connections',
+        loadComponent: () =>
+          import('./pages/ai-connections/ai-connections.component').then(
+            (m) => m.AiConnectionsComponent,
+          ),
+      },
+      {
         path: 'account',
         loadComponent: () =>
           import('./pages/account-settings/account-settings.component').then(

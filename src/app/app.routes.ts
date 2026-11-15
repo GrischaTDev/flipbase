@@ -92,6 +92,14 @@ export const routes: Routes = [
     path: 'auth',
     children: [
       {
+        path: 'ai-connection',
+        canActivate: [authGuard],
+        loadComponent: () =>
+          import('./features/auth/ai-connection/ai-connection-consent.component').then(
+            (m) => m.AiConnectionConsentComponent,
+          ),
+      },
+      {
         path: 'login',
         canActivate: [guestGuard],
         loadComponent: () =>

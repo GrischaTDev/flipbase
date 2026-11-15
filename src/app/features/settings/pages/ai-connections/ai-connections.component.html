@@ -1,0 +1,55 @@
+<section class="space-y-4" aria-label="KI-Verbindungen">
+  <app-card variant="section" title="KI-Verbindung">
+    <div class="space-y-3">
+      <p class="break-all select-all text-sm text-fb-text-primary">{{ connections.endpoint }}</p>
+      <div class="flex flex-wrap items-center gap-2">
+        <app-button variant="secondary" size="touch" (clicked)="copy()">{{
+          copied() ? 'Kopiert' : 'Serveradresse kopieren'
+        }}</app-button>
+        <app-button variant="secondary" size="touch" [disabled]="busy()" (clicked)="load()"
+          >Aktualisieren</app-button
+        >
+      </div>
+    </div>
+  </app-card>
+  @if (error()) {
+    <p role="alert" class="text-sm text-red-700 dark:text-red-400">{{ error() }}</p>
+  }
+  @if (busy()) {
+    <p role="status" class="text-sm text-fb-text-secondary">Verbindungen werden geladen …</p>
+  }
+  @for (connection of items(); track connection.id) {
+    <app-card variant="section" [title]="connection.client_name">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="text-sm text-fb-text-secondary">
+          <p>{{ connection.access_mode === 'read' ? 'Nur lesen' : 'Lesen und bearbeiten' }}</p>
+          <p>
+            {{
+              connection.revoked_at
+                ? 'Getrennt'
+                : connection.connected
+                  ? 'Verbunden'
+                  : 'Verbindung noch nicht geprüft'
+            }}
+          </p>
+          @for (account of connection.accounts; track account.id) {
+            <p>{{ account.display_name }}</p>
+          }
+        </div>
+        @if (!connection.revoked_at) {
+          <app-button
+            variant="secondary"
+            size="touch"
+            [disabled]="busy()"
+            (clicked)="revoke(connection)"
+            >Verbindung trennen</app-button
+          >
+        }
+      </div>
+    </app-card>
+  } @empty {
+    @if (!busy() && !error()) {
+      <p class="text-sm text-fb-text-secondary">Keine KI-Verbindung in diesem Workspace.</p>
+    }
+  }
+</section>

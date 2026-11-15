@@ -9,6 +9,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
   LucideBell,
+  LucideLink,
   LucideMonitor,
   LucideHash,
   LucideBuilding2,
@@ -42,6 +43,12 @@ export const SETTINGS_NAVIGATION: readonly SettingsNavigationItem[] = [
     label: 'Konto',
     description: 'Persönliche Daten & Sicherheit',
     icon: LucideUser,
+  },
+  {
+    path: 'ai-connections',
+    label: 'KI-Verbindung',
+    description: 'Persönliche KI-Zugänge',
+    icon: LucideLink,
   },
   {
     path: 'company',

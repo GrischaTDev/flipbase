@@ -15,21 +15,34 @@ Deno.serve(async (request: Request) => {
   if (path === '/healthz')
     return Response.json({ healthy: true, commit: Deno.env.get('FLIPBASE_COMMIT') ?? '' });
   const functionName =
-    path === '/push-settings'
-      ? 'push-settings'
-      : path === '/push-revoke'
-        ? 'push-revoke'
-        : path === '/ebay-order-observer'
-          ? 'ebay-order-observer'
-          : null;
+    path === '/ai-connection/oauth/token' ||
+    path === '/ai-connection' ||
+    path === '/ai-connection/.well-known/oauth-protected-resource'
+      ? 'ai-connection'
+      : path === '/push-settings'
+        ? 'push-settings'
+        : path === '/push-revoke'
+          ? 'push-revoke'
+          : path === '/ebay-order-observer'
+            ? 'ebay-order-observer'
+            : null;
   if (!functionName) return new Response(null, { status: 404 });
-  if (request.method !== 'POST' && request.method !== 'OPTIONS')
+  if (
+    request.method !== 'POST' &&
+    request.method !== 'OPTIONS' &&
+    !(functionName === 'ai-connection' && request.method === 'GET')
+  )
     return new Response(null, { status: 405 });
   try {
     const worker = await EdgeRuntime.userWorkers.create({
       servicePath: `/home/deno/functions/${functionName}`,
-      memoryLimitMb: 128,
-      workerTimeoutMs: functionName === 'ebay-order-observer' ? 85000 : 15000,
+      memoryLimitMb: functionName === 'ai-connection' ? 384 : 128,
+      workerTimeoutMs:
+        functionName === 'ai-connection'
+          ? 150000
+          : functionName === 'ebay-order-observer'
+            ? 85000
+            : 15000,
       noModuleCache: false,
       envVars: Object.entries(Deno.env.toObject()),
     });
