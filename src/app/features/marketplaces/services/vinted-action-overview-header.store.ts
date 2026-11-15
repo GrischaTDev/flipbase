@@ -95,7 +95,9 @@ export class VintedActionOverviewHeaderStore {
     () =>
       this.groups().reduce(
         (count, group) =>
-          count + group.actions.filter((action) => action.state === 'running').length,
+          count +
+          group.actions.filter((action) => action.state === 'running' || action.state === 'queued')
+            .length,
         0,
       ) +
       this.listings().filter(
@@ -235,7 +237,7 @@ export class VintedActionOverviewHeaderStore {
               this.toast.error(describeVintedAction(action), account.displayName);
             return false;
           }
-          if (action.state === 'running') return true;
+          if (action.state === 'running' || action.state === 'queued') return true;
           if (action.state === 'failed' || action.state === 'outcome_unknown')
             return recentFailure(action.updatedAt);
           if (
@@ -333,6 +335,10 @@ export class VintedActionOverviewHeaderStore {
         if (read.repeat && !this.destroyed && this.context() === context) void this.refresh();
       }
     }
+  }
+
+  isDismissed(key: string): boolean {
+    return this.dismissed().has(key);
   }
 
   /** Blendet eine abgeschlossene Fehlermeldung aus; laufende Aufträge bleiben unberührt. */

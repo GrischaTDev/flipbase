@@ -29,6 +29,7 @@ import { MarketplaceFavoriteNotificationStore } from '../../features/marketplace
 import { MarketplaceMessageNotificationStore } from '../../features/marketplaces/services/marketplace-message-notification.store';
 import { KleinanzeigenActionStore } from '../../features/marketplaces/services/kleinanzeigen-action.store';
 import { VintedActionOverviewHeaderStore } from '../../features/marketplaces/services/vinted-action-overview-header.store';
+import { VintedAccountActionStore } from '../../features/marketplaces/services/vinted-account-action.store';
 
 const generalNotification: AppNotification = {
   id: 'general-1',
@@ -129,6 +130,21 @@ describe('HeaderComponent', () => {
             loading: signal(false),
             error: signal(null),
             refresh: vi.fn(),
+          },
+        },
+        {
+          provide: VintedAccountActionStore,
+          useValue: {
+            entries: signal([]),
+            count: signal(0),
+            hasRunning: signal(false),
+            hasFailure: signal(false),
+            error: signal(null),
+            busy: signal(null),
+            refresh: vi.fn(),
+            cancel: vi.fn(),
+            reconcile: vi.fn(),
+            dismiss: vi.fn(),
           },
         },
         {

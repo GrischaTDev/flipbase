@@ -4,10 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
-import {
-  MarketplaceBrowserTestApiService,
-  MarketplaceCloudAccountBusyError,
-} from './marketplace-browser-test-api.service';
+import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 import { VintedShippingLabelStore } from './vinted-shipping-label.store';
 
 const scope = {
@@ -77,18 +74,25 @@ describe('Vinted-Versandscheine', () => {
     expect(store.byTransaction().get('24052549356')?.carrierName).toBe('DPD Shop2Shop');
   });
 
-  it('fordert an, wartet ein belegtes Cloud-Konto ab und lädt danach neu', async () => {
+  it('beobachtet einen gespeicherten Versandscheinauftrag und lädt erst nach Abschluss neu', async () => {
     vi.useFakeTimers();
     await store.load(scope);
     rows = [];
-    requestShippingLabel
-      .mockRejectedValueOnce(new MarketplaceCloudAccountBusyError())
-      .mockResolvedValueOnce({ outcome: 'ready', requested: true });
+    let complete: (result: { outcome: 'ready'; requested: boolean }) => void = () => undefined;
+    requestShippingLabel.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          complete = resolve;
+        }),
+    );
     const request = store.request(sale);
     expect(store.requesting().has(sale.id)).toBe(true);
-    await vi.advanceTimersByTimeAsync(3_000);
+    await vi.advanceTimersByTimeAsync(90_000);
+    expect(requestShippingLabel).toHaveBeenCalledOnce();
+    expect(store.requesting().has(sale.id)).toBe(true);
+    complete({ outcome: 'ready', requested: true });
     await request;
-    expect(requestShippingLabel).toHaveBeenCalledTimes(2);
+    expect(requestShippingLabel).toHaveBeenCalledOnce();
     expect(requestShippingLabel).toHaveBeenLastCalledWith(scope, sale.id, 'token');
     expect(store.requesting().has(sale.id)).toBe(false);
     expect(store.labels()).toEqual([]);

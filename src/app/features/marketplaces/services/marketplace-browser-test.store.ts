@@ -2,6 +2,8 @@ import { DestroyRef, Injectable, computed, effect, inject, signal } from '@angul
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
 import { MarketplaceAccountStore } from './marketplace-account.store';
+import type { CloudSetupView } from '../models/marketplace-cloud-setup';
+import { vintedAccountActionStatus } from '../models/vinted-account-action';
 import {
   BrowserTestSessionBusyError,
   BrowserTestSessionEndedError,
@@ -58,6 +60,8 @@ export class MarketplaceBrowserTestStore {
   private readonly dragSupportedState = signal(false);
   private revision = 0;
   private destroyed = false;
+  private cloudPresence: AbortController | null = null;
+  private cloudPresenceKey: string | null = null;
   private readonly loginKey = signal<string | null>(null);
   private readonly loginNeedsClose = signal<string | null>(null);
   private readonly loginPagePendingKey = signal<string | null>(null);
@@ -157,6 +161,11 @@ export class MarketplaceBrowserTestStore {
     effect(() => {
       const key = this.contextKey();
       const active = this.state();
+      if (this.cloudPresenceKey && this.cloudPresenceKey !== key) {
+        this.cloudPresence?.abort();
+        this.cloudPresence = null;
+        this.cloudPresenceKey = null;
+      }
       if (active && active.key !== key) {
         this.state.set(null);
         this.releaseFrame(active.frameUrl);
@@ -167,6 +176,7 @@ export class MarketplaceBrowserTestStore {
     });
     inject(DestroyRef).onDestroy(() => {
       this.destroyed = true;
+      this.cloudPresence?.abort();
       this.revision += 1;
       const active = this.state();
       if (active) {
@@ -181,6 +191,9 @@ export class MarketplaceBrowserTestStore {
   configureCloudSetup(setupId: string | null, isNewCloudAccount = false): void {
     this.isNewCloudAccount = isNewCloudAccount;
     if (setupId === this.cloudSetupId()) return;
+    this.cloudPresence?.abort();
+    this.cloudPresence = null;
+    this.cloudPresenceKey = null;
     this.revision++;
     this.cloudVerifiedKey.set(null);
     this.cloudCompletedState.set(false);
@@ -244,7 +257,11 @@ export class MarketplaceBrowserTestStore {
     this.busyState.set(key);
     this.errorState.set(null);
     try {
-      const id = await this.api.open(scope, token);
+      const id = setupId
+        ? await this.startCloud(scope, token, key, revision)
+        : this.readOnly()
+          ? await this.api.open(scope, token)
+          : await this.startConnectedSession(scope, token, key, revision);
       if (!this.isCurrent(key, revision)) {
         void this.api.close(scope, id, token).catch(() => undefined);
         return;
@@ -256,6 +273,138 @@ export class MarketplaceBrowserTestStore {
         this.setError(key, error);
     } finally {
       if (this.isCurrent(key, revision)) this.busyState.set(null);
+    }
+  }
+
+  private async startConnectedSession(
+    scope: BrowserTestScope,
+    token: string,
+    key: string,
+    revision: number,
+  ): Promise<string> {
+    this.cloudPresence?.abort();
+    const presence = new AbortController();
+    this.cloudPresence = presence;
+    this.cloudPresenceKey = key;
+    const dialogId = crypto.randomUUID();
+    let resolveReady: () => void = () => undefined;
+    let rejectReady: (reason: unknown) => void = () => undefined;
+    const ready = new Promise<void>((resolve, reject) => {
+      resolveReady = resolve;
+      rejectReady = reject;
+    });
+    presence.signal.addEventListener(
+      'abort',
+      () => rejectReady(new Error('Der Anmeldedialog wurde geschlossen.')),
+      { once: true },
+    );
+    void this.api
+      .listenBrowserSessionPresence(scope, dialogId, token, resolveReady, presence.signal)
+      .catch(() => {
+        const failure = new Error(
+          'Die Verbindung zur Vinted-Anmeldung wurde unterbrochen. Öffne den Dialog erneut.',
+        );
+        rejectReady(failure);
+        if (!presence.signal.aborted && this.isCurrent(key, revision))
+          this.errorState.set({ key, message: failure.message });
+        presence.abort();
+      });
+    try {
+      await ready;
+      if (presence.signal.aborted || !this.isCurrent(key, revision))
+        throw new Error('Die Vinted-Anmeldung wurde geschlossen.');
+      return await this.api.open(scope, token, dialogId, (action) => {
+        if (!presence.signal.aborted && this.isCurrent(key, revision))
+          this.progressState.set({ key, message: vintedAccountActionStatus(action) });
+      });
+    } catch (error) {
+      presence.abort();
+      throw error;
+    }
+  }
+
+  private async startCloud(
+    scope: BrowserTestScope,
+    token: string,
+    key: string,
+    revision: number,
+  ): Promise<string> {
+    this.cloudPresence?.abort();
+    const presence = new AbortController();
+    this.cloudPresence = presence;
+    this.cloudPresenceKey = key;
+    const dialogId = crypto.randomUUID();
+    let readyResolve: () => void = () => undefined;
+    let readyReject: (reason: unknown) => void = () => undefined;
+    let sessionResolve: (id: string) => void = () => undefined;
+    let sessionReject: (reason: unknown) => void = () => undefined;
+    const ready = new Promise<void>((resolve, reject) => {
+      readyResolve = resolve;
+      readyReject = reject;
+    });
+    const session = new Promise<string>((resolve, reject) => {
+      sessionResolve = resolve;
+      sessionReject = reject;
+    });
+    void session.catch(() => undefined);
+    presence.signal.addEventListener(
+      'abort',
+      () => {
+        const failure = new Error('Die Cloud-Einrichtung wurde geschlossen.');
+        readyReject(failure);
+        sessionReject(failure);
+      },
+      { once: true },
+    );
+    let version = -1;
+    let openingAcknowledged = false;
+    let startActionId: string | null = null;
+    const changed = (setup: CloudSetupView) => {
+      if (presence.signal.aborted || !this.isCurrent(key, revision)) return;
+      readyResolve();
+      if (!openingAcknowledged || setup.startActionId !== startActionId || setup.version < version)
+        return;
+      version = setup.version;
+      if (setup.startState === 'running' && setup.sessionId) sessionResolve(setup.sessionId);
+      else if (setup.state === 'cancelled' || setup.state === 'cleanup_pending')
+        sessionReject(new Error('Die Cloud-Einrichtung wurde beendet.'));
+      else
+        this.progressState.set({
+          key,
+          message:
+            setup.waitReason === 'account_busy'
+              ? 'Wartet · Konto ist beschäftigt'
+              : setup.waitReason === 'pool_busy'
+                ? 'Wartet · Alle Browserplätze sind belegt'
+                : setup.startState === 'starting'
+                  ? 'Cloud-Browser wird gestartet …'
+                  : 'Cloud-Einrichtung wird vorbereitet …',
+        });
+    };
+    void this.api.listenCloudSetup(scope, dialogId, token, changed, presence.signal).catch(() => {
+      const failure = new Error(
+        'Die Verbindung zur Cloud-Einrichtung wurde unterbrochen. Öffne die Einrichtung erneut.',
+      );
+      readyReject(failure);
+      sessionReject(failure);
+      if (!presence.signal.aborted && this.isCurrent(key, revision))
+        this.errorState.set({ key, message: failure.message });
+      presence.abort();
+    });
+    try {
+      await ready;
+      if (presence.signal.aborted || !this.isCurrent(key, revision))
+        throw new Error('Die Cloud-Einrichtung wurde geschlossen.');
+      const accepted = await this.api.openCloud(scope, dialogId, token);
+      if (!accepted.startActionId)
+        throw new Error('Der Einrichtungsauftrag konnte nicht bestätigt werden.');
+      startActionId = accepted.startActionId;
+      openingAcknowledged = true;
+      changed(accepted);
+      return await session;
+    } catch (error) {
+      presence.abort();
+      throw error;
     }
   }
 
@@ -577,8 +726,16 @@ export class MarketplaceBrowserTestStore {
   }
 
   async close(): Promise<void> {
+    this.cloudPresence?.abort();
+    this.cloudPresence = null;
+    this.cloudPresenceKey = null;
     const active = this.session();
-    if (!active) return;
+    if (!active) {
+      this.revision++;
+      this.busyState.set(null);
+      this.progressState.set(null);
+      return;
+    }
     const revision = ++this.revision;
     this.loginKey.set(null);
     this.loginPagePendingKey.set(null);

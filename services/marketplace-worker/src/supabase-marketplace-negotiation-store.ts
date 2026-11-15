@@ -111,6 +111,14 @@ export class SupabaseMarketplaceNegotiationStore {
       p_worker_epoch: version(workerEpoch),
       p_runner_id: uuid(runnerId),
     });
+    return this.parseClaim(value, workerId, workerEpoch, runnerId);
+  }
+  parseClaim(
+    value: unknown,
+    workerId: string,
+    workerEpoch: number,
+    runnerId: string,
+  ): CloudNegotiationClaim | null {
     if (value === null) return null;
     const result = fields(value, [
       'jobId',

@@ -1,3 +1,4 @@
+import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import type {
   VintedProfileChanges,
@@ -131,6 +132,7 @@ export async function updateVintedProfileDetails(
   if (changes.photo) {
     if (!current.canUploadPhoto) throw new Error('Profilbild nicht bearbeitbar');
     await authorize();
+    await beforeVintedWrite(authorize);
     await page.getByTestId('profile-photo-input').setInputFiles({
       name: 'profile.jpg',
       mimeType: 'image/jpeg',
@@ -154,6 +156,7 @@ export async function updateVintedProfileDetails(
     throw new Error('Profilspeichern nicht verfügbar');
   await authorize();
   try {
+    await beforeVintedWrite(authorize);
     await save.click({ timeout: 10000 });
   } catch {
     return { status: 'unconfirmed' };

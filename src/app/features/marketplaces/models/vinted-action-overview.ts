@@ -22,6 +22,8 @@ export interface VintedAction {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly errorCode: string | null;
+  readonly waitReason?:
+    'account_busy' | 'pool_busy' | 'dependency_unresolved' | 'account_paused' | null;
 }
 export interface VintedActionOverview extends AccountScope {
   readonly actions: readonly VintedAction[];
@@ -114,9 +116,21 @@ export function parseVintedActionOverview(
       createdAt: timestamp(action['createdAt']),
       updatedAt: timestamp(action['updatedAt']),
       errorCode: nullableString(action['errorCode']),
+      waitReason: parseWaitReason(action['waitReason']),
     };
   });
   return { ...scope, actions };
+}
+function parseWaitReason(value: unknown): VintedAction['waitReason'] {
+  if (value === undefined || value === null) return null;
+  if (
+    value === 'account_busy' ||
+    value === 'pool_busy' ||
+    value === 'dependency_unresolved' ||
+    value === 'account_paused'
+  )
+    return value;
+  throw new MarketplaceResponseError();
 }
 export function groupVintedActions(actions: readonly VintedAction[]) {
   const oldestFirst = (first: VintedAction, second: VintedAction) =>

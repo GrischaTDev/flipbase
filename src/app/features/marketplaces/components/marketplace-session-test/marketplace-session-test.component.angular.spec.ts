@@ -27,6 +27,7 @@ let start: ReturnType<typeof vi.fn>;
 let liveApi: {
   available: ReturnType<typeof vi.fn>;
   open: ReturnType<typeof vi.fn>;
+  listenBrowserSessionPresence: ReturnType<typeof vi.fn>;
   frame: ReturnType<typeof vi.fn>;
   input: ReturnType<typeof vi.fn>;
   close: ReturnType<typeof vi.fn>;
@@ -77,6 +78,20 @@ beforeEach(() => {
   liveApi = {
     available: vi.fn().mockResolvedValue({ available: false, readOnly: true }),
     open: vi.fn().mockResolvedValue('25600000-0000-4000-8000-000000000031'),
+    listenBrowserSessionPresence: vi.fn(
+      async (
+        _scope: unknown,
+        _dialogId: string,
+        _token: string,
+        ready: () => void,
+        signal: AbortSignal,
+      ) => {
+        ready();
+        await new Promise<void>((resolve) =>
+          signal.addEventListener('abort', () => resolve(), { once: true }),
+        );
+      },
+    ),
     frame: vi.fn().mockResolvedValue(new Blob([Uint8Array.from([0xff, 0xd8, 0xff, 0xd9])])),
     input: vi.fn().mockResolvedValue(undefined),
     close: vi.fn().mockResolvedValue(undefined),
@@ -224,5 +239,14 @@ it('bietet nach abgelehntem Login wieder das leere Formular an und stoppt den Pr
   await fixture.whenStable();
   expect(login).toHaveBeenCalledTimes(2);
   expect(liveApi.open).toHaveBeenCalledOnce();
+  expect(liveApi.listenBrowserSessionPresence).toHaveBeenCalledOnce();
+  const dialogId = liveApi.listenBrowserSessionPresence.mock.calls[0][1];
+  expect(dialogId).toMatch(/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i);
+  expect(liveApi.open).toHaveBeenCalledWith(
+    { workspaceId: account.workspaceId, connectionId: account.connectionId },
+    'synthetic-token',
+    dialogId,
+    expect.any(Function),
+  );
   fixture.destroy();
 });

@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   computed,
   effect,
   inject,
@@ -28,6 +29,7 @@ import {
   VintedProfileConflictError,
 } from '../../services/marketplace-browser-test-api.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { parseVintedAccountAction } from '../../models/vinted-account-action';
 
 @Component({
   selector: 'app-vinted-profile-editor',
@@ -80,11 +82,17 @@ export class VintedProfileEditorComponent {
   readonly busy = signal(false);
   readonly error = signal<string | null>(null);
   readonly saved = signal(false);
+  private revision = 0;
+  private pendingSave: number | null = null;
 
   constructor() {
     effect(() => {
       this.connectionId();
+      this.store.selectionVersion();
       untracked(() => {
+        this.revision++;
+        this.pendingSave = null;
+        this.busy.set(false);
         this.editing.set(false);
         this.saved.set(false);
         this.error.set(null);
@@ -95,21 +103,38 @@ export class VintedProfileEditorComponent {
         this.cachePending.set(false);
       });
     });
+    const accepted = (event: Event) => {
+      if (!(event instanceof CustomEvent) || this.pendingSave !== this.revision) return;
+      const connection = this.store.selectedConnection();
+      if (!connection || !this.isCurrent(connection.connectionId)) return;
+      try {
+        const action = parseVintedAccountAction(event.detail, connection);
+        if (action.kind !== 'profile_details_save') return;
+        this.pendingSave = null;
+        this.editing.set(false);
+        this.busy.set(false);
+      } catch {
+        return;
+      }
+    };
+    window.addEventListener('flipbase-account-action-accepted', accepted);
+    inject(DestroyRef).onDestroy(() => {
+      this.revision++;
+      window.removeEventListener('flipbase-account-action-accepted', accepted);
+    });
   }
 
   async open(): Promise<void> {
     if (this.busy()) return;
+    const revision = ++this.revision;
+    const selection = this.store.selectionVersion();
     this.busy.set(true);
     this.error.set(null);
     this.saved.set(false);
     const connectionId = this.connectionId();
     try {
       const profile = await this.store.readProfileDetails(connectionId);
-      if (
-        this.connectionId() !== connectionId ||
-        this.store.selectedConnection()?.connectionId !== connectionId
-      )
-        return;
+      if (revision !== this.revision || !this.isCurrent(connectionId, selection)) return;
       this.original.set(profile);
       this.form.reset({
         about: profile.about,
@@ -126,20 +151,23 @@ export class VintedProfileEditorComponent {
       this.citySearched.set(false);
       this.editing.set(true);
     } catch (error) {
-      if (this.connectionId() === connectionId)
+      if (revision === this.revision && this.isCurrent(connectionId, selection))
         this.error.set(
           error instanceof Error
             ? error.message
             : 'Das Profilformular konnte nicht geladen werden.',
         );
     } finally {
-      this.busy.set(false);
+      if (revision === this.revision) this.busy.set(false);
     }
   }
 
   async save(): Promise<void> {
     const original = this.original();
     if (!original || this.form.invalid || this.busy() || this.requiresReload()) return;
+    const revision = ++this.revision;
+    const selection = this.store.selectionVersion();
+    this.pendingSave = revision;
     this.busy.set(true);
     this.error.set(null);
     const connectionId = this.connectionId();
@@ -160,12 +188,12 @@ export class VintedProfileEditorComponent {
         },
         original,
       );
-      if (!this.isCurrent(connectionId)) return;
+      if (revision !== this.revision || !this.isCurrent(connectionId, selection)) return;
       this.cachePending.set(result.cachePending);
       this.editing.set(false);
       this.saved.set(true);
     } catch (error) {
-      if (this.isCurrent(connectionId)) {
+      if (revision === this.revision && this.isCurrent(connectionId, selection)) {
         this.requiresReload.set(
           error instanceof VintedEditUnconfirmedError ||
             error instanceof VintedProfileConflictError,
@@ -177,12 +205,19 @@ export class VintedProfileEditorComponent {
         );
       }
     } finally {
-      this.busy.set(false);
+      if (revision === this.revision) {
+        this.pendingSave = null;
+        this.busy.set(false);
+      }
     }
   }
 
   close(): void {
-    if (!this.busy()) this.editing.set(false);
+    if (!this.busy()) {
+      this.revision++;
+      this.pendingSave = null;
+      this.editing.set(false);
+    }
   }
 
   async reload(): Promise<void> {
@@ -195,17 +230,18 @@ export class VintedProfileEditorComponent {
     this.busy.set(true);
     this.error.set(null);
     const connectionId = this.connectionId();
+    const selection = this.store.selectionVersion();
     try {
       const cities = await this.store.searchProfileCities(
         connectionId,
         this.citySearch.value.trim(),
       );
-      if (!this.isCurrent(connectionId)) return;
+      if (!this.isCurrent(connectionId, selection)) return;
       this.cities.set(cities);
       this.form.controls.cityId.setValue('');
       this.citySearched.set(true);
     } catch (error) {
-      if (this.isCurrent(connectionId))
+      if (this.isCurrent(connectionId, selection))
         this.error.set(
           error instanceof Error ? error.message : 'Die Städte konnten nicht geladen werden.',
         );
@@ -221,15 +257,16 @@ export class VintedProfileEditorComponent {
     input.value = '';
     if (!file) return;
     const connectionId = this.connectionId();
+    const selection = this.store.selectionVersion();
     this.busy.set(true);
     this.error.set(null);
     try {
       const prepared = await prepareVintedProfilePhoto(file);
-      if (!this.isCurrent(connectionId)) return;
+      if (!this.isCurrent(connectionId, selection)) return;
       this.photo.set(prepared.photo);
       this.preview.set(prepared.preview);
     } catch (error) {
-      if (this.isCurrent(connectionId))
+      if (this.isCurrent(connectionId, selection))
         this.error.set(
           error instanceof Error ? error.message : 'Das Profilbild konnte nicht geladen werden.',
         );
@@ -238,10 +275,11 @@ export class VintedProfileEditorComponent {
     }
   }
 
-  private isCurrent(connectionId: string): boolean {
+  private isCurrent(connectionId: string, selection?: number): boolean {
     return (
       this.connectionId() === connectionId &&
-      this.store.selectedConnection()?.connectionId === connectionId
+      this.store.selectedConnection()?.connectionId === connectionId &&
+      (selection === undefined || selection === this.store.selectionVersion())
     );
   }
 }

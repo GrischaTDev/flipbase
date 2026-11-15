@@ -10,8 +10,27 @@ import type {
   PrivateCloudSetup,
 } from './supabase-marketplace-cloud-setup-store.ts';
 import type { VintedAccountIdentity } from './vinted-browser-reader.ts';
+import type { ServerResponse } from 'node:http';
+import {
+  actionRecord,
+  actionUuid,
+  type AccountActionClaim,
+  type SupabaseMarketplaceAccountActionStore,
+} from './supabase-marketplace-account-action-store.ts';
+
+interface SetupPresence {
+  scope: BrowserSessionScope;
+  setupId: string;
+  dialogId: string;
+  response: ServerResponse;
+  connected: boolean;
+  sessionId?: string;
+  heartbeat?: ReturnType<typeof setInterval>;
+}
 
 interface SetupOptions {
+  actions?: Pick<SupabaseMarketplaceAccountActionStore, 'enqueue' | 'finish' | 'read'>;
+  wake?: () => void;
   refreshInventory?: () => Promise<void>;
   purchaseIp?: (
     request: CloudSetupRequest,
@@ -29,7 +48,7 @@ interface SetupOptions {
   reconcilePurchases?: (request: CloudSetupRequest, userId: string) => Promise<void>;
   store: Pick<
     SupabaseMarketplaceCloudSetupStore,
-    'availability' | 'begin' | 'read' | 'cancel' | 'readAuthorized' | 'step' | 'rows'
+    'availability' | 'begin' | 'read' | 'cancel' | 'readAuthorized' | 'step' | 'rows' | 'presence'
   >;
   profiles: {
     prepareCloudSetup(scope: BrowserSessionScope, setupId: string): Promise<void>;
@@ -43,6 +62,13 @@ interface SetupOptions {
       operation: (browser: BrowserInfo) => Promise<T>,
     ): Promise<T>;
     close(scope: BrowserSessionScope, id: string): Promise<void>;
+    handoffCloudSetup?(
+      scope: BrowserSessionScope,
+      id: string,
+      setupId: string,
+      token: string,
+    ): Promise<void>;
+    discardUnstartedAction?(scope: BrowserSessionScope): Promise<void>;
   };
 }
 function record(candidate: unknown): candidate is Record<string, unknown> {
@@ -54,6 +80,7 @@ export class MarketplaceCloudSetup {
   private readonly options: SetupOptions;
   private readonly pending = new Map<string, Promise<unknown>>();
   private readonly preparations = new Map<string, Promise<CloudSetupResult>>();
+  private readonly presences = new Map<string, SetupPresence>();
   constructor(options: SetupOptions) {
     this.options = options;
   }
@@ -130,12 +157,204 @@ export class MarketplaceCloudSetup {
       throw new Error('Einrichtungssitzung nicht verfügbar');
     return { ...scope, cloudSetup: { setupId } };
   }
-  open(scope: BrowserSessionScope, setupId: string): Promise<string> {
+  requestOpen(
+    scope: BrowserSessionScope,
+    setupId: string,
+    dialogId: string,
+  ): Promise<CloudSetupView> {
     return this.exclusive(setupId, async () => {
+      actionUuid(dialogId);
+      const presence = this.presences.get(setupId);
+      if (!presence || !this.present(presence, scope, dialogId) || !this.options.actions)
+        throw new Error('Öffne die Einrichtung erneut.');
       await this.options.profiles.prepareCloudSetup(scope, setupId);
       const setup = await this.read(scope, setupId);
-      if (setup.sessionId) return setup.sessionId;
-      return this.options.broker.open(await this.authorize(scope, setupId));
+      if (setup.startState === 'running' && setup.sessionId) return setup;
+      if (!this.present(presence, scope, dialogId))
+        throw new Error('Einrichtungsdialog wurde geschlossen.');
+      actionRecord(
+        await this.options.actions.enqueue(scope, dialogId, 'cloud_setup_open', {
+          setupId,
+          dialogId,
+        }),
+      );
+      this.options.wake?.();
+      return this.read(scope, setupId);
+    });
+  }
+  private present(presence: SetupPresence, scope: BrowserSessionScope, dialogId: string): boolean {
+    return (
+      this.presences.get(presence.setupId) === presence &&
+      presence.connected &&
+      !presence.response.destroyed &&
+      !presence.response.writableEnded &&
+      presence.dialogId === dialogId &&
+      presence.scope.userId === scope.userId &&
+      presence.scope.workspaceId === scope.workspaceId &&
+      presence.scope.connectionId === scope.connectionId
+    );
+  }
+  shutdownPresence(): void {
+    for (const presence of this.presences.values()) {
+      presence.connected = false;
+      clearInterval(presence.heartbeat);
+      presence.response.end();
+    }
+  }
+  async connectPresence(
+    scope: BrowserSessionScope,
+    setupId: string,
+    dialogId: string,
+    response: ServerResponse,
+  ): Promise<void> {
+    actionUuid(dialogId);
+    const setup = await this.options.store.presence(scope, setupId, dialogId, true);
+    const previous = this.presences.get(setupId);
+    const presence: SetupPresence = {
+      scope,
+      setupId,
+      dialogId,
+      response,
+      connected: true,
+      ...(setup.startState === 'running' && setup.sessionId ? { sessionId: setup.sessionId } : {}),
+    };
+    this.presences.set(setupId, presence);
+    if (previous) {
+      previous.connected = false;
+      clearInterval(previous.heartbeat);
+      previous.response.end();
+    }
+    let refreshing = false;
+    const disconnect = async () => {
+      presence.connected = false;
+      clearInterval(presence.heartbeat);
+      if (this.presences.get(setupId) !== presence) return;
+      this.presences.delete(setupId);
+      try {
+        await this.options.store.presence(scope, setupId, dialogId, false);
+      } finally {
+        await this.exclusive(setupId, async () => {
+          if (presence.sessionId)
+            await this.options.broker.close(
+              { ...scope, cloudSetup: { setupId } },
+              presence.sessionId,
+            );
+        });
+      }
+    };
+    response.once('close', () => {
+      void disconnect().catch(() => {
+        // Lokaler Widerruf gilt sofort; fehlgeschlagene Stopps bleiben für Recovery reserviert.
+      });
+    });
+    if (response.destroyed || response.writableEnded) {
+      await disconnect();
+      return;
+    }
+    response.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-store',
+      'X-Accel-Buffering': 'no',
+    });
+    if (!response.write('event: setup_changed\ndata: ' + JSON.stringify(setup) + '\n\n')) {
+      response.end();
+      return;
+    }
+    presence.heartbeat = setInterval(() => {
+      if (refreshing || !this.present(presence, scope, dialogId)) return;
+      refreshing = true;
+      void this.options.store
+        .presence(scope, setupId, dialogId, true)
+        .then((view) => {
+          if (
+            this.present(presence, scope, dialogId) &&
+            !response.write('event: setup_changed\ndata: ' + JSON.stringify(view) + '\n\n')
+          )
+            response.end();
+        })
+        .catch(() => response.end())
+        .finally(() => {
+          refreshing = false;
+        });
+    }, 10_000);
+    presence.heartbeat.unref();
+  }
+  runQueuedSetup(claim: AccountActionClaim): Promise<void> {
+    return this.exclusive(actionUuid(claim.payload.setupId), async () => {
+      const setupId = actionUuid(claim.payload.setupId),
+        dialogId = actionUuid(claim.payload.dialogId);
+      const presence = this.presences.get(setupId);
+      const actions = this.options.actions;
+      if (
+        !actions ||
+        !this.options.broker.handoffCloudSetup ||
+        !this.options.broker.discardUnstartedAction
+      )
+        throw new Error('Einrichtungswarteschlange ist nicht verfügbar.');
+      if (!presence || !this.present(presence, claim.scope, dialogId)) {
+        await this.options.broker.discardUnstartedAction(claim.scope);
+        await actions.finish(claim.scope, 'failed', null, 'setup_dialog_closed');
+        return;
+      }
+      let opened: string | undefined;
+      let handedOff = false;
+      let finishAttempted = false;
+      let finishConfirmed = false;
+      try {
+        opened = await this.options.broker.open(claim.scope);
+        if (!this.present(presence, claim.scope, dialogId)) {
+          await this.options.broker.close(claim.scope, opened);
+          await actions.finish(claim.scope, 'failed', null, 'setup_dialog_closed');
+          return;
+        }
+        await this.options.broker.handoffCloudSetup(
+          claim.scope,
+          opened,
+          setupId,
+          presence.scope.userAccessToken,
+        );
+        handedOff = true;
+        finishAttempted = true;
+        // Der Datenbankabschluss veröffentlicht die Sitzung erst nach der lokalen Übergabe.
+        try {
+          await actions.finish(claim.scope, 'succeeded', { id: opened });
+        } catch (failure) {
+          const receipt = actionRecord(
+            actionRecord(await actions.read(presence.scope, claim.actionId)).action,
+          );
+          if (
+            receipt.id !== claim.actionId ||
+            receipt.workspaceId !== claim.scope.workspaceId ||
+            receipt.connectionId !== claim.scope.connectionId ||
+            receipt.state !== 'succeeded' ||
+            actionRecord(receipt.result).id !== opened
+          )
+            throw failure;
+        }
+        finishConfirmed = true;
+        presence.sessionId = opened;
+        if (!this.present(presence, claim.scope, dialogId)) {
+          await this.options.broker.close({ ...presence.scope, cloudSetup: { setupId } }, opened);
+          return;
+        }
+        const view = await this.read(presence.scope, setupId);
+        if (
+          this.present(presence, claim.scope, dialogId) &&
+          !presence.response.write('event: setup_changed\ndata: ' + JSON.stringify(view) + '\n\n')
+        )
+          presence.response.end();
+      } catch {
+        if (opened)
+          await this.options.broker.close(
+            handedOff ? { ...presence.scope, cloudSetup: { setupId } } : claim.scope,
+            opened,
+          );
+        else if (!opened) await this.options.broker.discardUnstartedAction(claim.scope);
+        if (finishAttempted && !finishConfirmed)
+          throw new Error('Einrichtungsabschluss muss geprüft werden.');
+        if (!finishAttempted)
+          await actions.finish(claim.scope, 'failed', null, 'browser_unavailable');
+      }
     });
   }
   async verify(

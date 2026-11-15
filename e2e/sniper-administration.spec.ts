@@ -749,6 +749,9 @@ for (const theme of ['light', 'dark']) {
     await filterAction(page, title, 'Bearbeiten');
     const editing = page.getByRole('dialog', { name: 'Suchfilter bearbeiten', exact: true });
     await expect(
+      editing.getByRole('status').filter({ hasText: 'Herren > Kleidung > Jacken' }),
+    ).toContainText('Nike oder Patagonia');
+    await expect(
       editing.getByRole('button', { name: 'Nike aus Auswahl entfernen', exact: true }),
     ).toBeVisible();
     await expect(

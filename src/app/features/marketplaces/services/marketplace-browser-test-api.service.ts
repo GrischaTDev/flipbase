@@ -1,4 +1,11 @@
 import type { VintedShippingLabelRequestResult } from '../models/vinted-shipping-label';
+import {
+  runVintedAccountAction,
+  vintedAccountActionKind,
+  VintedAccountActionRejectedError,
+} from './vinted-account-action-transport';
+import type { VintedListingEditIntent } from '../../../../../supabase/functions/_shared/vinted-listing-edit-intent.mjs';
+import type { VintedAccountAction } from '../models/vinted-account-action';
 import { Injectable } from '@angular/core';
 import {
   parseVintedProfileDetails,
@@ -288,6 +295,157 @@ const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 
 @Injectable({ providedIn: 'root' })
 export class MarketplaceBrowserTestApiService {
+  async openCloud(
+    scope: BrowserTestScope,
+    dialogId: string,
+    accessToken: string,
+  ): Promise<CloudSetupView> {
+    if (!scope.cloudSetupId) throw new Error('Die Cloud-Einrichtung fehlt.');
+    const response = await this.post(
+      this.sessionPath(scope, '', 'open'),
+      { ...scope, dialogId },
+      accessToken,
+      15_000,
+    );
+    if (response.status !== 202)
+      throw new Error('Die Cloud-Einrichtung konnte nicht gestartet werden.');
+    return parseCloudSetupView(await response.json(), { ...scope, setupId: scope.cloudSetupId });
+  }
+
+  async listenCloudSetup(
+    scope: BrowserTestScope,
+    dialogId: string,
+    accessToken: string,
+    changed: (setup: CloudSetupView) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    if (!scope.cloudSetupId) throw new Error('Die Cloud-Einrichtung fehlt.');
+    return this.listenPresence(
+      `/marketplace-browser/cloud-setups/${scope.cloudSetupId}/presence`,
+      scope,
+      dialogId,
+      accessToken,
+      'setup_changed',
+      (value) => changed(parseCloudSetupView(value, { ...scope, setupId: scope.cloudSetupId })),
+      signal,
+    );
+  }
+
+  async listenBrowserSessionPresence(
+    scope: AccountScope,
+    dialogId: string,
+    accessToken: string,
+    ready: () => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    return this.listenPresence(
+      '/marketplace-browser/sessions/presence',
+      scope,
+      dialogId,
+      accessToken,
+      'dialog_ready',
+      (value) => {
+        if (
+          !value ||
+          typeof value !== 'object' ||
+          Array.isArray(value) ||
+          Object.keys(value).length !== 1 ||
+          !('dialogId' in value) ||
+          value.dialogId !== dialogId
+        )
+          throw new Error('Der Anmeldedialog konnte nicht bestätigt werden.');
+        ready();
+      },
+      signal,
+    );
+  }
+
+  private async listenPresence(
+    path: string,
+    scope: AccountScope,
+    dialogId: string,
+    accessToken: string,
+    eventName: 'setup_changed' | 'dialog_ready',
+    changed: (value: unknown) => void,
+    signal: AbortSignal,
+  ): Promise<void> {
+    const response = await fetch(path, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        Accept: 'text/event-stream',
+      },
+      body: JSON.stringify({
+        workspaceId: scope.workspaceId,
+        connectionId: scope.connectionId,
+        dialogId,
+      }),
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal,
+    });
+    if (
+      !response.ok ||
+      !response.body ||
+      !response.headers.get('content-type')?.includes('text/event-stream')
+    )
+      throw new Error('Die Verbindung zur Cloud-Einrichtung konnte nicht hergestellt werden.');
+    const reader = response.body.getReader(),
+      decoder = new TextDecoder();
+    let pending = '';
+    try {
+      while (!signal.aborted) {
+        const part = await reader.read();
+        if (part.done) break;
+        pending += decoder.decode(part.value, { stream: true });
+        if (pending.length > 64 * 1024) throw new Error('Ungültiger Einrichtungsstatus.');
+        let boundary = /\r?\n\r?\n/.exec(pending);
+        while (boundary) {
+          const message = pending.slice(0, boundary.index);
+          pending = pending.slice(boundary.index + boundary[0].length);
+          const lines = message.split(/\r?\n/);
+          if (lines.some((line) => line.trim() === `event: ${eventName}`)) {
+            const data = lines
+              .filter((line) => line.startsWith('data:'))
+              .map((line) => line.slice(5).trimStart())
+              .join('\n');
+            const value: unknown = JSON.parse(data);
+            changed(value);
+          }
+          boundary = /\r?\n\r?\n/.exec(pending);
+        }
+      }
+      if (!signal.aborted)
+        throw new Error('Die Verbindung zur Cloud-Einrichtung wurde unterbrochen.');
+    } finally {
+      reader.releaseLock();
+    }
+  }
+  async saveListingIntent(
+    scope: AccountScope,
+    entryId: string,
+    intent: VintedListingEditIntent,
+    accessToken: string,
+  ): Promise<void> {
+    const response = await this.post(
+      '/marketplace-browser/listings/edit/intent',
+      { ...scope, entryId, intent },
+      accessToken,
+    );
+    await assertListingNotRelisting(response);
+    if (!response.ok) throw new VintedEditUnconfirmedError();
+    const result: unknown = await response.json();
+    if (result && typeof result === 'object' && 'status' in result && result.status === 'conflict')
+      throw new VintedListingChangedError();
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('status' in result) ||
+      result.status !== 'confirmed'
+    )
+      throw new VintedEditUnconfirmedError();
+  }
   async available(): Promise<BrowserTestAvailability> {
     try {
       const response = await fetch('/marketplace-browser/healthz', {
@@ -321,18 +479,26 @@ export class MarketplaceBrowserTestApiService {
             }
           : { available: false, readOnly: true, outdated: true };
       return { available: false, readOnly: true };
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       return { available: false, readOnly: true };
     }
   }
 
-  async open(scope: BrowserTestScope, accessToken: string): Promise<string> {
+  async open(
+    scope: BrowserTestScope,
+    accessToken: string,
+    dialogId?: string,
+    changed?: (action: VintedAccountAction) => void,
+  ): Promise<string> {
     const response = await this.post(
-      scope.cloudSetupId ? this.sessionPath(scope, '', 'open') : basePath,
-      scope,
+      basePath,
+      { ...scope, ...(dialogId ? { dialogId } : {}) },
       accessToken,
+      90_000,
+      changed,
     );
-    if (response.status !== 201) {
+    if (response.status !== 201 && response.status !== 200) {
       if (response.status === 409) {
         const body: unknown = await response.json().catch(() => null);
         if (
@@ -563,7 +729,8 @@ export class MarketplaceBrowserTestApiService {
       });
       if (setup.state !== 'completed') throw new Error('Cloud-Abschluss ausstehend');
       return setup;
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       const response = await this.post(this.sessionPath(scope, '', 'read'), scope, accessToken);
       if (response.ok) {
         const setup = parseCloudSetupView(await response.json(), {
@@ -574,6 +741,7 @@ export class MarketplaceBrowserTestApiService {
       }
       throw new Error(
         'Cloud konnte noch nicht aktiviert werden. Beende laufende lokale Aktionen und versuche den Abschluss erneut.',
+        { cause: error },
       );
     }
   }
@@ -605,7 +773,8 @@ export class MarketplaceBrowserTestApiService {
         accessToken,
         15_000,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new MarketplaceImportError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
@@ -680,14 +849,16 @@ export class MarketplaceBrowserTestApiService {
         { ...scope, conversationId },
         accessToken,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new MarketplaceImportError('messages');
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
     let result: unknown;
     try {
       result = await response.json();
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new MarketplaceImportError('messages');
     }
     if (
@@ -727,14 +898,18 @@ export class MarketplaceBrowserTestApiService {
         { ...scope, saleId },
         accessToken,
       );
-    } catch {
-      throw new Error('Der Cloud-Browser ist nicht erreichbar. Versuche es erneut.');
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
+      throw new Error('Der Cloud-Browser ist nicht erreichbar. Versuche es erneut.', {
+        cause: error,
+      });
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
     let result: unknown;
     try {
       result = await response.json();
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       result = null;
     }
     const value =
@@ -815,25 +990,36 @@ export class MarketplaceBrowserTestApiService {
         },
         accessToken,
       );
-    } catch {
-      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
+      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.', {
+        cause: error,
+      });
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
     await assertListingNotRelisting(response);
+    if (response.status === 502)
+      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
     if (!response.ok) throw new Error('Das Inserat konnte nicht gelöscht werden.');
     let body: unknown;
     try {
       body = await response.json();
-    } catch {
-      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.');
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
+      throw new Error('Die Löschung wurde nicht bestätigt. Prüfe das Inserat bei Vinted.', {
+        cause: error,
+      });
     }
     if (
       !body ||
       typeof body !== 'object' ||
       Array.isArray(body) ||
-      Object.keys(body).some((key) => !['status', 'cleanup', 'cache'].includes(key)) ||
+      Object.keys(body).some(
+        (key) => !['status', 'cleanup', 'cache', 'noWriteNeeded'].includes(key),
+      ) ||
       !('status' in body) ||
       body.status !== 'confirmed' ||
+      ('noWriteNeeded' in body && body.noWriteNeeded !== true) ||
       ('cleanup' in body && body.cleanup !== 'pending') ||
       ('cache' in body && body.cache !== 'pending')
     )
@@ -879,8 +1065,9 @@ export class MarketplaceBrowserTestApiService {
         expectedAccountId,
         body.listing.externalId,
       );
-    } catch {
-      throw new Error('Das Vinted-Inserat lieferte ungültige Daten.');
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
+      throw new Error('Das Vinted-Inserat lieferte ungültige Daten.', { cause: error });
     }
   }
 
@@ -941,7 +1128,8 @@ export class MarketplaceBrowserTestApiService {
         },
         accessToken,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new VintedEditUnconfirmedError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
@@ -977,7 +1165,8 @@ export class MarketplaceBrowserTestApiService {
         { ...scope, entryId, fields },
         accessToken,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new VintedEditUnconfirmedError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
@@ -1020,7 +1209,8 @@ export class MarketplaceBrowserTestApiService {
         },
         accessToken,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new VintedEditUnconfirmedError();
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
@@ -1112,7 +1302,8 @@ export class MarketplaceBrowserTestApiService {
         { ...scope, changes, expected },
         accessToken,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new VintedEditUnconfirmedError('Profil');
     }
     if (response.status === 404 || response.status === 503)
@@ -1158,7 +1349,8 @@ export class MarketplaceBrowserTestApiService {
         { ...scope, about, ...(expectedAbout !== undefined ? { expectedAbout } : {}) },
         accessToken,
       );
-    } catch {
+    } catch (error) {
+      if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new VintedEditUnconfirmedError('Profil');
     }
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
@@ -1180,7 +1372,13 @@ export class MarketplaceBrowserTestApiService {
     body: unknown,
     accessToken: string,
     timeoutMs = 90_000,
+    changed?: (action: VintedAccountAction) => void,
   ): Promise<Response> {
+    if (
+      vintedAccountActionKind(path) &&
+      (path !== basePath || (body && typeof body === 'object' && 'dialogId' in body))
+    )
+      return runVintedAccountAction(path, body, accessToken, changed);
     if (body && typeof body === 'object' && 'cloudSetupId' in body) {
       const { cloudSetupId: _setupId, ...request } = body;
       body = request;

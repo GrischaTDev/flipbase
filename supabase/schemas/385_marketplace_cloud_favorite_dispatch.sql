@@ -1,7 +1,7 @@
 -- Dieselben Favoritenregeln mit einer eigenen, widerrufbaren Cloud-Ausführung.
-create or replace function public.marketplace_cloud_favorite_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid)
+create or replace function public.marketplace_cloud_favorite_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_target_id uuid default null)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_event public.marketplace_favorite_message_events; v_settings public.marketplace_favorite_message_settings; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions; v_publication public.marketplace_account_entries; v_phase text; v_price numeric; v_text text;
+declare v_event public.marketplace_favorite_message_events; v_settings public.marketplace_favorite_message_settings; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions; v_publication public.marketplace_account_entries; v_phase text; v_price numeric; v_text text; v_next jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if p_runner_id is null then raise exception 'Auftragskennung fehlt' using errcode='22023'; end if;
@@ -16,11 +16,17 @@ begin
     where execution_mode='cloud' and (state='claimed' or offer_state='claimed') and exists(select 1 from public.marketplace_browser_sessions where public_id=cloud_browser_session_id and state='closed');
   update public.marketplace_favorite_message_events event set state=case when state in ('queued','claimed') then 'cancelled' else state end,offer_state=case when offer_state in ('pending','claimed') then 'skipped' else offer_state end,error_code=case when state in ('queued','claimed') then 'authorization_expired' else error_code end,offer_error_code=case when offer_state in ('pending','claimed') then 'configuration_changed' else offer_error_code end
     where event.execution_mode='cloud' and not public.marketplace_cloud_favorite_settings_valid(event.workspace_id,event.connection_id);
-  if exists(select 1 from public.marketplace_browser_sessions where state in ('active','stopping')) then return null; end if;
+  if p_target_id is null then
+    v_next:=public.marketplace_browser_next_work();
+    if v_next is null or v_next->>'kind' not in ('favorite_message','favorite_offer') then return null; end if;
+    p_target_id:=(v_next->>'jobId')::uuid;
+  end if;
+  if not public.marketplace_browser_job_eligible('favorite_message',p_target_id::text) and not public.marketplace_browser_job_eligible('favorite_offer',p_target_id::text) then return null; end if;
   select event.* into v_event from public.marketplace_favorite_message_events event
     join public.marketplace_favorite_message_settings settings using(workspace_id,connection_id)
     join public.marketplace_sync_schedules schedule using(workspace_id,connection_id)
-    where event.execution_mode='cloud' and settings.execution_mode='cloud' and settings.enabled
+    where event.id=p_target_id and public.marketplace_browser_slot_status(event.workspace_id,event.connection_id) is null
+      and event.execution_mode='cloud' and settings.execution_mode='cloud' and settings.enabled
       and event.setting_version=settings.version and event.external_account_id=settings.external_account_id and event.cloud_authorization_version=settings.cloud_authorization_version
       and schedule.enabled and schedule.paused_reason is null and (schedule.retry_after is null or schedule.retry_after<=clock_timestamp())
       and public.marketplace_cloud_write_available(event.workspace_id,event.connection_id)
@@ -57,8 +63,8 @@ begin
     'command',jsonb_build_object('recipientId',v_event.actor_id,'itemId',v_event.item_id,'text',v_event.message_text,'offer',v_event.offer_config,'conversationId',v_event.external_conversation_id,'transactionId',v_event.external_transaction_id,'externalMessageId',v_event.external_message_id));
 end;
 $$;
-revoke all on function public.marketplace_cloud_favorite_claim(uuid,bigint,uuid) from public,anon,authenticated;
-grant execute on function public.marketplace_cloud_favorite_claim(uuid,bigint,uuid) to service_role;
+revoke all on function public.marketplace_cloud_favorite_claim(uuid,bigint,uuid,uuid) from public,anon,authenticated;
+grant execute on function public.marketplace_cloud_favorite_claim(uuid,bigint,uuid,uuid) to service_role;
 
 create or replace function public.marketplace_cloud_favorite_check(p_workspace_id uuid,p_connection_id uuid,p_event_id uuid,p_claim_token uuid,p_worker_id uuid,p_worker_epoch bigint,p_phase text)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$

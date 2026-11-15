@@ -989,6 +989,7 @@ test('reports availability at the same path used by the Angular test page', asyn
       ok: true,
       readOnly: false,
       apiVersion: 2,
+      accountActionsEnabled: false,
       dragSupported: true,
     });
   } finally {
@@ -1120,6 +1121,7 @@ test('read-only mode refuses all browser input before accessing the session', as
       ok: true,
       readOnly: true,
       apiVersion: 2,
+      accountActionsEnabled: false,
       dragSupported: false,
     });
     const scope = { workspaceId: workspaceA, connectionId: accountA };

@@ -5,6 +5,7 @@ import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
 import { chromiumHostHandler, chromiumHostOperations } from './chromium-host-broker.ts';
 
 async function main(): Promise<void> {
+  const capacity = Number(process.env['MARKETPLACE_BROWSER_MAX_CONCURRENT'] ?? '1');
   const profileRoot = '/var/lib/flipbase-chromium/profiles';
   const launcher = new ChromiumContainerLauncher({
     onUncleanStop: (exitCode, oomKilled) => {
@@ -28,7 +29,7 @@ async function main(): Promise<void> {
   goLoginProxy.server.listen(4181, '172.30.88.3');
   const handler = chromiumHostHandler(
     token,
-    chromiumHostOperations(launcher, profileRoot, goLoginProxy),
+    chromiumHostOperations(launcher, profileRoot, goLoginProxy, capacity),
   );
   const server = createServer((request, response) => {
     void handler(request, response);

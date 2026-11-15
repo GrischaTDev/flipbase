@@ -326,6 +326,8 @@ test('a real second build updates independently while other windows keep unsaved
   const unchanged = await context.newPage();
   await configure(unchanged);
   await unchanged.goto('/settings/notifications');
+  await expect(unchanged.locator('#app-startup')).toHaveCount(0);
+  await expect(unchanged.getByRole('heading', { name: 'Push-Benachrichtigungen' })).toBeVisible();
   await page.request.post('/api/__pwa_test__/build');
   try {
     // Rückkehr aus einer wiederhergestellten Ansicht muss ohne manuelles update() prüfen.

@@ -478,7 +478,13 @@ async function mockPublication(
     revocations: Record<string, unknown>[] = [];
   await page.route('**/marketplace-browser/healthz', (route) =>
     route.fulfill({
-      json: { ok: true, readOnly: false, apiVersion: 2, listingPublishingEnabled: enabled },
+      json: {
+        ok: true,
+        readOnly: false,
+        apiVersion: 2,
+        accountActionsEnabled: true,
+        listingPublishingEnabled: enabled,
+      },
     }),
   );
   await page.route('**/marketplace-browser/listings/category/read', (route) => {

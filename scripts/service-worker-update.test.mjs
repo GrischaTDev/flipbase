@@ -100,6 +100,81 @@ test('opening and closing unrelated views does not cancel the requesting documen
   assert.equal(worker.skipCount, 1);
 });
 
+test('a committed activation cannot report requester timeout while skipWaiting is pending', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const requester = client('requester');
+  let entered;
+  const started = new Promise((resolve) => (entered = resolve));
+  let release;
+  const pending = new Promise((resolve) => (release = resolve));
+  const worker = createWorker({
+    clients: [requester],
+    skipWaiting: async () => {
+      entered();
+      await pending;
+    },
+  });
+  requester.worker = worker;
+  await worker.dispatch('install');
+  const update = worker.dispatch('message', {
+    source: requester,
+    data: {
+      type: 'ACTIVATE_UPDATE',
+      attemptId: 'slow-activation',
+      buildId: worker.inventory.buildId,
+    },
+  });
+  await started;
+  t.mock.timers.tick(4001);
+  release();
+  await update;
+  await new Promise((resolve) => setImmediate(resolve));
+  const results = requester.messages.filter((message) => message.type === 'PWA_UPDATE_RESULT');
+  assert.deepEqual(
+    results.map(({ result, reason }) => ({ result, reason })),
+    [{ result: 'applied', reason: '' }],
+  );
+  assert.equal(worker.skipCount, 1);
+});
+
+test('an expired requester lookup cannot activate after the attempt has ended', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const requester = client('requester');
+  let entered;
+  const started = new Promise((resolve) => (entered = resolve));
+  let release;
+  const pending = new Promise((resolve) => (release = resolve));
+  const worker = createWorker({
+    clients: [requester],
+    getClient: async () => {
+      entered();
+      await pending;
+      return requester;
+    },
+  });
+  requester.worker = worker;
+  await worker.dispatch('install');
+  const update = worker.dispatch('message', {
+    source: requester,
+    data: {
+      type: 'ACTIVATE_UPDATE',
+      attemptId: 'expired-lookup',
+      buildId: worker.inventory.buildId,
+    },
+  });
+  await started;
+  t.mock.timers.tick(4001);
+  await update;
+  release();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(worker.skipCount, 0);
+  assert.ok(
+    requester.messages.some(
+      (message) => message.type === 'PWA_UPDATE_RESULT' && message.reason === 'requester_timeout',
+    ),
+  );
+});
+
 test('a pinned sleeping view keeps its old chunks while the requesting view can update', async () => {
   const requester = client('requester');
   const sleeping = {

@@ -50,6 +50,7 @@ export class BrowserSessionCommands {
           beforeWrite: () => this.pause(pending, 'listing_begin'),
           readPhotoChunk: (imageId, offset) => this.pausePhoto(pending, imageId, offset),
         },
+        () => this.pause(pending, 'before_write'),
       )
         .then((value) => {
           if (Buffer.byteLength(JSON.stringify(value) ?? '') > browserCommandLimit)
@@ -114,7 +115,7 @@ export class BrowserSessionCommands {
   }
   private pause(
     pending: PendingAction,
-    kind: 'authorize' | 'stage' | 'offer_price' | 'listing_begin',
+    kind: 'authorize' | 'before_write' | 'stage' | 'offer_price' | 'listing_begin',
     stage?: 'profile' | 'publications' | 'conversations' | 'sales',
     price?: { original: number; offered: number },
   ): Promise<void> {
@@ -141,7 +142,12 @@ export class BrowserSessionCommands {
           : kind === 'stage' && stage
             ? { kind, sequence: pending.sequence, stage }
             : {
-                kind: kind === 'listing_begin' ? 'listing_begin' : 'authorize',
+                kind:
+                  kind === 'listing_begin'
+                    ? 'listing_begin'
+                    : kind === 'before_write'
+                      ? 'before_write'
+                      : 'authorize',
                 sequence: pending.sequence,
               },
       );
