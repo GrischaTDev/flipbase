@@ -14,6 +14,8 @@ Der native CLI-Client ist mit automatischer Clientregistrierung, PKCE, Anmeldung
 
 Für ChatGPT unter **Plugins → Hinzufügen → Benutzerdefinierter MCP** die Serveradresse mit **OAuth** eintragen und die dynamische Clientregistrierung verwenden. **OIDC aktiviert** ausschalten: Der begrenzte MCP-Zugang verwendet keine normale Supabase-UserInfo-Abfrage. Die erkannten OAuth-Adressen und den Standard-Scope `email` beibehalten. Nach dem Erstellen **Flipbase verbinden** wählen und den gewünschten Workspace, Modus und Vinted-Umfang in Flipbase bestätigen. Danach das Plugin über **Im Chat ausprobieren** verwenden. Der tatsächliche Anschluss ist am 15. November 2026 mit einem persönlichen ChatGPT-Plugin und einer Freigabe **Nur lesen** für genau ein Vinted-Konto bestätigt. Die Oberfläche behält die allgemeine MCP-Adresse; eine eigene Ein-Klick-Integration wird nicht behauptet.
 
+Auch die tatsächliche Erneuerung der ChatGPT-Sitzung ist geprüft: Nach Ablauf des 15-Minuten-Zugangstokens wurden dieselbe Sitzung und Freigabe ohne erneute Zustimmung erfolgreich erneuert und anschließend wieder lesend verwendet. Workspace, Modus und Kontenauswahl bleiben dabei erhalten; geprüft wurden Zeitpunkte und Zähler, keine Tokenwerte.
+
 ## Gelieferte Fachwerkzeuge
 
 Der Katalog enthält 28 Werkzeuge. Zugriffsart und aktuelle Workspace-Rolle begrenzen die sichtbaren Änderungen; die Datenbank prüft jede Aktion zusätzlich. Vinted-Werkzeuge bleiben Administratoren/Inhabern vorbehalten. Buchhaltung erhält ihre Finanzaktionen, keine Bestandsbuchungen. Versand- und Leserollen erhalten ausschließlich Lesezugriff.
