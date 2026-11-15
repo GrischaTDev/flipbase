@@ -70,7 +70,7 @@ supabase/functions/_shared/*
 !supabase/functions/_shared/ebay-xml.ts
 !supabase/functions/_shared/ebay-order-source.ts
 
-# Das private Releasepaket enthaelt nur die expliziten Push-Functions, keine Tests.
+# Das private Releasepaket enthaelt nur die expliziten Functionquellen, keine Tests.
 !supabase/functions/push-settings/
 supabase/functions/push-settings/*
 !supabase/functions/push-settings/index.ts
@@ -84,6 +84,15 @@ supabase/functions/push-revoke/*
 supabase/functions/ebay-order-observer/*
 !supabase/functions/ebay-order-observer/index.ts
 !supabase/functions/ebay-order-observer/handler.ts
+
+!supabase/functions/ai-connection/
+supabase/functions/ai-connection/*
+!supabase/functions/ai-connection/index.ts
+!supabase/functions/ai-connection/handler.ts
+!supabase/functions/ai-connection/token-handler.ts
+!supabase/functions/ai-connection/tools.ts
+!supabase/functions/ai-connection/image-validation.ts
+!supabase/functions/ai-connection/request-id.ts
 
 # Gemini / AI
 .gemini
