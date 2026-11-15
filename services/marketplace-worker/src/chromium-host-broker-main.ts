@@ -5,7 +5,7 @@ import { ChromiumContainerLauncher } from './chromium-container-launcher.ts';
 import { chromiumHostHandler, chromiumHostOperations } from './chromium-host-broker.ts';
 
 async function main(): Promise<void> {
-  const capacity = Number(process.env['MARKETPLACE_BROWSER_MAX_CONCURRENT'] ?? '1');
+  const capacity = Number(process.env['MARKETPLACE_BROWSER_MAX_CONCURRENT'] ?? '2');
   const profileRoot = '/var/lib/flipbase-chromium/profiles';
   const launcher = new ChromiumContainerLauncher({
     onUncleanStop: (exitCode, oomKilled) => {

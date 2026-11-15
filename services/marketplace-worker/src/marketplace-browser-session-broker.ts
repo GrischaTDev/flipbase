@@ -143,6 +143,28 @@ type BrowserStartStage =
   | 'browser_start'
   | 'lease_confirm';
 
+export type BrowserSessionWorkKind =
+  | 'account_action'
+  | 'cloud_setup'
+  | 'sync'
+  | 'message'
+  | 'favorite_message'
+  | 'favorite_offer'
+  | 'negotiation'
+  | 'listing'
+  | 'interactive';
+
+export interface BrowserSessionTelemetryEvent {
+  event: 'marketplace_browser_session_telemetry';
+  phase: 'opened' | 'reused' | 'closed';
+  kind: BrowserSessionWorkKind;
+  activeSessions: number;
+  peakConcurrentSessions: number;
+  reusedCount: number;
+  durationMs?: number;
+  uncleanStop?: boolean;
+}
+
 interface BrowserSessionBrokerOptions {
   leases: BrowserLeaseStore;
   profiles: BrowserProfileStore;
@@ -151,12 +173,17 @@ interface BrowserSessionBrokerOptions {
   authorizeRuntime?: () => Promise<boolean>;
   now?: () => number;
   onStartFailure?: (stage: BrowserStartStage, detail?: string) => void;
+  onSessionEvent?: (event: BrowserSessionTelemetryEvent) => void;
 }
 
 interface ActiveBrowserSession {
   lease: BrowserLease;
   profileId: string;
   browser?: CloudBrowserHandle;
+  startedAt: number;
+  kind: BrowserSessionWorkKind;
+  peakConcurrentSessions: number;
+  reusedCount: number;
   stopPending: boolean;
   stopPromise?: Promise<void>;
   stopWarning?: CloudBrowserStoppedUncleanlyError;
@@ -166,6 +193,19 @@ interface ActiveBrowserSession {
     absoluteEnd: number;
     idleCleanup?: ReturnType<typeof setTimeout>;
   };
+}
+
+function sessionWorkKind(scope: BrowserSessionScope): BrowserSessionWorkKind {
+  if (scope.accountAction) return 'account_action';
+  if (scope.cloudSetup) return 'cloud_setup';
+  if (scope.syncRead) return 'sync';
+  if (scope.messageWrite) return 'message';
+  if (scope.favoriteWrite) {
+    return scope.favoriteWrite.phase === 'offer' ? 'favorite_offer' : 'favorite_message';
+  }
+  if (scope.negotiationWrite) return 'negotiation';
+  if (scope.listingWrite) return 'listing';
+  return 'interactive';
 }
 
 function sameScope(left: BrowserSessionScope, right: BrowserSessionScope): boolean {
@@ -258,6 +298,16 @@ export class MarketplaceBrowserSessionBroker {
           clearTimeout(session.reusable.idleCleanup);
           session.reusable.held = true;
           await this.run(scope, id, async () => undefined);
+          session.reusedCount += 1;
+          const activeSessions = this.recordConcurrentPeak();
+          this.emitSessionEvent({
+            event: 'marketplace_browser_session_telemetry',
+            phase: 'reused',
+            kind: sessionWorkKind(scope),
+            activeSessions,
+            peakConcurrentSessions: session.peakConcurrentSessions,
+            reusedCount: session.reusedCount,
+          });
           return id;
         }
         if (!sameScope(scope, session.lease.scope)) {
@@ -432,13 +482,45 @@ export class MarketplaceBrowserSessionBroker {
         ) {
           throw new Error('Sitzung abgelaufen');
         }
-        this.sessions.set(lease.id, { lease, profileId, browser, stopPending: false });
+        const startedAt = this.options.now?.() ?? Date.now();
+        const kind = sessionWorkKind(scope);
+        const createdSession: ActiveBrowserSession = {
+          lease,
+          profileId,
+          browser,
+          startedAt,
+          kind,
+          peakConcurrentSessions: 1,
+          reusedCount: 0,
+          stopPending: false,
+        };
+        this.sessions.set(lease.id, createdSession);
+        const activeSessions = this.recordConcurrentPeak();
+        this.emitSessionEvent({
+          event: 'marketplace_browser_session_telemetry',
+          phase: 'opened',
+          kind,
+          activeSessions,
+          peakConcurrentSessions: createdSession.peakConcurrentSessions,
+          reusedCount: 0,
+        });
         return lease.id;
       } catch (error) {
+        const failedStartedAt = this.options.now?.() ?? Date.now();
+        const failedKind = sessionWorkKind(scope);
         if (error instanceof ChromiumStartError) startDetail = error.phase + ': ' + error.detail;
         if (!(await this.runtimeAuthorized())) {
           if (profileId)
-            this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
+            this.sessions.set(lease.id, {
+              lease,
+              profileId,
+              browser,
+              startedAt: failedStartedAt,
+              kind: failedKind,
+              peakConcurrentSessions: 1,
+              reusedCount: 0,
+              stopPending: true,
+            });
           // Anbieterfehler können Zugangsdaten enthalten; nur einen festen Zustand weitergeben.
           // eslint-disable-next-line preserve-caught-error
           throw new Error('Browserstart fehlgeschlagen');
@@ -448,7 +530,16 @@ export class MarketplaceBrowserSessionBroker {
           throw error;
         }
         if (error instanceof CloudBrowserStopUncertainError) {
-          if (profileId) this.sessions.set(lease.id, { lease, profileId, stopPending: true });
+          if (profileId)
+            this.sessions.set(lease.id, {
+              lease,
+              profileId,
+              startedAt: failedStartedAt,
+              kind: failedKind,
+              peakConcurrentSessions: 1,
+              reusedCount: 0,
+              stopPending: true,
+            });
           // Anbieterfehler können Token enthalten; die öffentliche Fehlermeldung bleibt neutral.
           // eslint-disable-next-line preserve-caught-error
           throw new Error('Browserstart fehlgeschlagen');
@@ -458,7 +549,16 @@ export class MarketplaceBrowserSessionBroker {
             await browser.close();
           } catch {
             if (profileId)
-              this.sessions.set(lease.id, { lease, profileId, browser, stopPending: true });
+              this.sessions.set(lease.id, {
+                lease,
+                profileId,
+                browser,
+                startedAt: failedStartedAt,
+                kind: failedKind,
+                peakConcurrentSessions: 1,
+                reusedCount: 0,
+                stopPending: true,
+              });
             throw new Error('Browserstart fehlgeschlagen');
           }
         }
@@ -609,6 +709,19 @@ export class MarketplaceBrowserSessionBroker {
         }
         await this.options.leases.release(session.lease);
         this.sessions.delete(sessionId);
+        if (session.browser) {
+          const closedAt = this.options.now?.() ?? Date.now();
+          this.emitSessionEvent({
+            event: 'marketplace_browser_session_telemetry',
+            phase: 'closed',
+            kind: session.kind,
+            activeSessions: this.activeSessionCount(),
+            peakConcurrentSessions: session.peakConcurrentSessions,
+            reusedCount: session.reusedCount,
+            durationMs: Math.max(0, closedAt - session.startedAt),
+            uncleanStop: Boolean(session.stopWarning),
+          });
+        }
       } catch {
         throw new Error('Browser-Stopp fehlgeschlagen');
       } finally {
@@ -617,6 +730,32 @@ export class MarketplaceBrowserSessionBroker {
       if (session.stopWarning) throw session.stopWarning;
     })();
     return session.stopPromise;
+  }
+
+  private activeSessionCount(): number {
+    let count = 0;
+    for (const session of this.sessions.values()) {
+      if (!session.stopPending && session.browser) count += 1;
+    }
+    return count;
+  }
+
+  private recordConcurrentPeak(): number {
+    const active = this.activeSessionCount();
+    for (const session of this.sessions.values()) {
+      if (!session.stopPending && session.browser) {
+        session.peakConcurrentSessions = Math.max(session.peakConcurrentSessions, active);
+      }
+    }
+    return active;
+  }
+
+  private emitSessionEvent(event: BrowserSessionTelemetryEvent): void {
+    try {
+      this.options.onSessionEvent?.(event);
+    } catch {
+      // Telemetriefehler dürfen weder Sitzungsstart noch Bereinigung beeinflussen.
+    }
   }
 
   private async runtimeAuthorized(): Promise<boolean> {

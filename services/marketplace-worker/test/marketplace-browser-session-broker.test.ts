@@ -5,6 +5,7 @@ import {
   MarketplaceBrowserSessionBroker,
   type BrowserLease,
   type BrowserSessionScope,
+  type BrowserSessionTelemetryEvent,
 } from '../src/marketplace-browser-session-broker.ts';
 import {
   ChromiumStartError,
@@ -285,12 +286,14 @@ function setup(
   options: {
     now?: () => number;
     authorizeScope?: (scope: BrowserSessionScope) => Promise<void>;
+    onSessionEvent?: (event: BrowserSessionTelemetryEvent) => void;
   } = {},
 ) {
   const leases = new Map<string, BrowserLease>();
   const stopped: string[] = [];
   const broker = createTestBroker({
     now: options.now,
+    onSessionEvent: options.onSessionEvent,
     leases: {
       authorizeScope: options.authorizeScope ?? (async () => undefined),
       acquire: async (scope) => {
@@ -976,3 +979,94 @@ for (const age of [20000, 120000]) {
     await broker.close(scopeA, next);
   });
 }
+
+test('emits session telemetry for parallel browser sessions, warm reuse, and close duration', async () => {
+  let now = 1_700_000_000_000;
+  const telemetry: BrowserSessionTelemetryEvent[] = [];
+  const { broker } = setup({
+    now: () => now,
+    onSessionEvent: (event) => telemetry.push(event),
+  });
+  const first = await broker.openAction(scopeA);
+  await broker.finishAction(scopeA, first);
+  now += 5_000;
+  const second = await broker.open({
+    ...scopeB,
+    userAccessToken: '',
+    syncRead: {
+      operationId: 'op-b',
+      runnerId: 'runner-b',
+      workerEpoch: 1,
+      sessionId: 'lease-2',
+      expiresAt: new Date(now + 60_000).toISOString(),
+      absoluteExpiresAt: new Date(now + 600_000).toISOString(),
+    },
+  });
+  now += 3_000;
+  assert.equal(await broker.openAction(scopeA), first);
+  await broker.finishAction(scopeA, first);
+  now += 4_000;
+  await broker.close(
+    {
+      ...scopeB,
+      userAccessToken: '',
+      syncRead: {
+        operationId: 'op-b',
+        runnerId: 'runner-b',
+        workerEpoch: 1,
+        sessionId: 'lease-2',
+        expiresAt: new Date(now + 60_000).toISOString(),
+        absoluteExpiresAt: new Date(now + 600_000).toISOString(),
+      },
+    },
+    second,
+  );
+  now += 2_000;
+  await broker.close(scopeA, first);
+  assert.deepEqual(telemetry, [
+    {
+      event: 'marketplace_browser_session_telemetry',
+      phase: 'opened',
+      kind: 'interactive',
+      activeSessions: 1,
+      peakConcurrentSessions: 1,
+      reusedCount: 0,
+    },
+    {
+      event: 'marketplace_browser_session_telemetry',
+      phase: 'opened',
+      kind: 'sync',
+      activeSessions: 2,
+      peakConcurrentSessions: 2,
+      reusedCount: 0,
+    },
+    {
+      event: 'marketplace_browser_session_telemetry',
+      phase: 'reused',
+      kind: 'interactive',
+      activeSessions: 2,
+      peakConcurrentSessions: 2,
+      reusedCount: 1,
+    },
+    {
+      event: 'marketplace_browser_session_telemetry',
+      phase: 'closed',
+      kind: 'sync',
+      activeSessions: 1,
+      peakConcurrentSessions: 2,
+      reusedCount: 0,
+      durationMs: 7_000,
+      uncleanStop: false,
+    },
+    {
+      event: 'marketplace_browser_session_telemetry',
+      phase: 'closed',
+      kind: 'interactive',
+      activeSessions: 0,
+      peakConcurrentSessions: 2,
+      reusedCount: 1,
+      durationMs: 14_000,
+      uncleanStop: false,
+    },
+  ]);
+});
