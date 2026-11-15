@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-15 - Juna - Vinted-Kontoabgleich ohne überflüssige Browsertabs beschleunigen
+
+**Auftrag und Abgrenzung:** Eigener Zweig `juna/vinted-browser-efficiency` vom frisch abgeglichenen `origin/master` (`8ca59e1b`) in der isolierten Arbeitskopie `refactor_account_concurrency_queue`. Den regelmäßigen Vinted-Kontoabgleich so verschlanken, dass für den Verkaufsbaum und unveränderte bestehende Inserate keine zusätzlichen schweren Browsertabs (`/items/new` und `/items/<id>/edit`) mehr geöffnet werden. Sicherheits-, Berechtigungs-, Sitzungs- und Anti-Bot-Grenzen (echter Chrome-Netzwerkstack, Kontoprüfung, keine zusätzlichen Browser-Startflags) bleiben vollständig erhalten.
+
+**Ursache und Änderung:**
+
+- **Verkaufsbaum auf der Hauptseite lesen (`vinted-browser-selling-tree.ts`, `vinted-browser-actions.ts`):** `readVintedSellingTreeFromCurrentPage` ruft `GET /api/v2/item_upload/catalogs` direkt im bereits geöffneten Vinted-Haupttab (`currentPage()`) mit Kontogegenprüfung und Autorisierungsschranke ab. Nur wenn dieser Direktabruf scheitert, weicht `importAccount` wie bisher auf `readVintedSellingTree` in einem neuen Tab (`/items/new`) aus.
+- **Änderungsversion aus der Artikelabfrage übernehmen (`vinted-account-import.ts`):** Liefert der Kleiderschrank-Listeneintrag kein `updated_at` (`listingSourceUpdatedAt === null`), übernimmt der Eintrag das `descriptionSourceUpdatedAt` aus `/api/v2/item_upload/items/<id>`, damit unveränderte Artikel nicht ohne Anlass als veraltet eingestuft werden.
+- **Leichtgewichtige Gegenprüfung vor dem Öffnen der Bearbeitungsmaske (`vinted-browser-listing-item.ts`, `vinted-listing-detail-sync.ts`, `vinted-browser-actions.ts`):** Liegt für ein Inserat bereits ein bestätigter `listingContent` vor und sind Titel, Beschreibung und Preis unverändert, prüft `isVintedListingContentUnchanged` auf dem Haupttab über `GET /api/v2/item_upload/items/<id>`, ob Kategorie, Marke, Größe, Zustand, Farben, Materialien, Paketgröße, Zielgruppe und Zusatzmerkmale unverändert sind. Nur bei tatsächlicher Abweichung oder fehlendem Erststand öffnet `syncVintedListingDetails` die Bearbeitungsmaske `/items/<id>/edit` in einem neuen Tab.
+
+**Prüfungen und Grenzen:** Mit Node 24.22.3 und npm 11.13.0 bestehen im Marketplace-Worker `npm --prefix services/marketplace-worker run typecheck`, `npm --prefix services/marketplace-worker run build` sowie die betroffenen Unit- und Browserfälle (`vinted-browser-listing-item.test.ts`, `vinted-listing-detail-sync.test.ts`, `vinted-account-import.test.ts`, `vinted-browser-actions.test.ts`, `vinted-selling-tree.browser.test.ts`: 122 bestanden, 0 fehlgeschlagen). `npm run preflight:plan` und `npm run preflight` bestehen mit Exitcode 0 (Lockfiles, `format:check`, `lint`, `typecheck`, `test:audit`, 276 Skriptvertragsfälle ohne Fehler). Planmäßig auf GitHub verbleiben die vollständige Marketplace-Worker-/Edge-Suite, die 15 ausgewählten nativen Worker-Browserdateien, SQL-Paketprüfung sowie Marketplace-Images und Host-Isolation auf dem wegwerfbaren Linux-Runner.
+
 ## 2026-11-15 - Juna - Ladefehler beim KI-Einstieg beheben und Token-Erneuerung prüfen
 
 **Auftrag und Abgrenzung:** Eigener Zweig `juna/fix-ai-entry-and-token-refresh` vom frisch abgeglichenen `origin/master` (`ae28b9fb`). Den beobachteten NG0203-Einstieg untersuchen, beheben und die bestehende ChatGPT-Verbindung nach Ablauf des Zugangstokens prüfen. Fremde Arbeitskopien bleiben erhalten; Anzeigen, Entwürfe, Preise und Buchungen werden nicht verändert.

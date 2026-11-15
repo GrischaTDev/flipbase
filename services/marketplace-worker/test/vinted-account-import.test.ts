@@ -850,6 +850,34 @@ test('scheduled wardrobe import fills descriptions without navigating and reuses
     next.entries.find((entry) => entry.kind === 'publication')?.body.text,
     entry.body.text,
   );
+  // Fehlt updated_at im Kleiderschrank-Eintrag, übernimmt das Inserat die Version aus der Detailabfrage.
+  const withoutListTimestamp = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/wardrobe/'))
+        return {
+          items: [{ id: 41, user_id: 123, title: 'Artikel' }],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/item_upload/items/41')
+        return {
+          item: {
+            id: 41,
+            user_id: 123,
+            updated_at: '2026-11-02T08:00:00.123Z',
+            description: 'Originaltext',
+          },
+        };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+  );
+  assert.equal(
+    withoutListTimestamp.entries.find((candidate) => candidate.kind === 'publication')?.body
+      .listingSourceUpdatedAt,
+    '2026-11-02T08:00:00.123Z',
+  );
 });
 
 test('background description refresh follows provider changes, keeps known text on failure, and rejects another item or owner', async (t) => {

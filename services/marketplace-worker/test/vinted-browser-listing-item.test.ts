@@ -2,9 +2,11 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Page } from 'playwright';
 import {
+  isVintedListingContentUnchanged,
   mapVintedListingPhotoIds,
   readVintedListingItem,
 } from '../src/vinted-browser-listing-item.ts';
+import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 
 const photo = 'https://images1.vinted.net/tc/fixtureA/f800/1.webp';
 const item = {
@@ -112,5 +114,58 @@ test('retains the native accessory department and rejects ambiguous target group
       '98765',
     ),
     null,
+  );
+});
+
+test('verifies whether stored listing content still matches the item query on the main page', async () => {
+  const baseContent = {
+    ...listingCurrentContentFixture().content,
+    description: 'Erste Zeile\nZweite Zeile',
+    colorIds: [1],
+    colorLabels: ['Blau'],
+    materialIds: [149, 150],
+    materialLabels: ['Acryl', 'Baumwolle'],
+    attributes: { skirt_length: '12' },
+  };
+  const matchingItem = {
+    ...item,
+    user_id: 123,
+    item_attributes: [...item.item_attributes, { code: 'skirt_length', ids: [12] }],
+  };
+  assert.equal(
+    await isVintedListingContentUnchanged(
+      page(matchingItem, 'https://www.vinted.de/'),
+      '98765',
+      baseContent,
+      '123',
+    ),
+    true,
+  );
+  assert.equal(
+    await isVintedListingContentUnchanged(
+      page(matchingItem, 'https://www.vinted.de/'),
+      '98765',
+      baseContent,
+      '456',
+    ),
+    false,
+  );
+  assert.equal(
+    await isVintedListingContentUnchanged(
+      page({ ...matchingItem, brand_id: 999 }, 'https://www.vinted.de/'),
+      '98765',
+      baseContent,
+      '123',
+    ),
+    false,
+  );
+  assert.equal(
+    await isVintedListingContentUnchanged(
+      page(item, 'https://www.vinted.de/'),
+      '98765',
+      baseContent,
+      '123',
+    ),
+    false,
   );
 });

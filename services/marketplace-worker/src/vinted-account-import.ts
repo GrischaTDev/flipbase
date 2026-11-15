@@ -1553,7 +1553,11 @@ export async function readVintedAccountImport(
       if (detailAttemptedAt !== undefined) entry.body['detailAttemptedAt'] = detailAttemptedAt;
       const description =
         entry.kind === 'publication' ? descriptions.get(entry.externalId) : undefined;
-      if (description) Object.assign(entry.body, description);
+      if (description) {
+        Object.assign(entry.body, description);
+        if (entry.body['listingSourceUpdatedAt'] === null && description.descriptionSourceUpdatedAt)
+          entry.body['listingSourceUpdatedAt'] = description.descriptionSourceUpdatedAt;
+      }
       const age = entry.kind === 'publication' ? publicationAges.get(entry.externalId) : undefined;
       if (age) {
         Object.assign(entry.body, age);

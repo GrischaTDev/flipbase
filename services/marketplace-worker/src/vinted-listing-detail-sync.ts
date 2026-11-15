@@ -1,7 +1,10 @@
 import type { VintedAccountImport } from './vinted-account-import.ts';
 import type { VintedPublicationVersion } from './vinted-publication-age.ts';
 import { parseVintedListingCurrentContent } from './vinted-listing-contracts.ts';
-import type { VintedListingCurrentContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
+import type {
+  VintedListingContent,
+  VintedListingCurrentContent,
+} from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 /** Aktualisiert Artikeldetails im Kontoabgleich; der Editor liest danach nur die Datenbank. */
 export async function syncVintedListingDetails(
@@ -10,6 +13,7 @@ export async function syncVintedListingDetails(
   read: (externalId: string) => Promise<VintedListingCurrentContent>,
   authorize: () => Promise<void>,
   now: () => number = Date.now,
+  isUnchanged?: (externalId: string, content: VintedListingContent) => Promise<boolean>,
 ): Promise<void> {
   const saved = new Map(previous.map((entry) => [entry.externalId, entry]));
   const observedAt = snapshot.observedAt;
@@ -27,7 +31,8 @@ export async function syncVintedListingDetails(
       });
     }
     const content = cached?.listingContent;
-    const sourceUpdatedAt = entry.body['listingSourceUpdatedAt'];
+    const sourceUpdatedAt =
+      entry.body['listingSourceUpdatedAt'] ?? entry.body['descriptionSourceUpdatedAt'] ?? null;
     const readAt = Date.parse(cached?.listingDetailsReadAt ?? '');
     const changed =
       content &&
@@ -43,17 +48,29 @@ export async function syncVintedListingDetails(
       (!content || changed || stale) &&
       (!Number.isFinite(attemptedAt) || observedTime - attemptedAt >= 60 * 1000)
     )
-      candidates.push({ entry, attemptedAt, sourceUpdatedAt });
+      candidates.push({ entry, attemptedAt, sourceUpdatedAt, content, changed: Boolean(changed) });
   }
   // Alte Versuche zuerst: ein nicht lesbares Inserat darf die übrigen nicht blockieren.
   candidates.sort((left, right) => (left.attemptedAt || 0) - (right.attemptedAt || 0));
   const startedAt = now();
   // Das Zeitbudget begrenzt die Dauer; die Anzahl nur die Last je Abgleich.
-  for (const { entry, sourceUpdatedAt } of candidates.slice(0, 10)) {
+  for (const { entry, sourceUpdatedAt, content, changed } of candidates.slice(0, 10)) {
     if (now() - startedAt >= 45_000) break;
     await authorize();
     entry.body['listingDetailsAttemptedAt'] = observedAt;
     try {
+      if (content && !changed && isUnchanged) {
+        if (await isUnchanged(entry.externalId, content)) {
+          await authorize();
+          Object.assign(entry.body, {
+            listingContent: content,
+            listingDetailsReadAt: observedAt,
+            listingDetailsSourceUpdatedAt: sourceUpdatedAt ?? null,
+          });
+          continue;
+        }
+        await authorize();
+      }
       const listing = parseVintedListingCurrentContent(
         await read(entry.externalId),
         snapshot.identity.id,
