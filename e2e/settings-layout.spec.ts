@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import axe from 'axe-core';
-import { mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
+import { accountIds, mockMarketplace, workspaceId } from './support/marketplace-account-fixture';
 import { defaultNumberSeries } from '../src/app/features/settings/models/numbering.models';
 
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
@@ -62,6 +62,93 @@ async function settingsBackend(page: Page) {
       },
     }),
   );
+}
+
+for (const width of [1280, 390, 1024]) {
+  test(`AI connection access can be edited without reconnecting at ${width}px @pwa-layout`, async ({
+    page,
+  }, testInfo) => {
+    await settingsBackend(page);
+    const account = { id: accountIds[0], display_name: 'Freigegebenes Konto' };
+    const grant = {
+      id: '25000000-0000-4000-8000-000000000081',
+      client_id: '25000000-0000-4000-8000-000000000082',
+      client_name: 'ChatGPT',
+      access_mode: 'read',
+      connected: true,
+      revoked_at: null,
+      accounts: [account],
+    };
+    const changes: Record<string, unknown>[] = [];
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    await page.route('**/rest/v1/rpc/ai_connection_settings', (route) =>
+      route.fulfill({ json: [grant] }),
+    );
+    await page.route('**/rest/v1/marketplace_connections**', (route) =>
+      route.fulfill({ json: [account] }),
+    );
+    await page.route('**/rest/v1/rpc/ai_connection_update', (route) => {
+      const input = route.request().postDataJSON();
+      changes.push(input);
+      expect(input.p_id).toBe(grant.id);
+      expect(input.p_workspace_id).toBe(workspaceId);
+      expect(input.p_expected_access_mode).toBe(grant.access_mode);
+      expect(input.p_expected_connection_ids).toEqual(grant.accounts.map((item) => item.id));
+      grant.access_mode = input.p_access_mode;
+      grant.accounts = input.p_connection_ids.length ? [account] : [];
+      return route.fulfill({ json: null });
+    });
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/settings/ai-connections');
+    const region = page.getByRole('region', { name: 'KI-Verbindungen', exact: true });
+    await expect(region.getByRole('heading', { name: 'ChatGPT', exact: true })).toBeVisible();
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate((value) => {
+        document.documentElement.classList.toggle('dark', value === 'dark');
+        document.documentElement.setAttribute('data-theme', value);
+      }, theme);
+      await region.getByRole('button', { name: 'Bearbeiten', exact: true }).click();
+      const dialog = page.getByRole('dialog', { name: 'ChatGPT bearbeiten', exact: true });
+      await expect(dialog).toBeVisible();
+      const mode = dialog.getByRole('combobox', { name: 'Zugriff auf die Anwendung', exact: true });
+      await mode.click();
+      const target = theme === 'light' ? 'Lesen und bearbeiten' : 'Nur lesen';
+      await page.getByRole('option', { name: target, exact: true }).click();
+      const accountChoice = dialog.getByRole('checkbox', {
+        name: account.display_name,
+        exact: true,
+      });
+      await accountChoice.click();
+      if (theme === 'dark') await expect(accountChoice).toBeChecked();
+      else await expect(accountChoice).not.toBeChecked();
+      await page.evaluate(axe.source);
+      const violations = await page.evaluate(
+        async () =>
+          (
+            await window.axe.run(
+              { include: ['[role="dialog"]'] },
+              { runOnly: { type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag21aa'] } },
+            )
+          ).violations,
+      );
+      expect(violations, `${theme}, ${width}px`).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
+        true,
+      );
+      if (theme === 'light')
+        await page.screenshot({
+          path: testInfo.outputPath('ai-connection-editor.png'),
+          animations: 'disabled',
+        });
+      await dialog.getByRole('button', { name: 'Speichern', exact: true }).click();
+      await expect(dialog).toHaveCount(0);
+      await expect(region.getByText(target, { exact: true })).toBeVisible();
+      await expect(region.getByText('Verbunden', { exact: true })).toBeVisible();
+    }
+    expect(changes).toHaveLength(2);
+    expect(pageErrors).toEqual([]);
+  });
 }
 
 for (const width of [1280, 390, 1024]) {

@@ -37,13 +37,22 @@
           }
         </div>
         @if (!connection.revoked_at) {
-          <app-button
-            variant="secondary"
-            size="touch"
-            [disabled]="busy()"
-            (clicked)="revoke(connection)"
-            >Verbindung trennen</app-button
-          >
+          <div class="flex flex-wrap gap-2">
+            <app-button
+              variant="secondary"
+              size="touch"
+              [disabled]="busy()"
+              (clicked)="edit(connection)"
+              >Bearbeiten</app-button
+            >
+            <app-button
+              variant="secondary"
+              size="touch"
+              [disabled]="busy()"
+              (clicked)="revoke(connection)"
+              >Verbindung trennen</app-button
+            >
+          </div>
         }
       </div>
     </app-card>
@@ -53,3 +62,49 @@
     }
   }
 </section>
+@if (editing(); as connection) {
+  <app-modal-shell
+    [title]="connection.client_name + ' bearbeiten'"
+    size="md"
+    [hasFooter]="false"
+    (closed)="closeEditor()"
+  >
+    <div header-actions>
+      <app-button
+        size="touch"
+        [loading]="saving()"
+        [disabled]="loadingAccounts() || !!editError()"
+        (clicked)="save()"
+        >Speichern</app-button
+      >
+    </div>
+    <form [formGroup]="form" (ngSubmit)="save()" class="space-y-4">
+      @if (editError()) {
+        <p role="alert" class="text-sm text-red-700 dark:text-red-400">{{ editError() }}</p>
+      }
+      <app-custom-select
+        label="Zugriff auf die Anwendung"
+        ariaLabel="Zugriff auf die Anwendung"
+        [options]="modes"
+        formControlName="mode"
+        [disabled]="saving()"
+      />
+      @if (loadingAccounts()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Vinted-Konten werden geladen …</p>
+      }
+      @if (accounts().length) {
+        <fieldset class="grid gap-3">
+          <legend class="mb-2 text-sm font-medium text-fb-text-primary">Vinted-Konten</legend>
+          @for (account of accounts(); track account.id) {
+            <app-custom-checkbox
+              [label]="account.display_name"
+              [checked]="selectedAccounts().includes(account.id)"
+              [disabled]="saving()"
+              (checkedChange)="selectAccount(account.id, $event)"
+            />
+          }
+        </fieldset>
+      }
+    </form>
+  </app-modal-shell>
+}

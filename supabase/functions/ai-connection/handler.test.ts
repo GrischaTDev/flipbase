@@ -9,7 +9,7 @@ const config = {
   allowedOrigins: ['https://app.example.test'],
 };
 const requestId = '78000000-0000-4000-8000-000000000001';
-function fixture(mode = 'read') {
+function fixture(mode = 'read', role = 'owner') {
   const calls: unknown[] = [];
   let valid = true;
   const handler = createAiConnectionHandler(config, {
@@ -18,7 +18,7 @@ function fixture(mode = 'read') {
     },
     context(token) {
       if (!valid || token !== 'valid') return Promise.reject(new Error('revoked'));
-      return Promise.resolve({ access_mode: mode });
+      return Promise.resolve({ access_mode: mode, role });
     },
     call(token, action, input, id) {
       calls.push({ token, action, input, id });
@@ -42,6 +42,9 @@ function fixture(mode = 'read') {
     handler,
     send,
     calls,
+    setMode: (next: string) => {
+      mode = next;
+    },
     revoke: () => {
       valid = false;
     },
@@ -71,14 +74,14 @@ test('initialize advertises tools and instructions without invented prompt/resou
   assert.deepEqual(result.capabilities, { tools: {} });
   assert.match(result.instructions, /Entwurf/);
 });
-test('readonly catalog contains no writes and direct write calls cannot bypass it', async () => {
+test('the catalog stays discoverable in read mode while writes remain blocked', async () => {
   const { send, calls } = fixture();
   const { result } = await (await send('tools/list')).json();
   assert.ok(result.tools.length > 1);
-  assert.ok(
-    result.tools.every(
-      (t: { annotations: { readOnlyHint: boolean } }) => t.annotations.readOnlyHint,
-    ),
+  assert.equal(result.tools.length, tools.length);
+  assert.match(
+    result.tools.find((t: { name: string }) => t.name === 'save_sale_draft').description,
+    /Lesen und bearbeiten/,
   );
   const write = await (
     await send('tools/call', {
@@ -88,6 +91,38 @@ test('readonly catalog contains no writes and direct write calls cannot bypass i
   ).json();
   assert.equal(write.error.code, -32602);
   assert.equal(calls.length, 0);
+});
+
+test('the same client sees changed rights immediately without changing its tool catalog', async () => {
+  const { send, calls, setMode } = fixture();
+  const catalog = await (await send('tools/list')).json();
+  const write = () =>
+    send('tools/call', {
+      name: 'save_sale_draft',
+      arguments: { request_id: requestId, title: 'Testentwurf', draft: {} },
+    });
+  assert.ok((await (await write()).json()).error);
+  setMode('edit');
+  const context = await (await send('tools/call', { name: 'get_context', arguments: {} })).json();
+  assert.equal(JSON.parse(context.result.content[0].text).access_mode, 'edit');
+  assert.deepEqual(await (await send('tools/list')).json(), catalog);
+  assert.equal((await (await write()).json()).result.isError, undefined);
+  setMode('read');
+  assert.ok((await (await write()).json()).error);
+  assert.equal(calls.length, 1);
+});
+
+test('role restrictions still limit the discoverable catalog', async () => {
+  for (const role of ['readonly', 'fulfillment']) {
+    const { send } = fixture('read', role);
+    const { result } = await (await send('tools/list')).json();
+    assert.ok(
+      result.tools.every(
+        (t: { name: string; annotations: { readOnlyHint: boolean } }) =>
+          t.annotations.readOnlyHint && !t.name.includes('vinted'),
+      ),
+    );
+  }
 });
 test('requests are validated and idempotency keys are kept out of business payloads', async () => {
   const { send, calls } = fixture('edit');

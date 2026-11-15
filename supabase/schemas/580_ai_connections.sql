@@ -5,6 +5,7 @@ create table public.ai_connections (
   client_id uuid not null references auth.oauth_clients(id) on delete cascade,
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   access_mode text not null check (access_mode in ('read', 'edit')),
+  accounts_changed_at timestamptz,
   authorization_id text not null unique,
   session_id uuid,
   connected_at timestamptz,
@@ -39,7 +40,7 @@ create table public.ai_connection_requests (
   action text not null,
   input jsonb not null,
   result jsonb not null,
-  created_at timestamptz not null default clock_timestamp()
+  created_at timestamptz not null default statement_timestamp()
 );
 comment on table public.ai_connection_requests is 'Atomarer Wiederholschutz für KI-Fachaktionen; kein zusätzliches Buchungs- oder Auftragssystem.';
 create index ai_connection_requests_connection_idx on public.ai_connection_requests(ai_connection_id);
@@ -125,6 +126,45 @@ begin
 end $$;
 revoke all on function public.ai_connection_revoke(uuid) from public,anon;
 grant execute on function public.ai_connection_revoke(uuid) to authenticated;
+
+create function public.ai_connection_update(p_id uuid, p_workspace_id uuid, p_access_mode text, p_connection_ids uuid[], p_expected_access_mode text, p_expected_connection_ids uuid[])
+returns void language plpgsql security definer set search_path='' as $$
+declare g public.ai_connections; current_accounts uuid[]; expected_accounts uuid[];
+begin
+  if auth.role()<>'authenticated' or auth.jwt() ? 'client_id' or auth.uid() is null
+    or not public.can_access_workspace(p_workspace_id) then raise insufficient_privilege; end if;
+  if p_access_mode is null or p_access_mode not in ('read','edit') or p_connection_ids is null
+    or cardinality(p_connection_ids)>50 or p_expected_access_mode is null or p_expected_connection_ids is null then
+    raise exception 'Die KI-Freigabe ist unvollständig.' using errcode='22023';
+  end if;
+  select * into g from public.ai_connections
+    where id=p_id and user_id=auth.uid() and workspace_id=p_workspace_id and revoked_at is null for update;
+  if not found then raise insufficient_privilege; end if;
+  select coalesce(array_agg(connection_id order by connection_id),'{}'::uuid[]) into current_accounts
+    from public.ai_connection_accounts where ai_connection_id=g.id;
+  select coalesce(array_agg(distinct id order by id),'{}'::uuid[]) into expected_accounts from unnest(p_expected_connection_ids) selected(id);
+  if g.access_mode<>p_expected_access_mode or current_accounts is distinct from expected_accounts then
+    raise exception 'Die Freigabe wurde inzwischen geändert. Lade die Verbindungen neu.' using errcode='40001';
+  end if;
+  if p_access_mode='edit' and not exists(select 1 from public.workspace_members
+    where workspace_id=g.workspace_id and user_id=g.user_id and role in ('owner','admin','member','accountant')) then
+    raise exception 'Deine Workspace-Rolle erlaubt keine Bearbeitung.' using errcode='42501';
+  end if;
+  if exists(select 1 from unnest(p_connection_ids) selected(id) where not exists(
+    select 1 from public.marketplace_connections c where c.id=selected.id and c.workspace_id=g.workspace_id
+      and c.marketplace='vinted' and public.marketplace_can_manage(g.workspace_id))) then
+    raise exception 'Ein Vinted-Konto ist nicht zugänglich.' using errcode='42501';
+  end if;
+  update public.ai_connections set access_mode=p_access_mode,
+    accounts_changed_at=case when current_accounts is distinct from
+      (select coalesce(array_agg(distinct id order by id),'{}'::uuid[]) from unnest(p_connection_ids) selected(id))
+      then clock_timestamp() else accounts_changed_at end where id=g.id;
+  delete from public.ai_connection_accounts where ai_connection_id=g.id and not (connection_id=any(p_connection_ids));
+  insert into public.ai_connection_accounts(ai_connection_id,connection_id)
+    select g.id,id from unnest(p_connection_ids) selected(id) group by id on conflict(ai_connection_id,connection_id) do nothing;
+end $$;
+revoke all on function public.ai_connection_update(uuid,uuid,text,uuid[],text,uuid[]) from public,anon,authenticated,service_role;
+grant execute on function public.ai_connection_update(uuid,uuid,text,uuid[],text,uuid[]) to authenticated;
 
 create function public.ai_connection_access_token_hook(event jsonb)
 returns jsonb language plpgsql security definer set search_path='' as $$
@@ -275,8 +315,7 @@ begin
       if prior.ai_connection_id<>(ctx->>'id')::uuid or prior.action<>p_action or prior.input<>p_input then
         raise exception 'Die Vorgangskennung gehört zu anderen Daten.' using errcode='22023';
       end if;
-      if p_action='set_vinted_price' then return public.ai_connection_call('read_action_result',jsonb_build_object('action_id',p_request_id),null); end if;
-      return prior.result;
+      return public.ai_connection_call('read_action_result',jsonb_build_object('action_id',p_request_id),null);
     end if;
   end if;
   -- Nur innerhalb dieser geprüften Transaktion erhält die bestehende Fachlogik den echten Akteur.
@@ -286,6 +325,10 @@ begin
     select * into prior from public.ai_connection_requests r where r.id=(p_input->>'action_id')::uuid and r.ai_connection_id=(ctx->>'id')::uuid;
     if not found then raise no_data_found; end if;
     if prior.action like '%vinted%' and not public.marketplace_can_manage(ws) then raise insufficient_privilege; end if;
+    if prior.action like '%vinted%' and exists(select 1 from public.ai_connections
+      where id=(ctx->>'id')::uuid and accounts_changed_at>prior.created_at) then
+      raise exception 'Die Kontofreigabe wurde geändert. Lies den aktuellen Entwurf oder Auftragsstand erneut; führe die Aktion nicht mit einer neuen Vorgangskennung aus.' using errcode='42501';
+    end if;
     if prior.action='set_vinted_price' then
       select jsonb_build_object('action',public.marketplace_account_action_public(a)) into result from public.marketplace_account_actions a
         join public.ai_connection_accounts c on c.connection_id=a.connection_id and c.ai_connection_id=a.ai_connection_id
