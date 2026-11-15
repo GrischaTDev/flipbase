@@ -96,7 +96,7 @@ for (const width of [1280, 390, 1024]) {
         await expect(feature.getByRole('link')).toHaveCount(1);
         for (const platform of ['Vinted', 'eBay', 'Kleinanzeigen']) {
           await expect(
-            feature.getByRole('button', { name: platform, exact: true }),
+            feature.getByRole('button', { name: `${platform} Sichtbar`, exact: true }),
           ).toHaveAttribute('aria-pressed', 'true');
         }
       }

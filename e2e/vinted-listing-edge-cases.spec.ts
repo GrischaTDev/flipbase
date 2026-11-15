@@ -856,7 +856,6 @@ for (const width of [320, 390, 834, 1440]) {
             .filter({
               has: page.getByRole('link', {
                 name: 'Inserat Neu eingestellter Schal öffnen',
-                exact: true,
               }),
             })
             .locator('app-vinted-listing-age'),
@@ -865,7 +864,6 @@ for (const width of [320, 390, 834, 1440]) {
           const card = page.locator('[data-listing-row]').filter({
             has: page.getByRole('link', {
               name: `Inserat ${stateCase.title} öffnen`,
-              exact: true,
             }),
           });
           await expect(card.getByText(stateCase.label, { exact: true })).toBeVisible();
@@ -887,9 +885,9 @@ for (const width of [320, 390, 834, 1440]) {
         const publicationTooltip = original.locator('app-vinted-listing-age app-badge');
         await expect(publicationTooltip).toHaveAttribute('title', /Veröffentlicht:/);
         await expect(publicationTooltip).toHaveAttribute('title', /Erstellt:/);
-        await expect(
-          page.getByRole('link', { name: 'Inserat Vinted-Entwurf öffnen', exact: true }),
-        ).toHaveCount(0);
+        await expect(page.getByRole('link', { name: 'Inserat Vinted-Entwurf öffnen' })).toHaveCount(
+          0,
+        );
       };
       await checkPublicationStates();
       await expect(cards.first()).toContainText(
@@ -980,7 +978,7 @@ for (const width of [320, 390, 834, 1440]) {
       await listView.focus();
       await page.keyboard.press('Space');
       await expect(listView).toHaveAttribute('aria-pressed', 'true');
-      await page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }).click();
+      await page.getByRole('link', { name: `Inserat ${title} öffnen` }).click();
       const gallery = page.locator('app-product-gallery');
       await expect(gallery.getByRole('button')).toHaveCount(5);
       await expect(gallery.getByText('+15 Fotos')).toBeVisible();
@@ -1110,9 +1108,7 @@ for (const width of [1440, 390]) {
     await page.keyboard.press('Escape');
     await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
     await expect(page).toHaveURL('/marketplaces/vinted/listings');
-    await expect(
-      page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole('link', { name: `Inserat ${title} öffnen` })).toBeVisible();
     await checkPage(page, errors);
   });
 }
@@ -1135,7 +1131,7 @@ test('Bekannte leere Beschreibung startet auch beim Wiederöffnen keinen Browser
   await expect(detail).toContainText('Keine Beschreibung vorhanden.');
   await expect(detail).not.toContainText('Beschreibung wird von Vinted geladen');
   await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
-  await page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }).click();
+  await page.getByRole('link', { name: `Inserat ${title} öffnen` }).click();
   await expect(detail).toContainText('Keine Beschreibung vorhanden.');
   expect(browserReads).toBe(0);
   await checkPage(page, errors);
@@ -1195,7 +1191,7 @@ test('Beschreibungen stammen beim Öffnen und Relisten aus dem gespeicherten Hin
     detail.getByText('Im Hintergrund gespeicherter Beschreibungstext.', { exact: true }),
   ).toBeVisible();
   await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
-  await page.getByRole('link', { name: `Inserat ${title} öffnen`, exact: true }).click();
+  await page.getByRole('link', { name: `Inserat ${title} öffnen` }).click();
   await expect(detail).toContainText('Im Hintergrund gespeicherter Beschreibungstext.');
   await expect(detail).not.toContainText('Beschreibung wird von Vinted geladen');
   await detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }).click();
@@ -1352,7 +1348,7 @@ for (const width of [390, 1440])
           'Der neue Preis wurde bei Vinted bestätigt.',
         );
         await expect(
-          page.getByRole('link', { name: 'Inserat Jacke für Preisänderung öffnen', exact: true }),
+          page.getByRole('link', { name: 'Inserat Jacke für Preisänderung öffnen' }),
         ).toContainText('24,50');
         const wardrobe = page.locator('app-vinted-listings');
         const quickPrice = wardrobe.getByRole('button', {

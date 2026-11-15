@@ -56,15 +56,16 @@
                 [attr.aria-disabled]="row.plan || row.running ? 'true' : null"
                 [attr.tabindex]="row.plan || row.running ? -1 : null"
                 class="flex min-w-0 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-fb-primary"
-                [attr.aria-label]="'Inserat ' + entry.title + ' öffnen'"
                 ><app-product-thumbnail [src]="entry.imageUrl" alt="" size="md" fit="cover" />
                 <div class="min-w-0">
+                  <span class="sr-only">Inserat </span>
                   <h2
                     class="truncate text-sm font-semibold text-fb-text-primary"
                     [attr.title]="entry.title"
                   >
                     {{ entry.title }}
                   </h2>
+                  <span class="sr-only"> öffnen</span>
                   <p
                     [attr.role]="row.running || row.plan ? 'status' : null"
                     class="mt-1 flex min-h-5 min-w-0 items-center gap-2 text-xs leading-5 text-fb-text-secondary"
