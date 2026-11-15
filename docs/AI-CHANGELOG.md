@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-16 - Juna - Gewähltes Vinted-Abrufintervall wieder einhalten
+
+**Auftrag und Grundlage:** Gemeldete ausbleibende Synchronisierung zweier Vinted-Cloud-Konten („seit 26/29 Minuten“, „Abruf wartet“) und einen scheiternden Chat-Abruf analysieren. Lesend per SSH (Worker-Protokoll) und schreibgeschützten Datenbankabfragen geprüft. Korrektur auf eigenem Zweig `juna/vinted-sync-user-interval` vom frisch abgerufenen `origin/master` in getrennter Arbeitskopie; die belegte primäre Arbeitskopie bleibt unverändert.
+
+**Befund:** Die adaptive Kadenz aus PR #661 drosselte Konten ohne Aktivität in den letzten 2 Stunden tagsüber auf mindestens 30 und nachts auf 60 Minuten, unabhängig vom in der Oberfläche gewählten Intervall (5/10/15 Minuten). Das widerspricht dem Produktziel schneller Meldungen zu Nachrichten, Favoriten und Verkäufen. Nebenbefunde, hier noch nicht behoben: Der auftragsgebundene Chat-Abruf (`conversations_read`) scheitert immer, weil der Worker alle Postfach-Gespräche speichern will und `marketplace_apply_vinted_import` bei Auftragssitzungen nur das Zielgespräch zulässt; der Runner meldet das als `browser_unavailable` ohne Protokoll. Ein einzelner Netzwerkfehler beim Verkaufsabruf setzt den Zeitplan auf „Verbindung unterbrochen“, und ein erfolgreicher manueller Abruf löscht das Schild nicht.
+
+**Korrektur:** `marketplace_next_sync_due_at` liefert wieder genau Zeitpunkt plus gewähltes Intervall; Signatur und Aufrufer bleiben unverändert. Die Migration holt bereits gedrosselt geplante, aktive Zeitpläne ohne Pause oder Anbieter-Wartezeit auf das gewählte Intervall zurück (unter derselben globalen Sperre wie die Zeitplan-RPCs). Die pgTAP-Fälle prüfen jetzt, dass ruhende Konten tagsüber und nachts ihr Intervall behalten.
+
 ## 2026-11-15 - Juna - Kopieren importierter Verkaufsartikel ohne Originalarchiv korrigieren
 
 **Auftrag und Grundlage:** Den nach Veröffentlichung von PR #664 gemeldeten Komplettabbruch „keine Originalbilder“ beim erneuten Einstellen untersuchen und beheben. Eigener Zweig `juna/vinted-sold-item-copy-recovery` vom frisch abgeglichenen `origin/master` (`d3d9f09b`) in einer getrennten Arbeitskopie; fremde Änderungen und der anderweitig belegte lokale Hauptzweig bleiben erhalten. Debugging- und Supabase-Skill zur Diagnose verwendet.
