@@ -52,6 +52,15 @@ describe('Lesbare Vinted-Originalfotos', () => {
     });
     await expect(f.service.read(source, scope)).rejects.toThrow('Originalfoto');
   });
+  it('bindet die Bildübernahme eines Verkaufs an dessen tatsächliche Artikelkennung', async () => {
+    const f = setup();
+    await f.service.read('https://images1.vinted.net/sale.jpg', { ...scope, saleItemId: '123' });
+    expect(JSON.parse(f.request.mock.calls[0][1].body)).toEqual({
+      ...scope,
+      saleItemId: '123',
+      photoUrl: 'https://images1.vinted.net/sale.jpg',
+    });
+  });
   it('behält lokale Originaldateien und private Storageadressen ohne Anbieterproxy bei', async () => {
     const f = setup();
     const original = new File(['original'], 'camera.jpg', { type: 'image/jpeg' });

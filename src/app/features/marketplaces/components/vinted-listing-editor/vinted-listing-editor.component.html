@@ -61,9 +61,9 @@
       {{ publicationAnnouncement() }}
     </p>
   }
-  @if (error() || loadError()) {
+  @if (error() || loadError() || (copyPhotoError() && !images().length)) {
     <app-notice-banner announcement="alert"
-      ><p>{{ error() || loadError() }}</p>
+      ><p>{{ error() || loadError() || copyPhotoError() }}</p>
       @if (conflict() || loadError()) {
         <app-button variant="secondary" size="slim" (clicked)="reload()"
           >Gespeicherten Stand laden</app-button

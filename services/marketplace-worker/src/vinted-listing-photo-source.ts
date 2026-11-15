@@ -11,7 +11,7 @@ interface PhotoSourceOptions {
   fetch?: typeof fetch;
 }
 
-/** Liest ausschließlich ein gespeichertes Foto des eigenen, RLS-geprüften Inserats. */
+/** Liest nur zugeordnete Fotos des eigenen, RLS-geprüften Inserats oder Einzelverkaufs. */
 export class VintedListingPhotoSource {
   private readonly request: typeof fetch;
   private readonly access: VintedEditAccess;
@@ -22,45 +22,65 @@ export class VintedListingPhotoSource {
     this.access = new VintedEditAccess(options);
   }
 
-  async read(scope: BrowserSessionScope, entryId: string, photoUrl: string) {
+  async read(scope: BrowserSessionScope, entryId: string, photoUrl: string, saleItemId?: string) {
     if (!isVintedTransferPhotoUrl(photoUrl))
       throw new Error('Die Bildquelle ist nicht freigegeben.');
-    const authorized = await this.access.entry(scope, 'publication', entryId);
-    const url = new URL('/rest/v1/marketplace_account_entries', this.options.url);
-    for (const [key, value] of Object.entries({
-      select: 'external_id,body',
-      workspace_id: 'eq.' + scope.workspaceId,
-      connection_id: 'eq.' + scope.connectionId,
-      id: 'eq.' + entryId,
-      external_id: 'eq.' + authorized.externalId,
-      kind: 'eq.publication',
-    }))
-      url.searchParams.set(key, value);
-    const stored = await this.request(url, {
-      headers: {
-        apikey: this.options.publishableKey,
-        Authorization: 'Bearer ' + scope.userAccessToken,
-      },
-      redirect: 'error',
-      signal: AbortSignal.timeout(10_000),
-    });
-    if (!stored.ok) throw new Error('Die Bildzuordnung konnte nicht bestätigt werden.');
-    const rows: unknown = await stored.json();
-    const row = Array.isArray(rows) && rows.length === 1 && record(rows[0]) ? rows[0] : null;
-    const body =
-      row && row['external_id'] === authorized.externalId && record(row['body'])
-        ? row['body']
-        : null;
-    const source = body && record(body['transferSource']) ? body['transferSource'] : null;
-    const references =
-      source?.['externalId'] === authorized.externalId &&
-      source['externalAccountId'] === authorized.accountId &&
-      Array.isArray(source['photoReferences'])
-        ? source['photoReferences']
-        : [];
-    const images = Array.isArray(body?.['imageUrls']) ? body['imageUrls'] : [];
-    if (!body || ![body['imageUrl'], ...images, ...references].includes(photoUrl))
-      throw new Error('Das Foto gehört nicht zum gewählten Inserat.');
+    if (saleItemId !== undefined && !/^[1-9][0-9]{0,31}$/.test(saleItemId))
+      throw new Error('Die Artikelzuordnung ist ungültig.');
+    const kind = saleItemId === undefined ? 'publication' : 'sale';
+    const authorizePhoto = async () => {
+      const authorized = await this.access.entry(scope, kind, entryId);
+      const url = new URL('/rest/v1/marketplace_account_entries', this.options.url);
+      for (const [key, value] of Object.entries({
+        select: 'external_id,body',
+        workspace_id: 'eq.' + scope.workspaceId,
+        connection_id: 'eq.' + scope.connectionId,
+        id: 'eq.' + entryId,
+        external_id: 'eq.' + authorized.externalId,
+        kind: 'eq.' + kind,
+      }))
+        url.searchParams.set(key, value);
+      const stored = await this.request(url, {
+        headers: {
+          apikey: this.options.publishableKey,
+          Authorization: 'Bearer ' + scope.userAccessToken,
+        },
+        redirect: 'error',
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!stored.ok) throw new Error('Die Bildzuordnung konnte nicht bestätigt werden.');
+      const rows: unknown = await stored.json();
+      const row = Array.isArray(rows) && rows.length === 1 && record(rows[0]) ? rows[0] : null;
+      const body =
+        row && row['external_id'] === authorized.externalId && record(row['body'])
+          ? row['body']
+          : null;
+      if (saleItemId !== undefined) {
+        const items = Array.isArray(body?.['itemIds']) ? body['itemIds'] : [body?.['itemId']];
+        if (
+          !body ||
+          body['isBundle'] === true ||
+          body['itemCount'] !== 1 ||
+          items.length !== 1 ||
+          items[0] !== saleItemId ||
+          (body['sellerId'] != null && String(body['sellerId']) !== authorized.accountId)
+        )
+          throw new Error('Das Foto gehört nicht zum gewählten Verkaufsartikel.');
+      }
+      const source = body && record(body['transferSource']) ? body['transferSource'] : null;
+      const references =
+        kind === 'publication' &&
+        source?.['externalId'] === authorized.externalId &&
+        source['externalAccountId'] === authorized.accountId &&
+        Array.isArray(source['photoReferences'])
+          ? source['photoReferences']
+          : [];
+      const images = Array.isArray(body?.['imageUrls']) ? body['imageUrls'] : [];
+      if (!body || ![body['imageUrl'], ...images, ...references].includes(photoUrl))
+        throw new Error('Das Foto gehört nicht zum gewählten Inserat.');
+      return authorized;
+    };
+    const authorized = await authorizePhoto();
     const response = await this.request(photoUrl, {
       method: 'GET',
       headers: { Accept: 'image/jpeg, image/png, image/webp', 'Accept-Encoding': 'identity' },
@@ -125,7 +145,10 @@ export class VintedListingPhotoSource {
       )
     )
       throw new Error('Der Bildinhalt ist ungültig.');
-    const current = await this.access.entry(scope, 'publication', entryId);
+    const current =
+      saleItemId === undefined
+        ? await this.access.entry(scope, kind, entryId)
+        : await authorizePhoto();
     if (current.accountId !== authorized.accountId || current.externalId !== authorized.externalId)
       throw new Error('Die Bildzuordnung hat sich geändert.');
     return { bytes, mimeType: mimeType! };

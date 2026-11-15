@@ -29,6 +29,32 @@ const workspaceId = '46700000-0000-4000-8000-000000000001',
   connectionId = '46700000-0000-4000-8000-000000000002',
   entryId = '46700000-0000-4000-8000-000000000005';
 
+test('reicht Verkaufsartikel nur mit gültiger Artikelkennung an den geschützten Fotoleser weiter', async () => {
+  let calls = 0;
+  const photos = new VintedListingPhotoSource({
+    url: 'https://database.example',
+    publishableKey: 'public-key',
+  });
+  photos.read = async (scope, id, photoUrl, saleItemId) => {
+    calls++;
+    assert.equal(scope.workspaceId, workspaceId);
+    assert.equal(scope.connectionId, connectionId);
+    assert.equal(id, entryId);
+    assert.equal(photoUrl, 'https://images1.vinted.net/sale.jpg');
+    assert.equal(saleItemId, '777');
+    return { bytes: Buffer.from([255, 216, 255, 1, 255, 217]), mimeType: 'image/jpeg' };
+  };
+  const f = await fixture({ listingPhotos: photos });
+  try {
+    assert.equal((await f.photo('https://images1.vinted.net/sale.jpg', '777')).status, 200);
+    for (const invalid of ['', 'sale-a', '0'])
+      assert.equal((await f.photo('https://images1.vinted.net/sale.jpg', invalid)).status, 400);
+    assert.equal(calls, 1);
+  } finally {
+    await f.close();
+  }
+});
+
 test('bestätigt eine neue Vollbildvariante vor dem Fotoabruf durch die gespeicherte vollständige Quelle', async () => {
   const cover = 'https://images1.vinted.net/tc/fixtureA/f310/1788288106.webp';
   const full = listingCurrentContentFixture().photoUrls[0]!;
@@ -348,11 +374,17 @@ async function fixture(
   const address = server.address() as AddressInfo;
   return {
     finishedActions: () => finishedActions,
-    photo: (photoUrl: string) =>
+    photo: (photoUrl: string, saleItemId?: string) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/photo/read`, {
         method: 'POST',
         headers: { Authorization: 'Bearer user-token', 'Content-Type': 'application/json' },
-        body: JSON.stringify({ workspaceId, connectionId, entryId, photoUrl }),
+        body: JSON.stringify({
+          workspaceId,
+          connectionId,
+          entryId,
+          photoUrl,
+          ...(saleItemId !== undefined ? { saleItemId } : {}),
+        }),
       }),
     remove: (body: unknown) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/delete`, {

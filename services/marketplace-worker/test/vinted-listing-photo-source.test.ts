@@ -18,6 +18,8 @@ function fixture(
     accounts?: unknown[];
     after?: unknown[];
     response?: () => Response;
+    kind?: 'publication' | 'sale';
+    bodyAfter?: Record<string, unknown>;
   } = {},
 ) {
   let downloads = 0;
@@ -51,12 +53,17 @@ function fixture(
         );
       assert.equal(url.searchParams.get('connection_id'), 'eq.' + scope.connectionId);
       assert.equal(url.searchParams.get('id'), 'eq.' + entryId);
-      assert.equal(url.searchParams.get('kind'), 'eq.publication');
+      assert.equal(url.searchParams.get('kind'), 'eq.' + (options.kind ?? 'publication'));
       return Response.json([
         {
           external_id: '12345',
           ...(url.searchParams.get('select')?.includes('body')
-            ? { body: options.body ?? { imageUrls: [photoUrl] } }
+            ? {
+                body:
+                  downloads && options.bodyAfter
+                    ? options.bodyAfter
+                    : (options.body ?? { imageUrls: [photoUrl] }),
+              }
             : {}),
         },
       ]);
@@ -72,6 +79,27 @@ test('liefert nur ein eigenes gespeichertes Original und sendet keine Zugangsdat
   assert.equal(result.mimeType, 'image/jpeg');
   assert.equal(f.reads.length, 5);
   assert.equal(f.downloads(), 1);
+});
+
+test('liest nur das bestätigte Einzelverkaufsfoto und prüft die Artikelzuordnung nach dem Download erneut', async () => {
+  const body = { itemIds: ['777'], itemCount: 1, sellerId: '789', imageUrl: photoUrl };
+  const f = fixture({ kind: 'sale', body });
+  assert.equal((await f.source.read(scope, entryId, photoUrl, '777')).mimeType, 'image/jpeg');
+  assert.equal(f.downloads(), 1);
+  assert.equal(f.reads.length, 6);
+  for (const invalid of [
+    { ...body, itemIds: ['778'] },
+    { ...body, itemIds: ['777', '778'], itemCount: 2 },
+    { ...body, isBundle: true },
+    { ...body, sellerId: '790' },
+  ]) {
+    const denied = fixture({ kind: 'sale', body: invalid });
+    await assert.rejects(denied.source.read(scope, entryId, photoUrl, '777'));
+    assert.equal(denied.downloads(), 0);
+  }
+  const changed = fixture({ kind: 'sale', body, bodyAfter: { ...body, itemIds: ['778'] } });
+  await assert.rejects(changed.source.read(scope, entryId, photoUrl, '777'));
+  assert.equal(changed.downloads(), 1);
 });
 
 test('liest vollständige Fotos einer bestätigten Quelle, aber keine fremden Quelleinträge', async () => {

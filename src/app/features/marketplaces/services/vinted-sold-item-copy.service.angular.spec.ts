@@ -5,6 +5,7 @@ import { emptyVintedListingContent } from '../models/vinted-listing-content';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
 import { VintedListingImageService } from './vinted-listing-image.service';
 import { VintedListingOriginalPhotoService } from './vinted-listing-original-photo.service';
+import { VintedListingPhotoSourceService } from './vinted-listing-photo-source.service';
 import { VintedSoldItemCopyService } from './vinted-sold-item-copy.service';
 
 const scope = { workspaceId: 'workspace-a', connectionId: 'account-a' };
@@ -41,6 +42,9 @@ function setup(
     missingOriginals?: boolean;
     missingPublication?: boolean;
     downloadError?: boolean;
+    publicationBody?: Record<string, unknown>;
+    saleBody?: Record<string, unknown>;
+    photoError?: boolean;
   } = {},
 ) {
   const sale = {
@@ -51,10 +55,14 @@ function setup(
       saleState: 'completed',
       itemIds: options.items ?? ['123'],
       price: 12,
+      itemCount: options.items?.length ?? 1,
+      imageUrl: 'https://images1.vinted.net/sale.jpg',
+      ...options.saleBody,
     },
   };
   const publication = {
-    body: {
+    id: 'publication-a',
+    body: options.publicationBody ?? {
       listingContent: {
         ...original.content,
         description: 'Letzter gespeicherter Stand',
@@ -82,11 +90,15 @@ function setup(
   const renamedFile = options.downloadError
     ? vi.fn().mockRejectedValue(new Error('Originalfoto fehlt'))
     : vi.fn().mockResolvedValue(file);
+  const photoRead = options.photoError
+    ? vi.fn().mockRejectedValue(new Error('Vinted-Foto nicht erreichbar'))
+    : vi.fn().mockResolvedValue(file);
   TestBed.configureTestingModule({
     providers: [
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: VintedListingOriginalPhotoService, useValue: { readSource } },
       { provide: VintedListingImageService, useValue: { renamedFile } },
+      { provide: VintedListingPhotoSourceService, useValue: { read: photoRead } },
     ],
   });
   return {
@@ -98,6 +110,7 @@ function setup(
     renamedFile,
     file,
     sale,
+    photoRead,
   };
 }
 afterEach(() => TestBed.resetTestingModule());
@@ -143,12 +156,101 @@ it('liest bei fehlender Verkaufsberechtigung keine Artikel oder Originale', asyn
   expect(f.from).toHaveBeenCalledTimes(1);
   expect(f.readSource).not.toHaveBeenCalled();
 });
-it('ersetzt fehlende Originale nicht durch Anbieterbilder', async () => {
-  const f = setup({ missingOriginals: true });
-  await expect(f.service.read(scope, 'sale-a', '123')).rejects.toThrow('keine Originalbilder');
+it('deutet einen fremden Währungsbetrag nicht als EUR um', async () => {
+  const sale = setup({
+    missingOriginals: true,
+    missingPublication: true,
+    saleBody: { currency: 'USD' },
+  });
+  await expect(sale.service.read(scope, 'sale-a', '123')).rejects.toThrow('Währung');
+  expect(sale.photoRead).not.toHaveBeenCalled();
+  TestBed.resetTestingModule();
+  const publication = setup({
+    missingOriginals: true,
+    publicationBody: { title: 'Jacke', price: 12, currency: 'GBP' },
+  });
+  await expect(publication.service.read(scope, 'sale-a', '123')).rejects.toThrow('Währung');
+  expect(publication.photoRead).not.toHaveBeenCalled();
+});
+it('übernimmt ohne Originalarchiv die gespeicherten Angaben und verfügbaren Vinted-Fotos', async () => {
+  const f = setup({
+    missingOriginals: true,
+    publicationBody: {
+      listingContent: original.content,
+      imageUrls: ['https://images1.vinted.net/one.jpg', 'https://images2.vinted.net/two.jpg'],
+    },
+  });
+  const copy = await f.service.read(scope, 'sale-a', '123');
+  expect(copy.content).toEqual(original.content);
+  expect(copy.files).toHaveLength(2);
+  expect(await copy.files[0].text()).toBe('original');
+  expect(f.photoRead).toHaveBeenCalledWith('https://images1.vinted.net/one.jpg', {
+    ...scope,
+    entryId: 'publication-a',
+  });
   expect(f.renamedFile).not.toHaveBeenCalled();
 });
-it('übernimmt bei einem unlesbaren Original keinen unvollständigen Bildsatz', async () => {
+it('lädt bei alten Einzelverkäufen ohne Inseratarchiv Titel, Preis und zugeordnetes Verkaufsfoto', async () => {
+  const f = setup({ missingOriginals: true, missingPublication: true });
+  const copy = await f.service.read(scope, 'sale-a', '123');
+  expect(copy.content.title).toBe('Verkauft');
+  expect(copy.content.priceCents).toBe(1200);
+  expect(copy.content.conditionLabel).toBe('');
+  expect(copy.files).toHaveLength(1);
+  expect(f.photoRead).toHaveBeenCalledWith('https://images1.vinted.net/sale.jpg', {
+    ...scope,
+    entryId: 'sale-a',
+    saleItemId: '123',
+  });
+});
+it('bevorzugt bestätigte vollständige Bildadressen und erhält deren gespeicherte Beschreibung', async () => {
+  const f = setup({
+    missingOriginals: true,
+    saleBody: { sellerId: '789' },
+    publicationBody: {
+      title: 'Jacke',
+      price: 12,
+      imageUrls: ['https://images1.vinted.net/thumbnail.jpg'],
+      transferSource: {
+        externalAccountId: '789',
+        externalId: '123',
+        title: 'Jacke',
+        description: 'Gesicherter vollständiger Text',
+        priceCents: 1200,
+        currency: 'EUR',
+        photoReferences: ['https://images1.vinted.net/full.jpg'],
+        attributeHints: {},
+      },
+    },
+  });
+  const copy = await f.service.read(scope, 'sale-a', '123');
+  expect(copy.content.description).toBe('Gesicherter vollständiger Text');
+  expect(f.photoRead).toHaveBeenCalledWith('https://images1.vinted.net/full.jpg', {
+    ...scope,
+    entryId: 'publication-a',
+  });
+});
+it('weist einem Paketartikel weder Paketpreis noch Sammelbild zu', async () => {
+  const f = setup({ missingOriginals: true, missingPublication: true, items: ['123', '456'] });
+  const copy = await f.service.read(scope, 'sale-a', '123');
+  expect(copy.content.title).toBe('');
+  expect(copy.content.priceCents).toBeNull();
+  expect(copy.files).toEqual([]);
+  expect(copy.photoError).toContain('Fotos');
+  expect(f.photoRead).not.toHaveBeenCalled();
+});
+it('lässt vorhandene Angaben auch bei nicht mehr erreichbaren Vinted-Fotos bearbeitbar', async () => {
+  const f = setup({ missingOriginals: true, missingPublication: true, photoError: true });
+  const copy = await f.service.read(scope, 'sale-a', '123');
+  expect(copy.content.title).toBe('Verkauft');
+  expect(copy.files).toEqual([]);
+  expect(copy.photoError).toContain('Fotos');
+});
+it('ersetzt unlesbare gesicherte Originale nicht durch Anbieterbilder und behält die Angaben', async () => {
   const f = setup({ downloadError: true });
-  await expect(f.service.read(scope, 'sale-a', '123')).rejects.toThrow('Originalfoto fehlt');
+  const copy = await f.service.read(scope, 'sale-a', '123');
+  expect(copy.content.description).toBe('Letzter gespeicherter Stand');
+  expect(copy.files).toEqual([]);
+  expect(copy.photoError).toContain('Originalfoto fehlt');
+  expect(f.photoRead).not.toHaveBeenCalled();
 });
