@@ -66,8 +66,11 @@ export class VintedListingOriginalPhotoService {
     return sources;
   }
   async read(scope: PhotoScope, externalId: string): Promise<readonly ListingImageDraft[] | null> {
-    const source = (await this.sources(scope, [externalId])).get(externalId);
+    const source = await this.readSource(scope, externalId);
     return source ? this.images.previews(source) : null;
+  }
+  async readSource(scope: PhotoScope, externalId: string): Promise<VintedListingDraft | null> {
+    return (await this.sources(scope, [externalId])).get(externalId) ?? null;
   }
   async entries(
     scope: PhotoScope,

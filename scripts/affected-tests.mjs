@@ -133,6 +133,8 @@ function browserSpecs(file) {
     if (/vinted-profile|vinted-feedback-list/u.test(file)) return ['vinted-profile'];
     if (/vinted-provider-drafts|vinted-listing-copy/u.test(file))
       return ['vinted-listing-drafts', 'vinted-listing-edge-cases', 'vinted-workspace-ui'];
+    if (/vinted-sold-item-copy/u.test(file))
+      return ['vinted-sales', 'vinted-listing-drafts', 'vinted-listing-edge-cases'];
     if (/vinted-sales/u.test(file)) return ['vinted-sales'];
     if (/vinted-listing-editor/u.test(file))
       return ['vinted-listing-edge-cases', 'vinted-listing-drafts'];

@@ -22,7 +22,9 @@
           ? 'Entwurf bearbeiten'
           : 'Inserat erstellen'
     "
-    [backLabel]="source() ? 'Vorlage schließen' : 'Zur Entwurfsübersicht'"
+    [backLabel]="
+      source() ? 'Vorlage schließen' : copyingSale() ? 'Zu Verkäufen' : 'Zur Entwurfsübersicht'
+    "
     (cancelled)="publication() ? returnToEditor() : cancel()"
   >
     <div entry-header-actions class="flex flex-wrap items-center gap-2">

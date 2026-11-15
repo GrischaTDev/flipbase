@@ -15,6 +15,7 @@ import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.s
 import type { VintedShippingLabel } from '../../models/vinted-shipping-label';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { VintedSalesComponent } from './vinted-sales.component';
+import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
 
 const scope = { workspaceId: 'workspace-1', connectionId: 'connection-1' };
 const empty = { items: [], total: 0, nextCursor: null };
@@ -51,7 +52,28 @@ const selected = signal<{
   workspaceId: string;
   connectionId: string;
   executionMode: string;
+  status?: string;
 } | null>(null);
+
+it('bietet einzelne Artikel eines Verkaufs als unabhängiges neues Inserat an', async () => {
+  selected.set({ ...scope, executionMode: 'cloud', status: 'connected' });
+  current.set(
+    makeSnapshot([{ saleState: 'completed', externalId: '999', itemIds: ['123', '456'] }]),
+  );
+  const fixture = TestBed.createComponent(VintedSalesComponent);
+  fixture.detectChanges();
+  const element = fixture.nativeElement as HTMLElement;
+  (element.querySelector('button[aria-haspopup="dialog"]') as HTMLButtonElement).click();
+  fixture.detectChanges();
+  const links = [...element.querySelectorAll<HTMLAnchorElement>('a')].filter((link) =>
+    link.textContent?.includes('neu einstellen'),
+  );
+  expect(links).toHaveLength(2);
+  expect(links[0].getAttribute('href')).toContain('/marketplaces/vinted/listings/new?');
+  expect(links[0].getAttribute('href')).toContain('copySaleId=sale-0');
+  expect(links[0].getAttribute('href')).toContain('copyItemId=123');
+  expect(links[1].getAttribute('href')).toContain('copyItemId=456');
+});
 let reset: (() => void) | undefined;
 beforeAll(async () => {
   registerLocaleData(localeDe);
@@ -59,6 +81,10 @@ beforeAll(async () => {
     { type: BadgeComponent, path: 'src/app/shared/components/badge/badge.component.ts' },
     { type: ButtonComponent, path: 'src/app/shared/components/button/button.component.ts' },
     { type: CardComponent, path: 'src/app/shared/components/card/card.component.ts' },
+    {
+      type: TableActionMenuComponent,
+      path: 'src/app/shared/components/table-action-menu/table-action-menu.component.ts',
+    },
     {
       type: ProductThumbnailComponent,
       path: 'src/app/shared/components/product-thumbnail/product-thumbnail.component.ts',
@@ -95,6 +121,7 @@ beforeEach(async () => {
           loadingPage: signal(null),
           loadMore,
           selectedConnection: selected,
+          canManage: () => true,
         },
       },
       {

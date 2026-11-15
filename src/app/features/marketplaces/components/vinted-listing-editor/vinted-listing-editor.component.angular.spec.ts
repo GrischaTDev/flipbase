@@ -14,6 +14,7 @@ import { VintedCategoryService } from '../../../platform-admin/services/vinted-c
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
+import { VintedSoldItemCopyService } from '../../services/vinted-sold-item-copy.service';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
@@ -233,6 +234,20 @@ function setup(
         useValue: { read: vi.fn().mockResolvedValue(null) },
       },
       {
+        provide: VintedSoldItemCopyService,
+        useValue: {
+          read: vi.fn().mockResolvedValue({
+            content: {
+              ...emptyVintedListingContent(),
+              title: 'Verkaufte Jacke',
+              description: 'Gesicherte Beschreibung',
+              priceCents: 2300,
+            },
+            files: [new File(['original'], 'original.jpg', { type: 'image/jpeg' })],
+          }),
+        },
+      },
+      {
         provide: VintedListingJobService,
         useValue: {
           editPlan: vi.fn(),
@@ -272,6 +287,7 @@ function setup(
         provide: ActivatedRoute,
         useValue: {
           paramMap: new BehaviorSubject(convertToParamMap({})),
+          queryParamMap: new BehaviorSubject(convertToParamMap(query)),
           snapshot: { paramMap: convertToParamMap({}), queryParamMap: convertToParamMap(query) },
         },
       },
@@ -347,6 +363,80 @@ afterEach(() => {
   TestBed.resetTestingModule();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speichert ohne Quellverknüpfung', async () => {
+  const f = setup({
+    workspaceId: 'workspace-a',
+    connectionId: 'account-a',
+    copySaleId: 'sale-a',
+    copyItemId: '123',
+  });
+  await settle();
+  expect(f.component.loadError()).toBeNull();
+  expect(f.component.relisting()).toBe(false);
+  expect(f.component.form.controls.title.value).toBe('Verkaufte Jacke');
+  expect(f.component.form.controls.description.value).toBe('Gesicherte Beschreibung');
+  expect(f.component.images()[0].storagePath).toBeNull();
+  expect(await f.component.images()[0].file!.text()).toBe('original');
+  f.component.form.controls.title.setValue('Neue unabhängige Anzeige');
+  f.component.form.controls.description.setValue('Geänderte Beschreibung');
+  f.component.form.controls.price.setValue('29');
+  await f.component.save();
+  expect(f.create).toHaveBeenCalledWith(
+    'workspace-a',
+    expect.objectContaining({
+      title: 'Neue unabhängige Anzeige',
+      description: 'Geänderte Beschreibung',
+      priceCents: 2900,
+    }),
+    'account-a',
+    expect.any(String),
+  );
+  expect(TestBed.inject(VintedListingDraftService).createRelisting).not.toHaveBeenCalled();
+  expect(f.imageApi.upload).toHaveBeenCalledWith(expect.anything(), expect.any(File), undefined);
+  expect(f.readListingContent).not.toHaveBeenCalled();
+  expect(f.startRelisting).not.toHaveBeenCalled();
+});
+
+it('übernimmt einen Verkaufsabruf nach einem Arbeitsbereichswechsel nicht mehr', async () => {
+  const f = setup({
+    workspaceId: 'workspace-a',
+    connectionId: 'account-a',
+    copySaleId: 'sale-a',
+    copyItemId: '123',
+  });
+  let finish!: (value: {
+    content: ReturnType<typeof emptyVintedListingContent>;
+    files: File[];
+  }) => void;
+  vi.mocked(TestBed.inject(VintedSoldItemCopyService).read).mockReturnValue(
+    new Promise((resolve) => (finish = resolve)),
+  );
+  await settle();
+  f.workspace.set({ id: 'workspace-b', archived_at: null });
+  await settle();
+  finish({
+    content: { ...emptyVintedListingContent(), title: 'Alter Verkauf' },
+    files: [new File(['old'], 'old.jpg', { type: 'image/jpeg' })],
+  });
+  await settle();
+  expect(f.component.form.controls.title.value).toBe('');
+  expect(f.component.images()).toEqual([]);
+  expect(f.create).not.toHaveBeenCalled();
+});
+
+it('blockiert das Kopieren eines Verkaufs aus einem anderen Arbeitsbereich', async () => {
+  const f = setup({
+    workspaceId: 'workspace-b',
+    connectionId: 'account-a',
+    copySaleId: 'sale-a',
+    copyItemId: '123',
+  });
+  await settle();
+  expect(f.component.loadError()).toContain('Vinted-Konto');
+  expect(TestBed.inject(VintedSoldItemCopyService).read).not.toHaveBeenCalled();
+  expect(f.component.canSave()).toBe(false);
 });
 
 function localRelisting(

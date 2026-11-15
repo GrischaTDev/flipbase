@@ -316,7 +316,11 @@ async function mockDrafts(
       creates.push(body);
       if (!created) {
         created = true;
-        draft = { ...draft, content: body['p_content'] as typeof draft.content };
+        draft = {
+          ...draft,
+          content: body['p_content'] as typeof draft.content,
+          connectionId: body['p_connection_id'] as string | null,
+        };
       }
     } else if (name === 'marketplace_save_listing_draft') {
       if (body['p_id'] !== draft.id || body['p_expected_revision'] !== draft.revision)
@@ -421,6 +425,10 @@ async function mockDrafts(
     signedImageBatches,
     setOverviewDrafts: (items: (typeof draft)[]) => {
       overviewDrafts = items;
+    },
+    startNewDraft: () => {
+      created = false;
+      draft = { ...draft, content: emptyVintedListingContent(), images: [] };
     },
     failNextDelete: () => {
       failNextDeletion = true;
@@ -549,6 +557,153 @@ async function mockPublication(
     },
   );
   return { ...state, approvals, enqueues, revocations };
+}
+
+for (const width of [390, 1440]) {
+  test.describe(`Verkaufsartikel kopieren ${width}px`, () => {
+    test.use({ hasTouch: width === 390 });
+    for (const theme of ['light', 'dark'] as const) {
+      test(`erstellt aus einem Verkauf ein unabhängiges Inserat bei ${width}px ${theme} @marketplace-preview`, async ({
+        page,
+      }, testInfo) => {
+        await page.setViewportSize({ width, height: 1000 });
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' });
+        const errors: string[] = [];
+        page.on('pageerror', (error) => errors.push(error.message));
+        const state = await mockPublication(page);
+        await page.addInitScript((value) => localStorage.setItem('flipbase_theme', value), theme);
+        const scope = { workspaceId, connectionId: accountIds[0] };
+        const sale = {
+          ...scope,
+          id: '25000000-0000-4000-8000-000000000099',
+          externalId: '999',
+          title: 'Meine Jako-Jacke',
+          itemIds: ['123'],
+          itemCount: 1,
+          saleState: 'completed',
+          price: 18,
+          currency: 'EUR',
+        };
+        const source = {
+          ...structuredClone(state.draft()),
+          id: '71',
+          content: { ...state.draft().content, sizeId: 5, conditionId: 3, materialIds: [1] },
+          inventoryItemId: 'old-stock',
+          relistExternalId: '122',
+          images: state.draft().images.map((image) => ({
+            ...image,
+            id: '81',
+            storagePath: `${workspaceId}/71/81.png`,
+          })),
+        };
+        const originalSource = structuredClone(source);
+        const originalSale = structuredClone(sale);
+        state.startNewDraft();
+        const unexpectedWrites: string[] = [];
+        page.on('request', (request) => {
+          if (
+            /marketplace_(create_relisting_draft|enqueue_relisting|bind_relisting_entry)/.test(
+              request.url(),
+            ) ||
+            (request.url().includes('/marketplace_account_entries?') && request.method() !== 'GET')
+          )
+            unexpectedWrites.push(request.url());
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_snapshot', (route) => {
+          const empty = { items: [], total: 0, nextCursor: null };
+          return route.fulfill({
+            json: {
+              ...scope,
+              profile: null,
+              publications: empty,
+              conversations: empty,
+              activity: empty,
+              sales: { items: [sale], total: 1, nextCursor: null },
+            },
+          });
+        });
+        await page.route('**/rest/v1/marketplace_account_entries?**', (route) => {
+          const kind = new URL(route.request().url()).searchParams.get('kind');
+          if (kind === 'eq.sale') return route.fulfill({ json: { id: sale.id, body: sale } });
+          if (kind === 'eq.publication')
+            return route.fulfill({ json: { body: { listingContent: source.content } } });
+          return route.fallback();
+        });
+        await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', (route) =>
+          route.fulfill({ json: { items: [{ externalId: '123', draft: source }] } }),
+        );
+        await page.goto('/marketplaces/vinted/sales');
+        await expect
+          .poll(() =>
+            page.locator('html').evaluate((element) => element.classList.contains('dark')),
+          )
+          .toBe(theme === 'dark');
+        const sales = page.locator('app-vinted-sales');
+        await expect(sales.getByRole('heading', { name: sale.title, exact: true })).toBeVisible();
+        await sales
+          .getByRole('button', { name: 'Aktionen für ' + sale.title, exact: true })
+          .click();
+        await sales.getByRole('link', { name: 'Neu einstellen', exact: true }).click();
+        const editor = page.locator('app-vinted-listing-editor');
+        await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+          source.content.title,
+        );
+        await expect(
+          editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
+        ).toHaveValue(source.content.description);
+        await expect(editor.getByRole('combobox', { name: 'Marke', exact: true })).toHaveValue(
+          'Jako',
+        );
+        await expect(editor.getByRole('combobox', { name: 'Größe', exact: true })).toHaveValue('M');
+        await editor
+          .getByRole('textbox', { name: 'Titel', exact: true })
+          .fill('Unabhängige neue Jacke');
+        await editor
+          .getByRole('textbox', { name: 'Beschreibung', exact: true })
+          .fill('Neue Beschreibung für die neue Anzeige.');
+        await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('29');
+        await saveDraft(page);
+        expect(state.creates).toHaveLength(1);
+        expect(state.creates[0]).not.toHaveProperty('p_inventory_item_id');
+        expect(state.creates[0]).not.toHaveProperty('p_external_id');
+        expect(state.draft().id).not.toBe(source.id);
+        expect(state.draft().content).toMatchObject({
+          title: 'Unabhängige neue Jacke',
+          description: 'Neue Beschreibung für die neue Anzeige.',
+          priceCents: 2900,
+          categoryId: 2,
+          brandId: 254956,
+          sizeId: 5,
+          conditionId: 3,
+          colorIds: [1],
+          materialIds: [1],
+          packageSizeId: 2,
+        });
+        expect(state.draft().images).toHaveLength(1);
+        expect(state.draft().images[0].storagePath).not.toBe(source.images[0].storagePath);
+        expect(state.draft().inventoryItemId).toBeNull();
+        expect(state.draft()).not.toHaveProperty('relistExternalId');
+        await checkListingSurface(page, 'app-vinted-listing-editor');
+        await page.screenshot({
+          path: testInfo.outputPath(`sold-copy-${width}-${theme}.png`),
+          fullPage: true,
+        });
+        await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+        await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+        expect(state.enqueues).toHaveLength(1);
+        expect(state.enqueues[0]).toMatchObject({
+          p_action: 'publish',
+          p_draft_id: state.draft().id,
+        });
+        expect(unexpectedWrites).toEqual([]);
+        expect(source).toEqual(originalSource);
+        expect(sale).toEqual(originalSale);
+        await page.goto('/marketplaces/vinted/sales');
+        await expect(sales.getByRole('heading', { name: sale.title, exact: true })).toBeVisible();
+        expect(errors).toEqual([]);
+      });
+    }
+  });
 }
 
 test('hält verspätete Markenvorschläge im kurzen Bildschirm sichtbar @marketplace-preview', async ({

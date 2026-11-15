@@ -86,6 +86,32 @@
                 }
               </div>
               <app-vinted-shipping-label-actions class="mt-3" [sale]="entry" />
+              @if (canCopy(entry)) {
+                <div class="mt-3 flex justify-end">
+                  <app-table-action-menu [label]="'Aktionen für ' + entry.title">
+                    @for (itemId of itemIds(entry); track itemId; let index = $index) {
+                      <app-button
+                        variant="list-row"
+                        density="compact"
+                        [fullWidth]="true"
+                        contentAlign="start"
+                        link="/marketplaces/vinted/listings/new"
+                        [queryParams]="{
+                          workspaceId: entry.workspaceId,
+                          connectionId: entry.connectionId,
+                          copySaleId: entry.id,
+                          copyItemId: itemId,
+                        }"
+                        >{{
+                          itemIds(entry).length === 1
+                            ? 'Neu einstellen'
+                            : 'Artikel ' + (index + 1) + ' neu einstellen'
+                        }}</app-button
+                      >
+                    }
+                  </app-table-action-menu>
+                </div>
+              }
             </div>
           </app-card>
         </article>

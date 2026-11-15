@@ -54,6 +54,7 @@ export const uiBrowserFiles = [
   'settings-layout',
   'vinted-workspace-ui',
   'vinted-profile',
+  'vinted-sales',
   'vinted-account-grid',
   'vinted-action-overview',
   'vinted-inbox-experience',

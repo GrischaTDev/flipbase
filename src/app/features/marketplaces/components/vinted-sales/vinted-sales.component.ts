@@ -18,6 +18,8 @@ import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
+import { vintedSaleItemIds } from '../../models/vinted-listing-source';
+import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
 
 @Component({
   selector: 'app-vinted-sales',
@@ -28,12 +30,25 @@ import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-ac
     CardComponent,
     ProductThumbnailComponent,
     VintedShippingLabelActionsComponent,
+    TableActionMenuComponent,
   ],
   templateUrl: './vinted-sales.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
 })
 export class VintedSalesComponent {
+  readonly itemIds = vintedSaleItemIds;
+  canCopy(entry: MarketplaceEntry): boolean {
+    const connection = this.store.selectedConnection();
+    return (
+      this.store.canManage() &&
+      connection?.status === 'connected' &&
+      connection.executionMode === 'cloud' &&
+      entry.workspaceId === connection.workspaceId &&
+      entry.connectionId === connection.connectionId &&
+      this.itemIds(entry).length > 0
+    );
+  }
   readonly store = inject(MarketplaceAccountStore);
   private readonly shippingLabels = inject(VintedShippingLabelStore);
   constructor() {
