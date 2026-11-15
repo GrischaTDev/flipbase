@@ -7,4 +7,3 @@ services:
       GOTRUE_OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION: 'true'
       GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED: 'true'
       GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI: pg-functions://${POSTGRES_DB:-postgres}/public/ai_connection_access_token_hook
-      GOTRUE_JWT_ISSUER: ${API_EXTERNAL_URL:?API_EXTERNAL_URL fehlt}/auth/v1

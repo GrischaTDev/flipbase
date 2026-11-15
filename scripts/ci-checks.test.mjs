@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import test from 'node:test';
+import { runInNewContext } from 'node:vm';
 import {
   assertComparisonSafetyResult,
   runComparisonSafetyTest,
@@ -23,6 +24,28 @@ import {
 const projectLock = JSON.parse(
   await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'),
 );
+
+test('Workflowverträge und Push-Prüfung erhalten auch ohne Schemaänderung das vorhandene Zeitbudget', async () => {
+  const workflow = await readFile(new URL('../.github/workflows/ci.yml', import.meta.url), 'utf8');
+  const quality = workflow.split('  quality:')[1].split('  unit:')[0];
+  const expression = quality.match(/timeout-minutes: \$\{\{ (.+) \}\}/u)?.[1];
+  assert.ok(expression);
+  for (const [workflowRequired, push, marketplaceRequired, supabase, expected] of [
+    ['true', 'true', 'false', 'false', 15],
+    ['true', 'true', 'true', 'true', 15],
+    ['true', 'false', 'false', 'false', 10],
+    ['false', 'true', 'false', 'false', 10],
+    ['false', 'false', 'false', 'false', 10],
+  ]) {
+    const outputs = {
+      workflow_required: workflowRequired,
+      push,
+      marketplace_required: marketplaceRequired,
+      supabase,
+    };
+    assert.equal(runInNewContext(expression, { needs: { changes: { outputs } } }), expected);
+  }
+});
 
 test('Vergleichsbestand verlangt den echten SQL-Schutz samt vollständigem pgTAP-Ergebnis', () => {
   const valid =

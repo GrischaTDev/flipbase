@@ -12,6 +12,56 @@ import { createHash } from 'node:crypto';
 const deployScript = fileURLToPath(new URL('../deploy/deploy.sh', import.meta.url));
 const dockerfile = fileURLToPath(new URL('../docker/Dockerfile', import.meta.url));
 
+test('KI-Compose erhält vorhandenen Auth-Issuer und externe Auth-Adresse', async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'flipbase-ai-compose-'));
+  try {
+    const base = join(directory, 'compose.yml');
+    const environment = join(directory, '.env');
+    const overlay = fileURLToPath(
+      new URL('../deploy/docker-compose.ai-connections.yml', import.meta.url),
+    );
+    await writeFile(
+      base,
+      'services:\n  auth:\n    image: supabase/gotrue:v2.189.0\n    environment:\n      API_EXTERNAL_URL: ${API_EXTERNAL_URL}\n      GOTRUE_JWT_ISSUER: ${API_EXTERNAL_URL}\n',
+    );
+    await writeFile(
+      environment,
+      'API_EXTERNAL_URL=https://api.flipbase.de/auth/v1\nPOSTGRES_DB=postgres\n',
+    );
+    const configuration = JSON.parse(
+      execFileSync(
+        'docker',
+        [
+          'compose',
+          '--env-file',
+          environment,
+          '-f',
+          base,
+          '-f',
+          overlay,
+          'config',
+          '--format',
+          'json',
+        ],
+        { encoding: 'utf8' },
+      ),
+    );
+    const settings = configuration.services.auth.environment;
+    assert.equal(settings.API_EXTERNAL_URL, 'https://api.flipbase.de/auth/v1');
+    assert.equal(settings.GOTRUE_JWT_ISSUER, 'https://api.flipbase.de/auth/v1');
+    assert.equal(settings.GOTRUE_OAUTH_SERVER_ENABLED, 'true');
+    assert.equal(settings.GOTRUE_OAUTH_SERVER_AUTHORIZATION_PATH, '/auth/ai-connection');
+    assert.equal(settings.GOTRUE_OAUTH_SERVER_ALLOW_DYNAMIC_REGISTRATION, 'true');
+    assert.equal(settings.GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_ENABLED, 'true');
+    assert.equal(
+      settings.GOTRUE_HOOK_CUSTOM_ACCESS_TOKEN_URI,
+      'pg-functions://postgres/public/ai_connection_access_token_hook',
+    );
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
 test('Vinted-KI-Laufzeit aendert ausschliesslich den bekannten Router und ist wiederholbar', async () => {
   const directory = await mkdtemp(join(tmpdir(), 'flipbase-ai-runtime-'));
   const main = join(directory, 'index.ts');
