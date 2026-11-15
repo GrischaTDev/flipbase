@@ -1,7 +1,7 @@
 \set ON_ERROR_STOP on
 begin;
 set local search_path=public,extensions;
-select plan(4);
+select plan(5);
 do $$
 declare
   actor uuid:=gen_random_uuid(); other_actor uuid:=gen_random_uuid(); ws uuid:=gen_random_uuid(); other_ws uuid:=gen_random_uuid();
@@ -253,5 +253,98 @@ begin
     or (select sum(remaining_quantity) from public.stock_lots where purchase_id=purchase)<>2 then raise exception 'Einkaufsabschluss verliert Kosten oder Bestand'; end if;
 end $$;
 select pass('Einkaufsanlage, Ergänzung, Wareneingang und Kostenabschluss nutzen dieselbe Fachlogik ohne Doppelbuchung');
+do $$
+declare
+  actor uuid:=gen_random_uuid(); other_actor uuid:=gen_random_uuid(); ws uuid:=gen_random_uuid(); other_ws uuid:=gen_random_uuid();
+  client uuid:=gen_random_uuid(); grant_id uuid:=gen_random_uuid(); session uuid:=gen_random_uuid(); account uuid:=gen_random_uuid(); foreign_account uuid:=gen_random_uuid();
+  app_claims jsonb; mcp_claims jsonb; ctx jsonb; old_request uuid:=gen_random_uuid(); inflight_request uuid:=gen_random_uuid(); old_input jsonb;
+begin
+  insert into auth.users(id,email) values(actor,actor::text||'@example.test'),(other_actor,other_actor::text||'@example.test');
+  insert into public.workspaces(id,name) values(ws,'Freigabe bearbeiten'),(other_ws,'Fremdes Konto');
+  insert into public.workspace_members(workspace_id,user_id,role) values(ws,actor,'owner'),(ws,other_actor,'owner'),(other_ws,actor,'owner');
+  insert into auth.oauth_clients(id,registration_type,redirect_uris,grant_types,client_type,token_endpoint_auth_method)
+    values(client,'manual','http://127.0.0.1:57777/callback','authorization_code,refresh_token','public','none');
+  insert into public.ai_connections(id,user_id,client_id,workspace_id,access_mode,session_id,authorization_id)
+    values(grant_id,actor,client,ws,'read',session,gen_random_uuid()::text);
+  insert into auth.sessions(id,user_id,oauth_client_id,created_at) values(session,actor,client,clock_timestamp()+interval '1 second');
+  insert into public.marketplace_connections(id,workspace_id,marketplace,display_name,execution_mode,status)
+    values(account,ws,'vinted','Freigegeben','local','connected'),(foreign_account,other_ws,'vinted','Fremd','local','connected');
+  app_claims:=jsonb_build_object('sub',actor,'role','authenticated');
+  mcp_claims:=jsonb_build_object('sub',grant_id,'role','anon','client_id',client,'session_id',session);
+  perform set_config('request.jwt.claims',mcp_claims::text,true);
+  begin
+    perform public.ai_connection_update(grant_id,ws,'edit','{}','read','{}'); raise exception 'MCP erweitert eigene Freigabe';
+  exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claims',jsonb_build_object('sub',other_actor,'role','authenticated')::text,true);
+  begin
+    perform public.ai_connection_update(grant_id,ws,'edit','{}','read','{}'); raise exception 'Anderer Inhaber ändert persönliche Verbindung';
+  exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claims',app_claims::text,true);
+  begin
+    perform public.ai_connection_update(grant_id,other_ws,'edit','{}','read','{}'); raise exception 'Workspace umgebunden';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.ai_connection_update(grant_id,ws,'edit',array[foreign_account],'read','{}'); raise exception 'Fremdes Konto freigegeben';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.ai_connection_update(grant_id,ws,null,'{}','read','{}'); raise exception 'Fehlender Modus akzeptiert';
+  exception when invalid_parameter_value then null; end;
+  perform public.ai_connection_update(grant_id,ws,'edit',array[account],'read','{}');
+  perform set_config('request.jwt.claims',mcp_claims::text,true);
+  ctx:=public.ai_connection_context();
+  if ctx->>'access_mode'<>'edit' or ctx->>'id'<>grant_id::text or ctx->>'session_id'<>session::text
+    or ctx->'connection_ids'<>jsonb_build_array(account) then raise exception 'Bestehendes Token sieht neue Freigabe nicht'; end if;
+  old_input:=jsonb_build_object('connection_id',account,'content','{}'::jsonb);
+  insert into public.ai_connection_requests(id,ai_connection_id,action,input,result,created_at)
+    values(old_request,grant_id,'create_vinted_draft',old_input,'{"previous_account_data":true}',clock_timestamp());
+  if public.ai_connection_call('create_vinted_draft',old_input,old_request)<>'{"previous_account_data":true}'::jsonb then
+    raise exception 'Unveränderte Kontofreigabe verliert Wiederholergebnis';
+  end if;
+  perform set_config('request.jwt.claims',app_claims::text,true);
+  begin
+    perform public.ai_connection_update(grant_id,ws,'read','{}','read','{}'); raise exception 'Veralteter Modus überschrieben';
+  exception when serialization_failure then null; end;
+  begin
+    perform public.ai_connection_update(grant_id,ws,'read','{}','edit','{}'); raise exception 'Veraltete Kontenauswahl überschrieben';
+  exception when serialization_failure then null; end;
+  perform public.ai_connection_update(grant_id,ws,'edit','{}','edit',array[account]);
+  perform set_config('request.jwt.claims',mcp_claims::text,true);
+  begin
+    perform public.ai_connection_call('read_action_result',jsonb_build_object('action_id',old_request)); raise exception 'Ergebnis eines entfernten Kontos gelesen';
+  exception when insufficient_privilege then null; end;
+  begin
+    perform public.ai_connection_call('create_vinted_draft',old_input,old_request); raise exception 'Konteneinschränkung über Wiederholung umgangen';
+  exception when insufficient_privilege then null; end;
+  if not exists(select 1 from public.ai_connection_requests where id=old_request) then raise exception 'Wiederholschutz gelöscht'; end if;
+  -- Ein bereits laufender Aufruf kann sein Ergebnis erst nach der Kontenänderung speichern.
+  insert into public.ai_connection_requests(id,ai_connection_id,action,input,result)
+    values(inflight_request,grant_id,'create_vinted_draft',old_input,'{"previous_account_data":true}');
+  begin
+    perform public.ai_connection_call('read_action_result',jsonb_build_object('action_id',inflight_request)); raise exception 'Verspätet gespeichertes Ergebnis umgeht Konteneinschränkung';
+  exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claims',app_claims::text,true);
+  perform public.ai_connection_update(grant_id,ws,'read','{}','edit','{}');
+  perform set_config('request.jwt.claims',mcp_claims::text,true);
+  ctx:=public.ai_connection_context();
+  if ctx->>'access_mode'<>'read' or ctx->'connection_ids'<>'[]'::jsonb then raise exception 'Einschränkung wirkt nicht sofort'; end if;
+  begin
+    perform public.ai_connection_call('save_sale_draft','{}',gen_random_uuid()); raise exception 'Altes Token schreibt nach Einschränkung';
+  exception when insufficient_privilege then null; end;
+  perform set_config('request.jwt.claims',app_claims::text,true);
+  update public.workspace_members set role='readonly' where workspace_id=ws and user_id=actor;
+  begin
+    perform public.ai_connection_update(grant_id,ws,'edit','{}','read','{}'); raise exception 'Leserolle erweitert Freigabe';
+  exception when insufficient_privilege then null; end;
+  update public.workspace_members set role='owner' where workspace_id=ws and user_id=actor;
+  perform public.ai_connection_revoke(grant_id);
+  begin
+    perform public.ai_connection_update(grant_id,ws,'edit','{}','read','{}'); raise exception 'Widerrufene Verbindung wiederbelebt';
+  exception when insufficient_privilege then null; end;
+  if has_function_privilege('anon','public.ai_connection_update(uuid,uuid,text,uuid[],text,uuid[])','execute')
+    or has_function_privilege('service_role','public.ai_connection_update(uuid,uuid,text,uuid[],text,uuid[])','execute') then
+    raise exception 'Änderung außerhalb der persönlichen App-Anmeldung erlaubt';
+  end if;
+end $$;
+select pass('Freigabeänderung schützt Eigentümer, Workspace, Rolle und Konflikte und gilt sofort für dieselbe MCP-Sitzung');
 select * from finish();
 rollback;

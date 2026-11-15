@@ -71,6 +71,23 @@ export class AiConnectionService {
     if (revoked.error) throw revoked.error;
   }
 
+  async update(
+    connection: AiConnection,
+    workspaceId: string,
+    mode: 'read' | 'edit',
+    accounts: readonly string[],
+  ): Promise<void> {
+    const { error } = await this.supabase.client.rpc('ai_connection_update', {
+      p_id: connection.id,
+      p_workspace_id: workspaceId,
+      p_access_mode: mode,
+      p_connection_ids: [...accounts],
+      p_expected_access_mode: connection.access_mode,
+      p_expected_connection_ids: connection.accounts.map((account) => account.id),
+    });
+    if (error) throw error;
+  }
+
   authorizationDetails(authorizationId: string) {
     return this.supabase.client.auth.oauth.getAuthorizationDetails(authorizationId);
   }

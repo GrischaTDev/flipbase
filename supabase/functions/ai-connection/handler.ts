@@ -160,7 +160,8 @@ export function createAiConnectionHandler(config: AiConnectionConfig, store: AiC
       return reply({
         tools: tools.filter(
           (t) =>
-            (context['access_mode'] === 'edit' || t.annotations.readOnlyHint) &&
+            (t.annotations.readOnlyHint ||
+              ['owner', 'admin', 'member', 'accountant'].includes(String(context['role']))) &&
             (!t.name.includes('vinted') || ['owner', 'admin'].includes(String(context['role']))) &&
             (context['role'] !== 'accountant' ||
               t.annotations.readOnlyHint ||

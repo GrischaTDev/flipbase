@@ -154,6 +154,7 @@ export type Database = {
       ai_connections: {
         Row: {
           access_mode: string
+          accounts_changed_at: string | null
           authorization_id: string
           client_id: string
           connected_at: string | null
@@ -166,6 +167,7 @@ export type Database = {
         }
         Insert: {
           access_mode: string
+          accounts_changed_at?: string | null
           authorization_id: string
           client_id: string
           connected_at?: string | null
@@ -178,6 +180,7 @@ export type Database = {
         }
         Update: {
           access_mode?: string
+          accounts_changed_at?: string | null
           authorization_id?: string
           client_id?: string
           connected_at?: string | null
@@ -10580,6 +10583,17 @@ export type Database = {
       ai_connection_token_grant: {
         Args: { p_client_id: string; p_code: string }
         Returns: string
+      }
+      ai_connection_update: {
+        Args: {
+          p_access_mode: string
+          p_connection_ids: string[]
+          p_expected_access_mode: string
+          p_expected_connection_ids: string[]
+          p_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
       }
       ai_sale_draft_valid: { Args: { p_draft: Json }; Returns: boolean }
       allocate_integer_cents: {
