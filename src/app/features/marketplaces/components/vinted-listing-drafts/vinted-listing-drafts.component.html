@@ -111,7 +111,6 @@
                     [class.flex]="viewMode() === 'list'"
                     [class.items-center]="viewMode() === 'list'"
                     [class.gap-3]="viewMode() === 'list'"
-                    [attr.aria-label]="title + ' bearbeiten'"
                     [attr.aria-disabled]="deletingId() === draft.id ? 'true' : null"
                     [attr.tabindex]="deletingId() === draft.id ? -1 : null"
                   >
@@ -120,7 +119,7 @@
                         <app-product-thumbnail
                           class="block w-full"
                           [src]="thumbnails().get(draft.id) ?? null"
-                          [alt]="title"
+                          alt=""
                           size="listing"
                           [flush]="true"
                         />
@@ -169,7 +168,7 @@
                     } @else {
                       <app-product-thumbnail
                         [src]="thumbnails().get(draft.id) ?? null"
-                        [alt]="title"
+                        alt=""
                         size="md"
                         fit="cover"
                       />
@@ -225,6 +224,7 @@
                         </p>
                       </div>
                     }
+                    <span class="sr-only"> bearbeiten</span>
                   </a>
                   <div
                     [class]="

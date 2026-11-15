@@ -125,11 +125,13 @@ describe('MarketplacesSettingsComponent', () => {
     fixture.detectChanges();
 
     expect(service.isVintedEnabled()).toBe(false);
-    expect(
-      fixture.nativeElement
-        .querySelector('button[aria-label="Vinted"]')
-        .getAttribute('aria-pressed'),
-    ).toBe('false');
+    const platformButton = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll<HTMLButtonElement>(
+        'button[aria-pressed]',
+      ),
+    ).find((button) => button.textContent?.trim().startsWith('Vinted'));
+    expect(platformButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(platformButton?.textContent).toContain('Ausgeblendet');
   });
   it('bietet im Sichtbarkeitsdialog nur Marktplatzschalter ohne Kontoverwaltung', () => {
     const fixture = TestBed.createComponent(MarketplacesSettingsComponent);
@@ -153,13 +155,15 @@ describe('MarketplacesSettingsComponent', () => {
     fixture.detectChanges();
     const element = fixture.nativeElement as HTMLElement;
     expect(element.querySelector('a[href="/marketplaces/overview"]')).not.toBeNull();
-    element.querySelector<HTMLButtonElement>('button[aria-label="eBay"]')?.click();
+    const platformButton = Array.from(
+      element.querySelectorAll<HTMLButtonElement>('button[aria-pressed]'),
+    ).find((button) => button.textContent?.trim().startsWith('eBay'));
+    platformButton?.click();
     await fixture.whenStable();
     fixture.detectChanges();
     expect(TestBed.inject(MarketplaceSettingsService).isEbayEnabled()).toBe(false);
-    expect(element.querySelector('button[aria-label="eBay"]')?.getAttribute('aria-pressed')).toBe(
-      'false',
-    );
+    expect(platformButton?.getAttribute('aria-pressed')).toBe('false');
+    expect(platformButton?.textContent).toContain('Ausgeblendet');
     expect(element.querySelector('a[href="/marketplaces/overview"]')).not.toBeNull();
   });
 });

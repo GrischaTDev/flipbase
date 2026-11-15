@@ -1110,8 +1110,8 @@ describe('Vinted-Bereich in Flipbase', () => {
   });
   it('öffnet ein Inserat nur innerhalb des ausgewählten Kontos', async () => {
     const { element, harness } = await render('/marketplaces/vinted/listings');
-    const link = element.querySelector<HTMLAnchorElement>(
-      'a[aria-label="Inserat Testschal öffnen"]',
+    const link = [...element.querySelectorAll<HTMLAnchorElement>('[data-listing-row] a')].find(
+      (anchor) => anchor.textContent?.replace(/\s+/g, ' ').includes('Inserat Testschal öffnen'),
     );
     expect(link?.getAttribute('href')).toBe(
       '/marketplaces/vinted/listings/fixture-account-a/publication-1',

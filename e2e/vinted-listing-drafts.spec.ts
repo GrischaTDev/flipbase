@@ -119,6 +119,7 @@ for (const width of [390, 1440]) {
           'href',
           `/marketplaces/vinted/listings/${accountIds[0]}/25000000-0000-4000-8000-000000000099`,
         );
+        await checkListingSurface(page, 'app-vinted-provider-drafts');
         await page.goto(`/marketplaces/vinted/listing-drafts/${state.draft().id}`);
         const editor = page.locator('app-vinted-listing-editor');
         await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Mein Titel');
@@ -1299,7 +1300,10 @@ for (const width of [1440, 390])
       const list = page.locator('app-vinted-listing-drafts');
       await expect(list.getByText('Testmarke Lieblingsjacke', { exact: true })).toBeVisible();
       await list
-        .getByRole('link', { name: 'Testmarke Lieblingsjacke bearbeiten', exact: true })
+        .getByRole('link')
+        .filter({
+          has: page.getByRole('heading', { name: 'Testmarke Lieblingsjacke', exact: true }),
+        })
         .click();
       await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
         'Testmarke Lieblingsjacke',
@@ -1400,7 +1404,9 @@ for (const width of [1440, 390]) {
           }
           for (const [index, draft] of drafts.entries()) {
             const title = draft.content.title || 'Unbenannter Entwurf';
-            await expect(links.nth(index)).toHaveAttribute('aria-label', `${title} bearbeiten`);
+            await expect(links.nth(index)).toHaveAccessibleName(
+              new RegExp(`${title}.* bearbeiten$`),
+            );
             await expect(links.nth(index)).toHaveAttribute(
               'href',
               `/marketplaces/vinted/listing-drafts/${draft.id}`,
@@ -1528,8 +1534,8 @@ for (const width of [1440, 390]) {
         await expect(dialog).not.toBeVisible();
         await expect(overview.getByText('Entwurf gelöscht.', { exact: true })).toBeVisible();
         await expect(links).toHaveCount(2);
-        await expect(links.first()).toHaveAttribute('aria-label', 'Älterer Pullover bearbeiten');
-        await expect(links.last()).toHaveAttribute('aria-label', 'Unbenannter Entwurf bearbeiten');
+        await expect(links.first()).toHaveAccessibleName(/Älterer Pullover.* bearbeiten$/);
+        await expect(links.last()).toHaveAccessibleName(/Unbenannter Entwurf.* bearbeiten$/);
         await expect(links.first()).toBeFocused();
         await expect(deleteNewest).toHaveCount(0);
         expect(state.draftDeletes).toEqual([
@@ -1570,7 +1576,7 @@ for (const width of [1440, 390]) {
         await expect(links).toHaveCount(0);
         await search.fill('Pullover');
         await expect(links).toHaveCount(1);
-        await expect(links.first()).toHaveAttribute('aria-label', 'Älterer Pullover bearbeiten');
+        await expect(links.first()).toHaveAccessibleName(/Älterer Pullover.* bearbeiten$/);
         await search.fill('Fehlerprüfung');
         await expect(section.getByRole('status')).toHaveText('Entwürfe werden geladen …');
         finishFailure();

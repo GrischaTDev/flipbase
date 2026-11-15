@@ -103,8 +103,10 @@
               >
                 <svg
                   [lucideIcon]="checkIcon"
-                  class="size-4 shrink-0 opacity-0 group-hover:opacity-100"
-                  [class.opacity-100]="activeIndex() === index"
+                  [class]="
+                    'size-4 shrink-0 opacity-0 group-hover:opacity-100' +
+                    (activeIndex() === index ? ' opacity-100' : '')
+                  "
                   aria-hidden="true"
                 ></svg>
                 <span class="min-w-0 flex-1 truncate">{{ option.label }}</span>

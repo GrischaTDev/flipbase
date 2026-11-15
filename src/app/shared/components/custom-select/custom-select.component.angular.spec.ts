@@ -137,6 +137,28 @@ function optionElements(fixture: ReturnType<typeof createSelect>): HTMLButtonEle
   );
 }
 
+it('zeigt das Auswahlhäkchen ausschließlich bei der gewählten Option', () => {
+  const fixture = createSelect({ value: 'ebay' });
+  triggerOf(fixture).click();
+  fixture.detectChanges();
+  const renderedOptions = optionElements(fixture);
+  expect(renderedOptions).toHaveLength(3);
+  for (const option of renderedOptions) {
+    const check = option.querySelector('svg');
+    expect(check).not.toBeNull();
+    expect(check?.classList.contains('invisible')).toBe(
+      option.getAttribute('aria-selected') !== 'true',
+    );
+  }
+  fixture.componentInstance.writeValue('vinted');
+  fixture.detectChanges();
+  for (const option of optionElements(fixture)) {
+    expect(option.querySelector('svg')?.classList.contains('invisible')).toBe(
+      option.getAttribute('aria-selected') !== 'true',
+    );
+  }
+});
+
 function activeIndexOf(fixture: ReturnType<typeof createSelect>): number {
   const component = fixture.componentInstance as unknown as { activeIndex?: () => number };
   return component.activeIndex?.() ?? -1;

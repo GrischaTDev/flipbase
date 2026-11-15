@@ -96,7 +96,7 @@ for (const width of [1280, 390, 1024]) {
         await expect(feature.getByRole('link')).toHaveCount(1);
         for (const platform of ['Vinted', 'eBay', 'Kleinanzeigen']) {
           await expect(
-            feature.getByRole('button', { name: platform, exact: true }),
+            feature.getByRole('button', { name: `${platform} Sichtbar`, exact: true }),
           ).toHaveAttribute('aria-pressed', 'true');
         }
       }
@@ -323,6 +323,37 @@ for (const hasTouch of [false, true]) {
         await createSeller.click();
         const dialog = page.getByRole('dialog', { name: /Verkäufer/ });
         await expect(dialog).toBeVisible();
+        const phone = dialog.getByRole('textbox', { name: 'Telefonnummer', exact: true });
+        await phone.fill('015123456789');
+        await phone.press('Tab');
+        await expect(phone).toHaveAttribute('aria-invalid', 'false');
+        await expect(dialog.locator('.iti__selected-country')).toContainText('+49');
+        await dialog.locator('.iti__selected-country').click();
+        const phoneCountries = page.locator('.iti__country-selector').filter({ visible: true });
+        await expect(phoneCountries).toBeVisible();
+        await expect(phoneCountries).toHaveAccessibleName('Landesvorwahl auswählen');
+        expect(
+          await phoneCountries.evaluate(
+            (element) => element.closest('app-purchase-seller-dialog') !== null,
+          ),
+        ).toBe(true);
+        await page.evaluate(axe.source);
+        expect(
+          await page.evaluate(
+            async () =>
+              (
+                await (window as unknown as { axe: typeof axe }).axe.run(
+                  'app-purchase-seller-dialog',
+                )
+              ).violations,
+          ),
+        ).toEqual([]);
+        await page.keyboard.press('Escape');
+        await expect(dialog.locator('.iti__selected-country')).toBeFocused();
+        await dialog.locator('.iti__selected-country').click();
+        await expect(phoneCountries).toHaveAccessibleName('Landesvorwahl auswählen');
+        await page.keyboard.press('Escape');
+        await expect(dialog.locator('.iti__selected-country')).toBeFocused();
         await expect(dialog.locator('[data-modal-surface]')).toHaveCSS('border-radius', '16px');
         await expect(dialog.locator('[data-modal-surface]')).toHaveCSS(
           'border-color',

@@ -382,9 +382,9 @@
         (click)="toggleUserDropdown()"
         [attr.aria-expanded]="isUserDropdownOpen()"
         aria-controls="header-user-menu"
-        aria-label="Benutzermenü öffnen"
         class="flex h-9 min-w-0 max-w-full items-center gap-2 rounded-lg border border-fb-border bg-fb-surface pl-1.5 pr-2.5 hover:bg-fb-surface-hover hover:border-fb-border-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 transition cursor-pointer shadow-xs"
       >
+        <span class="sr-only">Benutzermenü öffnen</span>
         <div
           class="size-7 rounded-md bg-[#fcc601] text-black font-black text-xs flex items-center justify-center shadow-xs shrink-0"
         >

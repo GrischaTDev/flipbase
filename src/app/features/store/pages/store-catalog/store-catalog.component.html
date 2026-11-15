@@ -669,8 +669,10 @@
             <span>{{ faq.question }}</span>
             <svg
               [lucideIcon]="chevronDownIcon"
-              class="w-4 h-4 text-slate-400 transition-transform duration-200"
-              [class.rotate-180]="openFaqIndex() === i"
+              [class]="
+                'w-4 h-4 text-slate-400 transition-transform duration-200' +
+                (openFaqIndex() === i ? ' rotate-180' : '')
+              "
             ></svg>
           </button>
 
