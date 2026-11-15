@@ -16,6 +16,9 @@ test('installation caches the complete verified build without forcing activation
     await (await worker.request('navigate:/auth/register')).text(),
     '<html>build-a</html>',
   );
+  const consent = await worker.request('navigate:/auth/ai-connection?authorization_id=own-request');
+  assert.ok(consent, 'AI consent must use the pinned app navigation');
+  assert.equal(await consent.text(), '<html>build-a</html>');
 });
 test('mismatched inventory or missing file does not activate a partial build', async () => {
   const corrupt = createWorker({ corrupt: true });
@@ -83,7 +86,12 @@ test('an old document repairs a missing file from its exact archived release aft
   ).put('/__pwa_clients/old', new Response(build));
   const response = await worker.request('/chunk-A1.js', 'old');
   assert.equal(response.status, 200);
+  assert.equal(response.url, '', 'archive repairs must retain the intercepted module address');
   assert.equal(await response.text(), 'lazy-a');
+  worker.resources.clear();
+  const cached = await worker.request('/chunk-A1.js', 'old');
+  assert.equal(cached.url, '', 'cached archive responses must retain the same module address');
+  assert.equal(await cached.text(), 'lazy-a');
 });
 
 test('an old document keeps its exact archived sale recording available offline', async () => {
