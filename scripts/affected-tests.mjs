@@ -88,7 +88,7 @@ const sharedUiPath =
 const runtimePath =
   /^(?:package(?:-lock)?\.json|angular\.json|src\/(?:main\.ts|environments\/|index\.html)|src\/app\/app\.(?:config|routes)\.ts|src\/app\/core\/(?:guards\/|services\/(?:app-startup|supabase|auth)\.service\.ts))/u;
 const workflowPath =
-  /^(?:scripts\/|\.github\/|deploy\/|docker\/|package(?:-lock)?\.json|(?:angular|tsconfig[^/]*|vitest[^/]*|playwright[^/]*)\.(?:json|ts)|\.dockerignore)/u;
+  /^(?:scripts\/|\.github\/|deploy\/|docker\/|package(?:-lock)?\.json|(?:angular|tsconfig[^/]*|vitest[^/]*|playwright[^/]*)\.(?:json|ts)|\.dockerignore|\.nvmrc$)/u;
 const pwaPath =
   /^(?:public\/(?:sw\.js|manifest\.webmanifest|icons\/)|ngsw-config\.json|scripts\/(?:.*pwa.*|service-worker.*|app-startup.*)|e2e\/pwa-|src\/app\/(?:core\/services\/(?:pwa|push-navigation|web-push)|shared\/components\/(?:pwa-|push-navigation)|features\/purchases\/(?:components\/purchase-entry-form\/|guards\/purchase-entry|services\/(?:offline-purchase|purchase-buffer)|models\/offline-purchase|utils\/(?:offline-purchase|purchase-buffer))))/u;
 const implicitGlobalPath =

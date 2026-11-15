@@ -30,7 +30,7 @@ auslösen. Explizite Typimporte erweitern den Browserumfang nicht.
 
 Der [Vorabcheck in AGENTS.md](../../AGENTS.md#verbindlicher-vorabcheck-für-alle-ki-assistenten)
 gilt auch für Entwurfs-PRs und weitere Pushes. Zuerst die eigenen geänderten
-Prettier-Dateien gezielt formatieren und den Diff kontrollieren. Mit Node 22
+Prettier-Dateien gezielt formatieren und den Diff kontrollieren. Mit Node 24
 und den gesperrten Projektabhängigkeiten anschließend ausführen:
 
 ```bash

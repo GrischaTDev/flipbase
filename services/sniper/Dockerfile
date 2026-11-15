@@ -1,5 +1,5 @@
-# Bestehende Node-22-Basis beibehalten; stabilen Patch explizit festhalten.
-FROM node:22.23.2-bookworm-slim AS build
+# Dieselbe Node-24-LTS-Version für Bau, Abhängigkeiten und Laufzeit verwenden.
+FROM node:24.22.3-bookworm-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
@@ -8,13 +8,13 @@ COPY tsconfig.json tsconfig.build.json ./
 COPY src ./src
 RUN npm run build
 
-FROM node:22.23.2-bookworm-slim AS dependencies
+FROM node:24.22.3-bookworm-slim AS dependencies
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
     && npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
-FROM node:22.23.2-bookworm-slim AS production
+FROM node:24.22.3-bookworm-slim AS production
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
     && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \

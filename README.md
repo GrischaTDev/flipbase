@@ -75,7 +75,7 @@ Flipbase ist eine moderne, hochperformante **Angular 22 Standalone Web-Applikati
 
 ### Voraussetzungen
 
-- Node.js 22 (ab 22.22.3)
+- Node.js 24.22.3 LTS (siehe `.nvmrc`)
 - npm 11.13.0, verbindlich durch `packageManager` und `devEngines` festgelegt
 
 Nach der Node-Installation die Projektversion von npm auswählen:

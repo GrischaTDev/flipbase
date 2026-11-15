@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:24.22.3-alpine3.24 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --global "$(node -p "require('./package.json').packageManager")" --ignore-scripts --no-audit --no-fund \
@@ -7,7 +7,7 @@ COPY tsconfig*.json ./
 COPY src ./src
 RUN npm run build && npm prune --omit=dev --ignore-scripts
 
-FROM node:22-alpine
+FROM node:24.22.3-alpine3.24
 WORKDIR /app
 ARG FLIPBASE_COMMIT=""
 ENV NODE_ENV=production WEB_PUSH_ENABLED=false FLIPBASE_COMMIT=$FLIPBASE_COMMIT

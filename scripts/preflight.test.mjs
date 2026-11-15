@@ -568,6 +568,7 @@ test('unzugeordnete Werkzeuge ergeben Validatoren oder konservative Vollauswahl 
   );
   assert.equal(await selectWorkflowScriptTests(['scripts/unknown.mjs'], repository), null);
   assert.equal(await selectWorkflowScriptTests(['docker/Dockerfile'], repository), null);
+  assert.equal(await selectWorkflowScriptTests(['.nvmrc'], repository), null);
   assert.equal(await selectWorkflowScriptTests(null, repository), null);
 });
 

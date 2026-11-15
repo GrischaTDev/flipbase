@@ -22,4 +22,4 @@ docker exec "$database" pg_isready -h 127.0.0.1 -U postgres -d flipbase_release_
 docker run --rm --network "$network" -v "$PWD:/work:ro" -w /work \
   -e PGHOST="$database" -e PGUSER=postgres -e PGPASSWORD=test \
   -e PGDATABASE=flipbase_release_test \
-  node:22-alpine sh -ec 'apk add --no-cache bash postgresql-client util-linux >/dev/null; node --test scripts/release-migrations.test.mjs'
+  node:24.22.3-alpine3.24 sh -ec 'apk add --no-cache bash postgresql-client util-linux >/dev/null; node --test scripts/release-migrations.test.mjs'

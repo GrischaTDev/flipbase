@@ -1,4 +1,4 @@
-FROM node:22.23.2-bookworm-slim
+FROM node:24.22.3-bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates curl gnupg \
     && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg \

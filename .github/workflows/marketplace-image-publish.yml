@@ -53,7 +53,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24.22.3'
           package-manager-cache: false
 
       - name: Set up locked npm
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24.22.3'
           package-manager-cache: false
 
       - name: Set up locked npm
@@ -188,7 +188,7 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24.22.3'
           package-manager-cache: false
 
       - name: Set up locked npm
@@ -264,7 +264,7 @@ jobs:
         if: steps.enabled.outputs.enabled == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '22'
+          node-version: '24.22.3'
           package-manager-cache: false
 
       - name: Set up locked npm

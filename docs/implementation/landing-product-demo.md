@@ -30,7 +30,7 @@ Bilddatei; ein gerundetes Browser-Rechteck kann um einen Pixel davon abweichen.
 
 ## Aufnahmen aktualisieren
 
-Zuerst den aktuellen Anwendungsstand mit den gesperrten Abhängigkeiten und Node 22
+Zuerst den aktuellen Anwendungsstand mit den gesperrten Abhängigkeiten und Node 24
 bauen, anschließend im Repository ausführen:
 
 ```powershell
