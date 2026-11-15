@@ -330,7 +330,7 @@ select is(pg_temp.unfinished_session()->>'reason','retry_limit','Dritte offene S
 select is((select enabled from public.marketplace_sync_schedules),false,'Wiederholungsgrenze deaktiviert die Freigabe');
 
 -- Adaptive Synchronisierungskadenz: aktives Konto behält Basisintervall, ruhendes Konto drosselt tagsüber auf 30 min und nachts auf 60 min.
-update public.marketplace_operations set created_at=timestamptz '2026-11-15 08:00:00+01',started_at=timestamptz '2026-11-15 08:00:00+01',finished_at=timestamptz '2026-11-15 08:00:00+01';
+update public.marketplace_operations set created_at=timestamptz '2026-11-14 08:00:00+01',started_at=timestamptz '2026-11-14 08:00:00+01',finished_at=timestamptz '2026-11-14 08:00:00+01';
 delete from public.marketplace_account_entries where kind in ('conversation','message','sale');
 select is(
   public.marketplace_next_sync_due_at('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',5,timestamptz '2026-11-15 12:00:00+01'),
