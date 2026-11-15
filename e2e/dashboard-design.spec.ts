@@ -111,7 +111,7 @@ test('zeigt nach einem Importfehler die Daten und ermöglicht einen erfolgreiche
     }
     const response = await route.fetch();
     const source = await response.text();
-    if (/class _ApexCharts\d*\b/.test(source)) {
+    if (source.includes('apexcharts-canvas')) {
       blockedImports += 1;
       await route.abort();
       return;
