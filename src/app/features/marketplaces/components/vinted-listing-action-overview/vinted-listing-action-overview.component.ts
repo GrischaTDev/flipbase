@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { LucideX } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -28,6 +29,7 @@ import {
   selector: 'app-vinted-listing-action-overview',
   templateUrl: './vinted-listing-action-overview.component.html',
   imports: [
+    DatePipe,
     ButtonComponent,
     NoticeBannerComponent,
     VintedListingScheduleDialogComponent,

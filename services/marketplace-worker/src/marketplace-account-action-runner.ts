@@ -3,6 +3,7 @@ import type { MarketplaceBrowserSessionBroker } from './marketplace-browser-sess
 import { MarketplaceBrowserSessionEndedError } from './marketplace-browser-session-broker.ts';
 import {
   actionBinding,
+  accountActionTarget,
   actionRecord,
   actionUuid,
   type AccountActionClaim,
@@ -622,9 +623,14 @@ export class MarketplaceAccountActionRunner {
     authorize: () => Promise<void>,
   ): Promise<Record<string, unknown>> {
     const parent = actionRecord(claim.reconciliationContext),
-      payload = actionRecord(parent.payload);
-    const account = claim.target.accountId,
-      external = claim.target.externalId ?? '';
+      payload = actionRecord(parent.payload),
+      target = accountActionTarget(parent.target);
+    if (target.accountId !== claim.target.accountId)
+      throw new AccountActionAuthorizationError(
+        'Die Nachprüfung gehört nicht zum freigegebenen Konto',
+      );
+    const account = target.accountId,
+      external = target.externalId ?? '';
     if (!account) throw new Error('Kontozuordnung fehlt');
     let resolution: 'succeeded' | 'failed' | null = null;
     let providerResult: Record<string, unknown> | null = null;
@@ -663,7 +669,7 @@ export class MarketplaceAccountActionRunner {
         providerResult = { status: 'failed' };
       }
     } else if (parent.kind === 'shipping_label_request') {
-      const conversation = text(claim.target.body?.externalConversationId, 32);
+      const conversation = text(target.body?.externalConversationId, 32);
       const label = await required(browser.requestShippingLabel)(
         account,
         conversation,
@@ -680,8 +686,7 @@ export class MarketplaceAccountActionRunner {
             accountId: account,
             transactionId: external,
             externalConversationId: conversation,
-            title:
-              typeof claim.target.body?.title === 'string' ? claim.target.body.title : 'Verkauf',
+            title: typeof target.body?.title === 'string' ? target.body.title : 'Verkauf',
           },
           label,
         );
