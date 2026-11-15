@@ -216,3 +216,42 @@ test('collects the real category fields of read listings once per category', asy
   );
   assert.deepEqual(value.categoryFields, [listing.schema]);
 });
+
+test('fast item check confirms unchanged details without opening the edit form', async () => {
+  const value = snapshot();
+  value.entries[0]!.body.listingSourceUpdatedAt = observedAt;
+  let checked = 0;
+  await syncVintedListingDetails(
+    value,
+    [cached()],
+    async () => assert.fail('Edit form must not be opened when item query is unchanged'),
+    authorize,
+    undefined,
+    async (externalId, content) => {
+      checked++;
+      assert.equal(externalId, '98765');
+      assert.deepEqual(content, listing.content);
+      return true;
+    },
+  );
+  assert.equal(checked, 1);
+  assert.deepEqual(value.entries[0]!.body.listingContent, listing.content);
+  assert.equal(value.entries[0]!.body.listingDetailsReadAt, observedAt);
+  assert.equal(value.entries[0]!.body.listingDetailsSourceUpdatedAt, observedAt);
+
+  let formReads = 0;
+  const fallbackValue = snapshot();
+  fallbackValue.entries[0]!.body.listingSourceUpdatedAt = observedAt;
+  await syncVintedListingDetails(
+    fallbackValue,
+    [cached()],
+    async () => {
+      formReads++;
+      return listing;
+    },
+    authorize,
+    undefined,
+    async () => false,
+  );
+  assert.equal(formReads, 1);
+});

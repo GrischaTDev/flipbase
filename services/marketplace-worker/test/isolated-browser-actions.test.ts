@@ -1302,3 +1302,44 @@ test('Löschbefehle transportieren nur zwei gebundene IDs und akzeptieren keine 
   assert.deepEqual(result, { status: 'confirmed', step: 'verify' });
   assert.deepEqual(calls, ['authorize', 'authorize', ['123', '98765']]);
 });
+
+test('isolated import forwards a validated cachedSellingTreeAccountId and rejects invalid options', async () => {
+  let receivedOptions: unknown;
+  const snapshot = {
+    identity: { id: '123', username: 'test' },
+    observedAt: '2026-10-16T10:00:00Z',
+    entries: [],
+    areas: Object.fromEntries(
+      ['profile', 'publications', 'conversations', 'messages', 'sales', 'feedback'].map((area) => [
+        area,
+        { status: 'complete' },
+      ]),
+    ),
+  } as unknown as VintedAccountImport;
+  const runtime = new BrowserSessionCommands({
+    version: () => '',
+    importAccount: async (_authorize, _stage, _previous, _requested, _publications, options) => {
+      receivedOptions = options;
+      return snapshot;
+    },
+  });
+  const browser = isolatedBrowserActions({ request: (input) => runtime.request(input) });
+  await browser.importAccount?.(async () => undefined, undefined, [], undefined, [], {
+    cachedSellingTreeAccountId: '123',
+  });
+  assert.deepEqual(receivedOptions, { cachedSellingTreeAccountId: '123' });
+  for (const invalidOption of [
+    { cachedSellingTreeAccountId: '0' },
+    { cachedSellingTreeAccountId: 'not-numeric' },
+    { cachedSellingTreeAccountId: '123', extra: true },
+  ]) {
+    await assert.rejects(
+      executeBrowserAction(
+        { version: () => '', importAccount: async () => snapshot },
+        { name: 'importAccount', arguments: [[], null, [], invalidOption] },
+        async () => undefined,
+        async () => undefined,
+      ),
+    );
+  }
+});

@@ -228,7 +228,7 @@ export async function executeBrowserAction(
     type: [1],
     press: [1],
     identify: [0],
-    importAccount: [2, 3],
+    importAccount: [2, 3, 4],
     login: [1],
     verify: [1],
     readListingEdit: [2],
@@ -728,6 +728,17 @@ export async function executeBrowserAction(
             : {}),
         };
       });
+      let importOptions: { cachedSellingTreeAccountId?: string } | undefined;
+      if (argumentsList[3] !== undefined && argumentsList[3] !== null) {
+        const rawOptions = commandRecord(argumentsList[3]);
+        if (Object.keys(rawOptions).some((key) => key !== 'cachedSellingTreeAccountId'))
+          throw new Error('Ungültiger Kontoabruf');
+        if (rawOptions.cachedSellingTreeAccountId !== undefined) {
+          importOptions = {
+            cachedSellingTreeAccountId: identifier(rawOptions.cachedSellingTreeAccountId),
+          };
+        }
+      }
       return required(browser.importAccount)(
         authorize,
         onStage,
@@ -736,6 +747,7 @@ export async function executeBrowserAction(
           ? { externalId: identifier(target.externalId), accountId: identifier(target.accountId) }
           : undefined,
         publicationVersions,
+        ...(importOptions ? [importOptions] : []),
       );
     }
   }
@@ -1058,10 +1070,24 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
     },
     identify: async () =>
       (await run('identify', [])) as Awaited<ReturnType<NonNullable<BrowserInfo['identify']>>>,
-    importAccount: async (authorize, onStage, previous = [], requested, publications = []) =>
+    importAccount: async (
+      authorize,
+      onStage,
+      previous = [],
+      requested,
+      publications = [],
+      options,
+    ) =>
       (await run(
         'importAccount',
-        [previous, requested ?? null, publications],
+        options?.cachedSellingTreeAccountId
+          ? [
+              previous,
+              requested ?? null,
+              publications,
+              { cachedSellingTreeAccountId: options.cachedSellingTreeAccountId },
+            ]
+          : [previous, requested ?? null, publications],
         authorize,
         onStage,
       )) as VintedAccountImport,

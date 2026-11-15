@@ -179,6 +179,7 @@ async function fixture(
   let terminated = false,
     opened = 0,
     closed = 0,
+    finishedActions = 0,
     reads = 0,
     reassigned = false;
   const targets: unknown[] = [];
@@ -325,6 +326,14 @@ async function fixture(
           }
           throw error;
         }),
+      finishAction: () => {
+        finishedActions++;
+        closed++;
+        if (terminated) return Promise.reject(new Error('Sitzungszugriff verweigert'));
+        return options.failClose && closed === 1
+          ? Promise.reject(new Error('private stop detail 42'))
+          : Promise.resolve();
+      },
       close: () => {
         closed++;
         if (terminated) return Promise.reject(new Error('Sitzungszugriff verweigert'));
@@ -338,6 +347,7 @@ async function fixture(
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const address = server.address() as AddressInfo;
   return {
+    finishedActions: () => finishedActions,
     photo: (photoUrl: string) =>
       fetch(`http://127.0.0.1:${address.port}/marketplace-browser/listings/photo/read`, {
         method: 'POST',
@@ -846,6 +856,18 @@ test('Bestätigte Löschung bleibt bei ausstehendem Cache oder Browserabbau best
       cleanup: 'pending',
     });
     assert.equal(f.targets.filter((t) => Array.isArray(t) && t[0] === 'delete').length, 1);
+  } finally {
+    await f.close();
+  }
+});
+
+test('Inseratabruf gibt die Aktionssitzung über finishAction für Folgeaktionen frei statt sie sofort zu schließen', async () => {
+  const f = await fixture();
+  try {
+    const response = await f.request({ workspaceId, connectionId, entryId });
+    assert.equal(response.status, 200);
+    assert.equal(f.finishedActions(), 1);
+    assert.equal(f.closed(), 1);
   } finally {
     await f.close();
   }

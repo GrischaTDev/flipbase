@@ -160,6 +160,62 @@ begin
 end;
 $$;
 
+create or replace function public.marketplace_next_sync_due_at(
+  p_workspace_id uuid,
+  p_connection_id uuid,
+  p_base_interval_minutes integer,
+  p_now timestamptz default clock_timestamp()
+)
+returns timestamptz language plpgsql stable security invoker set search_path = '' as $$
+declare
+  v_cutoff timestamptz := p_now - interval '2 hours';
+  v_local_hour integer;
+begin
+  if exists (
+    select 1 from public.marketplace_connections c
+      where c.workspace_id = p_workspace_id and c.id = p_connection_id
+        and c.browser_presence_expires_at is not null and c.browser_presence_expires_at >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_operations o
+      where o.workspace_id = p_workspace_id and o.connection_id = p_connection_id
+        and o.authorization_kind = 'manual_read'
+        and coalesce(o.finished_at, o.started_at, o.created_at) >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_account_actions a
+      where a.workspace_id = p_workspace_id and a.connection_id = p_connection_id
+        and coalesce(a.finished_at, a.updated_at, a.created_at) >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_local_message_outbox m
+      where m.workspace_id = p_workspace_id and m.connection_id = p_connection_id
+        and coalesce(m.updated_at, m.created_at) >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_negotiation_jobs n
+      where n.workspace_id = p_workspace_id and n.connection_id = p_connection_id
+        and coalesce(n.finished_at, n.updated_at, n.created_at) >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_listing_jobs l
+      where l.workspace_id = p_workspace_id and l.connection_id = p_connection_id
+        and coalesce(l.verified_at, l.updated_at, l.created_at) >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_favorite_message_events f
+      where f.workspace_id = p_workspace_id and f.connection_id = p_connection_id
+        and coalesce(f.updated_at, f.event_at) >= v_cutoff
+  ) or exists (
+    select 1 from public.marketplace_account_entries e
+      where e.workspace_id = p_workspace_id and e.connection_id = p_connection_id
+        and e.kind in ('conversation', 'message', 'sale')
+        and e.sort_at >= v_cutoff
+  ) then
+    return p_now + make_interval(mins => p_base_interval_minutes);
+  end if;
+  v_local_hour := extract(hour from (p_now at time zone 'Europe/Berlin'))::integer;
+  if v_local_hour >= 0 and v_local_hour < 7 then
+    return p_now + make_interval(mins => greatest(p_base_interval_minutes, 60));
+  end if;
+  return p_now + make_interval(mins => greatest(p_base_interval_minutes, 30));
+end;
+$$;
+
 create or replace function public.marketplace_sync_dispatch_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_include_scheduled boolean default false,p_target_id uuid default null)
 returns jsonb language plpgsql volatile security invoker set search_path = '' as $$
 declare v_runtime public.marketplace_worker_runtime; v_schedule public.marketplace_sync_schedules; v_operation public.marketplace_operations;
@@ -183,7 +239,7 @@ begin
         values(v_schedule.workspace_id,v_schedule.connection_id,v_schedule.activated_by,'scheduled_read',1,v_schedule.id,v_schedule.authorization_version)
         on conflict(workspace_id,connection_id) where state in ('queued','running') do nothing;
       -- Verpasste Zyklen werden zusammengefasst, auch wenn das Konto noch beschäftigt ist.
-      update public.marketplace_sync_schedules set next_due_at=clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),updated_at=clock_timestamp() where id=v_schedule.id;
+      update public.marketplace_sync_schedules set next_due_at=public.marketplace_next_sync_due_at(v_schedule.workspace_id,v_schedule.connection_id,v_schedule.interval_minutes),updated_at=clock_timestamp() where id=v_schedule.id;
     end loop;
   end if;
   if p_target_id is null then
@@ -343,7 +399,7 @@ begin
       authorization_version=authorization_version+case when not v_soft_login and v_reason in ('needs_login','forbidden','challenge','access_revoked','retry_limit') then 1 else 0 end,
       paused_reason=v_reason,retry_after=v_retry,consecutive_failures=v_failures,
       last_success_at=case when p_outcome->>'state'='succeeded' and v_reason is null then v_operation.observed_at else last_success_at end,
-      next_due_at=case when not v_soft_login and v_reason in ('needs_login','forbidden','challenge','access_revoked','retry_limit') then null else greatest(clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),v_retry) end,
+      next_due_at=case when not v_soft_login and v_reason in ('needs_login','forbidden','challenge','access_revoked','retry_limit') then null else greatest(public.marketplace_next_sync_due_at(v_schedule.workspace_id,v_schedule.connection_id,v_schedule.interval_minutes),v_retry) end,
       updated_at=clock_timestamp() where id=v_schedule.id;
   elsif v_operation.authorization_kind='manual_read' and p_outcome->>'state'='succeeded'
     and p_outcome->>'errorCode' is null and v_reason is null
@@ -389,7 +445,7 @@ do $$
 declare v_function regprocedure;
 begin
   for v_function in select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in (
-    'marketplace_sync_authorization_valid','marketplace_worker_claim','marketplace_worker_heartbeat','marketplace_worker_release',
+    'marketplace_sync_authorization_valid','marketplace_next_sync_due_at','marketplace_worker_claim','marketplace_worker_heartbeat','marketplace_worker_release',
     'marketplace_browser_session_bind_worker','marketplace_sync_dispatch_claim','marketplace_sync_validate','marketplace_sync_check','marketplace_sync_heartbeat',
     'marketplace_sync_progress','marketplace_sync_finish','marketplace_apply_vinted_sync_import','marketplace_sync_recover','marketplace_read_sync_schedule','marketplace_set_sync_schedule') loop
     execute format('revoke all on function %s from public, anon, authenticated',v_function);

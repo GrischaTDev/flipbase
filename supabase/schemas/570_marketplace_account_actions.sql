@@ -708,7 +708,7 @@ begin
     insert into public.marketplace_operations(workspace_id,connection_id,requested_by,authorization_kind,authorization_version,schedule_id,schedule_authorization_version)
       values(v_schedule.workspace_id,v_schedule.connection_id,v_schedule.activated_by,'scheduled_read',1,v_schedule.id,v_schedule.authorization_version)
       on conflict(workspace_id,connection_id) where state in ('queued','running') do nothing;
-    update public.marketplace_sync_schedules set next_due_at=clock_timestamp()+make_interval(mins=>v_schedule.interval_minutes),updated_at=clock_timestamp() where id=v_schedule.id;
+    update public.marketplace_sync_schedules set next_due_at=public.marketplace_next_sync_due_at(v_schedule.workspace_id,v_schedule.connection_id,v_schedule.interval_minutes),updated_at=clock_timestamp() where id=v_schedule.id;
   end loop;
 end;
 $$;

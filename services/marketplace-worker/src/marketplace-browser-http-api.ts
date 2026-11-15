@@ -113,6 +113,10 @@ interface BrowserApiOptions {
     ): Promise<void>;
   };
   imports?: {
+    freshSellingTreeAccountId?(
+      scope: BrowserSessionScope,
+      sessionId: string,
+    ): Promise<string | null>;
     publicationVersions?(
       scope: BrowserSessionScope,
       sessionId: string,
@@ -912,7 +916,8 @@ export class MarketplaceBrowserHttpApi {
             });
           await authorize();
           await this.rememberCategoryFields(scope, target.accountId, fields);
-          await this.broker.close(scope, currentSessionId);
+          await (this.broker.finishAction?.(scope, currentSessionId) ??
+            this.broker.close(scope, currentSessionId));
           sessionId = undefined;
           json(response, 200, { fields });
         } finally {
@@ -1012,7 +1017,8 @@ export class MarketplaceBrowserHttpApi {
           await this.rememberCategoryFields(scope, listing.externalAccountId, listing.schema);
           await authorize();
           phase = 'close';
-          await this.broker.close(scope, currentSessionId);
+          await (this.broker.finishAction?.(scope, currentSessionId) ??
+            this.broker.close(scope, currentSessionId));
           sessionId = undefined;
           json(response, 200, { listing });
         } catch (error) {
@@ -1450,6 +1456,10 @@ export class MarketplaceBrowserHttpApi {
           const previousPublications = requestedConversation
             ? []
             : ((await this.imports.publicationVersions?.(scope, currentSessionId)) ?? []);
+          const cachedSellingTreeAccountId = requestedConversation
+            ? undefined
+            : ((await this.imports.freshSellingTreeAccountId?.(scope, currentSessionId)) ??
+              undefined);
           let failedStage: VintedImportStage | 'unknown' = 'unknown';
           const result = await this.broker.run(scope, currentSessionId, async (browser) => {
             if (!browser.importAccount) return null;
@@ -1460,6 +1470,7 @@ export class MarketplaceBrowserHttpApi {
                 previousConversations,
                 requestedConversation,
                 previousPublications,
+                ...(cachedSellingTreeAccountId ? [{ cachedSellingTreeAccountId }] : []),
               );
             } catch (error) {
               if (error instanceof VintedImportReadError) failedStage = error.stage;

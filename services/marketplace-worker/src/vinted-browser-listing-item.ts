@@ -1,4 +1,5 @@
 import type { Page } from 'playwright';
+import type { VintedListingContent } from '../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts';
 
 /** Ein Foto des Inserats mit allen Adressen, unter denen Vinted es ausliefert. */
 export interface VintedListingItemPhoto {
@@ -58,16 +59,19 @@ function parsePriceCents(input: unknown): number | null {
   return cents > 0 ? cents : null;
 }
 
-/**
- * Liest den gespeicherten Stand eines eigenen Inserats aus der Schnittstelle, die auch Vinteds
- * Bearbeitungsmaske bedient (am 12.10.2026 nur ihr Aufbau gemessen). Die Anfrage läuft in der
- * angemeldeten Seite; es wird nichts geschrieben. Alles Unerwartete – fremdes Inserat, anderer
- * Aufbau, andere Währung – ergibt `null`, damit der Aufrufer auf das Lesen der Maske ausweicht.
- */
-export async function readVintedListingItem(
+interface VintedListingItemWithExtras {
+  item: VintedListingItem;
+  ownerId: string | null;
+  extraAttributes: Readonly<Record<string, string>>;
+}
+
+const sameNumbers = (left: readonly number[], right: readonly number[]): boolean =>
+  left.length === right.length && left.every((value, index) => value === right[index]);
+
+async function readVintedListingItemWithExtras(
   page: Page,
   externalId: string,
-): Promise<VintedListingItem | null> {
+): Promise<VintedListingItemWithExtras | null> {
   if (!/^[1-9][0-9]{0,31}$/.test(externalId)) return null;
   let origin: string;
   try {
@@ -95,6 +99,13 @@ export async function readVintedListingItem(
   }
   if (!item || typeof item !== 'object' || !('id' in item) || String(item.id) !== externalId)
     return null;
+  const rawUserId = 'user_id' in item ? item.user_id : null;
+  const ownerId =
+    rawUserId === null || rawUserId === undefined
+      ? null
+      : typeof rawUserId === 'number' || typeof rawUserId === 'string'
+        ? String(rawUserId)
+        : 'invalid';
   const title = 'title' in item ? item.title : null;
   const description = 'description' in item ? item.description : null;
   const priceCents = parsePriceCents('price' in item ? item.price : null);
@@ -125,6 +136,7 @@ export async function readVintedListingItem(
     condition: [],
     material: [],
   };
+  const extraAttributes: Record<string, string> = {};
   for (const entry of attributes as unknown[]) {
     if (!entry || typeof entry !== 'object' || !('code' in entry) || !('ids' in entry)) return null;
     const { code, ids: values } = entry;
@@ -133,28 +145,106 @@ export async function readVintedListingItem(
       code !== 'condition' &&
       code !== 'material' &&
       code !== 'accessory_department'
-    )
+    ) {
+      if (
+        typeof code === 'string' &&
+        /^[a-z][a-z0-9_]{0,39}$/.test(code) &&
+        !code.endsWith('_label') &&
+        Array.isArray(values) &&
+        values.length >= 1 &&
+        values.length <= 10 &&
+        (values as unknown[]).every(positive)
+      )
+        extraAttributes[code] = [...new Set(values as number[])].join(',');
       continue;
+    }
     if (!Array.isArray(values) || !(values as unknown[]).every(positive)) return null;
     ids[code].push(...(values as number[]));
   }
   if (ids.size.length > 1 || ids.condition.length > 1 || ids.accessory_department.length > 1)
     return null;
   return {
-    title,
-    // Ein Textfeld der Maske kennt nur einfache Zeilenumbrüche; so bleiben beide Stände vergleichbar.
-    description: description.replaceAll('\r\n', '\n').replaceAll('\r', '\n'),
-    priceCents,
-    categoryId,
-    brandId,
-    sizeId: ids.size[0] ?? null,
-    accessoryDepartmentId: ids.accessory_department[0] ?? null,
-    conditionId: ids.condition[0] ?? null,
-    colorIds: colors.filter((id): id is number => typeof id === 'number'),
-    materialIds: ids.material,
-    packageSizeId,
-    photos,
+    ownerId,
+    extraAttributes,
+    item: {
+      title,
+      // Ein Textfeld der Maske kennt nur einfache Zeilenumbrüche; so bleiben beide Stände vergleichbar.
+      description: description.replaceAll('\r\n', '\n').replaceAll('\r', '\n'),
+      priceCents,
+      categoryId,
+      brandId,
+      sizeId: ids.size[0] ?? null,
+      accessoryDepartmentId: ids.accessory_department[0] ?? null,
+      conditionId: ids.condition[0] ?? null,
+      colorIds: colors.filter((id): id is number => typeof id === 'number'),
+      materialIds: ids.material,
+      packageSizeId,
+      photos,
+    },
   };
+}
+
+/**
+ * Liest den gespeicherten Stand eines eigenen Inserats aus der Schnittstelle, die auch Vinteds
+ * Bearbeitungsmaske bedient (am 12.10.2026 nur ihr Aufbau gemessen). Die Anfrage läuft in der
+ * angemeldeten Seite; es wird nichts geschrieben. Alles Unerwartete – fremdes Inserat, anderer
+ * Aufbau, andere Währung – ergibt `null`, damit der Aufrufer auf das Lesen der Maske ausweicht.
+ */
+export async function readVintedListingItem(
+  page: Page,
+  externalId: string,
+): Promise<VintedListingItem | null> {
+  return (await readVintedListingItemWithExtras(page, externalId))?.item ?? null;
+}
+
+/**
+ * Prüft auf der bereits geöffneten Vinted-Hauptseite ohne neuen Tab, ob der gespeicherte
+ * Artikelstand weiterhin vollständig mit Vinteds Inseratabfrage übereinstimmt.
+ */
+export async function isVintedListingContentUnchanged(
+  page: Page,
+  externalId: string,
+  content: VintedListingContent,
+  accountId?: string,
+): Promise<boolean> {
+  const current = await readVintedListingItemWithExtras(page, externalId);
+  if (!current) return false;
+  if (accountId !== undefined && current.ownerId !== null && current.ownerId !== accountId)
+    return false;
+  const { item, extraAttributes } = current;
+  if (
+    item.title !== content.title ||
+    item.description !== content.description ||
+    item.priceCents !== content.priceCents ||
+    item.categoryId !== content.categoryId ||
+    item.brandId !== content.brandId ||
+    item.sizeId !== content.sizeId ||
+    item.conditionId !== content.conditionId ||
+    item.packageSizeId !== content.packageSizeId ||
+    !sameNumbers(item.colorIds, content.colorIds) ||
+    !sameNumbers(item.materialIds, content.materialIds)
+  )
+    return false;
+  if (item.accessoryDepartmentId === null) {
+    if (
+      'accessory_department' in content.attributes ||
+      'accessory_department_label' in content.attributes
+    )
+      return false;
+  } else if (
+    content.attributes['accessory_department'] !== String(item.accessoryDepartmentId) ||
+    !content.attributes['accessory_department_label']
+  ) {
+    return false;
+  }
+  const storedExtraKeys = Object.keys(content.attributes).filter(
+    (key) => key !== 'accessory_department' && key !== 'accessory_department_label',
+  );
+  const currentExtraKeys = Object.keys(extraAttributes);
+  return (
+    storedExtraKeys.length === currentExtraKeys.length &&
+    storedExtraKeys.every((key) => extraAttributes[key] === content.attributes[key])
+  );
 }
 
 const withoutQuery = (address: string): string => {

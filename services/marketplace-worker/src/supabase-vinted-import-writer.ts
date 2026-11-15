@@ -70,6 +70,53 @@ export class SupabaseVintedImportWriter {
     return this.catalog.save(read);
   }
 
+  /**
+   * Liefert die bestätigte Vinted-Kontokennung, wenn der persönliche Verkaufsbaum
+   * für diese Verbindung innerhalb der letzten 24 Stunden bereits gespeichert wurde.
+   */
+  async freshSellingTreeAccountId(
+    scope: BrowserSessionScope,
+    sessionId: string,
+    now = Date.now(),
+  ): Promise<string | null> {
+    await this.assertActive(scope, sessionId);
+    try {
+      const url = new URL('/rest/v1/vinted_selling_category_snapshots', this.baseUrl);
+      url.searchParams.set('select', 'workspace_id,connection_id,external_account_id,observed_at');
+      url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+      url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
+      url.searchParams.set('limit', '1');
+      const value: unknown = await this.json(
+        await this.request(url, {
+          headers: this.serverHeaders(),
+          signal: AbortSignal.timeout(10_000),
+        }),
+      );
+      if (!Array.isArray(value) || value.length === 0) return null;
+      const row = record(value[0]);
+      const accountId = row?.['external_account_id'];
+      const observedAt = row?.['observed_at'];
+      if (
+        row?.['workspace_id'] !== scope.workspaceId ||
+        row?.['connection_id'] !== scope.connectionId ||
+        typeof accountId !== 'string' ||
+        !/^[1-9][0-9]{0,31}$/.test(accountId) ||
+        typeof observedAt !== 'string'
+      )
+        return null;
+      const observedAtMs = Date.parse(observedAt);
+      if (
+        !Number.isFinite(observedAtMs) ||
+        now - observedAtMs < 0 ||
+        now - observedAtMs >= 24 * 60 * 60 * 1000
+      )
+        return null;
+      return accountId;
+    } catch {
+      return null;
+    }
+  }
+
   async favoriteSettingsActive(scope: BrowserSessionScope, sessionId: string): Promise<boolean> {
     await this.assertActive(scope, sessionId);
     const result: unknown = await this.json(

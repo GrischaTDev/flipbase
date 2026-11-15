@@ -329,5 +329,26 @@ select is(pg_temp.unfinished_session()->>'failures','2','Zweite offene Sitzung z
 select is(pg_temp.unfinished_session()->>'reason','retry_limit','Dritte offene Sitzung in Folge beendet die Wiederholung');
 select is((select enabled from public.marketplace_sync_schedules),false,'Wiederholungsgrenze deaktiviert die Freigabe');
 
+-- Adaptive Synchronisierungskadenz: aktives Konto behält Basisintervall, ruhendes Konto drosselt tagsüber auf 30 min und nachts auf 60 min.
+update public.marketplace_operations set created_at=timestamptz '2026-11-14 08:00:00+01',started_at=timestamptz '2026-11-14 08:00:00+01',finished_at=timestamptz '2026-11-14 08:00:00+01';
+delete from public.marketplace_account_entries where kind in ('conversation','message','sale');
+select is(
+  public.marketplace_next_sync_due_at('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',5,timestamptz '2026-11-15 12:00:00+01'),
+  timestamptz '2026-11-15 12:30:00+01',
+  'Ruhendes Konto ohne Aktivität in den letzten 2 Stunden wird tagsüber auf mindestens 30 Minuten gedrosselt'
+);
+select is(
+  public.marketplace_next_sync_due_at('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',5,timestamptz '2026-11-15 03:00:00+01'),
+  timestamptz '2026-11-15 04:00:00+01',
+  'Ruhendes Konto ohne Aktivität in den letzten 2 Stunden wird nachts (00-07 Uhr Europe/Berlin) auf mindestens 60 Minuten gedrosselt'
+);
+insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at,observed_at)
+  values('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021','conversation','999','{}'::jsonb,timestamptz '2026-11-15 11:30:00+01',timestamptz '2026-11-15 11:30:00+01');
+select is(
+  public.marketplace_next_sync_due_at('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',5,timestamptz '2026-11-15 12:00:00+01'),
+  timestamptz '2026-11-15 12:05:00+01',
+  'Konto mit aktueller Gesprächs-, Nachrichten-, Verkaufs- oder Nutzeraktivität behält sein kurzes Basisintervall'
+);
+
 select * from finish();
 rollback;

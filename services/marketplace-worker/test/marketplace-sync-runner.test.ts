@@ -622,3 +622,62 @@ for (const outcome of ['saved', 'read_failed', 'nothing_due'] as const) {
     assert.equal(succeeded, true);
   });
 }
+
+test('übergibt ein innerhalb von 24 Stunden bestätigtes Verkaufsbaum-Konto an importAccount', async () => {
+  const dispatched = {
+    ...scope,
+    userAccessToken: '',
+    syncRead: {
+      operationId,
+      runnerId: operationId,
+      workerEpoch: 2,
+      sessionId,
+      expiresAt: new Date(Date.now() + 60000).toISOString(),
+      absoluteExpiresAt: new Date(Date.now() + 600000).toISOString(),
+    },
+  };
+  let receivedOptions: { cachedSellingTreeAccountId?: string } | undefined;
+  const runner = new MarketplaceSyncRunner(
+    {
+      open: async () => sessionId,
+      run: async (_scope, _id, operation) =>
+        operation({
+          version: () => 'fixture',
+          importAccount: async (
+            _authorize,
+            _onStage,
+            _previousConversations,
+            _requestedConversation,
+            _previousPublications,
+            options,
+          ) => {
+            receivedOptions = options;
+            return {
+              identity: { id: '123', username: 'test' },
+              observedAt: '2026-11-15T12:00:00Z',
+              entries: [],
+              areas,
+            };
+          },
+        }),
+      close: async () => undefined,
+    },
+    {
+      freshSellingTreeAccountId: async (binding, id) => {
+        assert.equal(binding, dispatched);
+        assert.equal(id, sessionId);
+        return '123';
+      },
+      write: async () => ({ profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 }),
+    },
+    {
+      claim: async () => true,
+      stage: async () => undefined,
+      succeed: async () => undefined,
+      fail: async () => assert.fail('Der Abgleich muss gelingen'),
+    } as unknown as SupabaseMarketplaceOperationStore,
+    { record: () => undefined },
+  );
+  await runner.runDispatched(dispatched);
+  assert.deepEqual(receivedOptions, { cachedSellingTreeAccountId: '123' });
+});

@@ -495,3 +495,42 @@ test('stores collected category choices after the account import without changin
   assert.equal(writes[1]?.body.p_external_account_id, '123');
   assert.equal((writes[1]?.body.p_fields as typeof schema).categoryId, schema.categoryId);
 });
+
+test('freshSellingTreeAccountId returns the confirmed account id only when the selling tree snapshot is younger than 24 hours', async () => {
+  const now = Date.parse('2026-11-15T12:00:00.000Z');
+  for (const [observedAt, accountId, expected] of [
+    ['2026-11-15T06:00:00.000Z', '123', '123'],
+    ['2026-11-14T12:00:00.000Z', '123', null],
+    ['2026-11-14T11:59:59.000Z', '123', null],
+    ['2026-11-15T12:05:00.000Z', '123', null],
+    ['2026-11-15T06:00:00.000Z', 'invalid', null],
+  ] as const) {
+    const writer = new SupabaseVintedImportWriter({
+      url: 'https://db.example.test',
+      publishableKey: 'public',
+      serviceRoleKey: 'server',
+      fetch: async (input) => {
+        const url = new URL(String(input));
+        if (url.pathname.endsWith('marketplace_browser_session_check'))
+          return Response.json({
+            active: true,
+            id: sessionId,
+            workspaceId: scope.workspaceId,
+            connectionId: scope.connectionId,
+          });
+        assert.equal(url.pathname, '/rest/v1/vinted_selling_category_snapshots');
+        assert.equal(url.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
+        assert.equal(url.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
+        return Response.json([
+          {
+            workspace_id: scope.workspaceId,
+            connection_id: scope.connectionId,
+            external_account_id: accountId,
+            observed_at: observedAt,
+          },
+        ]);
+      },
+    });
+    assert.equal(await writer.freshSellingTreeAccountId(scope, sessionId, now), expected);
+  }
+});

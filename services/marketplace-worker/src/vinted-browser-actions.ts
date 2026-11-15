@@ -1,5 +1,9 @@
-import { readVintedSellingTree } from './vinted-browser-selling-tree.ts';
+import {
+  readVintedSellingTree,
+  readVintedSellingTreeFromCurrentPage,
+} from './vinted-browser-selling-tree.ts';
 import { readVintedListingCatalog } from './vinted-browser-listing-catalog.ts';
+import { isVintedListingContentUnchanged } from './vinted-browser-listing-item.ts';
 import type { Page } from 'playwright';
 import { setTimeout } from 'node:timers/promises';
 import type {
@@ -266,6 +270,7 @@ export function vintedBrowserActions(
       previousConversations,
       requestedConversation,
       previousPublications,
+      options,
     ) => {
       const snapshot = await readVintedAccountImport(
         currentPage(),
@@ -289,17 +294,34 @@ export function vintedBrowserActions(
                 authorize,
               ),
             authorize,
+            undefined,
+            (externalId, content) =>
+              isVintedListingContentUnchanged(
+                currentPage(),
+                externalId,
+                content,
+                snapshot.identity.id,
+              ),
           );
-          try {
-            snapshot.sellingCategories = await readVintedSellingTree(
-              await context.newPage(),
-              snapshot.identity.id,
-              authorize,
-            );
-          } catch {
-            // Der bisherige atomare Snapshot bleibt erhalten; der Kontoimport bleibt unabhängig.
-            await authorize();
-            process.stderr.write('Vinted-Verkaufsbaum konnte nicht aktualisiert werden!\n');
+          if (options?.cachedSellingTreeAccountId !== snapshot.identity.id) {
+            try {
+              snapshot.sellingCategories = await readVintedSellingTreeFromCurrentPage(
+                currentPage(),
+                snapshot.identity.id,
+                authorize,
+              ).catch(async () => {
+                await authorize();
+                return readVintedSellingTree(
+                  await context.newPage(),
+                  snapshot.identity.id,
+                  authorize,
+                );
+              });
+            } catch {
+              // Der bisherige atomare Snapshot bleibt erhalten; der Kontoimport bleibt unabhängig.
+              await authorize();
+              process.stderr.write('Vinted-Verkaufsbaum konnte nicht aktualisiert werden!\n');
+            }
           }
         }
       }
