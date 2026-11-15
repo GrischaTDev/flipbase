@@ -373,12 +373,8 @@ test('standardmäßig aus und erst nach Speichern appweit aktiv, auch nach Neula
   await expect(trigger).toBeVisible();
   await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   await trigger.click();
-  const completedRead = page
-    .locator('[data-account-action-state="succeeded"]')
-    .filter({ hasText: 'Gespräch aktualisieren' });
-  await expect(completedRead).toHaveCount(1);
-  await completedRead.getByRole('button', { name: 'Meldung ausblenden', exact: true }).click();
-  await expect(completedRead).toHaveCount(0);
+  await expect(page.getByText('Gespräch aktualisieren', { exact: true })).toHaveCount(0);
+  await checkRunningActions(page.getByRole('region', { name: 'Laufende Aktionen', exact: true }));
   await page.keyboard.press('Escape');
   expect(fixture.saves).toEqual([true]);
   await page.goto('/settings/app');

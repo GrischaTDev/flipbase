@@ -61,6 +61,8 @@ for (const background of [false, true]) {
               const [port, path] = (await readFile(join(root, 'DevToolsActivePort'), 'utf8'))
                 .trim()
                 .split('\n');
+              assert.match(port ?? '', /^\d+$/);
+              assert.match(path ?? '', /^\/devtools\/browser\/[^\s]+$/);
               endpoint = `ws://127.0.0.1:${port}${path}`;
               break;
             } catch {
