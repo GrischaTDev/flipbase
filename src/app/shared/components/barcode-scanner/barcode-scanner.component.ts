@@ -219,11 +219,16 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
       if (generation !== this.scanGeneration || !this.isScanning()) return;
       const reader = new BrowserMultiFormatReader();
-      this.fallbackControls = await reader.decodeFromVideoElement(video, (result) => {
+      const controls = await reader.decodeFromVideoElement(video, (result) => {
         if (generation !== this.scanGeneration || !result) return;
         const value = result.getText()?.trim();
         if (value) this.handleSuccessfulScan(value, generation);
       });
+      if (generation !== this.scanGeneration || !this.isScanning()) {
+        controls.stop();
+        return;
+      }
+      this.fallbackControls = controls;
     } catch (error: unknown) {
       if (generation !== this.scanGeneration) return;
       this.logger.warn('Barcode decoder fallback failed', error);
