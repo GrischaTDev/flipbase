@@ -270,6 +270,7 @@ export function vintedBrowserActions(
       previousConversations,
       requestedConversation,
       previousPublications,
+      options,
     ) => {
       const snapshot = await readVintedAccountImport(
         currentPage(),
@@ -302,23 +303,25 @@ export function vintedBrowserActions(
                 snapshot.identity.id,
               ),
           );
-          try {
-            snapshot.sellingCategories = await readVintedSellingTreeFromCurrentPage(
-              currentPage(),
-              snapshot.identity.id,
-              authorize,
-            ).catch(async () => {
-              await authorize();
-              return readVintedSellingTree(
-                await context.newPage(),
+          if (options?.cachedSellingTreeAccountId !== snapshot.identity.id) {
+            try {
+              snapshot.sellingCategories = await readVintedSellingTreeFromCurrentPage(
+                currentPage(),
                 snapshot.identity.id,
                 authorize,
-              );
-            });
-          } catch {
-            // Der bisherige atomare Snapshot bleibt erhalten; der Kontoimport bleibt unabhängig.
-            await authorize();
-            process.stderr.write('Vinted-Verkaufsbaum konnte nicht aktualisiert werden!\n');
+              ).catch(async () => {
+                await authorize();
+                return readVintedSellingTree(
+                  await context.newPage(),
+                  snapshot.identity.id,
+                  authorize,
+                );
+              });
+            } catch {
+              // Der bisherige atomare Snapshot bleibt erhalten; der Kontoimport bleibt unabhängig.
+              await authorize();
+              process.stderr.write('Vinted-Verkaufsbaum konnte nicht aktualisiert werden!\n');
+            }
           }
         }
       }

@@ -109,6 +109,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     previousConversations?: VintedConversationVersion[],
     requestedConversation?: VintedConversationReadTarget,
     previousPublications?: VintedPublicationVersion[],
+    options?: { cachedSellingTreeAccountId?: string },
   ): Promise<VintedAccountImport>;
   login?(
     credentials: VintedLoginCredentials,

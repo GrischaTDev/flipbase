@@ -73,6 +73,12 @@ async function fixture(
             revoked ? Promise.reject(new Error('private denied detail')) : Promise.resolve(),
         },
     broker: {
+      openAction: (scope) => {
+        if (scope.workspaceId !== workspaceId || scope.connectionId !== connectionId)
+          return Promise.reject(new Error('private denied detail'));
+        opened++;
+        return Promise.resolve('46600000-0000-4000-8000-000000000004');
+      },
       open: (scope) => {
         if (scope.workspaceId !== workspaceId || scope.connectionId !== connectionId)
           return Promise.reject(new Error('private denied detail'));
@@ -88,6 +94,10 @@ async function fixture(
           if (options.failAtStep) throw new MarketplaceBrowserSessionEndedError('interrupted');
           throw error;
         }),
+      finishAction: () => {
+        closed++;
+        return Promise.resolve();
+      },
       close: () => {
         closed++;
         return Promise.resolve();

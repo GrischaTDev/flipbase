@@ -35,6 +35,7 @@ interface SyncBroker {
 
 interface ImportWriter {
   favoriteSettingsActive?(scope: BrowserSessionScope, sessionId: string): Promise<boolean>;
+  freshSellingTreeAccountId?(scope: BrowserSessionScope, sessionId: string): Promise<string | null>;
   publicationVersions?(
     scope: BrowserSessionScope,
     sessionId: string,
@@ -145,6 +146,8 @@ export class MarketplaceSyncRunner {
         (await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [];
       const previousPublications =
         (await this.imports.publicationVersions?.(scope, currentSessionId)) ?? [];
+      const cachedSellingTreeAccountId =
+        (await this.imports.freshSellingTreeAccountId?.(scope, currentSessionId)) ?? undefined;
       const snapshot = await this.broker.run(scope, currentSessionId, async (browser) => {
         if (!browser.importAccount) throw new Error('Vinted-Import fehlt');
         try {
@@ -157,6 +160,7 @@ export class MarketplaceSyncRunner {
             previousConversations,
             undefined,
             previousPublications,
+            ...(cachedSellingTreeAccountId ? [{ cachedSellingTreeAccountId }] : []),
           );
         } catch (error) {
           if (error instanceof MarketplaceBrowserSessionEndedError) throw error;
