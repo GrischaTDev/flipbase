@@ -225,8 +225,10 @@
           }}</span>
           <svg
             [lucideIcon]="chevronIcon"
-            [class.rotate-90]="ideasExpanded()"
-            class="ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none"
+            [class]="
+              'ml-auto w-4 h-4 shrink-0 transition-transform motion-reduce:transition-none' +
+              (ideasExpanded() ? ' rotate-90' : '')
+            "
             aria-hidden="true"
           ></svg>
         </button>

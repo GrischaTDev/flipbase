@@ -65,7 +65,12 @@ export class PurchaseSellerDialogComponent {
     value: country.code,
     label: country.name,
   }));
-  readonly phoneTranslations = germanPhoneTranslations;
+  readonly phoneTranslations = {
+    ...germanPhoneTranslations,
+    // Die sichtbare Vorwahl bleibt für AXE auch ohne eingeklammerte Zusätze im Namen enthalten.
+    selectedCountryAriaLabel:
+      'Land der Telefonnummer ändern, ausgewählt ${countryName} ${dialCode}',
+  };
   readonly phoneDropdownParent = this.host.nativeElement;
   readonly form = new FormGroup({
     seller_type: new FormControl<'private' | 'business'>('private', { nonNullable: true }),

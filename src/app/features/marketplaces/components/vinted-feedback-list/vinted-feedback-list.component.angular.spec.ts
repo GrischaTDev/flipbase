@@ -108,6 +108,31 @@ describe('VintedFeedbackListComponent', () => {
     expect(component.filledStars()).toBe(5);
   });
 
+  it('füllt nur die bewerteten Sterne und aktualisiert Gesamt- und Einzelbewertungen', () => {
+    fixture.componentRef.setInput('profile', {
+      ...sampleProfile,
+      feedbackReputation: 2.4,
+      feedbacks: [{ ...sampleFeedbacks[0], rating: 3 }],
+    });
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const summary = element.querySelector('[aria-label="2,4 von 5 Sternen"]');
+    const feedback = element.querySelector('article [aria-label="3 von 5 Sternen"]');
+    expect(summary?.querySelectorAll('svg')).toHaveLength(5);
+    expect(summary?.querySelectorAll('svg.fill-current')).toHaveLength(2);
+    expect(feedback?.querySelectorAll('svg')).toHaveLength(5);
+    expect(feedback?.querySelectorAll('svg.fill-current')).toHaveLength(3);
+
+    fixture.componentRef.setInput('profile', {
+      ...sampleProfile,
+      feedbackReputation: 0,
+      feedbacks: [{ ...sampleFeedbacks[0], rating: 0 }],
+    });
+    fixture.detectChanges();
+    expect(element.querySelectorAll('svg.fill-current')).toHaveLength(0);
+    expect(element.querySelectorAll('article [aria-label="0 von 5 Sternen"] svg')).toHaveLength(5);
+  });
+
   it('filtert Bewertungen nach Auswahl (all, member, automatic)', () => {
     fixture.componentRef.setInput('profile', sampleProfile);
     fixture.detectChanges();

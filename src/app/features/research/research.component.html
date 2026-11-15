@@ -49,8 +49,7 @@
       >
         <svg
           [lucideIcon]="radarIcon"
-          class="w-3.5 h-3.5"
-          [class.text-amber-300]="activeTab() === 'radar'"
+          [class]="activeTab() === 'radar' ? 'w-3.5 h-3.5 text-amber-300' : 'w-3.5 h-3.5'"
         ></svg>
         <span>Konkurrenz-Radar</span>
         @if (priceTrackerService.activeAlertsCount() > 0) {

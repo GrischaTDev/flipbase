@@ -464,9 +464,7 @@
         <div class="flex items-center gap-2">
           <svg
             [lucideIcon]="trendingIcon"
-            class="h-4 w-4"
-            [class.text-emerald-400]="result().profit >= 0"
-            [class.text-rose-400]="result().profit < 0"
+            [class]="result().profit >= 0 ? 'h-4 w-4 text-emerald-400' : 'h-4 w-4 text-rose-400'"
           ></svg>
           <span class="text-[10px] font-bold uppercase tracking-wider text-fb-text-muted">
             Gewinn nach eigenen Kosten

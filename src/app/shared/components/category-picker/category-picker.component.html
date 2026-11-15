@@ -157,8 +157,10 @@
                   @if (category.isLeaf) {
                     <svg
                       [lucideIcon]="checkIcon"
-                      class="size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
-                      [class.opacity-100]="value() === category.id"
+                      [class]="
+                        'size-4 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100' +
+                        (value() === category.id ? ' opacity-100' : '')
+                      "
                     ></svg>
                   }
                 </span>
