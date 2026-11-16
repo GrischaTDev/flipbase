@@ -5,6 +5,34 @@ import {
   type MarketplaceOperationEvent,
 } from '../src/marketplace-operation-events.ts';
 
+test('source diagnostics retain only bounded categories and HTTP status without identifiers or content', () => {
+  const lines: string[] = [];
+  const write = mock.method(process.stdout, 'write', (line: string) => {
+    lines.push(line);
+    return true;
+  });
+  try {
+    new MarketplaceOperationEvents().record({
+      operationId: 'fixture',
+      stage: 'cleanup',
+      outcome: 'completed',
+      elapsedMs: 1,
+      sourceReadFailures: [
+        { area: 'messages', issue: 'http_status', status: 404, url: 'private-url-and-token' },
+        { area: 'messages', issue: 'private-provider-response' },
+        ...Array(10).fill({ area: 'messages', issue: 'http_status', status: 404 }),
+      ],
+    } as MarketplaceOperationEvent);
+  } finally {
+    write.mock.restore();
+  }
+  assert.deepEqual(
+    JSON.parse(lines[0] ?? '{}').sourceReadFailures,
+    Array(8).fill({ area: 'messages', issue: 'http_status', status: 404 }),
+  );
+  assert.equal(lines[0]?.includes('private-'), false);
+});
+
 test('browser diagnoses contain only fixed categories and a bounded history', () => {
   const lines: string[] = [];
   const write = mock.method(process.stdout, 'write', (line: string) => {

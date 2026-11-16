@@ -48,6 +48,7 @@ import type {
 import {
   VintedImportReadError,
   VintedImportRequestError,
+  isVintedSourceReadFailure,
   type VintedAccountImport,
 } from './vinted-account-import.ts';
 import {
@@ -1369,6 +1370,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
           'rejectedSaleIds',
           'sourceRequestCount',
           'browserReadFailures',
+          'sourceReadFailures',
           'inboxEvents',
           'publicationFieldNames',
           'sellingCategories',
@@ -1526,5 +1528,12 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       ))
   )
     throw new Error('Ungültige Browserdiagnose');
+  if (
+    snapshot.sourceReadFailures !== undefined &&
+    (!Array.isArray(snapshot.sourceReadFailures) ||
+      snapshot.sourceReadFailures.length > 8 ||
+      snapshot.sourceReadFailures.some((failure) => !isVintedSourceReadFailure(failure)))
+  )
+    throw new Error('Ungültige Anbieterdiagnose');
   return snapshot;
 }

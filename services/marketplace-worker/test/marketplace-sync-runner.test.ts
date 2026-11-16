@@ -401,6 +401,9 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
             areas,
             sourceRequestCount: 7,
             browserReadFailures: ['navigation'] as VintedBrowserReadFailure[],
+            sourceReadFailures: [
+              { area: 'messages' as const, issue: 'http_status' as const, status: 404 },
+            ],
           };
         },
       }),
@@ -431,6 +434,9 @@ test('doppelter Start nutzt einen Auftrag und öffnet nur einen Browser', async 
     7,
   );
   assert.deepEqual(events.at(-1)?.browserReadFailures, ['navigation']);
+  assert.deepEqual(events.at(-1)?.sourceReadFailures, [
+    { area: 'messages', issue: 'http_status', status: 404 },
+  ]);
 });
 
 test('abgelaufener Zugriff beendet den Auftrag ohne Datenübernahme', async () => {

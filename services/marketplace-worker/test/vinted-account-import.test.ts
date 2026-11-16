@@ -366,6 +366,26 @@ function cachedConversationVersions(snapshot: VintedAccountImport): VintedConver
     })) as unknown as VintedConversationVersion[];
 }
 
+test('a mismatched sale response records a safe transaction diagnosis without confirming the sale', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return { conversations: [{ id: 700, unread: false }], pagination: { total_pages: 1 } };
+      if (path === '/api/v2/conversations/700')
+        return { conversation: { id: 700, messages: [], transaction: { id: 71, seller_id: 123 } } };
+      if (path === '/api/v2/transactions/71') return { transaction: { id: 72, seller_id: 123 } };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.sourceReadFailures, [{ area: 'sales', issue: 'transaction_shape' }]);
+  assert.equal(snapshot.areas.sales.failure, 'invalid_response');
+  assert.equal(
+    snapshot.entries.some((entry) => entry.kind === 'sale'),
+    false,
+  );
+});
+
 test('background detail attempts rotate a ten-chat backlog and five regular slots without a failed chat starving the rest', async (t) => {
   let now = Date.now();
   t.mock.method(Date, 'now', () => now);
