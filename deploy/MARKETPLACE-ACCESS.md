@@ -95,16 +95,19 @@ Die ursprüngliche Journalhistorie bleibt erhalten.
 Ältere Journale ohne diesen Ausgangsbeleg, unbekannte Dateien oder ein bereits
 begonnener Dienststopp bleiben für eine automatische Wiederaufnahme gesperrt.
 Ein `pending`-Deploymentbeleg wird dabei nicht zurückgesetzt. Laufende Sitzungen
-werden weder geschlossen noch bereinigt; ein Neuversuch ist erst nach deren
-regulärem Ende möglich. Nach unklarem Stopp bleibt die Betreiberprüfung erforderlich,
+werden weder geschlossen noch bereinigt. Laufende Aufträge oder Browsersitzungen
+vor dem ersten Dienststopp verzögern den Rollout: Der Aufruf gibt den Host-Lock
+frei, prüft alle 15 Sekunden erneut und setzt höchstens 30 Minuten lang die
+unbegonnene Vorbereitung oder den vorbereiteten Rollout mit allen Prüfungen fort.
+Danach bricht er ab, ohne einen Dienst gestoppt zu haben. Nach unklarem Stopp bleibt die Betreiberprüfung erforderlich,
 nach begonnenem Start ist weiterhin ausschließlich die Abschlussprüfung erlaubt.
 
 Der Zugang darf geprüfte Worker-, Broker- und Sitzungsimages aus den drei festen
 FlipBase-Repositories ausrollen. Er besitzt damit produktive Deployment-Rechte;
 die feste SSH-Befehlsgrenze ersetzt nicht die Prüfung des ausgerollten Codes.
 
-Ungeklärte Aufträge, laufende Sitzungen oder ein unterbrochener Rollout können
-weiterhin einen Abbruch erzwingen. Die Einrichtung repariert solche Zustände
+Ungeklärte Aufträge oder Sitzungen über diese Wartezeit hinaus sowie ein
+unterbrochener Rollout erzwingen weiterhin einen Abbruch. Die Einrichtung repariert solche Zustände
 nicht automatisch und löst keine Veröffentlichung oder Nachricht aus.
 
 Neue Worker-Releases laufen über dieselbe installierte Schnittstelle. Änderungen

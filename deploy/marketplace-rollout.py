@@ -192,6 +192,16 @@ class RolloutError(Exception):
     """Nur feste, geheimnisfreie Meldungen an die Konsole geben."""
 
 
+class RolloutBusy(RolloutError):
+    """Laufende Aufträge oder Browsersitzungen; vor dem ersten Stopp später erneut versuchen."""
+
+
+# Laufende Aufträge verzögern den Rollout nur. Vor dem ersten Stopp wird ohne
+# Host-Lock gewartet und danach die vollständige Prüfung erneut ausgeführt.
+IDLE_WAIT_SECONDS = 1800
+IDLE_POLL_SECONDS = 15
+
+
 def require(condition, message):
     if not condition:
         raise RolloutError(message)
@@ -295,7 +305,8 @@ def assert_preflight(snapshot, drained=False, allow_active=False):
     require(isinstance(counts, dict) and set(counts) == set(COUNT_KEYS), "Unvollständige Auftragszähler.")
     for key in COUNT_KEYS:
         require(type(counts[key]) is int and counts[key] >= 0, "Ungültiger Auftragszähler.")
-        require(allow_active or counts[key] == 0, "Aktive oder ungeklärt laufende Aufträge/Sitzungen sperren den Rollout.")
+    if not allow_active and any(counts[key] for key in COUNT_KEYS):
+        raise RolloutBusy("Aktive oder ungeklärt laufende Aufträge/Sitzungen sperren den Rollout.")
     waiting = snapshot.get("waitingCounts")
     require(isinstance(waiting, dict) and set(waiting) == set(COUNT_KEYS) - {"sessions", "setups"}
             and all(type(value) is int and value >= 0 for value in waiting.values()), "Wartezähler unvollständig.")
@@ -492,8 +503,8 @@ def fresh_preflight(context, *, drained=False, expected=None, expected_runtime=N
     containers = session_containers()
     if allow_active:
         verify_new_sessions(context, snapshot, containers)
-    else:
-        require(not containers, "Browsercontainer vorhanden; keine automatische Bereinigung.")
+    elif containers:
+        raise RolloutBusy("Browsercontainer vorhanden; keine automatische Bereinigung.")
     if not drained:
         require(snapshot["runtime"]["live"] is True, "Ausgangsworker besitzt keine aktive Runtime-Lease.")
     if expected is not None:
@@ -970,7 +981,27 @@ def write_deployment_record(manifest, phase):
 
 def apply_release(manifest):
     """Ein begrenzter SSH-Aufruf; kein zweiter Release umgeht einen unklaren Stopp."""
-    with configured_release(manifest) as approved, rollout_lock():
+    with configured_release(manifest) as approved:
+        deadline = time.monotonic() + IDLE_WAIT_SECONDS
+        announced = False
+        while True:
+            try:
+                return apply_approved_release(approved)
+            except RolloutBusy:
+                journal = read_journal()
+                # Nur vor dem ersten Stopp; danach entscheidet ausschließlich das Journal.
+                if journal is not None and journal["phase"] not in ("preparing", "prepared"):
+                    raise
+                if time.monotonic() + IDLE_POLL_SECONDS > deadline:
+                    raise RolloutBusy("Weiterhin laufende Aufträge oder Browsersitzungen; noch kein Dienst gestoppt.") from None
+            if not announced:
+                print("Laufende Aufträge oder Browsersitzungen; Rollout wartet auf Leerlauf.", flush=True)
+                announced = True
+            time.sleep(IDLE_POLL_SECONDS)
+
+
+def apply_approved_release(approved):
+    with rollout_lock():
         previous = read_deployment_record()
         same = previous is not None and previous["manifest"] == approved
         require(previous is None or previous["phase"] == "verified" or same,
