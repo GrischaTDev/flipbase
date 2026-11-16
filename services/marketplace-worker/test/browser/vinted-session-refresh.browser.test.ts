@@ -16,6 +16,54 @@ import { waitForOpenVintedSessionRenewals } from '../../src/vinted-session-renew
  */
 const renewalUrl = 'https://www.vinted.de/session-refresh?ref_url=%2F';
 
+test('a conversation removed between inbox and detail GET does not fail other messages or sales', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const status of [404, 410, 200]) {
+      const page = await browser.newPage();
+      let inboxReads = 0;
+      await page.route('**/*', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/')
+          return route.fulfill({ contentType: 'text/html', body: '<body>Fixture</body>' });
+        if (path === '/api/v2/conversations/700')
+          return route.fulfill({ status, json: { code: 100 } });
+        if (path === '/api/v2/conversations/701')
+          return route.fulfill({ json: { conversation: { id: 701, messages: [] } } });
+        const json =
+          path === '/api/v2/users/current'
+            ? { user: { id: 123, login: 'fixture' } }
+            : {
+                items: [],
+                conversations:
+                  path === '/api/v2/inbox'
+                    ? (++inboxReads === 1 ? [700, 701] : [701]).map((id) => ({ id, unread: false }))
+                    : [],
+                user_feedbacks: [],
+                pagination: { total_pages: 1 },
+              };
+        return route.fulfill({ json });
+      });
+      await page.goto('https://www.vinted.de/');
+      const snapshot = await readVintedAccountImport(page, async () => undefined);
+      assert.equal(inboxReads, 2);
+      assert.deepEqual(
+        snapshot.entries
+          .filter((entry) => entry.kind === 'conversation')
+          .map((entry) => entry.externalId),
+        ['701'],
+      );
+      assert.deepEqual(snapshot.areas.conversations, { status: 'complete' });
+      assert.equal(snapshot.areas.messages.failure, undefined);
+      assert.equal(snapshot.areas.sales.failure, undefined);
+      assert.equal(snapshot.sourceReadFailures, undefined);
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 test('distinguishes HTTP, content type, JSON and conversation shape failures without storing provider content', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
