@@ -279,6 +279,7 @@ it('übernimmt nach dem vollständigen Abruf alle neun Fotos, Beschreibung und K
       size: '45',
       status: 'Neu, ohne Etikett',
       color: 'Weiß, Grau',
+      package_size_id: '2',
     },
   };
   const browser = TestBed.inject(MarketplaceBrowserTestApiService);
@@ -286,6 +287,7 @@ it('übernimmt nach dem vollständigen Abruf alle neun Fotos, Beschreibung und K
   const result = await f.service.refresh(scope, 'sale-a', '123', '789', 'token', saved);
   expect(result.content.description).toBe(source.description);
   expect(result.content.categoryId).toBe(1453);
+  expect(result.content.packageSizeId).toBe(2);
   expect(result.content.sizeId).toBeNull();
   expect(result.content.conditionId).toBeNull();
   expect(result.content.colorLabels).toEqual(['Weiß', 'Grau']);
@@ -304,4 +306,29 @@ it('übernimmt nach dem vollständigen Abruf alle neun Fotos, Beschreibung und K
   });
   expect(originalCopy.files).toEqual(saved.files);
   expect(f.photoRead).not.toHaveBeenCalled();
+  const savedPackage = await f.service.refresh(scope, 'sale-a', '123', '789', 'token', {
+    ...saved,
+    content: { ...saved.content, packageSizeId: 3 },
+    hasOriginals: true,
+  });
+  expect(savedPackage.content.packageSizeId).toBe(3);
+  for (const packageSize of ['', 'invalid', '0', '-1', '2.5']) {
+    vi.mocked(browser.readSoldListingSource).mockResolvedValue({
+      source: {
+        ...source,
+        attributeHints: { ...source.attributeHints, package_size_id: packageSize },
+      },
+      actionId: 'receipt-a',
+    });
+    const withoutPackage = await f.service.refresh(scope, 'sale-a', '123', '789', 'token', saved);
+    expect(withoutPackage.content.packageSizeId).toBeNull();
+    expect(withoutPackage.files).toHaveLength(9);
+  }
+  vi.mocked(browser.readSoldListingSource).mockResolvedValue({
+    source: { ...source, attributeHints: { category_id: '1453', category: 'Laufschuhe' } },
+    actionId: 'receipt-a',
+  });
+  const missingPackage = await f.service.refresh(scope, 'sale-a', '123', '789', 'token', saved);
+  expect(missingPackage.content.packageSizeId).toBeNull();
+  expect(missingPackage.files).toHaveLength(9);
 });

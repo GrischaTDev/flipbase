@@ -237,7 +237,7 @@ export async function executeBrowserAction(
     readListingPresence: [2],
     readListingCategory: [3, 4],
     readListingContent: [2],
-    readSoldListingSource: [2],
+    readSoldListingSource: [2, 3],
     deleteListing: [2],
     updateListingContent: [4, 5],
     updateListing: [3],
@@ -301,7 +301,12 @@ export async function executeBrowserAction(
       const accountId = identifier(argumentsList[0]),
         externalId = identifier(argumentsList[1]);
       const source = parseVintedTransferSource(
-        await required(browser.readSoldListingSource)(accountId, externalId, authorize),
+        await required(browser.readSoldListingSource)(
+          accountId,
+          externalId,
+          authorize,
+          argumentsList.length === 3 ? identifier(argumentsList[2]) : undefined,
+        ),
         accountId,
         externalId,
       );
@@ -1126,9 +1131,13 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         ),
         categoryId,
       ),
-    readSoldListingSource: async (accountId, externalId, authorize) => {
+    readSoldListingSource: async (accountId, externalId, authorize, transactionId) => {
       const source = parseVintedTransferSource(
-        await run('readSoldListingSource', [accountId, externalId], authorize),
+        await run(
+          'readSoldListingSource',
+          [accountId, externalId, ...(transactionId ? [transactionId] : [])],
+          authorize,
+        ),
         accountId,
         externalId,
       );

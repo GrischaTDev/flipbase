@@ -5,6 +5,7 @@ import type { Page } from 'playwright';
 import {
   readVintedSoldListingSource,
   parseVintedSoldListingDocument,
+  parseVintedSoldListingPackageSize,
 } from '../src/vinted-sold-listing-source.ts';
 
 function fixture(
@@ -81,6 +82,77 @@ test('übernimmt Beschreibung, Kategorie, Kennungen und alle neun Originalgröß
   assert.equal(source.attributeHints.status_id, undefined);
   assert.equal(source.photoReferences.length, 9);
   assert.equal(source.photoReferences[8], 'https://images1.vinted.net/tc/8.webp');
+});
+
+function transactionFixture(
+  transaction: Record<string, unknown> = {},
+  order: Record<string, unknown> = {},
+) {
+  return {
+    transaction: {
+      id: 789,
+      seller_id: 456,
+      seller: { id: 456 },
+      user_side: 'seller',
+      item_id: 123,
+      items_count: 1,
+      ...transaction,
+      order: {
+        transaction_id: 789,
+        item_ids: [123],
+        items: [{ id: 123 }],
+        item_count: 1,
+        package_size_id: 2,
+        package_size_selected: true,
+        package_size: { id: 2, title: 'Mittel' },
+        ...order,
+      },
+    },
+  };
+}
+
+test('liest die bestätigte Paketgröße nur aus dem eigenen zugehörigen Einzelverkauf', () => {
+  assert.equal(parseVintedSoldListingPackageSize(transactionFixture(), '456', '789', '123'), 2);
+  assert.equal(
+    parseVintedSoldListingPackageSize(
+      transactionFixture(
+        {},
+        {
+          package_size_id: 8,
+          package_size: { id: 8, title: 'Mittel, schwer' },
+        },
+      ),
+      '456',
+      '789',
+      '123',
+    ),
+    8,
+  );
+});
+
+test('übernimmt keine fremde, unbestätigte oder gemeinsame Paketgröße', () => {
+  const cases = [
+    null,
+    {},
+    transactionFixture({ id: 999 }),
+    transactionFixture({ seller_id: 999 }),
+    transactionFixture({ seller: { id: 999 } }),
+    transactionFixture({ user_side: 'buyer' }),
+    transactionFixture({ seller_id: null, seller: null }),
+    transactionFixture({ item_id: 999 }),
+    transactionFixture({ items_count: 2 }),
+    transactionFixture({}, { transaction_id: 999 }),
+    transactionFixture({}, { item_ids: [999] }),
+    transactionFixture({}, { item_ids: [123, 999], item_count: 2 }),
+    transactionFixture({}, { items: [{ id: 999 }] }),
+    transactionFixture({}, { package_size_selected: false }),
+    ...[undefined, null, '2', 0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1].map((package_size_id) =>
+      transactionFixture({}, { package_size_id }),
+    ),
+    transactionFixture({}, { package_size: { id: 3 } }),
+  ];
+  for (const input of cases)
+    assert.equal(parseVintedSoldListingPackageSize(input, '456', '789', '123'), null);
 });
 
 test('verwirft fremde Artikel, Konten, fehlende Bezüge und nicht freigegebene Bilder', () => {

@@ -143,13 +143,15 @@ export function vintedBrowserActions(
       }
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
     }),
-    readSoldListingSource: afterSessionRenewal(async (accountId, externalId, authorize) => {
-      await authorize();
-      const contexts = connection.contexts?.();
-      if (!contexts || contexts.length !== 1) throw new VintedListingReadError('reserve');
-      const page = await contexts[0]!.newPage();
-      return readVintedSoldListingSource(page, accountId, externalId, authorize);
-    }),
+    readSoldListingSource: afterSessionRenewal(
+      async (accountId, externalId, authorize, transactionId) => {
+        await authorize();
+        const contexts = connection.contexts?.();
+        if (!contexts || contexts.length !== 1) throw new VintedListingReadError('reserve');
+        const page = await contexts[0]!.newPage();
+        return readVintedSoldListingSource(page, accountId, externalId, authorize, transactionId);
+      },
+    ),
     readListingPresence: afterSessionRenewal((accountId, externalId, authorize) =>
       readVintedListingPresence(currentPage(), accountId, externalId, authorize),
     ),

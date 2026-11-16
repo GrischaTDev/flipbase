@@ -890,6 +890,7 @@ test('a provider failure after browser start is retried as provider_failed, not 
 
 test('sold listing source read uses the item in the sale and never writes its historic entry', async () => {
   const { claim, store, calls } = fixture('listing_content_read', { entryId, saleItemId: '789' });
+  claim.target.externalId = '456';
   claim.target.entryKind = 'sale';
   claim.target.body = { itemIds: ['789'], sellerId: '123' };
   const source = {
@@ -915,9 +916,10 @@ test('sold listing source read uses the item in the sale and never writes its hi
       run: async (_scope, _id, operation) =>
         operation({
           version: () => '',
-          readSoldListingSource: async (account, item, authorize) => {
+          readSoldListingSource: async (account, item, authorize, transactionId) => {
             assert.equal(account, '123');
             assert.equal(item, '789');
+            assert.equal(transactionId, '456');
             await authorize();
             return source;
           },

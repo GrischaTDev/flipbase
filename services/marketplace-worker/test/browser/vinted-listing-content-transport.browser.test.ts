@@ -7,7 +7,7 @@ import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
-test('the isolated sold listing reader preserves the description and nine photos after Next resource hints', async () => {
+test('the isolated sold listing reader preserves all content and copies a confirmed single-item package size', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
     const context = await browser.newContext();
@@ -39,10 +39,38 @@ test('the isolated sold listing reader preserves the description and nine photos
       }) +
       '\n';
     let writes = 0;
+    let transactionReads = 0;
+    let transactionMode: 'valid' | 'unavailable' | 'invalid' = 'valid';
     await context.route('**/*', (route) => {
       if (route.request().method() !== 'GET') writes++;
       if (new URL(route.request().url()).pathname === '/api/v2/users/current')
         return route.fulfill({ json: { user: { id: 123, login: 'fixture' } } });
+      if (new URL(route.request().url()).pathname === '/api/v2/transactions/456') {
+        transactionReads++;
+        if (transactionMode === 'unavailable') return route.fulfill({ status: 404, json: {} });
+        if (transactionMode === 'invalid')
+          return route.fulfill({ contentType: 'application/json', body: '{' });
+        return route.fulfill({
+          json: {
+            transaction: {
+              id: 456,
+              seller_id: 123,
+              user_side: 'seller',
+              item_id: 98765,
+              items_count: 1,
+              order: {
+                transaction_id: 456,
+                item_ids: [98765],
+                item_count: 1,
+                items: [{ id: 98765 }],
+                package_size_id: 2,
+                package_size_selected: true,
+                package_size: { id: 2, title: 'Mittel' },
+              },
+            },
+          },
+        });
+      }
       return route.fulfill({
         contentType: 'text/html; charset=utf-8',
         body: `<main data-testid="item-page-summary-plugin">Verkauft</main><script>self.__next_f.push(${JSON.stringify([1, flight])})</script>`,
@@ -50,13 +78,33 @@ test('the isolated sold listing reader preserves the description and nine photos
     });
     const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
     const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
-    const source = await actions.readSoldListingSource!('123', '98765', async () => undefined);
+    const source = await actions.readSoldListingSource!(
+      '123',
+      '98765',
+      async () => undefined,
+      '456',
+    );
     assert.equal(source.description, description);
     assert.deepEqual(
       source.photoReferences,
       photos.map((photo) => photo.url),
     );
     assert.equal(source.attributeHints.category, 'Laufschuhe');
+    assert.equal(source.attributeHints.package_size_id, '2');
+    assert.equal(transactionReads, 1);
+    for (const mode of ['unavailable', 'invalid'] as const) {
+      transactionMode = mode;
+      const withoutPackage = await actions.readSoldListingSource!(
+        '123',
+        '98765',
+        async () => undefined,
+        '456',
+      );
+      assert.equal(withoutPackage.description, description);
+      assert.deepEqual(withoutPackage.photoReferences, source.photoReferences);
+      assert.equal(withoutPackage.attributeHints.package_size_id, undefined);
+    }
+    assert.equal(transactionReads, 3);
     assert.deepEqual(context.pages(), [original]);
     assert.equal(writes, 0);
   } finally {

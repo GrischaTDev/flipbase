@@ -16,6 +16,59 @@ import {
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 
+test('isolated sold source read forwards only a validated transaction identifier', async () => {
+  const source = {
+    externalAccountId: '123',
+    externalId: '789',
+    title: 'Schuhe',
+    description: 'Vollständig',
+    priceCents: 2000,
+    currency: 'EUR',
+    photoReferences: ['https://images1.vinted.net/one.jpg'],
+    attributeHints: { package_size_id: '2' },
+  };
+  let reads = 0;
+  const browser = {
+    version: () => 'fixture',
+    readSoldListingSource: async (
+      account: string,
+      item: string,
+      authorize: () => Promise<void>,
+      transaction?: string,
+    ) => {
+      reads++;
+      assert.equal(account, '123');
+      assert.equal(item, '789');
+      assert.equal(transaction, '456');
+      await authorize();
+      return source;
+    },
+  };
+  assert.deepEqual(
+    await executeBrowserAction(
+      browser,
+      { name: 'readSoldListingSource', arguments: ['123', '789', '456'] },
+      async () => undefined,
+      async () => {
+        throw new Error('must not write');
+      },
+    ),
+    source,
+  );
+  for (const transaction of ['../456', '', 456, null])
+    await assert.rejects(
+      executeBrowserAction(
+        browser,
+        { name: 'readSoldListingSource', arguments: ['123', '789', transaction] },
+        async () => undefined,
+        async () => {
+          throw new Error('must not write');
+        },
+      ),
+    );
+  assert.equal(reads, 1);
+});
+
 test('isolated sold source read preserves its account and item binding', async () => {
   const source = {
     externalAccountId: '123',

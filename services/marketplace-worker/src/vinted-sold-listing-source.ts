@@ -8,6 +8,7 @@ import {
 } from './vinted-browser-reader.ts';
 import type { VintedListingReadStep } from './vinted-listing-read-error.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
+import { isVintedConversationSaleTransaction } from './vinted-conversation-sale-read.ts';
 
 const object = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === 'object' && !Array.isArray(value);
@@ -197,16 +198,57 @@ export function parseVintedSoldListingDocument(
   return source;
 }
 
+/** Eine gemeinsame Paketgröße gehört nur bei einem Einzelverkauf zu genau diesem Artikel. */
+export function parseVintedSoldListingPackageSize(
+  input: unknown,
+  accountId: string,
+  transactionId: string,
+  itemId: string,
+): number | null {
+  const transaction = object(input) ? input['transaction'] : null;
+  if (
+    !object(transaction) ||
+    !isVintedConversationSaleTransaction(transaction, transactionId, accountId)
+  )
+    return null;
+  const seller = object(transaction['seller']) ? transaction['seller']['id'] : null;
+  const order = transaction['order'];
+  if (
+    String(transaction['seller_id'] ?? seller) !== accountId ||
+    String(transaction['item_id']) !== itemId ||
+    transaction['items_count'] !== 1 ||
+    !object(order) ||
+    String(order['transaction_id']) !== transactionId ||
+    order['item_count'] !== 1 ||
+    !Array.isArray(order['item_ids']) ||
+    order['item_ids'].length !== 1 ||
+    String(order['item_ids'][0]) !== itemId ||
+    !Array.isArray(order['items']) ||
+    order['items'].length !== 1 ||
+    !object(order['items'][0]) ||
+    String(order['items'][0]['id']) !== itemId ||
+    order['package_size_selected'] !== true
+  )
+    return null;
+  const size = order['package_size_id'];
+  if (typeof size !== 'number' || !Number.isSafeInteger(size) || size <= 0) return null;
+  const details = order['package_size'];
+  if (details != null && (!object(details) || details['id'] !== size)) return null;
+  return size;
+}
+
 export async function readVintedSoldListingSource(
   page: Page,
   accountId: string,
   itemId: string,
   authorize: () => Promise<void>,
+  transactionId?: string,
 ): Promise<VintedTransferSource> {
   if (
     !/^[1-9][0-9]{0,31}$/.test(itemId) ||
     !/^[1-9][0-9]{0,31}$/.test(accountId) ||
-    page.url() !== 'about:blank'
+    page.url() !== 'about:blank' ||
+    (transactionId !== undefined && !/^[1-9][0-9]{0,31}$/.test(transactionId))
   )
     throw new VintedListingReadError('reserve');
   let step: VintedListingReadStep = 'navigate';
@@ -242,8 +284,46 @@ export async function readVintedSoldListingSource(
     step = 'values';
     const scripts = await page.locator('script:not([src])').allTextContents();
     const source = parseVintedSoldListingDocument(scripts, accountId, itemId);
+    let packageSizeId: number | null = null;
+    if (transactionId) {
+      await authorized();
+      const transaction: unknown = await page.evaluate(async (id) => {
+        try {
+          const path = '/api/v2/transactions/' + id;
+          const response = await fetch(path, {
+            method: 'GET',
+            credentials: 'include',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+            signal: AbortSignal.timeout(8_000),
+          });
+          const url = new URL(response.url);
+          if (
+            !response.ok ||
+            url.origin !== 'https://www.vinted.de' ||
+            url.pathname !== path ||
+            !response.headers.get('content-type')?.includes('application/json')
+          )
+            return null;
+          return await response.json();
+        } catch {
+          return null;
+        }
+      }, transactionId);
+      packageSizeId = parseVintedSoldListingPackageSize(
+        transaction,
+        accountId,
+        transactionId,
+        itemId,
+      );
+    }
     await check();
-    return source;
+    return packageSizeId === null
+      ? source
+      : {
+          ...source,
+          attributeHints: { ...source.attributeHints, package_size_id: String(packageSizeId) },
+        };
   } catch (error) {
     if (
       error instanceof VintedListingReadError ||

@@ -143,6 +143,7 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
     accountId: string,
     externalId: string,
     authorize: () => Promise<void>,
+    transactionId?: string,
   ): Promise<
     import('../../../supabase/functions/_shared/kleinanzeigen-listing-contracts.ts').VintedTransferSource
   >;

@@ -64,6 +64,7 @@ export class VintedSoldItemCopyService {
       sizeLabel: hints['size'] ?? '',
       conditionId: id('status_id'),
       conditionLabel: hints['status'] ?? '',
+      packageSizeId: saved.content.packageSizeId ?? id('package_size_id'),
       colorIds: [],
       colorLabels: (hints['color'] ?? '')
         .split(',')

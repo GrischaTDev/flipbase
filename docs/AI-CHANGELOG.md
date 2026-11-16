@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-16 - Juna - Paketgröße beim Kopieren verkaufter Vinted-Artikel übernehmen
+
+**Auftrag und Grundlage:** Nach der vollständigen Text-/Fotoübernahme auch die Paketgröße automatisch übernehmen. GitHub frisch abgeglichen und eigener Zweig `juna/vinted-copy-package-size` vom aktuellen `origin/master` (`7f797d78`) in getrennter Arbeitskopie. Die fremd belegte primäre Arbeitskopie und der anderweitig ausgecheckte Hauptzweig bleiben unverändert.
+
+**Lesender Nachweis:** Die Bearbeitungsschnittstelle des betroffenen verkauften Originals liefert HTTP 404; im öffentlichen Artikeldokument steht keine nutzbare Paketgrößenkennung. Der zugehörige Vinted-Transaktionsabruf liefert dagegen HTTP 200 mit bestätigter Größe 2, „Mittel (max. 1 kg)“. Verkäuferkennung, Transaktion, Einzelartikel und Bestellpositionen stimmen überein. Keine Anbieteranzeige verändert, keine Sendung beauftragt.
+
+**Umsetzung und Grenzen:** Die bereits serverseitig gebundene Verkaufskennung wird durch den bestehenden isolierten Browsertransport an den Leser weitergegeben; ältere Aufrufe ohne diese Ergänzung bleiben gültig. Nach erfolgreichem Lesen des Originalartikels einmalig dessen Verkauf abrufen. Nur eine bestätigte Paketgröße mit passender Verkäufer-, Transaktions- und Artikelzuordnung sowie genau einer Bestellposition wird übernommen. Fremde, widersprüchliche, unbestätigte und gemeinsame Paketgrößen bleiben ausgeschlossen. Ein fehlgeschlagener oder unlesbarer Zusatzabruf lässt Beschreibung und Fotos weiterhin übernehmen. Bereits gesicherte Paketgrößen haben Vorrang. Der Editor übernimmt und speichert den Wert über das vorhandene Inhaltsmodell; keine neue Oberfläche, Abhängigkeit, Datenbankänderung oder Migration.
+
+**Nachweise:** Neue Erwartungen für Paketgröße und gebundene Verkaufskennung vor der Korrektur im nativen Transport-/Auftragstest fehlgeschlagen, danach erfolgreich. 950 Workerfälle bestanden, acht bestehende Auslassungen; 70 betroffene Angular-Service-/Editorfälle und alle fünf nativen Transportfälle erfolgreich. Die Browserprüfung bestätigt zusätzlich unveränderte Beschreibung/Fotoliste bei HTTP 404 und ungültigem JSON, keine Schreibanfrage sowie erhaltenen Ursprungstab. Validierungstests prüfen falsche Verkäufer, Transaktionen und Positionen, Verkaufspakete, unbestätigte beziehungsweise ungültige Größen und die ältere Zweier-Argumentliste. Worker-Typprüfung und -Bau erfolgreich. Prüfprotokolle außerhalb des Repositorys. Lokaler Vorabcheck sowie die ausgewählten CI-Freigabeprüfungen werden am abschließenden Stand nachgewiesen; kein Push, PR oder Merge ohne die vorgeschriebene Freigabe.
+
 ## 2026-11-16 - Juna - Vollständige Übernahme verkaufter Vinted-Inserate wiederherstellen
 
 **Auftrag und Grundlage:** Fehlende Beschreibung und weitere Bilder beim erneuten Einstellen eines verkauften Artikels untersuchen und korrigieren. GitHub frisch abgeglichen und den eigenen Zweig `juna/vinted-sold-listing-prefill` vom aktuellen `origin/master` (`aa8e9f46`) in einer getrennten Arbeitskopie angelegt. Die belegte primäre Arbeitskopie, der anderweitig belegte lokale Hauptzweig und fremde Änderungen bleiben erhalten.
