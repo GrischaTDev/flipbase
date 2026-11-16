@@ -55,6 +55,78 @@ const scope = {
 const operationId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 const runnerId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee';
 
+for (const [failure, pausedReason] of [
+  ['network', 'network'],
+  ['timeout', 'network'],
+  ['browser_context', 'network'],
+  ['provider_unavailable', 'server'],
+  ['invalid_response', 'server'],
+  ['unauthorized', 'needs_login'],
+  ['forbidden', 'forbidden'],
+  ['rate_limited', 'rate_limited'],
+] as const) {
+  test(`partial sync distinguishes ${failure} from a failed read and pending cleanup`, async () => {
+    const dispatched = {
+      ...scope,
+      userAccessToken: '',
+      syncRead: {
+        operationId,
+        runnerId,
+        workerEpoch: 2,
+        sessionId: runnerId,
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        absoluteExpiresAt: new Date(Date.now() + 600_000).toISOString(),
+      },
+    };
+    const sourceResults = {
+      profile: { status: 'complete' },
+      publications: { status: 'complete' },
+      conversations: { status: 'complete' },
+      messages: { status: 'partial', failure },
+      sales: { status: 'partial', failure },
+      feedback: { status: 'complete' },
+    } as const;
+    let outcome: Record<string, unknown> = {};
+    const store = new SupabaseMarketplaceOperationStore({
+      url: 'https://db.example.test',
+      publishableKey: 'public-key',
+      serviceRoleKey: 'server-key',
+      fetch: async (_input, init) => {
+        outcome = JSON.parse(String(init?.body)).p_outcome;
+        return Response.json(true);
+      },
+    });
+    await store.succeed(
+      dispatched,
+      operationId,
+      runnerId,
+      '2026-11-16T14:57:00Z',
+      {},
+      false,
+      sourceResults,
+    );
+    assert.equal(outcome['state'], 'succeeded');
+    assert.deepEqual(outcome['sourceResults'], sourceResults);
+    assert.equal(
+      outcome['pausedReason'],
+      ['needs_login', 'forbidden', 'rate_limited'].includes(pausedReason) ? pausedReason : null,
+    );
+    await store.fail(dispatched, operationId, runnerId, 'messages', failure);
+    assert.equal(outcome['state'], 'failed');
+    assert.equal(outcome['pausedReason'], pausedReason);
+    await store.succeed(
+      dispatched,
+      operationId,
+      runnerId,
+      '2026-11-16T14:57:00Z',
+      {},
+      true,
+      sourceResults,
+    );
+    assert.equal(outcome['pausedReason'], 'cleanup');
+  });
+}
+
 test('Teilfehler bleiben im dauerhaften Auftrag sichtbar', async () => {
   const sourceResults = {
     profile: { status: 'complete' },

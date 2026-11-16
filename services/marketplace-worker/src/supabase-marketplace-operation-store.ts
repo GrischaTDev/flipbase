@@ -166,17 +166,10 @@ export class SupabaseMarketplaceOperationStore {
             .map((area) => area.failure)
             .filter((value): value is VintedRequestFailure => Boolean(value))
         : [];
-      const failure = [
-        'unauthorized',
-        'forbidden',
-        'rate_limited',
-        'provider_unavailable',
-        'network',
-        'timeout',
-        'browser_context',
-        'invalid_response',
-      ].find((value) => failures.includes(value as VintedRequestFailure)) as
-        VintedRequestFailure | undefined;
+      // Teilfehler bleiben im Auftrag sichtbar; nur Zugriffssperren pausieren einen übernommenen Abruf.
+      const failure = ['unauthorized', 'forbidden', 'rate_limited'].find((value) =>
+        failures.includes(value as VintedRequestFailure),
+      ) as VintedRequestFailure | undefined;
       const retryAfter = latestRetryAfter(
         sourceResults
           ? Object.values(sourceResults)
