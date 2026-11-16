@@ -1,3 +1,4 @@
+import { actionPreviewImageUrl, actionPreviewStoragePath } from './action-preview-image';
 import { listingIdentifier } from './vinted-listing-draft';
 import type { VintedListingLatePolicy } from './vinted-listing-schedule';
 
@@ -24,6 +25,8 @@ export interface VintedListingJob {
   readonly relistDelaySeconds?: number;
   readonly relistExternalId?: string | null;
   readonly itemTitle?: string;
+  readonly imageUrl?: string | null;
+  readonly coverStoragePath?: string | null;
   readonly id: string;
   readonly workspaceId: string;
   readonly connectionId: string | null;
@@ -187,6 +190,8 @@ export function parseVintedListingJob(
       data['relistDelaySeconds'] == null ? 0 : integer(data['relistDelaySeconds'], 0),
     relistExternalId: relistExternalId as string | null | undefined,
     itemTitle: typeof itemTitle === 'string' ? itemTitle : undefined,
+    imageUrl: actionPreviewImageUrl(data['imageUrl']),
+    coverStoragePath: actionPreviewStoragePath(data['coverStoragePath']),
     connectionId,
     draftId,
     draftRevision: integer(data['draftRevision']),

@@ -20,6 +20,8 @@ export interface VintedListingOperation {
   readonly connectionId: string;
   readonly entryId: string;
   readonly title: string;
+  readonly imageUrl: string | null;
+  readonly startedAt: string;
   readonly state: 'running' | 'success' | 'error';
   readonly message: string;
   readonly serverActionId?: string;
@@ -325,6 +327,8 @@ export class VintedListingOperationStore {
         connectionId: entry.connectionId,
         entryId: entry.id,
         title: entry.title,
+        imageUrl: entry.imageUrl,
+        startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         state: 'running',
         message:

@@ -3,9 +3,10 @@ import { DatePipe } from '@angular/common';
 import { LucideX } from '@lucide/angular';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
+import { ActionStatusThumbnailComponent } from '../../../../shared/components/action-status-thumbnail/action-status-thumbnail.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import { vintedListingJobIndicator } from '../../models/vinted-action-drawer';
 import {
   canDiscardFailedRelisting,
   isVintedListingConfirmationPending,
@@ -33,12 +34,14 @@ import {
     ButtonComponent,
     NoticeBannerComponent,
     VintedListingScheduleDialogComponent,
-    ActionStatusIndicatorComponent,
+    ActionStatusThumbnailComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class VintedListingActionOverviewComponent {
-  readonly entries = input.required<readonly VintedListingActionEntry[]>();
+  readonly entry = input.required<VintedListingActionEntry>();
+  /** Signiertes erstes Entwurfsfoto, falls kein Vinted-Bild gespeichert ist. */
+  readonly coverUrl = input<string | null>(null);
   private readonly jobsApi = inject(VintedListingJobService);
   private readonly confirm = inject(ConfirmDialogService);
   private readonly draftsApi = inject(VintedListingDraftService);
@@ -52,23 +55,13 @@ export class VintedListingActionOverviewComponent {
   private lastRequest: { key: string; id: string } | null = null;
   readonly dismissIcon = LucideX;
 
-  readonly rows = computed(() =>
-    this.entries().map(({ job, accountName }) => ({
+  readonly row = computed(() => {
+    const { job, accountName } = this.entry();
+    return {
       job,
       accountName,
       label: compactListingLabel(job),
-      indicator:
-        job.state === 'confirmed' && job.providerState !== 'processing'
-          ? ('success' as const)
-          : job.state === 'failed' ||
-              (job.state === 'outcome_unknown' && !isVintedListingConfirmationPending(job))
-            ? ('error' as const)
-            : job.state === 'paused' ||
-                (!!job.scheduledAt &&
-                  job.state === 'queued' &&
-                  (!job.relistExternalId || !!job.relistDeletedAt))
-              ? ('paused' as const)
-              : ('running' as const),
+      indicator: vintedListingJobIndicator(job),
       discardable: canDiscardFailedRelisting(job),
       dismissible:
         job.state === 'failed' ||
@@ -87,8 +80,9 @@ export class VintedListingActionOverviewComponent {
         (!job.relistExternalId || !!job.relistDeletedAt) &&
         ['queued', 'paused'].includes(job.state),
       cancellable: ['queued', 'paused'].includes(job.state),
-    })),
-  );
+      imageUrl: job.imageUrl ?? this.coverUrl(),
+    };
+  });
   async dismiss(job: VintedListingJob): Promise<void> {
     if (!canDiscardFailedRelisting(job)) {
       this.overview.dismiss(vintedListingDismissKey(job));
@@ -126,7 +120,8 @@ export class VintedListingActionOverviewComponent {
   private current(job: VintedListingJob): boolean {
     return (
       !!this.overview.context() &&
-      this.entries().some(({ job: value }) => value.id === job.id && value.version === job.version)
+      this.entry().job.id === job.id &&
+      this.entry().job.version === job.version
     );
   }
   async cancel(job: VintedListingJob): Promise<void> {

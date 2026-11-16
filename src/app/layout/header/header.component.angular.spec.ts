@@ -2,6 +2,9 @@ import { EbaySaleActivityStore } from '../../features/sales/services/ebay-sale-a
 import '@angular/compiler';
 import { signal, ɵresolveComponentResources } from '@angular/core';
 import { ActionStatusIndicatorComponent } from '../../shared/components/action-status-indicator/action-status-indicator.component';
+import { ActionStatusThumbnailComponent } from '../../shared/components/action-status-thumbnail/action-status-thumbnail.component';
+import { SegmentedTabsComponent } from '../../shared/components/segmented-tabs/segmented-tabs.component';
+import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { prepareMarketplaceRendering } from '../../../../e2e/support/marketplace-rendering';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
@@ -78,6 +81,12 @@ describe('HeaderComponent', () => {
         'src/app/shared/components/loading-indicator/loading-indicator.component.html',
       './action-status-indicator.component.html':
         'src/app/shared/components/action-status-indicator/action-status-indicator.component.html',
+      './action-status-thumbnail.component.html':
+        'src/app/shared/components/action-status-thumbnail/action-status-thumbnail.component.html',
+      './product-thumbnail.component.html':
+        'src/app/shared/components/product-thumbnail/product-thumbnail.component.html',
+      './segmented-tabs.component.html':
+        'src/app/shared/components/segmented-tabs/segmented-tabs.component.html',
       './notice-banner.component.html':
         'src/app/shared/components/notice-banner/notice-banner.component.html',
       './modal-shell.component.html':
@@ -250,6 +259,18 @@ describe('HeaderComponent', () => {
       {
         type: ActionStatusIndicatorComponent,
         path: 'src/app/shared/components/action-status-indicator/action-status-indicator.component.ts',
+      },
+      {
+        type: ActionStatusThumbnailComponent,
+        path: 'src/app/shared/components/action-status-thumbnail/action-status-thumbnail.component.ts',
+      },
+      {
+        type: SegmentedTabsComponent,
+        path: 'src/app/shared/components/segmented-tabs/segmented-tabs.component.ts',
+      },
+      {
+        type: ModalShellComponent,
+        path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
       },
     ]);
     const fixture = await renderHeader();

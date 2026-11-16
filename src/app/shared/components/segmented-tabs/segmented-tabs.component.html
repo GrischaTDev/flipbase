@@ -1,0 +1,34 @@
+<div
+  role="tablist"
+  [attr.aria-label]="label()"
+  class="grid auto-cols-fr grid-flow-col rounded-xl border border-fb-line bg-fb-subtle/70 p-1 text-[13px] font-medium"
+>
+  @for (tab of tabs(); track tab.value) {
+    <button
+      type="button"
+      role="tab"
+      [id]="idPrefix() + '-tab-' + tab.value"
+      [attr.aria-selected]="value() === tab.value"
+      [attr.aria-controls]="idPrefix() + '-panel-' + tab.value"
+      [attr.tabindex]="value() === tab.value ? 0 : -1"
+      class="flex min-h-8 cursor-pointer items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--fb-control-focus)] pointer-coarse:min-h-11"
+      [class.bg-fb-surface]="value() === tab.value"
+      [class.text-fb-text-primary]="value() === tab.value"
+      [class.shadow-sm]="value() === tab.value"
+      [class.text-fb-text-secondary]="value() !== tab.value"
+      (click)="select(tab.value)"
+      (keydown)="onKeydown($event)"
+    >
+      <span>{{ tab.label }}</span>
+      @if (tab.count !== undefined) {
+        <span
+          class="min-w-5 rounded-full px-1.5 text-[11px] tabular-nums leading-5"
+          [class.bg-fb-primary]="value() === tab.value && tab.count > 0"
+          [class.text-fb-on-accent]="value() === tab.value && tab.count > 0"
+          [class.bg-fb-surface-hover]="value() !== tab.value || tab.count === 0"
+          >{{ tab.count }}</span
+        >
+      }
+    </button>
+  }
+</div>

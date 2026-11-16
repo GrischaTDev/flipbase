@@ -1,3 +1,4 @@
+import { actionPreviewImageUrl } from './action-preview-image';
 import type { AccountScope } from './marketplace.models';
 
 export const vintedAccountActionKinds = [
@@ -43,6 +44,8 @@ export interface VintedAccountAction extends AccountScope {
   readonly requestId: string;
   readonly entryId: string | null;
   readonly title: string | null;
+  /** Bild des betroffenen Inserats oder Gesprächs, falls gespeichert. */
+  readonly imageUrl?: string | null;
   readonly kind: VintedAccountActionKind;
   readonly state: VintedAccountActionState;
   readonly version: number;
@@ -131,6 +134,7 @@ export function parseVintedAccountAction(value: unknown, scope: AccountScope): V
     requestId,
     entryId,
     title,
+    imageUrl: actionPreviewImageUrl(row['imageUrl']),
     kind: kind as VintedAccountActionKind,
     state: state as VintedAccountActionState,
     version,

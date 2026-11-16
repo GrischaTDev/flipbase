@@ -222,8 +222,12 @@ export class ModalDialogDirective implements OnDestroy {
       'input:not([disabled]):not([type="hidden"])',
       'select:not([disabled])',
       'textarea:not([disabled])',
-      '[tabindex]:not([tabindex="-1"])',
-    ].join(',');
+      '[tabindex]',
+    ]
+      // Per Tab nicht erreichbare Elemente (etwa inaktive Reiter) dürfen nicht Anfang oder
+      // Ende der Fokusfalle sein, sonst verlässt der Fokus den Dialog.
+      .map((selector) => `${selector}:not([tabindex="-1"])`)
+      .join(',');
 
     return Array.from(this.host.nativeElement.querySelectorAll<HTMLElement>(auswahl)).filter(
       (el) => el.offsetParent !== null,

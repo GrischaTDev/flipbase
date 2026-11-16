@@ -471,7 +471,7 @@ it('entfernt die Plansperre nach Verwerfen über die Auftragsübersicht auch bei
   fixture.listPlans.mockResolvedValue([]);
   fixture.reloadImportedSnapshot.mockResolvedValue(false);
   const overview = TestBed.runInInjectionContext(() => new VintedListingActionOverviewComponent());
-  vi.spyOn(overview, 'entries').mockReturnValue([{ job: record.job, accountName: 'Account' }]);
+  vi.spyOn(overview, 'entry').mockReturnValue({ job: record.job, accountName: 'Account' });
   vi.spyOn(TestBed.inject(ConfirmDialogService), 'frage').mockResolvedValue(true);
 
   await overview.dismiss(record.job);

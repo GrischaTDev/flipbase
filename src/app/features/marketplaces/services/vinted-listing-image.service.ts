@@ -42,6 +42,22 @@ export class VintedListingImageService {
       }),
     );
   }
+  /** Signiert erste Entwurfsfotos für Vorschaubilder; fehlende Fotos bleiben ohne Eintrag. */
+  async coverUrls(paths: readonly string[]): Promise<ReadonlyMap<string, string>> {
+    const unique = [...new Set(paths)];
+    if (!unique.length) return new Map();
+    const { data, error } = await this.client.storage
+      .from(this.bucket)
+      .createSignedUrls(unique, 3600);
+    if (error) return new Map();
+    return new Map(
+      (data ?? []).flatMap((image) =>
+        !image.error && image.path && image.signedUrl
+          ? [[image.path, image.signedUrl] as const]
+          : [],
+      ),
+    );
+  }
   async renamedFile(draft: VintedListingDraft, imageId: string, name: string): Promise<File> {
     const image = draft.images.find((entry) => entry.id === imageId);
     if (!image || !name.trim() || name.length > 255)

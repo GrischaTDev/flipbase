@@ -1,40 +1,36 @@
-<section [attr.aria-label]="accountName()" class="min-w-0">
-  <ul class="space-y-1.5">
-    @for (row of rows(); track row.action.id) {
-      <li
-        [attr.data-action-state]="row.action.state"
-        [attr.data-action-id]="row.action.id"
-        class="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg bg-fb-surface-hover px-2 py-2"
-      >
-        <app-action-status-indicator [state]="row.indicator" />
-        <div class="min-w-0 flex-1">
-          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ row.title }}</p>
-          <p class="truncate text-xs leading-5 text-fb-text-secondary" [attr.title]="row.subtitle">
-            {{ row.subtitle }}
-          </p>
-          @if (row.waitReason) {
-            <p role="status" class="text-xs leading-5 text-fb-text-secondary">
-              {{ row.waitReason }}
-            </p>
-          }
-        </div>
-        @if (row.dismissible) {
-          <app-button
-            variant="ghost"
-            size="slim"
-            [icon]="dismissIcon"
-            [iconOnly]="true"
-            ariaLabel="Meldung ausblenden"
-            (clicked)="dismiss(row.action)"
-          />
-        }
-        <time
-          data-action-time
-          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
-          [attr.datetime]="row.action.updatedAt"
-          >{{ row.action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
-        >
-      </li>
+@let item = row();
+<div
+  [attr.data-action-state]="item.action.state"
+  [attr.data-action-id]="item.action.id"
+  class="flex min-w-0 items-start gap-3"
+>
+  <app-action-status-thumbnail [state]="item.indicator" [imageUrl]="item.action.imageUrl" />
+  <div class="min-w-0 flex-1">
+    <p class="text-[13px] font-medium leading-5 text-fb-text-primary">{{ item.title }}</p>
+    @if (item.action.itemTitle) {
+      <p class="truncate text-xs leading-5 text-fb-text-secondary">{{ item.action.itemTitle }}</p>
     }
-  </ul>
-</section>
+    <p class="truncate text-xs leading-5 text-fb-text-secondary" [attr.title]="item.subtitle">
+      {{ item.subtitle }}
+    </p>
+    @if (item.waitReason) {
+      <p role="status" class="text-xs leading-5 text-fb-text-secondary">{{ item.waitReason }}</p>
+    }
+    <time
+      data-action-time
+      class="block text-[11px] leading-5 tabular-nums text-fb-text-secondary"
+      [attr.datetime]="item.action.updatedAt"
+      >{{ item.action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+    >
+  </div>
+  @if (item.dismissible) {
+    <app-button
+      variant="ghost"
+      size="slim"
+      [icon]="dismissIcon"
+      [iconOnly]="true"
+      ariaLabel="Meldung ausblenden"
+      (clicked)="dismiss(item.action)"
+    />
+  }
+</div>

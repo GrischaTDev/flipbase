@@ -19,7 +19,8 @@ begin
         then coalesce(job.command->>'priceCents',job.command->>'offeredPriceCents')::integer end as price_cents,
       job.command->>'currency' as currency,
       case when job.action='message' then left(job.command->>'text',160) end as text_preview,
-      job.created_at,job.updated_at,job.error_code
+      job.created_at,job.updated_at,job.error_code,
+      coalesce(conversation.body->>'itemImageUrl',publication.body->>'imageUrl') as image_url
     from public.marketplace_negotiation_jobs job
     left join public.marketplace_account_entries conversation on conversation.workspace_id=job.workspace_id and conversation.connection_id=job.connection_id and conversation.id=job.conversation_id and conversation.kind='conversation'
     left join public.marketplace_negotiation_threads thread on thread.workspace_id=job.workspace_id and thread.connection_id=job.connection_id and thread.id=job.thread_id
@@ -30,14 +31,14 @@ begin
       case when outbox.state='sending' and outbox.lease_expires_at<=statement_timestamp() then 'outcome_unknown'
         when outbox.state in ('claimed','sending') then 'running' when outbox.state='sent' then 'succeeded' else outbox.state end,
       outbox.conversation_id,message.id,null::text,conversation.body->>'title',conversation.body->>'itemTitle',null::integer,null::text,
-      left(outbox.message_text,160),outbox.created_at,outbox.updated_at,outbox.error_code
+      left(outbox.message_text,160),outbox.created_at,outbox.updated_at,outbox.error_code,conversation.body->>'itemImageUrl'
     from public.marketplace_local_message_outbox outbox
     left join public.marketplace_account_entries conversation on conversation.workspace_id=outbox.workspace_id and conversation.connection_id=outbox.connection_id and conversation.id=outbox.conversation_id and conversation.kind='conversation'
     left join public.marketplace_account_entries message on message.workspace_id=outbox.workspace_id and message.connection_id=outbox.connection_id and message.parent_id=outbox.conversation_id and message.kind='message' and message.external_id=outbox.external_message_id
     where outbox.workspace_id=p_workspace_id and outbox.connection_id=p_connection_id
     union all
     select 'sync:'||operation.id,'sync',operation.id,'sync',false,operation.state,null::uuid,null::uuid,null::text,null::text,null::text,null::integer,null::text,null::text,
-      operation.created_at,coalesce(operation.finished_at,operation.heartbeat_at,operation.started_at,operation.created_at),operation.error_code
+      operation.created_at,coalesce(operation.finished_at,operation.heartbeat_at,operation.started_at,operation.created_at),operation.error_code,null::text
     from public.marketplace_operations operation where operation.workspace_id=p_workspace_id and operation.connection_id=p_connection_id
   ), selected as (
     select * from actions where state in ('queued','running','outcome_unknown')
@@ -46,7 +47,7 @@ begin
   )
   select coalesce(jsonb_agg(jsonb_build_object('id',id,'source',source,'sourceId',source_id,'kind',kind,'isAutomated',is_automated,'state',state,
     'conversationId',conversation_id,'messageId',message_id,'offerId',offer_id,'partnerName',partner_name,'itemTitle',item_title,
-    'priceCents',price_cents,'currency',currency,'textPreview',text_preview,'createdAt',created_at,'updatedAt',updated_at,'errorCode',error_code,
+    'priceCents',price_cents,'currency',currency,'textPreview',text_preview,'createdAt',created_at,'updatedAt',updated_at,'errorCode',error_code,'imageUrl',image_url,
     'waitReason',case when state='queued' then case when error_code='dependency_unresolved' then 'dependency_unresolved'
       when not public.marketplace_cloud_write_available(p_workspace_id,p_connection_id) then 'account_paused'
       else public.marketplace_browser_slot_status(p_workspace_id,p_connection_id) end end)

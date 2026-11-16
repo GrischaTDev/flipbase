@@ -1,0 +1,18 @@
+@if (imageUrl() && !failed()) {
+  <app-product-thumbnail
+    size="md"
+    fit="cover"
+    [src]="imageUrl() ?? null"
+    (imageFailed)="failed.set(true)"
+  />
+  <span
+    data-action-thumbnail-shade
+    aria-hidden="true"
+    class="pointer-events-none absolute inset-0 rounded-lg bg-black/50"
+  ></span>
+} @else {
+  <span aria-hidden="true" class="size-14 rounded-lg border border-fb-border bg-fb-well"></span>
+}
+<span class="pointer-events-none absolute inset-0 flex items-center justify-center">
+  <app-action-status-indicator [state]="state()" />
+</span>

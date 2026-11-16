@@ -260,7 +260,14 @@ returns jsonb language sql stable security invoker set search_path='' as $$
     'draftRevision',p_job.draft_revision,'executionMode',p_job.execution_mode,'externalAccountId',p_job.external_account_id,'action',p_job.action,
     'state',p_job.state,'version',p_job.version,'scheduledAt',coalesce(p_job.relist_publish_at,p_job.scheduled_at),'timeZone',case when coalesce(p_job.relist_publish_at,p_job.scheduled_at) is not null then coalesce(p_job.time_zone,'Europe/Berlin') else null end,'latePolicy',p_job.late_policy,
     'errorCode',p_job.error_code,'externalId',p_job.external_id,'providerState',p_job.provider_state,'verifiedAt',p_job.verified_at,'createdAt',p_job.created_at,'updatedAt',p_job.updated_at,'replacesJobId',p_job.replaces_job_id::text,
-    'relistEntryId',p_job.relist_entry_id,'relistDeletedAt',(select relist_deleted_at from public.marketplace_listing_drafts where id=p_job.draft_id),'relistDelaySeconds',p_job.relist_delay_seconds,'relistExternalId',p_job.snapshot->>'relistExternalId','itemTitle',p_job.snapshot->'content'->>'title');
+    'relistEntryId',p_job.relist_entry_id,'relistDeletedAt',(select relist_deleted_at from public.marketplace_listing_drafts where id=p_job.draft_id),'relistDelaySeconds',p_job.relist_delay_seconds,'relistExternalId',p_job.snapshot->>'relistExternalId','itemTitle',p_job.snapshot->'content'->>'title',
+    -- Vorschaubild für die Aktionsübersicht: bestätigtes oder bisheriges Vinted-Inserat, sonst erstes Entwurfsfoto.
+    'imageUrl',coalesce(
+      (select entry.body->>'imageUrl' from public.marketplace_account_entries entry where entry.workspace_id=p_job.workspace_id and entry.connection_id=p_job.connection_id
+        and entry.kind='publication' and entry.external_id=p_job.external_id),
+      (select entry.body->>'imageUrl' from public.marketplace_account_entries entry where entry.workspace_id=p_job.workspace_id and entry.connection_id=p_job.connection_id
+        and entry.kind='publication' and entry.external_id=p_job.snapshot->>'relistExternalId')),
+    'coverStoragePath',p_job.snapshot->'images'->0->>'storagePath');
 $$;
 revoke all on function public.marketplace_listing_job_document(public.marketplace_listing_jobs) from public,anon,authenticated;
 
