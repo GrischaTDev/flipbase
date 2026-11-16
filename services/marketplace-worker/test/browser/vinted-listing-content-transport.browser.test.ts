@@ -7,6 +7,63 @@ import { BrowserSessionCommands } from '../../src/browser-session-commands.ts';
 import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
 import { VintedListingReadError } from '../../src/vinted-listing-read-error.ts';
 
+test('the isolated sold listing reader preserves the description and nine photos after Next resource hints', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const context = await browser.newContext();
+    const original = await context.newPage();
+    const description = 'Vollständige Beschreibung\nGröße 45 – Weiß';
+    const photos = Array.from({ length: 9 }, (_, index) => ({
+      id: 200 + index,
+      url: `https://images1.vinted.net/tc/${index}.webp`,
+      is_hidden: false,
+    }));
+    const flight =
+      ':HL["https://marketplace-web-assets.vinted.com/_next/static/chunks/fixture.css","style"]\n'.repeat(
+        2,
+      ) +
+      '1:' +
+      JSON.stringify({
+        id: 98765,
+        seller_id: 123,
+        catalog_id: 1453,
+        title: 'Laufschuhe',
+        price: { amount: '98.9', currency_code: 'EUR' },
+        photos,
+        plugins: [
+          { type: 'description', data: { item_id: 98765, description } },
+          { type: 'attributes', data: { item_id: 98765, attributes: [] } },
+        ],
+        item_id: 98765,
+        breadcrumbs: [{ url: '/catalog/1453-laufschuhe', title: 'Laufschuhe' }],
+      }) +
+      '\n';
+    let writes = 0;
+    await context.route('**/*', (route) => {
+      if (route.request().method() !== 'GET') writes++;
+      if (new URL(route.request().url()).pathname === '/api/v2/users/current')
+        return route.fulfill({ json: { user: { id: 123, login: 'fixture' } } });
+      return route.fulfill({
+        contentType: 'text/html; charset=utf-8',
+        body: `<main data-testid="item-page-summary-plugin">Verkauft</main><script>self.__next_f.push(${JSON.stringify([1, flight])})</script>`,
+      });
+    });
+    const commands = new BrowserSessionCommands(vintedBrowserActions(browser));
+    const actions = isolatedBrowserActions({ request: (input) => commands.request(input) });
+    const source = await actions.readSoldListingSource!('123', '98765', async () => undefined);
+    assert.equal(source.description, description);
+    assert.deepEqual(
+      source.photoReferences,
+      photos.map((photo) => photo.url),
+    );
+    assert.equal(source.attributeHints.category, 'Laufschuhe');
+    assert.deepEqual(context.pages(), [original]);
+    assert.equal(writes, 0);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('the real isolated transport returns the current listing content and preserves user work', async () => {
   const browser = await chromium.launch({ headless: true });
   try {
