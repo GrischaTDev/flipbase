@@ -57,38 +57,35 @@
                     : (entry.price | currency: entry.currency)
                 }}
               </p>
-              <div
-                data-sale-footer
-                class="mt-2 flex min-h-7 min-w-0 items-center justify-between gap-2"
-              >
-                <p
-                  class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary"
-                  [attr.title]="
-                    entry.shipmentStatus
-                      ? 'Versand: ' + entry.shipmentStatus
-                      : 'Keine Versandangabe'
-                  "
-                >
-                  {{ entry.shipmentStatus || '—' }}
-                </p>
-                @if (entry.conversationId) {
-                  <app-button
-                    class="shrink-0"
-                    variant="secondary"
-                    size="slim"
-                    link="/marketplaces/vinted/messages"
-                    [queryParams]="{
-                      connectionId: entry.connectionId,
-                      conversationId: entry.conversationId,
-                    }"
-                    >Chat öffnen</app-button
-                  >
-                }
-              </div>
-              <app-vinted-shipping-label-actions class="mt-3" [sale]="entry" />
+              <app-vinted-shipping-label-actions class="mt-3 empty:hidden" [sale]="entry" />
+            </div>
+            <div
+              data-sale-footer
+              class="flex flex-wrap items-center gap-2 border-t border-fb-border-subtle bg-fb-subtle/50 p-2"
+            >
               @if (canCopy(entry)) {
-                <div class="mt-3 flex justify-end">
-                  <app-table-action-menu [label]="'Aktionen für ' + entry.title">
+                @if (itemIds(entry).length === 1) {
+                  <app-button
+                    variant="table-action"
+                    tone="neutral"
+                    size="slim"
+                    [icon]="icons.relist"
+                    [iconOnly]="true"
+                    title="Neu einstellen"
+                    [ariaLabel]="entry.title + ' neu einstellen'"
+                    link="/marketplaces/vinted/listings/new"
+                    [queryParams]="{
+                      workspaceId: entry.workspaceId,
+                      connectionId: entry.connectionId,
+                      copySaleId: entry.id,
+                      copyItemId: itemIds(entry)[0],
+                    }"
+                  />
+                } @else {
+                  <app-table-action-menu
+                    [label]="entry.title + ' neu einstellen'"
+                    [triggerIcon]="icons.relist"
+                  >
                     @for (itemId of itemIds(entry); track itemId; let index = $index) {
                       <app-button
                         variant="list-row"
@@ -102,15 +99,27 @@
                           copySaleId: entry.id,
                           copyItemId: itemId,
                         }"
-                        >{{
-                          itemIds(entry).length === 1
-                            ? 'Neu einstellen'
-                            : 'Artikel ' + (index + 1) + ' neu einstellen'
-                        }}</app-button
+                        >Artikel {{ index + 1 }} neu einstellen</app-button
                       >
                     }
                   </app-table-action-menu>
-                </div>
+                }
+              }
+              @if (entry.conversationId) {
+                <app-button
+                  variant="table-action"
+                  tone="neutral"
+                  size="slim"
+                  [icon]="icons.chat"
+                  [iconOnly]="true"
+                  title="Chat öffnen"
+                  [ariaLabel]="'Chat zu ' + entry.title + ' öffnen'"
+                  link="/marketplaces/vinted/messages"
+                  [queryParams]="{
+                    connectionId: entry.connectionId,
+                    conversationId: entry.conversationId,
+                  }"
+                />
               }
             </div>
           </app-card>

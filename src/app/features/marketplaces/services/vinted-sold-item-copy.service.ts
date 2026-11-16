@@ -1,3 +1,4 @@
+import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { AccountScope } from '../models/marketplace.models';
@@ -20,14 +21,86 @@ interface VintedSoldItemCopy {
   readonly content: VintedListingContent;
   readonly files: readonly File[];
   readonly photoError?: string;
+  readonly needsCurrent?: boolean;
+  readonly hasOriginals?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
 export class VintedSoldItemCopyService {
+  private readonly browser = inject(MarketplaceBrowserTestApiService);
   private readonly client = inject(SupabaseService).client;
   private readonly originals = inject(VintedListingOriginalPhotoService);
   private readonly images = inject(VintedListingImageService);
   private readonly photos = inject(VintedListingPhotoSourceService);
+
+  async refresh(
+    scope: AccountScope,
+    saleId: string,
+    itemId: string,
+    accountId: string,
+    token: string,
+    saved: VintedSoldItemCopy,
+  ): Promise<VintedSoldItemCopy> {
+    const { source, actionId } = await this.browser.readSoldListingSource(
+      scope,
+      saleId,
+      itemId,
+      accountId,
+      token,
+    );
+    const hints = source.attributeHints;
+    const id = (key: string) =>
+      hints[key] && /^[1-9][0-9]{0,9}$/.test(hints[key]) ? Number(hints[key]) : null;
+    const content = parseVintedListingContent({
+      ...saved.content,
+      title: source.title,
+      description: source.description,
+      priceCents: source.priceCents,
+      categoryId: id('category_id'),
+      categoryLabel: hints['category'] ?? '',
+      brandId: id('brand_id'),
+      brandLabel: hints['brand'] ?? '',
+      sizeId: id('size_id'),
+      sizeLabel: hints['size'] ?? '',
+      conditionId: id('status_id'),
+      conditionLabel: hints['status'] ?? '',
+      colorIds: [],
+      colorLabels: (hints['color'] ?? '')
+        .split(',')
+        .map((label) => label.trim())
+        .filter(Boolean),
+      materialIds: [],
+      materialLabels: (hints['material'] ?? '')
+        .split(',')
+        .map((label) => label.trim())
+        .filter(Boolean),
+    });
+    if (!content.categoryId || !content.description.trim() || !source.photoReferences.length)
+      throw new Error('Vinted hat den Verkaufsartikel nicht vollständig geliefert.');
+    const files = saved.hasOriginals
+      ? saved.files
+      : await Promise.all(
+          source.photoReferences.map(async (url, index) => {
+            const blob = await this.photos.read(url, {
+              ...scope,
+              entryId: saleId,
+              saleItemId: itemId,
+              sourceActionId: actionId,
+            });
+            const extension =
+              blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/png' ? 'png' : 'webp';
+            return new File([blob], `vinted-${itemId}-${index + 1}.${extension}`, {
+              type: blob.type,
+            });
+          }),
+        );
+    return {
+      content,
+      files,
+      hasOriginals: saved.hasOriginals,
+      ...(saved.hasOriginals && saved.photoError ? { photoError: saved.photoError } : {}),
+    };
+  }
 
   async read(scope: AccountScope, saleId: string, itemId: string): Promise<VintedSoldItemCopy> {
     const { data: sale, error: saleError } = await this.client
@@ -108,7 +181,12 @@ export class VintedSoldItemCopyService {
         const files = await Promise.all(
           source.images.map((image) => this.images.renamedFile(source, image.id, image.fileName)),
         );
-        return { content, files };
+        return {
+          content,
+          files,
+          hasOriginals: true,
+          needsCurrent: !content.description.trim() || content.categoryId === null,
+        };
       }
       const photoEntry = publicationEntry ?? (singleItem ? entry : null);
       if (!photoEntry)
@@ -140,11 +218,13 @@ export class VintedSoldItemCopyService {
           });
         }),
       );
-      return { content, files };
+      return { content, files, needsCurrent: true };
     } catch (error) {
       return {
         content,
         files: [],
+        needsCurrent: true,
+        hasOriginals: !!source,
         photoError:
           error instanceof Error
             ? error.message + ' Ergänze die Fotos im Editor.'

@@ -4,6 +4,7 @@ import {
 } from './vinted-browser-selling-tree.ts';
 import { readVintedListingCatalog } from './vinted-browser-listing-catalog.ts';
 import { isVintedListingContentUnchanged } from './vinted-browser-listing-item.ts';
+import { readVintedSoldListingSource } from './vinted-sold-listing-source.ts';
 import type { Page } from 'playwright';
 import { setTimeout } from 'node:timers/promises';
 import type {
@@ -141,6 +142,13 @@ export function vintedBrowserActions(
         throw new VintedListingReadError('reserve');
       }
       return readVintedListingCurrentContent(page, accountId, externalId, authorize);
+    }),
+    readSoldListingSource: afterSessionRenewal(async (accountId, externalId, authorize) => {
+      await authorize();
+      const contexts = connection.contexts?.();
+      if (!contexts || contexts.length !== 1) throw new VintedListingReadError('reserve');
+      const page = await contexts[0]!.newPage();
+      return readVintedSoldListingSource(page, accountId, externalId, authorize);
     }),
     readListingPresence: afterSessionRenewal((accountId, externalId, authorize) =>
       readVintedListingPresence(currentPage(), accountId, externalId, authorize),

@@ -13,6 +13,56 @@ import {
 } from './flipbase-vinted-listing-form';
 
 describe('Eigenes Inseratformular', () => {
+  it('ordnet öffentliche Zustandsbezeichnungen eindeutig den tatsächlichen Auswahlwerten zu', () => {
+    const content = {
+      ...emptyVintedListingContent(),
+      categoryId: 1453,
+      categoryLabel: 'Laufschuhe',
+      sizeLabel: '45',
+      conditionLabel: 'Neu, ohne Etikett',
+    };
+    expect(prepareFlipbaseVintedListingContent(content)).toMatchObject({
+      conditionId: 2,
+      conditionLabel: 'Neu ohne Etikett',
+    });
+    const schema = listingCategoryFixture(1453);
+    const fields = schema.fields.map((field) =>
+      field.field === 'condition'
+        ? {
+            ...field,
+            choices: [
+              {
+                id: 99,
+                label: 'Neu, ohne Etikett',
+                selected: false,
+                disabled: false,
+                sizeGroupId: null,
+              },
+            ],
+          }
+        : field,
+    );
+    expect(
+      prepareFlipbaseVintedListingContent(
+        { ...content, conditionLabel: 'Neu ohne Etikett' },
+        { ...schema, fields },
+      ),
+    ).toMatchObject({ conditionId: 99, conditionLabel: 'Neu, ohne Etikett' });
+    const duplicate = fields.map((field) =>
+      field.field === 'condition'
+        ? {
+            ...field,
+            choices: [
+              ...field.choices,
+              { ...field.choices[0]!, id: 100, label: 'Neu ohne Etikett' },
+            ],
+          }
+        : field,
+    );
+    expect(
+      prepareFlipbaseVintedListingContent(content, { ...schema, fields: duplicate }).conditionId,
+    ).toBeNull();
+  });
   it.each([
     [1, 'Klein'],
     [2, 'Mittel'],

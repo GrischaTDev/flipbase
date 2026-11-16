@@ -75,6 +75,7 @@ for (const width of [390, 1440]) {
                   price: 40,
                   currency: 'EUR',
                   conversationId,
+                  shipmentStatus: 'Sendung zugestellt',
                 })),
                 total: 3,
                 nextCursor: null,
@@ -100,10 +101,19 @@ for (const width of [390, 1440]) {
         await expect(page.getByText('Verkaufsdetails', { exact: true })).toHaveCount(0);
         await expect(history).toHaveCount(0);
         await expect(page.locator('app-vinted-sales')).not.toContainText('Paket 3');
-        await expect(active.getByRole('link', { name: 'Chat öffnen' }).first()).toHaveAttribute(
+        await expect(
+          active.getByRole('link', { name: /^Chat zu .* öffnen$/ }).first(),
+        ).toHaveAttribute(
           'href',
           new RegExp(`connectionId=${accountIds[0]}.*conversationId=${conversationId}`),
         );
+        await expect(active).not.toContainText('Sendung zugestellt');
+        await expect(
+          active
+            .locator('[data-sale-footer]')
+            .first()
+            .getByRole('link', { name: /^Chat zu/ }),
+        ).toHaveAttribute('aria-label', /Chat zu/);
         const title = active.getByRole('heading', { level: 3 }).first();
         expect(
           await title.evaluate((element) => ({

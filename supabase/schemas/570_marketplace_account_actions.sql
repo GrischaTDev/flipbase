@@ -247,6 +247,12 @@ begin
     or not exists(select 1 from public.marketplace_browser_profiles where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id and provider_profile_id=p_action.provider_profile_id) then return false; end if;
   if p_action.entry_id is not null and not exists(select 1 from public.marketplace_account_entries where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id
       and id=p_action.entry_id and kind=p_action.entry_kind and external_id=p_action.external_id) then return false; end if;
+  if p_action.kind='listing_content_read' and p_action.payload ? 'saleItemId' and not exists(
+    select 1 from public.marketplace_account_entries where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id
+      and id=p_action.entry_id and kind='sale' and external_id=p_action.external_id
+      and body->'itemIds' ? (p_action.payload->>'saleItemId') and coalesce(body->>'saleState','')<>'relisted'
+      and (not body ? 'sellerId' or body->>'sellerId'=p_action.external_account_id)
+  ) then return false; end if;
   -- Ein eigener wartender direkter Auftrag bleibt gültig; die gemeinsame Ressourcenauswahl ordnet Relist und Änderungen.
   return true;
 end;
@@ -289,7 +295,7 @@ begin
     when 'price_save' then array['entryId','expectedPriceCents','priceCents']
     when 'listing_delete' then array['entryId']
     when 'listing_edit_read' then array['entryId']
-    when 'listing_content_read' then array['entryId']
+    when 'listing_content_read' then array['entryId','saleItemId']
     when 'listing_edit_save' then array['entryId','fields']
     when 'listing_edit_intent' then array['entryId','intent']
     when 'listing_content_save' then array['entryId','base','content','photos']
@@ -331,7 +337,7 @@ begin
     if v_connection.execution_mode<>'cloud' or v_connection.status<>'connected' or v_connection.external_account_id is null then raise exception 'Konto ist nicht verbunden' using errcode='22023'; end if;
     select provider_profile_id into v_profile from public.marketplace_browser_profiles where workspace_id=p_workspace_id and connection_id=p_connection_id;
     if p_kind like 'listing_%' and p_kind<>'listing_category_read' or p_kind='price_save' then
-      v_entry_kind:='publication'; v_entry_id:=(p_payload->>'entryId')::uuid;
+      v_entry_kind:=case when p_kind='listing_content_read' and p_payload ? 'saleItemId' then 'sale' else 'publication' end; v_entry_id:=(p_payload->>'entryId')::uuid;
     elsif p_kind='conversations_read' then v_entry_kind:='conversation'; v_entry_id:=(p_payload->>'conversationId')::uuid;
     elsif p_kind='shipping_label_request' then v_entry_kind:='sale'; v_entry_id:=(p_payload->>'saleId')::uuid;
     elsif p_kind like 'profile_%' or p_kind='listing_category_read' then v_entry_kind:='profile';
@@ -344,6 +350,12 @@ begin
         and ((v_entry_id is not null and id=v_entry_id) or (v_entry_id is null and v_entry_kind='profile' and external_id=v_connection.external_account_id));
       if not found or v_entry.external_id !~ '^[1-9][0-9]{0,31}$' then raise exception 'Kontoeintrag ist nicht verfügbar' using errcode='22023'; end if;
     end if;
+    if p_kind='listing_content_read' and p_payload ? 'saleItemId' and (
+      jsonb_typeof(p_payload->'saleItemId') is distinct from 'string' or p_payload->>'saleItemId' !~ '^[1-9][0-9]{0,31}$'
+      or not coalesce(v_entry.body->'itemIds' ? (p_payload->>'saleItemId'),false)
+      or v_entry.body->>'saleState'='relisted'
+      or (v_entry.body ? 'sellerId' and v_entry.body->>'sellerId' is distinct from v_connection.external_account_id)
+    ) then raise exception 'Artikel gehört nicht zum Verkauf' using errcode='22023'; end if;
     if p_kind='price_save' and (jsonb_typeof(p_payload->'priceCents') is distinct from 'number' or (p_payload->>'priceCents')::numeric not between 1 and 100000000 or (p_payload->>'priceCents')::numeric<>trunc((p_payload->>'priceCents')::numeric)
       or jsonb_typeof(p_payload->'expectedPriceCents') is distinct from 'number') then raise exception 'Ungültiger Preisauftrag' using errcode='22023'; end if;
     if p_kind='listing_category_read' and (jsonb_typeof(p_payload->'categoryId') is distinct from 'number' or (p_payload->>'categoryId')::numeric not between 1 and 2147483647) then raise exception 'Ungültige Kategorie' using errcode='22023'; end if;
