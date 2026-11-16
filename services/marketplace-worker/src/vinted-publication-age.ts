@@ -58,13 +58,13 @@ export function vintedPublicationAgeLabel(
 ): VintedPublicationAge | null {
   if (typeof label !== 'string' || label.length > 80) return null;
   const match =
-    /^(?:vor\s+)?(\d+|ein(?:e[rnm]?)?|an?|one)\s+(minuten?|minutes?|stunden?|hours?|h|tagen?|tage?|days?|wochen?|weeks?|monaten?|monate?|months?|jahren?|jahre?|years?)(?:\s+ago)?$/i.exec(
+    /^(?:vor\s+)?(\d+|ein(?:e[rnm]?)?|an?|one)\s+(min\.|minuten?|minutes?|stunden?|hours?|h|tagen?|tage?|days?|wochen?|weeks?|monaten?|monate?|months?|jahren?|jahre?|years?)(?:\s+ago)?$/i.exec(
       label.trim(),
     );
   if (!match) return null;
   const value = /^\d+$/.test(match[1]!) ? Number(match[1]) : 1;
   const sourceUnit = match[2]!.toLowerCase();
-  const unit = /^(minut)/.test(sourceUnit)
+  const unit = /^(min)/.test(sourceUnit)
     ? 'minute'
     : /^(stund|hour|h$)/.test(sourceUnit)
       ? 'hour'

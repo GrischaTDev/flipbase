@@ -473,7 +473,7 @@
     // vollständig erkannten Zusatz abtrennen; der Artikeltitel bleibt exakt.
     const title =
       caption?.match(
-        /^(.+), marke: [^,\r\n]+, zustand: [^,\r\n]+(?:, größe: [^,\r\n]+(?:,[0-9]+)?)?, [0-9]+(?:\.[0-9]{3})*,[0-9]{2} €$/u,
+        /^(.+), marke: [^,\r\n]+, zustand: (?:Neu, (?:mit|ohne) Etikett|[^,\r\n]+)(?:, größe: [^,\r\n]+(?:,[0-9]+)?)?, [0-9]+(?:\.[0-9]{3})*,[0-9]{2} €$/u,
       )?.[1] ?? caption;
     return (
       items.length === 1 &&
