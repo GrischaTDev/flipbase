@@ -171,7 +171,9 @@ set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"31000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
 select lives_ok($$select public.marketplace_set_sync_schedule('31000000-0000-4000-8000-000000000011','31000000-0000-4000-8000-000000000021',true,15,(select authorization_version from public.marketplace_sync_schedules))$$,'Neue Freigabe nach geklärter Anbietersperre');
 set local role service_role;
-select is(pg_temp.crash_cycle('network')->>'consecutiveFailures','1','Recovery zählt Netz-Teilfehler trotz übernommenen Imports');
+select is(pg_temp.crash_cycle('network')->>'consecutiveFailures','0','Recovery wertet übernommenen Import mit Netz-Teilfehler als Erfolg');
+select is((select paused_reason from public.marketplace_sync_schedules),null,'Netz-Teilfehler im übernommenen Import setzt kein Warnschild');
+select is(pg_temp.crash_cycle()->>'consecutiveFailures','1','Unbestätigter Absturz beginnt die begrenzte Wiederholung');
 select is(pg_temp.crash_cycle()->>'consecutiveFailures','2','Unbestätigter Absturz erhöht dieselbe begrenzte Wiederholung');
 select is(pg_temp.crash_cycle()->>'pausedReason','retry_limit','Dritter Absturz beendet weitere automatische Wiederholung');
 select is((select enabled from public.marketplace_sync_schedules),false,'Wiederholungsgrenze deaktiviert Freigabe');
@@ -269,6 +271,33 @@ select is(pg_temp.manual_recovery('forbidden',null,false,false)->>'reason','forb
 select is(pg_temp.manual_recovery('access_revoked')->>'reason','access_revoked','Rechtewiderruf bleibt erhalten');
 select is(pg_temp.manual_recovery('cleanup')->>'reason','cleanup','Ungeklärte Bereinigung bleibt erhalten');
 select is(pg_temp.manual_recovery(null)->>'enabled','false','Bewusst gesetzte Pause ohne Fehler bleibt erhalten');
+
+select is(pg_temp.manual_recovery('network')->>'reason',null,'Bestätigter manueller Abruf entfernt alte Verbindungswarnung');
+select is(pg_temp.manual_recovery('server')->>'reason',null,'Bestätigter manueller Abruf entfernt alte Anbieterwarnung');
+
+-- Ein vorübergehender Teilfehler in einem erfolgreichen Abgleich setzt kein Warnschild und keinen Aufschub.
+create function pg_temp.scheduled_partial(p_failure text) returns jsonb language plpgsql as $$
+declare v_runtime public.marketplace_worker_runtime; v_run jsonb;
+begin
+  update public.marketplace_sync_schedules set enabled=true,paused_reason=null,retry_after=null,consecutive_failures=0,next_due_at=clock_timestamp()-interval '1 minute';
+  select * into v_runtime from public.marketplace_worker_runtime where id=1;
+  v_run:=public.marketplace_sync_dispatch_claim(v_runtime.worker_id,v_runtime.worker_epoch,gen_random_uuid(),true);
+  if v_run is null or v_run->>'authorizationKind'<>'scheduled_read' then raise exception 'Zeitgesteuerter Testauftrag fehlt'; end if;
+  perform public.marketplace_apply_vinted_sync_import((v_run->>'operationId')::uuid,(v_run->>'runnerId')::uuid,v_runtime.worker_epoch,(v_run->>'sessionId')::uuid,
+    jsonb_set(pg_temp.snapshot(),'{areas,sales}',jsonb_build_object('status','partial','failure',p_failure)));
+  update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where public_id=(v_run->>'sessionId')::uuid;
+  perform public.marketplace_sync_finish((v_run->>'operationId')::uuid,(v_run->>'runnerId')::uuid,v_runtime.worker_epoch,'{"state":"succeeded","errorCode":null}');
+  return (select jsonb_build_object('reason',paused_reason,'failures',consecutive_failures,'retryAfter',retry_after,
+    'onInterval',next_due_at<=last_attempt_at+make_interval(mins=>interval_minutes)+interval '1 second')
+    from public.marketplace_sync_schedules);
+end;
+$$;
+insert into schedule_context values('partialNetwork',pg_temp.scheduled_partial('network'));
+select is((select value->>'reason' from schedule_context where name='partialNetwork'),null,'Einzelner Netzwerkfehler beim Verkaufsabruf setzt kein Warnschild');
+select is((select value->>'failures' from schedule_context where name='partialNetwork'),'0','Einzelner Teilfehler zählt nicht als Fehlversuch');
+select is((select value->>'retryAfter' from schedule_context where name='partialNetwork'),null,'Einzelner Teilfehler setzt keine Rückfallzeit');
+select is((select value->>'onInterval' from schedule_context where name='partialNetwork'),'true','Nächster Abruf bleibt im gewählten Intervall');
+select is(pg_temp.scheduled_partial('provider_unavailable')->>'reason',null,'Kurz nicht verfügbarer Anbieter im Teilabruf setzt kein Warnschild');
 
 -- Eine einzelne nicht bestätigte Anmeldung hält die Automatik nicht an.
 create function pg_temp.login_rejection() returns jsonb language plpgsql as $$

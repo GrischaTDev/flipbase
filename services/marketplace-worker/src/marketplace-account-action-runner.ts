@@ -40,6 +40,96 @@ import {
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
+import {
+  VintedImportReadError,
+  VintedImportRequestError,
+  type VintedAccountImport,
+  type VintedImportAreaResult,
+} from './vinted-account-import.ts';
+
+/**
+ * Ein Gesprächsabruf liest zwangsläufig das ganze Postfach. Gespeichert werden darf aber nur das
+ * angefragte Gespräch: Die Datenbank lehnt auftragsgebundene Importe mit fremden Einträgen ab.
+ * Listen gelten deshalb höchstens als Teilstand, sonst würden fehlende Einträge gelöscht.
+ */
+export function restrictVintedImportToConversation(
+  read: VintedAccountImport,
+  conversationExternalId: string,
+): VintedAccountImport {
+  const partial = (area: VintedImportAreaResult): VintedImportAreaResult =>
+    area.status === 'complete' ? { ...area, status: 'partial' } : area;
+  const {
+    rejectedSaleIds: _rejectedSaleIds,
+    favoriteEvents: _favoriteEvents,
+    sellingCategories: _sellingCategories,
+    categoryFields: _categoryFields,
+    inboxEvents,
+    ...rest
+  } = read;
+  return {
+    ...rest,
+    entries: read.entries.filter(
+      (entry) =>
+        entry.kind === 'profile' ||
+        (entry.kind === 'conversation' && entry.externalId === conversationExternalId) ||
+        (entry.kind === 'message' && entry.parentExternalId === conversationExternalId),
+    ),
+    areas: {
+      ...read.areas,
+      publications: partial(read.areas.publications),
+      conversations: partial(read.areas.conversations),
+      messages: partial(read.areas.messages),
+      sales: partial(read.areas.sales),
+    },
+    ...(inboxEvents
+      ? {
+          inboxEvents: {
+            ...inboxEvents,
+            complete: false,
+            coveredConversationIds: inboxEvents.coveredConversationIds.filter(
+              (id) => id === conversationExternalId,
+            ),
+          },
+        }
+      : {}),
+  };
+}
+
+function accountActionFailureCode(error: unknown): string {
+  if (error instanceof MarketplaceBrowserSessionEndedError) return 'browser_unavailable';
+  const request = error instanceof VintedImportReadError ? error.cause : error;
+  if (
+    request instanceof VintedImportRequestError &&
+    (request.reason === 'network' || request.reason === 'timeout')
+  )
+    return request.reason;
+  return 'provider_failed';
+}
+
+function logAccountActionFailure(kind: string, errorCode: string | null, error: unknown): void {
+  // Nur Fehlerart und Stufe, keine Inhalte oder Kontodaten.
+  const stage = error instanceof VintedImportReadError ? error.stage : undefined;
+  const reason =
+    error instanceof VintedImportRequestError
+      ? error.reason
+      : error instanceof VintedImportReadError && error.cause instanceof VintedImportRequestError
+        ? error.cause.reason
+        : undefined;
+  process.stdout.write(
+    `${JSON.stringify({
+      event: 'marketplace_account_action_failed',
+      kind,
+      errorCode,
+      errorName: error instanceof Error ? error.name : typeof error,
+      ...(error instanceof Error && !(error instanceof VintedImportReadError)
+        ? { message: error.message.slice(0, 200) }
+        : {}),
+      ...(stage ? { stage } : {}),
+      ...(reason ? { reason } : {}),
+    })}
+`,
+  );
+}
 
 export const accountActionRoutes: Readonly<Record<string, string>> = {
   '/marketplace-browser/listings/price/save': 'price_save',
@@ -348,6 +438,11 @@ export class MarketplaceAccountActionRunner {
     } catch (error) {
       if (error instanceof MarketplaceBrowserSessionEndedError && error.isSessionClosed)
         stopped = true;
+      // Nach erfolgreichem Browserstart ist ein allgemeiner Fehler kein Startproblem: eigener
+      // Code statt „browser_unavailable“, damit Ursache und Wiederholungen stimmen.
+      if (sessionId && errorCode === 'browser_unavailable')
+        errorCode = accountActionFailureCode(error);
+      logAccountActionFailure(claim.actionKind, errorCode, error);
       state = beginConfirmed ? 'outcome_unknown' : 'failed';
       if (beginAttempted && !['login_required', 'challenge_required'].includes(errorCode ?? ''))
         errorCode = beginConfirmed ? 'provider_unconfirmed' : 'begin_unconfirmed';
@@ -370,7 +465,13 @@ export class MarketplaceAccountActionRunner {
     if (!stopped) throw new Error('Kontoaktion verlangt Browserbereinigung');
     if (
       state === 'failed' &&
-      ['browser_unavailable', 'begin_unconfirmed'].includes(errorCode ?? '') &&
+      [
+        'browser_unavailable',
+        'begin_unconfirmed',
+        'network',
+        'timeout',
+        'provider_failed',
+      ].includes(errorCode ?? '') &&
       !beginConfirmed
     ) {
       if (
@@ -580,7 +681,11 @@ export class MarketplaceAccountActionRunner {
         )
           throw new Error('Gespräch nicht bestätigt');
         await authorize();
-        await this.imports.write(scope, sessionId, read);
+        await this.imports.write(
+          scope,
+          sessionId,
+          restrictVintedImportToConversation(read, external),
+        );
         return { conversationId: p.conversationId, observedAt: read.observedAt };
       }
       case 'shipping_label_request': {

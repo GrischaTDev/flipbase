@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-16 - Juna - Vinted-Chatabruf und Abrufschild reparieren
+
+**Auftrag und Grundlage:** Folgekorrektur zur Analyse vom selben Abend (PR #666): Das Aktualisieren eines einzelnen Chats scheiterte immer, und das Schild „Abruf wartet – Verbindung zum Anbieter unterbrochen“ erschien nach einem einzelnen Teilfehler und verschwand erst nach Pause/Start. Eigener Zweig `juna/vinted-chat-read-and-sync-badge` vom frisch abgerufenen `origin/master` in getrennter Arbeitskopie; die belegte primäre Arbeitskopie bleibt unverändert.
+
+**Ursache Chatabruf:** Seit der Auftragswarteschlange läuft `conversations_read` als Kontoauftrag. Der Worker liest dafür das Postfach und schickte alle Gespräche zum Speichern; `marketplace_apply_vinted_import` lässt bei auftragsgebundenen Sitzungen nur Profil, Zielgespräch und dessen Nachrichten zu und lehnte den ganzen Import ab („Auftragsgebundener Importzugriff verweigert“). Der Runner meldete jeden Fehler nach dem Browserstart als `browser_unavailable` ohne Protokollzeile; live waren alle Läufe so gescheitert, jeweils mit drei Browserstarts.
+
+**Korrektur:** Vor dem Speichern beschränkt der Worker den Stand auf das Zielgespräch und markiert Listen höchstens als Teilstand, damit die Datenbank keine anderen Gespräche löscht; Verkaufsbereinigung, Favoritenereignisse und fremde Postfachabdeckung entfallen. Fehler nach dem Browserstart heißen `provider_failed` (bzw. `network`/`timeout`), bleiben vor einem Schreibbeginn wiederholbar und erscheinen als `marketplace_account_action_failed` ohne Inhalte im Protokoll. `marketplace_sync_finish` setzt bei einem erfolgreich übernommenen Abgleich mit vorübergehendem Teilfehler keinen Pausengrund und keinen Aufschub mehr; ein erfolgreicher manueller Abruf löst auch Verbindungs- und Anbieterwarnungen und holt den nächsten Abruf auf das gewählte Intervall zurück. Die Migration löst bestehende solche Warnungen, wenn der letzte Abgleich erfolgreich war. Anmelde-, Sperr- und 429-Regeln bleiben unverändert.
+
+**Nachweise:** Neuer pgTAP-Fall `marketplace-conversation-read-import.test.sql` belegt die Ablehnung des ungefilterten Postfachstands und die Übernahme des gefilterten Stands ohne Änderung anderer Gespräche. Zeitplanfälle für Teilfehler und manuelle Bereinigung ergänzt; der bisherige Fall „Recovery zählt Netz-Teilfehler“ beschreibt nun das neue Verhalten. Zwei Worker-Fälle prüfen Filterung und Fehlercode; Gegenprobe ohne Filterung schlägt fehl. Lokal mit eigener Supabase-Datenbank (Docker) ausgeführt.
+
 ## 2026-11-16 - Juna - Gewähltes Vinted-Abrufintervall wieder einhalten
 
 **Auftrag und Grundlage:** Gemeldete ausbleibende Synchronisierung zweier Vinted-Cloud-Konten („seit 26/29 Minuten“, „Abruf wartet“) und einen scheiternden Chat-Abruf analysieren. Lesend per SSH (Worker-Protokoll) und schreibgeschützten Datenbankabfragen geprüft. Korrektur auf eigenem Zweig `juna/vinted-sync-user-interval` vom frisch abgerufenen `origin/master` in getrennter Arbeitskopie; die belegte primäre Arbeitskopie bleibt unverändert.

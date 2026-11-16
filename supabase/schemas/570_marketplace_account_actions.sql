@@ -532,7 +532,7 @@ create or replace function public.marketplace_account_action_retry(p_action_id u
 returns boolean language plpgsql volatile security invoker set search_path='' as $$
 declare v_action public.marketplace_account_actions;
 begin
-  if p_error_code is null or p_error_code not in ('network','browser_unavailable','timeout','begin_unconfirmed') then return false; end if;
+  if p_error_code is null or p_error_code not in ('network','browser_unavailable','timeout','begin_unconfirmed','provider_failed') then return false; end if;
   perform pg_advisory_xact_lock(91731,1);
   select * into v_action from public.marketplace_account_actions where public_id=p_action_id and claim_token=p_claim_token and worker_id=p_worker_id and worker_epoch=p_worker_epoch and runner_id=p_runner_id and state='running' for update;
   if not found or v_action.write_started_at is not null or v_action.attempts>=3 or not public.marketplace_account_action_authorized(v_action)
