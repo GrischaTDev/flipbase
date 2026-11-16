@@ -366,6 +366,215 @@ function cachedConversationVersions(snapshot: VintedAccountImport): VintedConver
     })) as unknown as VintedConversationVersion[];
 }
 
+test('a smaller complete inbox is a normal sync after a conversation was deleted', async () => {
+  let ids = [700, 701];
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: ids.map((id) => ({ id, unread: false })),
+        pagination: { total_pages: 1 },
+      };
+    if (path.startsWith('/api/v2/conversations/'))
+      return { conversation: { id: Number(path.split('/').at(-1)), messages: [] } };
+    return undefined;
+  });
+  const before = await readVintedAccountImport(page, async () => undefined);
+  ids = [701];
+  const after = await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    cachedConversationVersions(before),
+  );
+  assert.deepEqual(
+    after.entries.filter((entry) => entry.kind === 'conversation').map((entry) => entry.externalId),
+    ['701'],
+  );
+  assert.deepEqual(after.areas.conversations, { status: 'complete' });
+  assert.equal(after.areas.messages.failure, undefined);
+  assert.equal(after.areas.sales.failure, undefined);
+});
+
+for (const status of [404, 410]) {
+  for (const confirmation of [
+    'removed',
+    'present',
+    'unavailable',
+    'incomplete',
+    'forbidden',
+    'rate_limited',
+  ] as const) {
+    test(`conversation deletion race with HTTP ${status} and ${confirmation} confirmation does not lose unrelated data`, async () => {
+      let inboxReads = 0;
+      const snapshot = await readVintedAccountImport(
+        importPage((path) => {
+          if (path.startsWith('/api/v2/inbox')) {
+            inboxReads++;
+            if (inboxReads > 1 && confirmation === 'unavailable')
+              return { flipbaseRequestFailure: 'network' };
+            if (inboxReads > 1 && (confirmation === 'forbidden' || confirmation === 'rate_limited'))
+              return { flipbaseRequestFailure: confirmation };
+            if (inboxReads > 1 && confirmation === 'incomplete')
+              return { conversations: [{ id: 701 }, {}], pagination: { total_pages: 1 } };
+            return {
+              conversations: (inboxReads > 1 && confirmation === 'removed'
+                ? [701]
+                : [700, 701]
+              ).map((id) => ({ id, unread: false })),
+              pagination: { total_pages: 1 },
+            };
+          }
+          if (path === '/api/v2/conversations/700')
+            return {
+              flipbaseRequestFailure: 'invalid_response',
+              sourceReadFailure: { area: 'messages', issue: 'http_status', status },
+            };
+          if (path === '/api/v2/conversations/701')
+            return {
+              conversation: {
+                id: 701,
+                messages: [
+                  {
+                    id: 800,
+                    entity_type: 'message',
+                    created_at_ts: '2026-11-16T08:00:00Z',
+                    entity: { user_id: 456, body: 'Fixture' },
+                  },
+                ],
+              },
+            };
+          return undefined;
+        }),
+        async () => undefined,
+      );
+      assert.equal(inboxReads, 2);
+      assert.equal(
+        snapshot.entries.some(
+          (entry) => entry.kind === 'conversation' && entry.externalId === '700',
+        ),
+        confirmation !== 'removed',
+      );
+      assert.equal(
+        snapshot.entries.find(
+          (entry) => entry.kind === 'conversation' && entry.externalId === '701',
+        )?.body['detailCheckedAt'],
+        snapshot.observedAt,
+      );
+      assert.equal(
+        snapshot.entries.some(
+          (entry) => entry.kind === 'message' && entry.parentExternalId === '701',
+        ),
+        true,
+      );
+      assert.equal(
+        snapshot.areas.messages.failure,
+        confirmation === 'removed' ? undefined : 'invalid_response',
+      );
+      assert.equal(
+        snapshot.areas.sales.failure,
+        confirmation === 'removed' ? undefined : 'invalid_response',
+      );
+      assert.deepEqual(
+        snapshot.sourceReadFailures,
+        confirmation === 'removed'
+          ? undefined
+          : [{ area: 'messages', issue: 'http_status', status }],
+      );
+      if (confirmation === 'forbidden' || confirmation === 'rate_limited')
+        assert.equal(snapshot.areas.feedback.failure, confirmation);
+    });
+  }
+}
+
+test('further list changes during removal confirmation never claim a mixed snapshot is complete', async () => {
+  let inboxReads = 0;
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: (++inboxReads === 1 ? [700, 701] : [701, 702]).map((id) => ({
+            id,
+            unread: false,
+          })),
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/700')
+        return {
+          flipbaseRequestFailure: 'invalid_response',
+          sourceReadFailure: { area: 'messages', issue: 'http_status', status: 404 },
+        };
+      if (path === '/api/v2/conversations/701') return { conversation: { id: 701, messages: [] } };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.conversations, { status: 'partial' });
+  assert.equal(snapshot.areas.messages.failure, undefined);
+  assert.equal(snapshot.areas.sales.failure, undefined);
+  assert.equal(snapshot.inboxEvents?.complete, false);
+});
+
+test('an invalid successful response for a subsequently removed conversation is a normal deletion', async () => {
+  let inboxReads = 0;
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: ++inboxReads === 1 ? [{ id: 700, unread: false }] : [],
+          pagination: { total_pages: inboxReads === 1 ? 1 : 0 },
+        };
+      if (path === '/api/v2/conversations/700') return { conversation: { id: 700 } };
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.equal(inboxReads, 2);
+  assert.deepEqual(snapshot.areas.conversations, { status: 'complete' });
+  assert.equal(
+    snapshot.entries.some((entry) => entry.kind === 'conversation'),
+    false,
+  );
+  assert.equal(snapshot.areas.messages.failure, undefined);
+  assert.equal(snapshot.areas.sales.failure, undefined);
+  assert.equal(snapshot.sourceReadFailures, undefined);
+});
+
+test('a fully emptied inbox with zero pages remains a complete successful list', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) =>
+      path.startsWith('/api/v2/inbox')
+        ? { conversations: [], pagination: { total_pages: 0 } }
+        : undefined,
+    ),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.conversations, { status: 'complete' });
+  assert.equal(snapshot.areas.messages.failure, undefined);
+  assert.equal(snapshot.areas.sales.failure, undefined);
+});
+
+test('a shrinking inbox between pages keeps an error-free partial list instead of deleting unconfirmed chats', async () => {
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      if (path.startsWith('/api/v2/inbox')) {
+        const first = path.includes('page=1&');
+        return {
+          conversations: first
+            ? Array.from({ length: 20 }, (_, index) => ({ id: 700 + index, unread: true }))
+            : [],
+          pagination: { total_pages: first ? 2 : 1 },
+        };
+      }
+      return undefined;
+    }),
+    async () => undefined,
+  );
+  assert.deepEqual(snapshot.areas.conversations, { status: 'partial' });
+  assert.equal(snapshot.entries.filter((entry) => entry.kind === 'conversation').length, 20);
+  assert.equal(snapshot.areas.messages.failure, undefined);
+  assert.equal(snapshot.areas.sales.failure, undefined);
+});
+
 test('a mismatched sale response records a safe transaction diagnosis without confirming the sale', async () => {
   const snapshot = await readVintedAccountImport(
     importPage((path) => {
