@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-16 - Juna - Worker-Auslieferung wartet auf Leerlauf statt abzubrechen
+
+**Auftrag und Grundlage:** Die Marketplace-Auslieferung zu PR #667 brach zweimal mit „Aktive oder ungeklärt laufende Aufträge/Sitzungen sperren den Rollout“ ab und lief erst beim dritten Start in einer ruhigen Minute durch. Bei mehreren Konten im 5–10-Minuten-Takt ist das regelmäßig zu erwarten. Eigener Zweig `juna/marketplace-deploy-wait-idle` vom frisch abgerufenen `origin/master` (`a3d6af56`) in getrennter Arbeitskopie; die belegte primäre Arbeitskopie bleibt unverändert.
+
+**Befund:** Die Jobprotokolle zeigen den Abbruch einmal bei der zweiten Prüfung nach dem Laden der drei Abbilder und zweimal bei der ersten Prüfung der fortgesetzten Vorbereitung. In beiden Fällen war noch kein Dienst gestoppt.
+
+**Korrektur:** `marketplace-rollout.py` meldet laufende Aufträge und vorhandene Browsercontainer als eigene Ausnahme `RolloutBusy`. `apply_release` wiederholt den Versuch nur, solange das Journal fehlt oder in `preparing`/`prepared` steht, also vor dem ersten Stopp. Zwischen den Versuchen wird ohne Host-Lock gewartet, damit Web-Deployments nicht blockiert werden. Geprüft wird alle 15 Sekunden, höchstens 30 Minuten lang. Danach bricht der Aufruf mit „noch kein Dienst gestoppt“ ab. Jeder Versuch führt alle bisherigen Prüfungen vollständig neu aus. Nach einem begonnenen Stopp wird weder gewartet noch wiederholt. Wartende Aufträge sperren wie bisher nicht.
+
+**Nachweise:** Fünf neue Fälle mit gesteuerter Uhr decken ab: Warten beim Start, Browserstart während des Abbilderladens, Auftrag unmittelbar vor dem Workerstopp, dauerhaft belegt mit begrenztem Abbruch ohne Mutation, keine Wiederholung nach dem Workerstopp. Alle 29 Rollout- und SSH-Fälle von `scripts/deploy-script.test.mjs` bestehen unter Linux (`node:22-bookworm` mit Python 3). Die übrigen Fälle der Datei benötigen ein Docker-CLI im Container und wurden dort nicht ausgeführt. Die Rollout-Engine ist als festes Bundle auf dem Server installiert; die Änderung wirkt erst nach erneuter Bundle-Installation gemäß `deploy/MARKETPLACE-ACCESS.md`.
+
 ## 2026-11-16 - Juna - Verkaufsaktionen verkleinern und vollständige verkaufte Inserate übernehmen
 
 **Auftrag und Grundlage:** Die Vinted-Verkaufskarten erhalten die schmale Aktionsleiste des Kleiderschranks mit Icons für „Neu einstellen“ und „Chat öffnen“; Versandstatus und der große Chatbutton entfallen. Beim verkauften On Running Cloudmonster fehlen im neuen Editor Beschreibung, Kategorie und weitere Bilder. Eigener Zweig `juna/vinted-sale-actions-and-source-read` vom frisch abgeglichenen `origin/master` (`a98dc0dd`) in einer getrennten Arbeitskopie; fremde Änderungen und der belegte lokale Hauptzweig bleiben erhalten.
