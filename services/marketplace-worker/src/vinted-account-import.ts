@@ -60,6 +60,7 @@ export interface VintedAccountImport {
   /** Nur Feldnamen des ersten Inserats aus Vinteds Liste, keine Werte; dient der Einordnung. */
   publicationFieldNames?: string[];
   browserReadFailures?: VintedBrowserReadFailure[];
+  sourceReadFailures?: VintedSourceReadFailure[];
   inboxEvents?: MarketplaceInboxEventBatch & { readonly version: 1 };
   favoriteEvents?: VintedFavoriteEvent[];
 }
@@ -148,6 +149,43 @@ export type VintedBrowserReadFailure =
   | 'closed'
   | 'script'
   | 'unknown';
+
+export interface VintedSourceReadFailure {
+  area: 'messages' | 'sales';
+  issue:
+    | 'http_status'
+    | 'response_origin'
+    | 'content_type'
+    | 'invalid_json'
+    | 'conversation_shape'
+    | 'transaction_shape';
+  status?: number;
+}
+
+/** Nur feste Fehlermerkmale dürfen die isolierte Browsersitzung verlassen. */
+export function isVintedSourceReadFailure(value: unknown): value is VintedSourceReadFailure {
+  const item = record(value);
+  return (
+    !!item &&
+    Object.keys(item).every((key) => ['area', 'issue', 'status'].includes(key)) &&
+    typeof item['area'] === 'string' &&
+    ['messages', 'sales'].includes(item['area']) &&
+    typeof item['issue'] === 'string' &&
+    [
+      'http_status',
+      'response_origin',
+      'content_type',
+      'invalid_json',
+      'conversation_shape',
+      'transaction_shape',
+    ].includes(item['issue']) &&
+    (item['status'] === undefined ||
+      (typeof item['status'] === 'number' &&
+        Number.isInteger(item['status']) &&
+        item['status'] >= 100 &&
+        item['status'] <= 599))
+  );
+}
 
 function classifyBrowserReadFailure(error: unknown): VintedBrowserReadFailure {
   const message = error instanceof Error ? error.message : '';
@@ -872,6 +910,7 @@ interface SourceReadContext {
   blocked?: VintedImportRequestError;
   authorize: () => Promise<void>;
   browserFailures: VintedBrowserReadFailure[];
+  sourceFailures: VintedSourceReadFailure[];
 }
 
 async function vintedJson(
@@ -885,7 +924,23 @@ async function vintedJson(
   let result: unknown;
   try {
     result = await page.evaluate(async (requestPath) => {
-      const failure = (reason: VintedRequestFailure) => ({ flipbaseRequestFailure: reason });
+      const failure = (
+        reason: VintedRequestFailure,
+        issue?: VintedSourceReadFailure['issue'],
+        status?: number,
+      ) => {
+        const area = requestPath.startsWith('/api/v2/conversations/')
+          ? 'messages'
+          : requestPath.startsWith('/api/v2/transactions/')
+            ? 'sales'
+            : undefined;
+        return {
+          flipbaseRequestFailure: reason,
+          ...(area && issue
+            ? { sourceReadFailure: { area, issue, ...(status === undefined ? {} : { status }) } }
+            : {}),
+        };
+      };
       let response: Response;
       try {
         response = await fetch(requestPath, {
@@ -924,16 +979,17 @@ async function vintedJson(
       try {
         origin = new URL(response.url).origin;
       } catch {
-        return failure('invalid_response');
+        return failure('invalid_response', 'response_origin', response.status);
       }
+      if (!response.ok) return failure('invalid_response', 'http_status', response.status);
+      if (origin !== 'https://www.vinted.de')
+        return failure('invalid_response', 'response_origin', response.status);
       if (
-        !response.ok ||
-        origin !== 'https://www.vinted.de' ||
         !response.headers
           .get('content-type')
           ?.includes(requestPath.startsWith('/items/') ? 'text/html' : 'json')
       )
-        return failure('invalid_response');
+        return failure('invalid_response', 'content_type', response.status);
       try {
         if (requestPath.startsWith('/items/')) {
           const html = await response.text();
@@ -959,7 +1015,7 @@ async function vintedJson(
         }
         return await response.json();
       } catch {
-        return failure('invalid_response');
+        return failure('invalid_response', 'invalid_json', response.status);
       }
     }, path);
   } catch (error) {
@@ -1014,6 +1070,13 @@ async function vintedJson(
         ? new Date(requested).toISOString()
         : undefined;
     const error = new VintedImportRequestError(reason, retryAfter);
+    const sourceReadFailure = record(result)?.['sourceReadFailure'];
+    if (
+      context &&
+      context.sourceFailures.length < 8 &&
+      isVintedSourceReadFailure(sourceReadFailure)
+    )
+      context.sourceFailures.push(sourceReadFailure);
     if (context && (reason === 'rate_limited' || reason === 'forbidden')) context.blocked = error;
     throw error;
   }
@@ -1079,7 +1142,7 @@ export async function readVintedAccountImport(
   } = {},
 ): Promise<VintedAccountImport> {
   const sessionRenewalWaitMs = options.sessionRenewalWaitMs ?? vintedSessionRenewalWaitMs;
-  const reads: SourceReadContext = { count: 0, authorize, browserFailures: [] };
+  const reads: SourceReadContext = { count: 0, authorize, browserFailures: [], sourceFailures: [] };
   await atImportStage('navigation', async () => {
     try {
       if (new URL(page.url()).origin === 'https://www.vinted.de') return;
@@ -1449,8 +1512,11 @@ export async function readVintedAccountImport(
     try {
       conversation = await vintedJson(page, `/api/v2/conversations/${id}`, reads);
       const relation = record(record(conversation)?.['conversation']);
-      if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages']))
+      if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages'])) {
+        if (reads.sourceFailures.length < 8)
+          reads.sourceFailures.push({ area: 'messages', issue: 'conversation_shape' });
         throw new VintedImportRequestError('invalid_response');
+      }
     } catch (error) {
       if (requestedConversation) throw new VintedImportReadError('messages', error);
       areas.messages = sourceFailure('messages', error, true);
@@ -1504,8 +1570,11 @@ export async function readVintedAccountImport(
               transactionId,
               identity.id,
             )
-          )
+          ) {
+            if (reads.sourceFailures.length < 8)
+              reads.sourceFailures.push({ area: 'sales', issue: 'transaction_shape' });
             throw new VintedImportRequestError('invalid_response');
+          }
           transaction = response;
         } catch (error) {
           areas.sales = sourceFailure('transaction', error, true);
@@ -1578,6 +1647,7 @@ export async function readVintedAccountImport(
       },
       sourceRequestCount: reads.count,
       ...(reads.browserFailures.length ? { browserReadFailures: reads.browserFailures } : {}),
+      ...(reads.sourceFailures.length ? { sourceReadFailures: reads.sourceFailures } : {}),
     };
   });
 }

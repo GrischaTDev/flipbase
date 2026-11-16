@@ -259,6 +259,7 @@ export class MarketplaceSyncRunner {
         elapsedMs: Date.now() - stageStartedAt,
         sourceRequestCount: snapshot.sourceRequestCount,
         browserReadFailures: snapshot.browserReadFailures,
+        sourceReadFailures: snapshot.sourceReadFailures,
       });
     } catch (error) {
       if (error instanceof CloudBrowserStoppedUncleanlyError) {

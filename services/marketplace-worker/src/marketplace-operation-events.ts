@@ -2,7 +2,12 @@ import type {
   MarketplaceSyncError,
   MarketplaceSyncStage,
 } from './supabase-marketplace-operation-store.ts';
-import type { VintedRequestFailure, VintedBrowserReadFailure } from './vinted-account-import.ts';
+import {
+  isVintedSourceReadFailure,
+  type VintedSourceReadFailure,
+  type VintedRequestFailure,
+  type VintedBrowserReadFailure,
+} from './vinted-account-import.ts';
 
 export interface MarketplaceOperationEvent {
   operationId: string;
@@ -13,6 +18,7 @@ export interface MarketplaceOperationEvent {
   requestFailure?: VintedRequestFailure;
   sourceRequestCount?: number;
   browserReadFailures?: VintedBrowserReadFailure[];
+  sourceReadFailures?: VintedSourceReadFailure[];
 }
 
 /** Ausschließlich feste Metadaten, niemals Anbieterantworten oder Anmeldedaten. */
@@ -41,6 +47,13 @@ export class MarketplaceOperationEvents {
       ...(event.errorCode ? { errorCode: event.errorCode } : {}),
       ...(event.requestFailure ? { requestFailure: event.requestFailure } : {}),
       ...(browserReadFailures?.length ? { browserReadFailures } : {}),
+      ...(Array.isArray(event.sourceReadFailures) && event.sourceReadFailures.length
+        ? {
+            sourceReadFailures: event.sourceReadFailures
+              .filter(isVintedSourceReadFailure)
+              .slice(0, 8),
+          }
+        : {}),
       ...(typeof event.sourceRequestCount === 'number' &&
       Number.isSafeInteger(event.sourceRequestCount) &&
       event.sourceRequestCount >= 0

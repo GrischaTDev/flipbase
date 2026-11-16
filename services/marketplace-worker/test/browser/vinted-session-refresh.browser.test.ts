@@ -15,6 +15,54 @@ import { waitForOpenVintedSessionRenewals } from '../../src/vinted-session-renew
  * Der Test öffnet die Seite direkt, weil abgefangene Weiterleitungen sonst das echte Netz erreichen.
  */
 const renewalUrl = 'https://www.vinted.de/session-refresh?ref_url=%2F';
+
+test('distinguishes HTTP, content type, JSON and conversation shape failures without storing provider content', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    for (const [issue, status, contentType, body] of [
+      ['http_status', 404, 'application/json', '{"private":"provider-content"}'],
+      ['content_type', 200, 'text/html', '<p>private-provider-content</p>'],
+      ['invalid_json', 200, 'application/json', 'private-invalid-json'],
+      [
+        'conversation_shape',
+        200,
+        'application/json',
+        '{"conversation":{"id":700,"private":"provider-content"}}',
+      ],
+    ] as const) {
+      const page = await browser.newPage();
+      await page.route('**/*', async (route) => {
+        const path = new URL(route.request().url()).pathname;
+        if (path === '/')
+          return route.fulfill({ contentType: 'text/html', body: '<body>Fixture</body>' });
+        if (path === '/api/v2/conversations/700')
+          return route.fulfill({ status, contentType, body });
+        const json =
+          path === '/api/v2/users/current'
+            ? { user: { id: 123, login: 'fixture' } }
+            : {
+                items: [],
+                conversations: path === '/api/v2/inbox' ? [{ id: 700, unread: false }] : [],
+                user_feedbacks: [],
+                pagination: { total_pages: 1 },
+              };
+        return route.fulfill({ json });
+      });
+      await page.goto('https://www.vinted.de/');
+      const snapshot = await readVintedAccountImport(page, async () => undefined);
+      assert.equal(snapshot.areas.messages.failure, 'invalid_response');
+      assert.equal(snapshot.areas.sales.failure, 'invalid_response');
+      assert.deepEqual(snapshot.sourceReadFailures, [
+        { area: 'messages', issue, ...(issue === 'conversation_shape' ? {} : { status }) },
+      ]);
+      assert.equal(JSON.stringify(snapshot.sourceReadFailures).includes('private'), false);
+      await page.close();
+    }
+  } finally {
+    await browser.close();
+  }
+});
+
 async function fixture(page: Page, options: { refreshAfterMs: number; never?: boolean }) {
   let rejectedReads = 0,
     expired = true,
