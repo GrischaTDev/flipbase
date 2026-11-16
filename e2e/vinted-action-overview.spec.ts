@@ -27,6 +27,7 @@ for (const width of [390, 1440])
           kind: 'price_save',
           entryId: '60000000-0000-4000-8000-000000000003',
           title: 'Wartende Hose',
+          imageUrl: 'https://images.example.test/hose.svg',
           state: 'queued',
           version: 1,
           waitReason: 'pool_busy',
@@ -72,6 +73,13 @@ for (const width of [390, 1440])
           if (/\/marketplace-browser\/listings\/.+\/save$/.test(new URL(request.url()).pathname))
             writes.push(request.url());
         });
+        // Produktbild hinter dem Status; ein buntes Motiv macht die Abdunklung sichtbar.
+        await page.route('https://images.example.test/**', (route) =>
+          route.fulfill({
+            contentType: 'image/svg+xml',
+            body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56"><rect width="56" height="56" fill="#fcc601"/><rect x="14" y="8" width="28" height="44" rx="6" fill="#006b73"/></svg>',
+          }),
+        );
         await page.route('**/rest/v1/rpc/marketplace_account_actions_read', (route) =>
           route.fulfill({ json: { actions } }),
         );
@@ -104,8 +112,12 @@ for (const width of [390, 1440])
         await page.goto('/settings/app');
         const trigger = page.getByRole('button', { name: /Laufende Aktionen \(/ });
         await trigger.click();
-        const overview = page.locator('#header-action-overview');
-        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
+        const overview = actionDrawer(page);
+        // Wartende Aktion läuft noch, die unklare gehört bereits in den Verlauf.
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(1);
+        await showTab(overview, 'Vergangen');
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(1);
+        await showTab(overview, 'Laufend');
         await expect(overview.getByText('Inserat lesen', { exact: true })).toHaveCount(0);
         await expect(overview.getByText('Gespräch aktualisieren', { exact: true })).toHaveCount(0);
         const timestamp = overview.locator('[data-account-action-id="' + queued.id + '"] time');
@@ -114,22 +126,38 @@ for (const width of [390, 1440])
         await expect(page.locator('[data-account-action-id="' + queued.id + '"]')).toContainText(
           'Alle Browserplätze sind belegt',
         );
+        const preview = overview.locator(
+          '[data-account-action-id="' + queued.id + '"] app-action-status-thumbnail',
+        );
+        await expect(preview.locator('img')).toHaveJSProperty('complete', true);
+        await expect(preview.locator('[data-action-thumbnail-shade]')).toBeVisible();
+        await expect(preview.locator('app-action-status-indicator')).toBeVisible();
+        if (theme === 'light')
+          await page.screenshot({
+            path: testInfo.outputPath(`action-drawer-${width}.png`),
+            fullPage: false,
+            animations: 'disabled',
+          });
         await page.reload();
         await trigger.click();
         const waiting = page.locator('[data-account-action-id="' + queued.id + '"]');
         await expect(waiting).toContainText('Wartende Hose');
         await waiting.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(0);
+        await showTab(overview, 'Vergangen');
         await expect(waiting).toContainText('Abgebrochen');
         expect(cancellations).toHaveLength(1);
         await page.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }).click();
         await expect.poll(() => reconciliations.length).toBe(1);
-        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
+        // Die laufende Nachprüfung wandert zurück in die Warteschlange.
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(1);
+        await showTab(overview, 'Laufend');
         expect(writes).toEqual([]);
         await expect(overview.getByText('Ergebnis wird geprüft', { exact: true })).toBeVisible();
         await page.reload();
         await trigger.click();
         await expect(overview.getByText('Ergebnis wird geprüft', { exact: true })).toBeVisible();
-        await expect(overview.locator('[data-account-action-id]')).toHaveCount(2);
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(1);
         await expect(
           overview.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }),
         ).toBeDisabled();
@@ -145,6 +173,8 @@ for (const width of [390, 1440])
             : action,
         );
         await page.evaluate(() => window.dispatchEvent(new Event('focus')));
+        await expect(overview.locator('[data-account-action-id]')).toHaveCount(0);
+        await showTab(overview, 'Vergangen');
         await expect(
           overview.getByText(/Nachprüfung fehlgeschlagen: Der Cloud-Browser/),
         ).toBeVisible();
@@ -161,7 +191,7 @@ for (const width of [390, 1440])
           page.getByRole('button', { name: 'Ergebnis nachprüfen', exact: true }),
         ).toHaveCount(0);
         await expect(page.locator('[data-action-overview-error]')).toHaveCount(0);
-        await checkAccessibility(page, '#header-action-overview');
+        await checkAccessibility(page, '[role="dialog"]');
         await page.screenshot({
           path: testInfo.outputPath(`action-dates-${width}-${theme}.png`),
           fullPage: false,
@@ -182,7 +212,16 @@ async function checkAccessibility(page: Page, selector: string) {
   );
   expect(violations).toEqual([]);
 }
+function actionDrawer(page: Page): Locator {
+  return page.getByRole('dialog', { name: 'Aktionen', exact: true });
+}
+async function showTab(overview: Locator, name: 'Laufend' | 'Vergangen') {
+  const tab = overview.getByRole('tab', { name: new RegExp(`^${name}`) });
+  await tab.click();
+  await expect(tab).toHaveAttribute('aria-selected', 'true');
+}
 async function checkRunningActions(overview: Locator) {
+  await showTab(overview, 'Laufend');
   await expect(overview.locator('[data-action-state="running"]')).toHaveCount(1);
   await expect(overview.getByText('Angebot wird angenommen', { exact: true })).toBeVisible();
   await expect(
@@ -191,21 +230,27 @@ async function checkRunningActions(overview: Locator) {
   await expect(
     overview.locator('[data-action-state="running"] app-loading-indicator'),
   ).toBeVisible();
-  // Ein unbestätigter Vorgang bleibt als kurze Meldung stehen, bis er weggeklickt wird.
+  await expect(overview.locator('[data-action-state="queued"]')).toContainText(
+    'Konto ist beschäftigt',
+  );
+  // Die Warteschlange ist nummeriert; die zuletzt gestartete Aktion steht oben.
+  const numbers = overview.locator('[data-queue-number]');
+  await expect(numbers.first()).toContainText(String(await numbers.count()));
+  await expect(numbers.last()).toContainText('1');
+  await expect(
+    overview.locator(
+      '[data-action-state]:not([data-action-state="running"]):not([data-action-state="queued"])',
+    ),
+  ).toHaveCount(0);
+  // Ein unbestätigter Vorgang bleibt im Verlauf stehen, bis er weggeklickt wird.
+  await showTab(overview, 'Vergangen');
   const unconfirmed = overview.locator('[data-action-state="outcome_unknown"]');
   await expect(unconfirmed).toHaveCount(1);
   await expect(unconfirmed).toContainText('Annahme nicht bestätigt');
   await expect(unconfirmed.getByRole('button', { name: 'Meldung ausblenden' })).toBeVisible();
-  await expect(overview.locator('[data-action-state="queued"]')).toContainText(
-    'Konto ist beschäftigt',
-  );
-  await expect(
-    overview.locator(
-      '[data-action-state]:not([data-action-state="running"]):not([data-action-state="queued"]):not([data-action-state="outcome_unknown"])',
-    ),
-  ).toHaveCount(0);
   for (const hidden of ['Testperson 4', 'Zuletzt erledigt', 'In der Warteschlange'])
     await expect(overview.getByText(hidden, { exact: false })).toHaveCount(0);
+  await showTab(overview, 'Laufend');
 }
 for (const width of [1920, 1280, 390, 320]) {
   test.describe(`Aktionsübersicht ${width}px`, () => {
@@ -235,47 +280,40 @@ for (const width of [1920, 1280, 390, 320]) {
         expect(actionPosition?.x).toBeLessThan(bellPosition?.x ?? 0);
         if (width <= 1280) await trigger.tap();
         else await trigger.click();
-        const overview =
-          width < 640
-            ? page.getByRole('dialog', { name: 'Laufende Aktionen', exact: true })
-            : page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+        const overview = actionDrawer(page);
         await expect(overview).toBeVisible();
         await checkRunningActions(overview);
-        if (width < 640) {
+        // Seitenleiste rechts über die volle Höhe; auf schmalen Bildschirmen die ganze Breite.
+        const position = await overview.locator('[data-modal-surface]').boundingBox();
+        if (!position) throw new Error('Aktionsleiste fehlt');
+        expect(Math.abs(position.x + position.width - width)).toBeLessThanOrEqual(2);
+        expect(position.width).toBeLessThanOrEqual(width);
+        expect(Math.abs(position.height - 1000)).toBeLessThanOrEqual(2);
+        await expect
+          .poll(() =>
+            overview.locator('[data-action-state="running"]').evaluate((row) => {
+              const bounds = row.getBoundingClientRect();
+              const navigation = document.querySelector<HTMLElement>('[data-shell-bottom-nav]');
+              const wasInert = navigation?.inert;
+              // Inert blendet überlagernde Elemente nur aus dem Treffertest aus, nicht aus dem Bild.
+              try {
+                if (navigation) navigation.inert = false;
+                return row.contains(
+                  document.elementFromPoint(bounds.x + bounds.width / 2, bounds.bottom - 2),
+                );
+              } finally {
+                if (navigation) navigation.inert = wasInert ?? false;
+              }
+            }),
+          )
+          .toBe(true);
+        for (let step = 0; step < 6; step++) {
+          await page.keyboard.press('Tab');
           await expect
-            .poll(() =>
-              overview.locator('[data-action-state="running"]').evaluate((row) => {
-                const bounds = row.getBoundingClientRect();
-                const navigation = document.querySelector<HTMLElement>('[data-shell-bottom-nav]');
-                const wasInert = navigation?.inert;
-                // Inert blendet überlagernde Elemente nur aus dem Treffertest aus, nicht aus dem Bild.
-                try {
-                  if (navigation) navigation.inert = false;
-                  return row.contains(
-                    document.elementFromPoint(bounds.x + bounds.width / 2, bounds.bottom - 2),
-                  );
-                } finally {
-                  if (navigation) navigation.inert = wasInert ?? false;
-                }
-              }),
-            )
+            .poll(() => overview.evaluate((element) => element.contains(document.activeElement)))
             .toBe(true);
-          const position = await overview.locator('[data-modal-surface]').boundingBox();
-          if (!position) throw new Error('Mobile Aktionsansicht fehlt');
-          expect(position.width).toBeLessThanOrEqual(width);
-          expect(position.height).toBeLessThanOrEqual(850);
-          expect(Math.abs(position.y + position.height - 1000)).toBeLessThanOrEqual(2);
-          for (let step = 0; step < 6; step++) {
-            await page.keyboard.press('Tab');
-            await expect
-              .poll(() => overview.evaluate((element) => element.contains(document.activeElement)))
-              .toBe(true);
-          }
         }
-        await checkAccessibility(
-          page,
-          width < 640 ? '[role="dialog"]' : '[data-action-overview-panel]',
-        );
+        await checkAccessibility(page, '[role="dialog"]');
         if (theme === 'light' && (width === 1920 || width === 390))
           await page.screenshot({
             path: testInfo.outputPath(`actions-${width}.png`),
@@ -285,16 +323,6 @@ for (const width of [1920, 1280, 390, 320]) {
         await page.keyboard.press('Escape');
         await expect(overview).toBeHidden();
         await expect(trigger).toBeFocused();
-        if (width === 1280) {
-          await trigger.tap();
-          await page.setViewportSize({ width: 390, height: 1000 });
-          await expect(page.locator('[data-action-overview-panel]')).toBeHidden();
-          await expect(trigger).toBeFocused();
-          await trigger.tap();
-          await expect(
-            page.getByRole('dialog', { name: 'Laufende Aktionen', exact: true }),
-          ).toBeVisible();
-        }
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
           true,
         );
@@ -334,7 +362,7 @@ test('zeigt Vinted-Veröffentlichungen zentral und bricht wartende Aufträge ab 
   const trigger = page.getByRole('button', { name: 'Laufende Aktionen (3)' });
   await expect(trigger).toBeVisible();
   await trigger.click();
-  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  const overview = actionDrawer(page);
   const publications = overview.locator('app-vinted-listing-action-overview');
   await expect(publications.getByText('Anzeige wird veröffentlicht')).toBeVisible();
   await expect(publications.getByText('Testkonto A')).toBeVisible();
@@ -364,7 +392,7 @@ test('standardmäßig aus und erst nach Speichern appweit aktiv, auch nach Neula
   await expect(save).toBeDisabled();
   await expect(trigger).toBeVisible();
   await trigger.click();
-  await checkRunningActions(page.getByRole('region', { name: 'Laufende Aktionen', exact: true }));
+  await checkRunningActions(actionDrawer(page));
   await page.keyboard.press('Escape');
   await page.reload();
   await expect(checkbox).toBeChecked();
@@ -374,7 +402,7 @@ test('standardmäßig aus und erst nach Speichern appweit aktiv, auch nach Neula
   await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   await trigger.click();
   await expect(page.getByText('Gespräch aktualisieren', { exact: true })).toHaveCount(0);
-  await checkRunningActions(page.getByRole('region', { name: 'Laufende Aktionen', exact: true }));
+  await checkRunningActions(actionDrawer(page));
   await page.keyboard.press('Escape');
   expect(fixture.saves).toEqual([true]);
   await page.goto('/settings/app');
@@ -412,7 +440,7 @@ test('meldet Aktionsabschlüsse per Toast und beendet Kontoabgleiche still @mark
   const fixture = await mockActionOverview(page);
   await page.goto('/settings/app');
   await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
-  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  const overview = actionDrawer(page);
   await checkRunningActions(overview);
   fixture.finishActions();
   await expect(
@@ -426,7 +454,7 @@ test('meldet Aktionsabschlüsse per Toast und beendet Kontoabgleiche still @mark
   await expect(overview.locator('[data-action-state="succeeded"]')).toHaveCount(0);
   await expect(overview.locator('[data-action-state="running"]')).toHaveCount(0);
   await expect(page.locator('[data-action-overview-spinner]')).toHaveCount(0);
-  await checkAccessibility(page, '#header-action-overview');
+  await checkAccessibility(page, '[role="dialog"]');
   await expect(toasts).not.toContainText('Angebot angenommen', { timeout: 6_000 });
   await expect(
     page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
@@ -474,11 +502,13 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   await page.reload();
   await expect(offer).toContainText('Annahme beauftragt');
   await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
-  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  const overview = actionDrawer(page);
+  await showTab(overview, 'Vergangen');
   await overview
     .locator('[data-action-state="outcome_unknown"]')
     .getByRole('button', { name: 'Meldung ausblenden' })
     .click();
+  await showTab(overview, 'Laufend');
   await expect(overview.locator('[data-action-state="queued"]')).toHaveCount(2);
   await expect(
     overview.locator('[data-action-state="queued"] app-action-status-indicator svg').first(),
@@ -486,6 +516,7 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   await page.reload();
   await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
   await expect(overview.locator('[data-action-state="queued"]')).toHaveCount(2);
+  await showTab(overview, 'Vergangen');
   await expect(overview.locator('[data-action-state="outcome_unknown"]')).toHaveCount(0);
   fixture.rejectRead(true);
   await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert', {

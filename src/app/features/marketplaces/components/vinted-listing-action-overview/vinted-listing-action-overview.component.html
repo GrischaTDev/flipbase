@@ -1,77 +1,73 @@
-<section aria-label="Inserate" class="space-y-1.5">
+@let item = row();
+<div [attr.data-listing-state]="item.job.state" class="min-w-0 space-y-1.5">
   @if (error(); as message) {
     <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
   }
-  <ul class="space-y-1.5">
-    @for (row of rows(); track row.job.id) {
-      <li
-        [attr.data-listing-state]="row.job.state"
-        class="flex min-w-0 flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg bg-fb-surface-hover px-2 py-2"
+  <div class="flex min-w-0 items-start gap-3">
+    <app-action-status-thumbnail [state]="item.indicator" [imageUrl]="item.imageUrl" />
+    <div class="min-w-0 flex-1">
+      <p class="text-[13px] font-medium leading-5 text-fb-text-primary">
+        {{ item.job.relistExternalId ? 'Relisten · ' : '' }}{{ item.label }}
+      </p>
+      @if (item.job.itemTitle) {
+        <p class="truncate text-xs leading-5 text-fb-text-secondary">{{ item.job.itemTitle }}</p>
+      }
+      <p class="truncate text-xs leading-5 text-fb-text-secondary">
+        {{ item.accountName }}
+        @if (item.planned) {
+          · {{ item.time }}
+        }
+      </p>
+      <time
+        data-action-time
+        class="block text-[11px] leading-5 tabular-nums text-fb-text-secondary"
+        [attr.datetime]="item.job.updatedAt"
+        >{{ item.job.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
       >
-        <app-action-status-indicator [state]="row.indicator" />
-        <div class="min-w-0 flex-1">
-          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">
-            {{ row.job.relistExternalId ? 'Relisten · ' : '' }}{{ row.label
-            }}{{ row.job.itemTitle ? ' · ' + row.job.itemTitle : '' }}
-          </p>
-          <p class="truncate text-xs leading-5 text-fb-text-secondary">
-            {{ row.accountName }}
-            @if (row.planned) {
-              · {{ row.time }}
-            }
-          </p>
-          @if (row.planned || row.cancellable) {
-            <div class="mt-1.5 flex flex-wrap items-center gap-2">
-              @if (row.planned) {
-                <app-button
-                  variant="secondary"
-                  size="slim"
-                  [disabled]="!!busy() || !!loadingPlan()"
-                  [loading]="loadingPlan() === row.job.id"
-                  (clicked)="openPlan(row.job)"
-                  >Termin ändern</app-button
-                >
-              }
-              @if (row.cancellable) {
-                <app-button
-                  variant="secondary"
-                  size="slim"
-                  [disabled]="!!busy() || !!loadingPlan()"
-                  [loading]="busy() === row.job.id"
-                  (clicked)="cancel(row.job)"
-                  >Abbrechen</app-button
-                >
-              }
-            </div>
+      @if (item.planned || item.cancellable) {
+        <div class="mt-1.5 flex flex-wrap items-center gap-2">
+          @if (item.planned) {
+            <app-button
+              variant="secondary"
+              size="slim"
+              [disabled]="!!busy() || !!loadingPlan()"
+              [loading]="loadingPlan() === item.job.id"
+              (clicked)="openPlan(item.job)"
+              >Termin ändern</app-button
+            >
+          }
+          @if (item.cancellable) {
+            <app-button
+              variant="secondary"
+              size="slim"
+              [disabled]="!!busy() || !!loadingPlan()"
+              [loading]="busy() === item.job.id"
+              (clicked)="cancel(item.job)"
+              >Abbrechen</app-button
+            >
           }
         </div>
-        @if (row.dismissible) {
-          <app-button
-            variant="ghost"
-            size="slim"
-            [icon]="dismissIcon"
-            [iconOnly]="true"
-            [ariaLabel]="
-              row.discardable ? 'Relisting verwerfen und Artikel freigeben' : 'Meldung ausblenden'
-            "
-            [title]="
-              row.discardable ? 'Relisting verwerfen und Artikel freigeben' : 'Meldung ausblenden'
-            "
-            [disabled]="!!busy()"
-            [loading]="busy() === row.job.id"
-            (clicked)="dismiss(row.job)"
-          />
-        }
-        <time
-          data-action-time
-          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
-          [attr.datetime]="row.job.updatedAt"
-          >{{ row.job.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
-        >
-      </li>
+      }
+    </div>
+    @if (item.dismissible) {
+      <app-button
+        variant="ghost"
+        size="slim"
+        [icon]="dismissIcon"
+        [iconOnly]="true"
+        [ariaLabel]="
+          item.discardable ? 'Relisting verwerfen und Artikel freigeben' : 'Meldung ausblenden'
+        "
+        [title]="
+          item.discardable ? 'Relisting verwerfen und Artikel freigeben' : 'Meldung ausblenden'
+        "
+        [disabled]="!!busy()"
+        [loading]="busy() === item.job.id"
+        (clicked)="dismiss(item.job)"
+      />
     }
-  </ul>
-</section>
+  </div>
+</div>
 @if (planning(); as plan) {
   <app-vinted-listing-schedule-dialog
     [initial]="planInitial()"

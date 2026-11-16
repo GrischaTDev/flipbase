@@ -116,39 +116,41 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       relistExternalId: '456',
       relistDeletedAt: null,
     };
-    const entries = signal([{ job, accountName: 'Konto' }]);
+    const entry = signal<{ job: VintedListingJob; accountName: string }>({
+      job,
+      accountName: 'Konto',
+    });
     const component = TestBed.runInInjectionContext(
       () => new VintedListingActionOverviewComponent(),
     );
-    vi.spyOn(component, 'entries').mockImplementation(() => entries());
-    expect(component.rows()[0]).toMatchObject({
+    vi.spyOn(component, 'entry').mockImplementation(() => entry());
+    expect(component.row()).toMatchObject({
       label: 'Wird vorbereitet',
       indicator: 'running',
       planned: false,
     });
-    entries.set([{ job: { ...job, state: 'writing' }, accountName: 'Konto' }]);
-    expect(component.rows()[0]?.label).toBe('Wird vorbereitet');
-    entries.set([
-      { job: { ...job, relistDeletedAt: new Date(now).toISOString() }, accountName: 'Konto' },
-    ]);
-    expect(component.rows()[0]).toMatchObject({
+    entry.set({ job: { ...job, state: 'writing' }, accountName: 'Konto' });
+    expect(component.row().label).toBe('Wird vorbereitet');
+    entry.set({
+      job: { ...job, relistDeletedAt: new Date(now).toISOString() },
+      accountName: 'Konto',
+    });
+    expect(component.row()).toMatchObject({
       label: 'Wird in 5 Minuten relistet',
       indicator: 'paused',
       planned: true,
     });
-    entries.set([
-      {
-        job: { ...job, state: 'writing', relistDeletedAt: new Date(now).toISOString() },
-        accountName: 'Konto',
-      },
-    ]);
-    expect(component.rows()[0]).toMatchObject({
+    entry.set({
+      job: { ...job, state: 'writing', relistDeletedAt: new Date(now).toISOString() },
+      accountName: 'Konto',
+    });
+    expect(component.row()).toMatchObject({
       label: 'Wird inseriert',
       indicator: 'running',
       planned: false,
     });
-    entries.set([{ job: { ...job, state: 'failed' }, accountName: 'Konto' }]);
-    expect(component.rows()[0]).toMatchObject({ label: 'Fehlgeschlagen', indicator: 'error' });
+    entry.set({ job: { ...job, state: 'failed' }, accountName: 'Konto' });
+    expect(component.row()).toMatchObject({ label: 'Fehlgeschlagen', indicator: 'error' });
     const overview = TestBed.inject(VintedActionOverviewHeaderStore);
     vi.spyOn(overview, 'context').mockReturnValue('scope');
     vi.spyOn(overview, 'refresh').mockResolvedValue(undefined);
@@ -157,12 +159,12 @@ describe('Appweite laufende Vinted-Aktionen', () => {
       .mockImplementation(async (value: VintedListingJob) => ({ ...value, state: 'cancelled' }));
     Object.assign(TestBed.inject(VintedListingJobService), { cancel });
     const release = vi.spyOn(TestBed.inject(VintedListingOperationStore), 'releaseRelisting');
-    entries.set([{ job, accountName: 'Konto' }]);
+    entry.set({ job, accountName: 'Konto' });
     await component.cancel(job);
     expect(release).toHaveBeenCalledOnce();
     release.mockClear();
     const deleted = { ...job, relistDeletedAt: new Date(now).toISOString() };
-    entries.set([{ job: deleted, accountName: 'Konto' }]);
+    entry.set({ job: deleted, accountName: 'Konto' });
     await component.cancel(deleted);
     expect(release).not.toHaveBeenCalled();
   });

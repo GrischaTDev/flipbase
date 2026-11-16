@@ -2,10 +2,7 @@ import { DatePipe, NgOptimizedImage, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
-  DestroyRef,
   ElementRef,
-  Injector,
-  afterNextRender,
   computed,
   effect,
   inject,
@@ -14,23 +11,36 @@ import {
 } from '@angular/core';
 import { LucideListTodo, LucideLoader2, LucideX, type LucideIconData } from '@lucide/angular';
 import { ActionStatusIndicatorComponent } from '../../../../shared/components/action-status-indicator/action-status-indicator.component';
+import { ActionStatusThumbnailComponent } from '../../../../shared/components/action-status-thumbnail/action-status-thumbnail.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
+import {
+  SegmentedTabsComponent,
+  type SegmentedTab,
+} from '../../../../shared/components/segmented-tabs/segmented-tabs.component';
 import { isVintedListingConfirmationPending } from '../../models/vinted-listing-job';
+import {
+  actionDrawerItems,
+  pastActions,
+  runningActionQueue,
+  vintedAccountActionIndicator,
+} from '../../models/vinted-action-drawer';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { VintedAccountActionStore } from '../../services/vinted-account-action.store';
+import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import {
   vintedAccountActionStatus,
   vintedAccountActionTitle,
-  type VintedAccountAction,
 } from '../../models/vinted-account-action';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
+
+type ActionTab = 'running' | 'past';
 
 @Component({
   selector: 'app-vinted-action-overview-menu',
@@ -39,22 +49,19 @@ import { VintedListingActionOverviewComponent } from '../vinted-listing-action-o
     NgOptimizedImage,
     NgTemplateOutlet,
     ActionStatusIndicatorComponent,
+    ActionStatusThumbnailComponent,
     ButtonComponent,
     LoadingIndicatorComponent,
     NoticeBannerComponent,
     ModalShellComponent,
+    SegmentedTabsComponent,
     VintedActionOverviewComponent,
     VintedListingActionOverviewComponent,
   ],
   templateUrl: './vinted-action-overview-menu.component.html',
   providers: [KleinanzeigenExtensionBridge],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: {
-    class: 'relative inline-flex',
-    '(document:click)': 'onOutsideClick($event)',
-    '(document:keydown.escape)': 'onEscape($event)',
-    '(focusout)': 'onFocusOut($event)',
-  },
+  host: { class: 'relative inline-flex' },
 })
 export class VintedActionOverviewMenuComponent {
   readonly store = inject(VintedActionOverviewHeaderStore);
@@ -62,26 +69,32 @@ export class VintedActionOverviewMenuComponent {
   readonly kleinanzeigen = inject(KleinanzeigenActionStore);
   readonly listingOperations = inject(VintedListingOperationStore);
   readonly accountActions = inject(VintedAccountActionStore);
+  private readonly images = inject(VintedListingImageService);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly accountActionTitle = vintedAccountActionTitle;
   readonly accountActionStatus = vintedAccountActionStatus;
-  accountActionIndicator(
-    action: VintedAccountAction,
-    reconciliation?: VintedAccountAction,
-  ): 'running' | 'success' | 'error' | 'paused' {
-    if (reconciliation?.state === 'running') return 'running';
-    if (reconciliation?.state === 'queued') return 'paused';
-    return action.state === 'queued' || action.state === 'cancelled'
-      ? 'paused'
-      : action.state === 'running'
-        ? 'running'
-        : action.state === 'succeeded'
-          ? 'success'
-          : 'error';
-  }
-  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
-  private readonly injector = inject(Injector);
+  readonly accountActionIndicator = vintedAccountActionIndicator;
   readonly opened = signal(false);
-  readonly mobile = signal(window.innerWidth < 640);
+  readonly tab = signal<ActionTab>('running');
+  /** Signierte erste Entwurfsfotos je Speicherpfad. */
+  readonly coverUrls = signal<ReadonlyMap<string, string>>(new Map());
+
+  readonly items = computed(() =>
+    actionDrawerItems({
+      accountActions: this.accountActions.entries(),
+      operations: this.listingOperations.entries(),
+      overviewGroups: this.store.groups(),
+      listings: this.store.listings(),
+      kleinanzeigen: this.kleinanzeigen.entries(),
+    }),
+  );
+  readonly runningQueue = computed(() => runningActionQueue(this.items()));
+  readonly past = computed(() => pastActions(this.items()));
+  readonly tabs = computed<readonly SegmentedTab[]>(() => [
+    { value: 'running', label: 'Laufend', count: this.runningQueue().length },
+    { value: 'past', label: 'Vergangen', count: this.past().length },
+  ]);
+
   readonly count = computed(
     () =>
       this.store.count() +
@@ -127,30 +140,38 @@ export class VintedActionOverviewMenuComponent {
   readonly closeIcon = LucideX;
 
   constructor() {
-    const resize = () => this.mobile.set(window.innerWidth < 640);
-    window.addEventListener('resize', resize);
-    inject(DestroyRef).onDestroy(() => window.removeEventListener('resize', resize));
     effect(() => {
       this.store.context();
-      this.mobile();
-      untracked(() => this.close());
+      untracked(() => this.close(false));
     });
+    // Entwurfsfotos werden erst beim Öffnen und nur für Aufträge ohne Vinted-Bild signiert.
+    effect(() => {
+      if (!this.opened()) return;
+      const known = untracked(this.coverUrls);
+      const paths = this.store
+        .listings()
+        .flatMap(({ job }) =>
+          !job.imageUrl && job.coverStoragePath && !known.has(job.coverStoragePath)
+            ? [job.coverStoragePath]
+            : [],
+        );
+      if (!paths.length) return;
+      void this.images.coverUrls(paths).then((urls) => {
+        if (urls.size) this.coverUrls.update((current) => new Map([...current, ...urls]));
+      });
+    });
+  }
+
+  coverUrl(path: string | null | undefined): string | null {
+    return path ? (this.coverUrls().get(path) ?? null) : null;
   }
 
   toggle(): void {
     if (this.opened()) return this.close();
+    this.tab.set(this.runningQueue().length || !this.past().length ? 'running' : 'past');
     this.opened.set(true);
     void this.store.refresh();
     void this.accountActions.refresh();
-    if (!this.mobile())
-      afterNextRender(
-        () => {
-          this.host.nativeElement
-            .querySelector<HTMLElement>('[data-action-overview-panel] button')
-            ?.focus();
-        },
-        { injector: this.injector },
-      );
   }
 
   close(restoreFocus = true): void {
@@ -162,22 +183,7 @@ export class VintedActionOverviewMenuComponent {
         ?.focus();
   }
 
-  onOutsideClick(event: MouseEvent): void {
-    // Der Klickpfad bleibt gültig, auch wenn ein Ausblenden-Knopf seine Zeile schon entfernt hat.
-    if (!this.mobile() && !event.composedPath().includes(this.host.nativeElement))
-      this.close(false);
-  }
-  onEscape(event: Event): void {
-    if (!this.opened()) return;
-    event.stopPropagation();
-    this.close();
-  }
-  onFocusOut(event: FocusEvent): void {
-    if (
-      !this.mobile() &&
-      event.relatedTarget instanceof Node &&
-      !this.host.nativeElement.contains(event.relatedTarget)
-    )
-      this.close(false);
+  selectTab(value: string): void {
+    this.tab.set(value === 'past' ? 'past' : 'running');
   }
 }

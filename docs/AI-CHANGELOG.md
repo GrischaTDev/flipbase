@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-16 - Juna - Aktionen als Seitenleiste mit Warteschlange und Verlauf
+
+**Auftrag und Grundlage:** Laufende Aktionen standen nach Herkunft in Blöcken untereinander, deshalb erschien ein später gestartetes Relisten unter einer früheren Preisänderung. Gewünscht: neueste Aktion oben, Seitenleiste rechts mit den Reitern „Laufend“ und „Vergangen“, Produktbild abgedunkelt hinter Ladekreis/Haken und eine nummerierte Warteschlange. Eigener Zweig `juna/vinted-action-drawer` vom frisch abgerufenen `origin/master` in getrennter Arbeitskopie; UI-Richtlinien gelesen.
+
+**Umsetzung:** Die Aktionsübersicht öffnet als `app-modal-shell` im Drawer-Modus (Desktop rechts, schmal volle Breite). Alle fünf Quellen (Kontoaufträge, direkte Inseratsaktionen, Verhandlungen/Nachrichten, Inseratsaufträge, Kleinanzeigen) werden in `vinted-action-drawer.ts` zusammengeführt: „Laufend“ zeigt wartende und laufende Aktionen mit der zuletzt gestarteten oben und nummeriert nach Startreihenfolge (1 = älteste, also nächste), „Vergangen“ zeigt Abgeschlossenes, Fehlgeschlagenes und Unklares als Verlauf mit dem zuletzt beendeten oben. Bedienung je Quelle (Abbrechen, Ergebnis nachprüfen, Termin ändern, Ausblenden) bleibt erhalten; die beiden Unterbausteine rendern jetzt eine einzelne Zeile. Neue Shared Components: `app-action-status-thumbnail` (Produktbild mit Abdunklung, Status im Vordergrund, ohne Bild neutrale Fläche) und `app-segmented-tabs` (Tablist mit Pfeiltasten, Pos1/Ende, roving tabindex, Stil des vorhandenen Segmentumschalters). Die Fokusfalle von `appModalDialog` ignoriert jetzt Elemente mit `tabindex="-1"`, damit inaktive Reiter den Fokus nicht aus dem Dialog lassen.
+
+**Bilder:** `marketplace_account_action_public`, `marketplace_listing_job_document` und `marketplace_read_action_overview` liefern zusätzlich die gespeicherte Vinted-Bildadresse des Inserats bzw. Gesprächs; Inseratsaufträge ohne Vinted-Inserat liefern den Speicherpfad des ersten Entwurfsfotos, das erst beim Öffnen signiert wird. Rein lesende Projektionen, Migration `20261116013000_vinted_action_preview_images.sql`.
+
+**Nachweise:** Browserfälle der Aktionsübersicht auf Seitenleiste und Reiter umgestellt und mit Produktbild ergänzt; lokal 21/21 grün (390/1440 bzw. 320/390/1280/1920 px, Hell/Dunkel, Maus/Touch, AXE). Header-Tests und neue Logiktests für Reihenfolge und Nummerierung grün; Angular-Bau erfolgreich. Die Browserfälle liefen lokal auf Port 4210 gegen die laufende lokale Supabase, weil 4200 von einer anderen Arbeitskopie belegt war.
+
 ## 2026-11-16 - Juna - Worker-Auslieferung wartet auf Leerlauf statt abzubrechen
 
 **Auftrag und Grundlage:** Die Marketplace-Auslieferung zu PR #667 brach zweimal mit „Aktive oder ungeklärt laufende Aufträge/Sitzungen sperren den Rollout“ ab und lief erst beim dritten Start in einer ruhigen Minute durch. Bei mehreren Konten im 5–10-Minuten-Takt ist das regelmäßig zu erwarten. Eigener Zweig `juna/marketplace-deploy-wait-idle` vom frisch abgerufenen `origin/master` (`a3d6af56`) in getrennter Arbeitskopie; die belegte primäre Arbeitskopie bleibt unverändert.

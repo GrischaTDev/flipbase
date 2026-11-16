@@ -1181,7 +1181,7 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
   const trigger = page.getByRole('button', { name: /^Laufende Aktionen \(/ });
   await expect(trigger).toBeVisible();
   await trigger.click();
-  const overview = page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+  const overview = page.getByRole('dialog', { name: 'Aktionen', exact: true });
   const listings = overview.locator('app-vinted-listing-action-overview');
   await expect(overview.getByRole('alert')).toHaveCount(0);
   await expect(listings.getByText('Veröffentlichung geplant', { exact: true })).toBeVisible();
@@ -1223,7 +1223,7 @@ test('Inserataufträge erscheinen ausschließlich im zentralen Aktionsmenü @mar
       async () =>
         (
           await (window as unknown as { axe: typeof axe }).axe.run(
-            document.querySelector('#header-action-overview') as HTMLElement,
+            document.querySelector('[role="dialog"]') as HTMLElement,
           )
         ).violations,
     ),
@@ -1409,10 +1409,7 @@ for (const width of [1440, 390])
       await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
       const trigger = page.getByRole('button', { name: /^Laufende Aktionen \(/ });
       await trigger.click();
-      const overview =
-        width < 640
-          ? page.getByRole('dialog', { name: 'Laufende Aktionen', exact: true })
-          : page.getByRole('region', { name: 'Laufende Aktionen', exact: true });
+      const overview = page.getByRole('dialog', { name: 'Aktionen', exact: true });
       const listings = overview.locator('app-vinted-listing-action-overview');
       const opener = listings.getByRole('button', { name: 'Termin ändern', exact: true });
       await expect(opener).toBeEnabled();

@@ -75,7 +75,7 @@ export function visibleHeaderRole(isPlatformOperator: boolean): 'admin' | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     class: 'block',
-    '[style.z-index]': 'isMobileActionPanelOpen() ? 50 : null',
+    '[style.z-index]': 'isActionPanelOpen() ? 50 : null',
     '(document:click)': 'onDocumentClick($event)',
     '(document:keydown.escape)': 'closeAllDropdowns()',
   },
@@ -142,9 +142,8 @@ export class HeaderComponent {
   readonly notificationContainer = viewChild<ElementRef<HTMLElement>>('notificationContainer');
   readonly userContainer = viewChild<ElementRef<HTMLElement>>('userContainer');
   private readonly actionOverviewMenu = viewChild(VintedActionOverviewMenuComponent);
-  readonly isMobileActionPanelOpen = computed(
-    () => this.actionOverviewMenu()?.mobile() && this.actionOverviewMenu()?.opened(),
-  );
+  /** Die Aktionsleiste liegt im Kopfbereich und muss über dem Seiteninhalt erscheinen. */
+  readonly isActionPanelOpen = computed(() => !!this.actionOverviewMenu()?.opened());
 
   readonly headerAdminRole = computed(() => visibleHeaderRole(this.operatorService.operator()));
 

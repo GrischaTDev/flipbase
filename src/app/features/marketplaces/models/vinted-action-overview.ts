@@ -1,3 +1,4 @@
+import { actionPreviewImageUrl } from './action-preview-image';
 import type { AccountScope } from './marketplace.models';
 import { MarketplaceResponseError } from './marketplace-response';
 
@@ -19,6 +20,7 @@ export interface VintedAction {
   readonly priceCents: number | null;
   readonly currency: string | null;
   readonly textPreview: string | null;
+  readonly imageUrl?: string | null;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly errorCode: string | null;
@@ -113,6 +115,7 @@ export function parseVintedActionOverview(
       partnerName: nullableString(action['partnerName']),
       itemTitle: nullableString(action['itemTitle']),
       textPreview: nullableString(action['textPreview']),
+      imageUrl: actionPreviewImageUrl(action['imageUrl']),
       createdAt: timestamp(action['createdAt']),
       updatedAt: timestamp(action['updatedAt']),
       errorCode: nullableString(action['errorCode']),

@@ -16,7 +16,7 @@
       [title]="hasFailure() ? label() + ' – Aktion prüfen' : label()"
       [ariaExpanded]="opened()"
       ariaControls="header-action-overview"
-      [ariaHaspopup]="mobile() ? 'dialog' : null"
+      ariaHaspopup="dialog"
       (clicked)="toggle()"
     />
     @if (hasFailure()) {
@@ -46,73 +46,123 @@
     }
   </span>
   @if (opened()) {
-    @if (mobile()) {
-      <app-modal-shell
-        id="header-action-overview"
-        title="Laufende Aktionen"
-        presentation="sheet"
-        [hasFooter]="false"
-        [closeOnBackdrop]="true"
-        (closed)="close()"
+    <app-modal-shell
+      id="header-action-overview"
+      data-action-overview-panel
+      title="Aktionen"
+      presentation="drawer"
+      [hasFooter]="false"
+      [closeOnBackdrop]="true"
+      (closed)="close()"
+    >
+      <app-segmented-tabs
+        label="Aktionen anzeigen"
+        idPrefix="action-overview"
+        [tabs]="tabs()"
+        [value]="tab()"
+        (valueChange)="selectTab($event)"
+      />
+      @if (accountActions.error(); as error) {
+        <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+      }
+      @if (store.error(); as error) {
+        <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
+      }
+      <div
+        role="tabpanel"
+        [id]="'action-overview-panel-' + tab()"
+        [attr.aria-labelledby]="'action-overview-tab-' + tab()"
       >
-        <ng-container [ngTemplateOutlet]="actions" />
-      </app-modal-shell>
-    } @else {
-      <section
-        id="header-action-overview"
-        data-action-overview-panel
-        aria-labelledby="header-action-overview-title"
-        class="absolute right-0 top-full z-50 mt-2 max-h-[min(70dvh,36rem)] w-[min(360px,calc(100vw-1.5rem))] overflow-y-auto overscroll-contain rounded-xl border border-fb-border bg-fb-surface p-4 shadow-xl"
-      >
-        <header class="mb-3 flex items-center justify-between gap-2">
-          <h2
-            id="header-action-overview-title"
-            class="text-[13px] font-semibold text-fb-text-primary"
-          >
-            Laufende Aktionen
-          </h2>
-          <app-button
-            variant="ghost"
-            size="slim"
-            [icon]="closeIcon"
-            [iconOnly]="true"
-            ariaLabel="Aktionsübersicht schließen"
-            (clicked)="close()"
-          />
-        </header>
-        <ng-container [ngTemplateOutlet]="actions" />
-      </section>
-    }
+        @if (tab() === 'running') {
+          @if (runningQueue().length) {
+            <ol data-action-queue class="space-y-2">
+              @for (queued of runningQueue(); track queued.item.key) {
+                <li
+                  class="flex min-w-0 items-start gap-2.5 rounded-xl bg-fb-surface-hover p-3"
+                  [attr.data-queue-position]="queued.position"
+                >
+                  <span
+                    data-queue-number
+                    class="mt-4 flex size-6 shrink-0 items-center justify-center rounded-full border border-fb-border bg-fb-surface text-[11px] font-semibold tabular-nums text-fb-text-secondary"
+                    ><span class="sr-only">Position </span>{{ queued.position }}</span
+                  >
+                  <div class="min-w-0 flex-1">
+                    <ng-container
+                      [ngTemplateOutlet]="actionItem"
+                      [ngTemplateOutletContext]="{ $implicit: queued.item }"
+                    />
+                  </div>
+                </li>
+              }
+            </ol>
+          } @else if (store.loading() && !store.loaded()) {
+            <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
+              <app-loading-indicator /> Aktionen werden geladen …
+            </p>
+          } @else {
+            <div
+              role="status"
+              data-action-overview-idle
+              class="flex flex-col items-center gap-3 py-10 text-center"
+            >
+              <app-action-status-indicator state="success" size="large" />
+              <p class="text-[13px] font-medium text-fb-text-primary">Alles erledigt</p>
+            </div>
+          }
+        } @else {
+          @if (past().length) {
+            <ul data-action-history class="space-y-2">
+              @for (item of past(); track item.key) {
+                <li class="min-w-0 rounded-xl bg-fb-surface-hover p-3">
+                  <ng-container
+                    [ngTemplateOutlet]="actionItem"
+                    [ngTemplateOutletContext]="{ $implicit: item }"
+                  />
+                </li>
+              }
+            </ul>
+          } @else {
+            <p role="status" class="py-10 text-center text-[13px] text-fb-text-secondary">
+              Noch keine abgeschlossenen Aktionen
+            </p>
+          }
+        }
+      </div>
+    </app-modal-shell>
   }
 }
-<ng-template #actions>
-  <div class="space-y-1.5">
-    @if (accountActions.error(); as error) {
-      <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
-    }
-    @for (entry of accountActions.entries(); track entry.action.id) {
+
+<ng-template #actionItem let-item>
+  @switch (item.kind) {
+    @case ('account') {
+      @let entry = item.entry;
       <div
-        class="flex min-w-0 flex-wrap items-start gap-x-2.5 gap-y-1 rounded-lg bg-fb-surface-hover p-3"
+        class="flex min-w-0 items-start gap-3"
         [attr.data-account-action-id]="entry.action.id"
         [attr.data-account-action-state]="entry.action.state"
       >
-        <app-action-status-indicator
+        <app-action-status-thumbnail
           [state]="accountActionIndicator(entry.action, entry.reconciliation)"
+          [imageUrl]="entry.action.imageUrl"
         />
-        <div class="min-w-0 flex-1 space-y-1">
-          <p class="text-[13px] font-medium text-fb-text-primary">
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">
             {{ accountActionTitle(entry.action.kind) }}
           </p>
-          <p class="truncate text-xs text-fb-text-secondary">{{ entry.accountName }}</p>
           @if (entry.action.title) {
-            <p class="truncate text-xs text-fb-text-secondary">{{ entry.action.title }}</p>
+            <p class="truncate text-xs leading-5 text-fb-text-secondary">
+              {{ entry.action.title }}
+            </p>
           }
-          <p role="status" class="text-xs text-fb-text-secondary">
+          <p class="truncate text-xs leading-5 text-fb-text-secondary">{{ entry.accountName }}</p>
+          <p role="status" class="text-xs leading-5 text-fb-text-secondary">
             {{ accountActionStatus(entry.action) }}
           </p>
           @if (entry.reconciliation; as check) {
             @if (check.state === 'queued' || check.state === 'running') {
-              <p role="status" class="text-xs text-fb-text-secondary">Ergebnis wird geprüft</p>
+              <p role="status" class="text-xs leading-5 text-fb-text-secondary">
+                Ergebnis wird geprüft
+              </p>
               @if (check.state === 'queued') {
                 <app-button
                   variant="ghost"
@@ -123,13 +173,23 @@
                 >
               }
             } @else if (check.state === 'failed') {
-              <p role="status" class="text-xs text-fb-text-secondary">
+              <p role="status" class="text-xs leading-5 text-fb-text-secondary">
                 Nachprüfung fehlgeschlagen: {{ accountActionStatus(check) }}
               </p>
             } @else if (check.state === 'cancelled') {
-              <p role="status" class="text-xs text-fb-text-secondary">Nachprüfung abgebrochen</p>
+              <p role="status" class="text-xs leading-5 text-fb-text-secondary">
+                Nachprüfung abgebrochen
+              </p>
             }
           }
+          <time
+            data-action-time
+            class="block text-[11px] leading-5 tabular-nums text-fb-text-secondary"
+            [attr.datetime]="entry.reconciliation?.updatedAt ?? entry.action.updatedAt"
+            >{{
+              entry.reconciliation?.updatedAt ?? entry.action.updatedAt | date: 'dd.MM.yyyy, HH:mm'
+            }}</time
+          >
           @if (entry.action.state === 'queued') {
             <app-button
               variant="ghost"
@@ -166,30 +226,26 @@
             (clicked)="accountActions.dismiss(entry.action)"
           />
         }
-        <time
-          data-action-time
-          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
-          [attr.datetime]="entry.reconciliation?.updatedAt ?? entry.action.updatedAt"
-          >{{
-            entry.reconciliation?.updatedAt ?? entry.action.updatedAt | date: 'dd.MM.yyyy, HH:mm'
-          }}</time
-        >
       </div>
     }
-    @if (store.error(); as error) {
-      <app-notice-banner announcement="alert">{{ error }}</app-notice-banner>
-    }
-    <!-- In Flipbase gestartete Aktionen stehen oben, die neueste zuerst. -->
-    @for (action of listingOperations.entries(); track action.key) {
-      <div
-        class="flex flex-wrap items-start gap-x-3 gap-y-1 rounded-lg border border-fb-border-subtle p-3"
-      >
-        <app-action-status-indicator [state]="action.state" />
-        <div class="min-w-0 flex-1 space-y-1">
-          <p class="text-sm font-medium text-fb-text-primary">
-            {{ listingOperations.label(action.kind) }} · {{ action.title }}
+    @case ('operation') {
+      @let action = item.operation;
+      <div class="flex min-w-0 items-start gap-3">
+        <app-action-status-thumbnail [state]="action.state" [imageUrl]="action.imageUrl" />
+        <div class="min-w-0 flex-1">
+          <p class="text-[13px] font-medium leading-5 text-fb-text-primary">
+            {{ listingOperations.label(action.kind) }}
           </p>
-          <p role="status" class="text-xs text-fb-text-secondary">{{ action.message }}</p>
+          <p class="truncate text-xs leading-5 text-fb-text-secondary">{{ action.title }}</p>
+          <p role="status" class="text-xs leading-5 text-fb-text-secondary">
+            {{ action.message }}
+          </p>
+          <time
+            data-action-time
+            class="block text-[11px] leading-5 tabular-nums text-fb-text-secondary"
+            [attr.datetime]="action.updatedAt"
+            >{{ action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+          >
         </div>
         @if (action.state !== 'running') {
           <app-button
@@ -203,32 +259,27 @@
             (clicked)="listingOperations.dismiss(action.key)"
           />
         }
-        <time
-          data-action-time
-          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
-          [attr.datetime]="action.updatedAt"
-          >{{ action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
-        >
       </div>
     }
-    @for (group of store.groups(); track group.scope.connectionId) {
+    @case ('overview') {
       <app-vinted-action-overview
-        [actions]="group.actions"
-        [accountName]="group.accountName"
-        [connectionId]="group.scope.connectionId"
+        [action]="item.action"
+        [accountName]="item.accountName"
+        [connectionId]="item.connectionId"
       />
     }
-    @if (store.listings().length) {
-      <app-vinted-listing-action-overview [entries]="store.listings()" />
+    @case ('listing') {
+      <app-vinted-listing-action-overview
+        [entry]="item.entry"
+        [coverUrl]="coverUrl(item.entry.job.coverStoragePath)"
+      />
     }
-    @for (action of kleinanzeigen.entries(); track action.key) {
-      <div
-        class="flex flex-wrap items-start gap-x-2 gap-y-1 border-t border-fb-border-subtle py-3"
-        data-kleinanzeigen-action
-      >
-        <app-action-status-indicator [state]="action.state" />
-        <div class="min-w-0 flex-1 space-y-1">
-          <p class="flex items-center gap-1.5 text-xs text-fb-text-secondary">
+    @case ('kleinanzeigen') {
+      @let action = item.action;
+      <div class="flex min-w-0 items-start gap-3" data-kleinanzeigen-action>
+        <app-action-status-thumbnail [state]="action.state" />
+        <div class="min-w-0 flex-1">
+          <p class="flex items-center gap-1.5 text-xs leading-5 text-fb-text-secondary">
             <img
               ngSrc="/images/platforms/kleinanzeigen.svg"
               width="16"
@@ -237,21 +288,35 @@
               class="size-4 shrink-0 object-contain"
             />{{ action.accountName }}
           </p>
-          <p class="break-words text-[13px] font-medium text-fb-text-primary">{{ action.title }}</p>
-          <p role="status" class="text-xs text-fb-text-secondary">{{ action.message }}</p>
-          @if (action.requiresExtensionUpdate) {
-            <app-button variant="secondary" size="slim" (clicked)="extension.openSettings()"
-              >Erweiterung öffnen</app-button
+          <p class="break-words text-[13px] font-medium leading-5 text-fb-text-primary">
+            {{ action.title }}
+          </p>
+          <p role="status" class="text-xs leading-5 text-fb-text-secondary">
+            {{ action.message }}
+          </p>
+          <time
+            data-action-time
+            class="block text-[11px] leading-5 tabular-nums text-fb-text-secondary"
+            [attr.datetime]="action.updatedAt"
+            >{{ action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
+          >
+          <div class="flex flex-wrap items-center gap-2 pt-1">
+            @if (action.requiresExtensionUpdate) {
+              <app-button variant="secondary" size="slim" (clicked)="extension.openSettings()"
+                >Erweiterung öffnen</app-button
+              >
+            }
+            <app-button
+              variant="ghost"
+              size="slim"
+              link="/marketplaces/kleinanzeigen/listings"
+              (clicked)="close()"
+              >Zu den Inseraten</app-button
             >
+          </div>
+          @if (action.requiresExtensionUpdate) {
             <p class="text-xs text-fb-text-secondary">Alternativ: chrome://extensions öffnen.</p>
           }
-          <app-button
-            variant="ghost"
-            size="slim"
-            link="/marketplaces/kleinanzeigen/listings"
-            (clicked)="close()"
-            >Zu den Inseraten</app-button
-          >
         </div>
         @if (action.state !== 'running') {
           <app-button
@@ -263,36 +328,7 @@
             (clicked)="kleinanzeigen.dismiss(action.key)"
           />
         }
-        <time
-          data-action-time
-          class="w-full text-right text-[11px] tabular-nums text-fb-text-secondary"
-          [attr.datetime]="action.updatedAt"
-          >{{ action.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}</time
-        >
       </div>
     }
-    @if (
-      !store.groups().length &&
-      !store.listings().length &&
-      !kleinanzeigen.entries().length &&
-      !listingOperations.entries().length &&
-      !accountActions.entries().length &&
-      !accountActions.error()
-    ) {
-      @if (store.loading() && !store.loaded()) {
-        <p role="status" class="flex items-center gap-2 text-[13px] text-fb-text-secondary">
-          <app-loading-indicator /> Aktionen werden geladen …
-        </p>
-      } @else if (!store.error()) {
-        <div
-          role="status"
-          data-action-overview-idle
-          class="flex flex-col items-center gap-3 py-6 text-center"
-        >
-          <app-action-status-indicator state="success" size="large" />
-          <p class="text-[13px] font-medium text-fb-text-primary">Alles erledigt</p>
-        </div>
-      }
-    }
-  </div>
+  }
 </ng-template>

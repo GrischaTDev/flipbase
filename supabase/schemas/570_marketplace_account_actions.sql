@@ -276,6 +276,8 @@ begin
   end if;
   return jsonb_build_object('id',p_action.public_id,'workspaceId',p_action.workspace_id,'connectionId',p_action.connection_id,'requestId',p_action.request_id,
     'kind',p_action.kind,'state',p_action.state,'version',p_action.version,'waitReason',v_wait,'errorCode',p_action.error_code,'result',p_action.result,'entryId',p_action.entry_id,'title',p_action.title,
+    'imageUrl',(select coalesce(entry.body->>'imageUrl',entry.body->>'itemImageUrl') from public.marketplace_account_entries entry
+      where entry.id=p_action.entry_id and entry.workspace_id=p_action.workspace_id and entry.connection_id=p_action.connection_id),
     'createdAt',p_action.created_at,'startedAt',p_action.started_at,'finishedAt',p_action.finished_at,'updatedAt',p_action.updated_at,
     'historyPurged',p_action.history_purged_at is not null,'resultExpired',p_action.history_purged_at is not null,'blockedByActionId',v_blocker);
 end;

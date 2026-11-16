@@ -118,22 +118,12 @@ for (const theme of ['light', 'dark'] as const)
           page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
         ).toBeVisible();
         await expect(item).not.toHaveAttribute('aria-busy', 'true');
-        await page
-          .getByRole('button', {
-            name: width < 768 ? 'Dialog schließen' : 'Aktionsübersicht schließen',
-            exact: true,
-          })
-          .click();
+        await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
         await expect(section.getByRole('alert')).toHaveCount(0);
         await expect(page.locator('[data-action-overview-error]')).toBeVisible();
         await page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }).click();
         await expect(page.locator('[data-kleinanzeigen-action]')).toContainText('Anbieterformular');
-        await page
-          .getByRole('button', {
-            name: width < 768 ? 'Dialog schließen' : 'Aktionsübersicht schließen',
-            exact: true,
-          })
-          .click();
+        await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
         await expect(section.getByText('Noch offene Vorgänge in diesem Browserprofil')).toHaveCount(
           0,
         );
