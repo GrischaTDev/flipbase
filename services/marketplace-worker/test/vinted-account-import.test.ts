@@ -3267,6 +3267,8 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
     ['2 Tagen', 'day', 2],
     ['vor einer Stunde', 'hour', 1],
     ['1 h', 'hour', 1],
+    ['11 Min.', 'minute', 11],
+    ['vor 1 Min.', 'minute', 1],
     ['3 weeks ago', 'week', 3],
     ['1 Monat', 'month', 1],
   ]) {
@@ -3286,7 +3288,7 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
   const originalFetch = globalThis.fetch;
   try {
     globalThis.DOMParser = dom.window.DOMParser;
-    for (const scenario of ['valid', 'hour', 'foreign', 'rate_limited']) {
+    for (const scenario of ['valid', 'minute', 'hour', 'foreign', 'rate_limited']) {
       const paths: string[] = [];
       globalThis.fetch = async (input, init = {}) => {
         const path = String(input);
@@ -3298,7 +3300,7 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
             scenario === 'rate_limited'
               ? new Response('', { status: 429, headers: { 'Retry-After': '60' } })
               : new Response(
-                  `<link rel="canonical" href="https://www.vinted.de/items/${scenario === 'foreign' ? '42' : '41'}-artikel"><script type="application/json">{"user":{"id":123,"created_at":"2020-01-01T00:00:00Z"}}</script><div data-testid="item-attributes-upload_date"><div>Hochgeladen</div><div itemprop="upload_date"><span>${scenario === 'hour' ? '1 h' : '2 Tagen'}</span></div></div>`,
+                  `<link rel="canonical" href="https://www.vinted.de/items/${scenario === 'foreign' ? '42' : '41'}-artikel"><script type="application/json">{"user":{"id":123,"created_at":"2020-01-01T00:00:00Z"}}</script><div data-testid="item-attributes-upload_date"><div>Hochgeladen</div><div itemprop="upload_date"><span>${scenario === 'hour' ? '1 h' : scenario === 'minute' ? '11 Min.' : '2 Tagen'}</span></div></div>`,
                   { headers: { 'Content-Type': 'text/html' } },
                 );
         } else if (path === '/api/v2/item_upload/items/41') {
@@ -3345,18 +3347,24 @@ test('cloud publication enrichment reads the measured HTML attribute and rejects
       assert.equal(publication.body.createdAt, null);
       assert.equal(
         parseVintedPublicationAge(publication.body.publicationAge)?.unit ?? null,
-        scenario === 'valid' ? 'day' : scenario === 'hour' ? 'hour' : null,
+        scenario === 'valid'
+          ? 'day'
+          : scenario === 'hour'
+            ? 'hour'
+            : scenario === 'minute'
+              ? 'minute'
+              : null,
       );
       assert.equal(
         parseVintedPublicationAge(publication.body.publicationAge)?.value ?? null,
-        scenario === 'valid' ? 2 : scenario === 'hour' ? 1 : null,
+        scenario === 'valid' ? 2 : scenario === 'hour' ? 1 : scenario === 'minute' ? 11 : null,
       );
       assert.equal(
         publication.sortAt,
-        scenario === 'valid' || scenario === 'hour'
+        scenario === 'valid' || scenario === 'hour' || scenario === 'minute'
           ? new Date(
               Date.parse(snapshot.observedAt) -
-                (scenario === 'valid' ? 2 * 24 : 1) * 60 * 60 * 1000,
+                (scenario === 'valid' ? 2 * 24 * 60 : scenario === 'hour' ? 60 : 11) * 60 * 1000,
             ).toISOString()
           : '1970-01-01T00:00:00.000Z',
       );

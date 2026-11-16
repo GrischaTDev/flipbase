@@ -91,17 +91,20 @@ test('active state reads the exact article title from the observed Vinted metada
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    const title = 'Jacke, marke: adidas, zustand: Sehr gut, größe: L, 19,90 €';
-    const writes = await fixture(page, { title });
-    const active = await readVintedListingActiveState(page, '123', '98765', 'Jacke', () =>
-      Promise.resolve(),
-    );
-    assert.equal(
-      await page.getByTestId('product-item-id-98765--overlay-link').getAttribute('title'),
-      title,
-    );
-    assert.equal(active, true);
-    assert.equal(writes(), 0);
+    for (const condition of ['Sehr gut', 'Neu, ohne Etikett', 'Neu, mit Etikett']) {
+      const title = `Jacke, marke: adidas, zustand: ${condition}, größe: L, 19,90 €`;
+      const writes = await fixture(page, { title });
+      const active = await readVintedListingActiveState(page, '123', '98765', 'Jacke', () =>
+        Promise.resolve(),
+      );
+      assert.equal(
+        await page.getByTestId('product-item-id-98765--overlay-link').getAttribute('title'),
+        title,
+      );
+      assert.equal(active, true, condition);
+      assert.equal(writes(), 0);
+      await page.unrouteAll();
+    }
   } finally {
     await browser.close();
   }
@@ -134,6 +137,27 @@ test('the shared status reader requires visible unique controls, owner scope and
       [
         base.replace('title="Jacke"', 'title="Jacke, marke: adidas, zustand: Sehr gut, 19,90 €"'),
         true,
+      ],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke, marke: adidas, zustand: Neu, ohne Etikett, 19,90 €"',
+        ),
+        true,
+      ],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke länger, marke: adidas, zustand: Neu, ohne Etikett, größe: L, 19,90 €"',
+        ),
+        false,
+      ],
+      [
+        base.replace(
+          'title="Jacke"',
+          'title="Jacke, marke: adidas, zustand: Neu, unbekannt, größe: L, 19,90 €"',
+        ),
+        false,
       ],
       [
         base.replace(
