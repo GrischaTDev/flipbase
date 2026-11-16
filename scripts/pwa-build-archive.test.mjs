@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, utimes } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, stat, utimes } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -81,6 +81,56 @@ test('release archive verifies bytes, excludes private files, preserves recent b
     assert.equal(result.status, 0, result.stderr);
     assert.equal((await readdir(archive)).includes('1'.repeat(64)), false);
     assert.equal((await readdir(archive)).includes('3'.repeat(64)), true);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('release archive deduplicates identical assets via hardlinks and preserves surviving builds after pruning', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'flipbase-app-archive-dedup-'));
+  const sourceA = join(root, 'source-a');
+  const sourceB = join(root, 'source-b');
+  const archive = join(root, 'archive');
+  await mkdir(sourceA);
+  await mkdir(sourceB);
+  const sharedBytes = Buffer.from('shared-asset-content-across-releases');
+  const sharedHash = createHash('sha256').update(sharedBytes).digest('hex');
+  const makeBuild = async (dir, buildId, html) => {
+    const htmlHash = createHash('sha256').update(html).digest('hex');
+    await writeFile(join(dir, 'index.html'), html);
+    await mkdir(join(dir, 'sounds'));
+    await writeFile(join(dir, 'sounds', 'sale-cash-register.wav'), sharedBytes);
+    await writeFile(
+      join(dir, 'pwa-assets.json'),
+      JSON.stringify({
+        version: 1,
+        buildId,
+        assets: [
+          { url: '/index.html', sha256: htmlHash },
+          { url: '/sounds/sale-cash-register.wav', sha256: sharedHash },
+        ],
+      }),
+    );
+  };
+  try {
+    const buildA = 'a'.repeat(64);
+    const buildB = 'b'.repeat(64);
+    await makeBuild(sourceA, buildA, '<html>build a</html>');
+    await makeBuild(sourceB, buildB, '<html>build b</html>');
+    assert.equal(spawnSync(python, [script, sourceA, archive], { encoding: 'utf8' }).status, 0);
+    assert.equal(spawnSync(python, [script, sourceB, archive], { encoding: 'utf8' }).status, 0);
+    const statA = await stat(join(archive, buildA, 'sounds', 'sale-cash-register.wav'));
+    const statB = await stat(join(archive, buildB, 'sounds', 'sale-cash-register.wav'));
+    assert.equal(statA.ino, statB.ino);
+    assert.equal(statB.nlink, 2);
+    const dedup = spawnSync(python, [script, '--deduplicate', archive], { encoding: 'utf8' });
+    assert.equal(dedup.status, 0, dedup.stderr);
+    assert.equal(JSON.parse(dedup.stdout).deduplicated_files, 0);
+    await rm(join(archive, buildA), { recursive: true, force: true });
+    assert.deepEqual(
+      await readFile(join(archive, buildB, 'sounds', 'sale-cash-register.wav')),
+      sharedBytes,
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
