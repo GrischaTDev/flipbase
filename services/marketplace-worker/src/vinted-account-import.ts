@@ -207,16 +207,19 @@ export class VintedImportRequestError extends Error {
   readonly reason: VintedRequestFailure;
   readonly retryAfter?: string;
   readonly browserReadFailure?: VintedBrowserReadFailure;
+  readonly sourceReadFailure?: VintedSourceReadFailure;
 
   constructor(
     reason: VintedRequestFailure,
     retryAfter?: string,
     browserFailure?: VintedBrowserReadFailure,
+    sourceFailure?: VintedSourceReadFailure,
   ) {
     super('Vinted-Datenantwort nicht verfügbar');
     this.reason = reason;
     this.retryAfter = retryAfter;
     this.browserReadFailure = browserFailure;
+    this.sourceReadFailure = sourceFailure;
   }
 }
 
@@ -1069,8 +1072,13 @@ async function vintedJson(
       Date.parse(requested) <= Date.now() + 7 * 24 * 60 * 60 * 1000
         ? new Date(requested).toISOString()
         : undefined;
-    const error = new VintedImportRequestError(reason, retryAfter);
     const sourceReadFailure = record(result)?.['sourceReadFailure'];
+    const error = new VintedImportRequestError(
+      reason,
+      retryAfter,
+      undefined,
+      isVintedSourceReadFailure(sourceReadFailure) ? sourceReadFailure : undefined,
+    );
     if (
       context &&
       context.sourceFailures.length < 8 &&
@@ -1098,8 +1106,17 @@ async function pages(
       const response = record(await vintedJson(page, path(number), context));
       const items = response?.[key];
       const totalPages = count(record(response?.['pagination'])?.['total_pages']);
-      if (!Array.isArray(items) || items.length > 100 || totalPages === null || totalPages < number)
+      if (!Array.isArray(items) || items.length > 100 || totalPages === null)
         throw new VintedImportRequestError('invalid_response');
+      if (totalPages < number) {
+        // Beim Löschen kann die letzte Seite entfallen; ohne stabilen Listenabschluss nichts bereinigen.
+        if (key === 'conversations' && items.length === 0)
+          return {
+            values,
+            result: { status: number === 1 && totalPages === 0 ? 'complete' : 'partial' },
+          };
+        throw new VintedImportRequestError('invalid_response');
+      }
       values.push(...items);
       // Unbekannte Zeilen bleiben ein Teilstand, selbst wenn die Pagination vollständig ist.
       if (items.some((item) => !identifier(record(item)?.['id'])))
@@ -1434,6 +1451,7 @@ export async function readVintedAccountImport(
   const details: unknown[] = [];
   const eventBatches: MarketplaceInboxEventBatch[] = [];
   const detailAttempts = new Map<string, string>();
+  const missingConversations = new Map<string, VintedImportRequestError>();
   const detailPhaseStartedAt = Date.now();
   const canReadBackgroundDetail = () =>
     !reads.blocked &&
@@ -1513,12 +1531,21 @@ export async function readVintedAccountImport(
       conversation = await vintedJson(page, `/api/v2/conversations/${id}`, reads);
       const relation = record(record(conversation)?.['conversation']);
       if (identifier(relation?.['id']) !== id || !Array.isArray(relation?.['messages'])) {
-        if (reads.sourceFailures.length < 8)
-          reads.sourceFailures.push({ area: 'messages', issue: 'conversation_shape' });
-        throw new VintedImportRequestError('invalid_response');
+        const sourceReadFailure = { area: 'messages', issue: 'conversation_shape' } as const;
+        if (reads.sourceFailures.length < 8) reads.sourceFailures.push(sourceReadFailure);
+        throw new VintedImportRequestError(
+          'invalid_response',
+          undefined,
+          undefined,
+          sourceReadFailure,
+        );
       }
     } catch (error) {
       if (requestedConversation) throw new VintedImportReadError('messages', error);
+      if (error instanceof VintedImportRequestError && error.reason === 'invalid_response') {
+        missingConversations.set(id, error);
+        continue;
+      }
       areas.messages = sourceFailure('messages', error, true);
       areas.sales = sourceFailure('transaction', error, true);
       continue;
@@ -1591,6 +1618,40 @@ export async function readVintedAccountImport(
           ? transaction !== null
           : saleRead.canConfirmWithoutTransaction,
     });
+  }
+  if (missingConversations.size) {
+    // Eine ungültige Detailantwort belegt keine Löschung; erst die vollständige Liste bestätigt die Entfernung.
+    const current = await pages(
+      page,
+      (number) => `/api/v2/inbox?page=${number}&per_page=20`,
+      'conversations',
+      authorize,
+      'conversations',
+      reads,
+    );
+    const currentIds = new Set(current.values.map((value) => identifier(record(value)?.['id'])));
+    const removedIds = new Set<string>();
+    for (const [id, error] of missingConversations) {
+      if (current.result.status === 'complete' && !current.result.failure && !currentIds.has(id)) {
+        removedIds.add(id);
+        reads.sourceFailures = reads.sourceFailures.filter(
+          (failure) => failure !== error.sourceReadFailure,
+        );
+      } else {
+        if (!areas.messages.failure) areas.messages = sourceFailure('messages', error, true);
+        if (!areas.sales.failure) areas.sales = sourceFailure('transaction', error, true);
+      }
+    }
+    conversations.values = conversations.values.filter(
+      (value) => !removedIds.has(identifier(record(value)?.['id']) ?? ''),
+    );
+    if (
+      current.result.status === 'complete' &&
+      !current.result.failure &&
+      (conversations.values.length !== currentIds.size ||
+        conversations.values.some((value) => !currentIds.has(identifier(record(value)?.['id']))))
+    )
+      conversations.result.status = 'partial';
   }
   const feedbacks = requestedConversation
     ? { values: [], result: { status: 'partial' as const } }
