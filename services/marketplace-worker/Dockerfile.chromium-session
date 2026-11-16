@@ -21,7 +21,7 @@ COPY --from=extension vinted-local-inbox-events.js /tools/flipbase-extension/
 COPY --from=shared marketplace-inbox-notification-kinds.mjs /supabase/functions/_shared/
 COPY --from=shared vinted-selling-tree.mjs /supabase/functions/_shared/
 COPY --from=extension vinted-listing-runtime.js /tools/flipbase-extension/
-COPY --from=shared vinted-listing-photo-renderer.mts /supabase/functions/_shared/
+COPY --from=shared vinted-listing-photo-renderer.mts kleinanzeigen-listing-validation.mts /supabase/functions/_shared/
 ENV DISPLAY=:99 HOME=/home/node TZ=Europe/Berlin
 USER node
 CMD ["node", "--experimental-strip-types", "runtime/chromium-session.ts"]
