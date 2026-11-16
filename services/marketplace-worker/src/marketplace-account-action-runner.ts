@@ -1,3 +1,4 @@
+import { parseVintedTransferSource } from '../../../supabase/functions/_shared/kleinanzeigen-listing-validation.mts';
 import type { BrowserInfo } from './gologin-cloud-browser.ts';
 import type { MarketplaceBrowserSessionBroker } from './marketplace-browser-session-broker.ts';
 import { MarketplaceBrowserSessionEndedError } from './marketplace-browser-session-broker.ts';
@@ -180,7 +181,7 @@ export function validateAccountActionPayload(
     price_save: ['entryId', 'expectedPriceCents', 'priceCents'],
     listing_delete: ['entryId'],
     listing_edit_read: ['entryId'],
-    listing_content_read: ['entryId'],
+    listing_content_read: ['entryId', 'saleItemId'],
     listing_edit_save: ['entryId', 'fields'],
     listing_content_save: ['entryId', 'base', 'content', 'photos'],
     listing_edit_intent: ['entryId', 'intent'],
@@ -198,6 +199,12 @@ export function validateAccountActionPayload(
     throw new Error('Ungültige Kontoaktion');
   if ((kind.startsWith('listing_') && kind !== 'listing_category_read') || kind === 'price_save')
     actionUuid(payload.entryId);
+  if (
+    kind === 'listing_content_read' &&
+    payload.saleItemId !== undefined &&
+    (typeof payload.saleItemId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(payload.saleItemId))
+  )
+    throw new Error('Ungültiger Verkaufsartikel');
   if (kind === 'conversations_read') actionUuid(payload.conversationId);
   if (kind === 'shipping_label_request') actionUuid(payload.saleId);
   if (kind === 'price_save') {
@@ -509,6 +516,16 @@ export class MarketplaceAccountActionRunner {
       case 'listing_edit_read':
         return { fields: await required(browser.readListingEdit)(external, account) };
       case 'listing_content_read': {
+        if (typeof p.saleItemId === 'string') {
+          const source = parseVintedTransferSource(
+            await required(browser.readSoldListingSource)(account, p.saleItemId, authorize),
+            account,
+            p.saleItemId,
+          );
+          if (!source) throw new Error('Der gelesene Artikel passt nicht zum Verkauf.');
+          await authorize();
+          return { source };
+        }
         const listing = parseVintedListingCurrentContent(
           await required(browser.readListingContent)(account, external, authorize),
           account,

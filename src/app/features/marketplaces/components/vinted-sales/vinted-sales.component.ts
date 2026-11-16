@@ -1,3 +1,4 @@
+import { LucideRotateCcw, LucideMessageCircle } from '@lucide/angular';
 import { CurrencyPipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -37,6 +38,7 @@ import { TableActionMenuComponent } from '../../../../shared/components/table-ac
   host: { class: 'block min-w-0' },
 })
 export class VintedSalesComponent {
+  readonly icons = { relist: LucideRotateCcw, chat: LucideMessageCircle };
   readonly itemIds = vintedSaleItemIds;
   canCopy(entry: MarketplaceEntry): boolean {
     const connection = this.store.selectedConnection();

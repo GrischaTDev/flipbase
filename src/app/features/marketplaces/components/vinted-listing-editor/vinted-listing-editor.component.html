@@ -64,10 +64,10 @@
   @if (error() || loadError() || (copyPhotoError() && !images().length)) {
     <app-notice-banner announcement="alert"
       ><p>{{ error() || loadError() || copyPhotoError() }}</p>
-      @if (conflict() || loadError()) {
-        <app-button variant="secondary" size="slim" (clicked)="reload()"
-          >Gespeicherten Stand laden</app-button
-        >
+      @if (conflict() || loadError() || (copyingSale() && error())) {
+        <app-button variant="secondary" size="slim" (clicked)="reload()">{{
+          copyingSale() && error() ? 'Artikel erneut abrufen' : 'Gespeicherten Stand laden'
+        }}</app-button>
       }
     </app-notice-banner>
   }
@@ -81,7 +81,11 @@
     </p>
   } @else if (!loadError()) {
     @if (relisting()) {
-      <div class="space-y-4" [formGroup]="form" [attr.inert]="publication() ? '' : null">
+      <div
+        class="space-y-4"
+        [formGroup]="form"
+        [attr.inert]="publication() || (copyingSale() && preparingSource()) ? '' : null"
+      >
         <app-text-field
           label="Titel"
           [error]="visibleFieldErrors()['title'] ?? null"
@@ -183,7 +187,10 @@
         </div>
       </div>
     } @else {
-      <div [formGroup]="form" [attr.inert]="publication() ? '' : null">
+      <div
+        [formGroup]="form"
+        [attr.inert]="publication() || (copyingSale() && preparingSource()) ? '' : null"
+      >
         <app-two-column-layout ratio="2-1">
           <div main class="space-y-4">
             <app-card title="Fotos">

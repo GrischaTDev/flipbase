@@ -372,15 +372,17 @@ export class VintedListingEditorComponent {
   });
   readonly missingVariables = computed(() => missingVintedListingVariables(this.content()));
   readonly status = computed(() =>
-    this.saving()
-      ? this.progress() || 'Entwurf wird gespeichert …'
-      : this.conflict()
-        ? 'Versionskonflikt'
-        : this.dirty()
-          ? 'Änderungen noch nicht gespeichert'
-          : this.draft()
-            ? 'Entwurf gespeichert'
-            : 'Noch kein Entwurf angelegt',
+    this.copyingSale() && this.preparingSource()
+      ? 'Verkaufsartikel wird übernommen …'
+      : this.saving()
+        ? this.progress() || 'Entwurf wird gespeichert …'
+        : this.conflict()
+          ? 'Versionskonflikt'
+          : this.dirty()
+            ? 'Änderungen noch nicht gespeichert'
+            : this.draft()
+              ? 'Entwurf gespeichert'
+              : 'Noch kein Entwurf angelegt',
   );
   readonly canSave = computed(
     () =>
@@ -1160,7 +1162,7 @@ export class VintedListingEditorComponent {
           );
         if (!account || this.query().get('workspaceId') !== workspaceId)
           throw new Error('Wähle das verbundene Vinted-Konto dieses Verkaufs aus.');
-        const copied = await this.soldItems.read(
+        let copied = await this.soldItems.read(
           { workspaceId, connectionId: account.connectionId },
           this.query().get('copySaleId')!,
           this.query().get('copyItemId') ?? '',
@@ -1184,6 +1186,51 @@ export class VintedListingEditorComponent {
         );
         this.changed.update((value) => value + 1);
         this.dirty.set(true);
+        if (copied.needsCurrent) {
+          this.loading.set(false);
+          this.preparingSource.set(true);
+          try {
+            const token = this.auth.session()?.access_token;
+            if (!token || !account.externalAccountId) throw new Error('Die Kontoverbindung fehlt.');
+            copied = await this.soldItems.refresh(
+              { workspaceId, connectionId: account.connectionId },
+              this.query().get('copySaleId')!,
+              this.query().get('copyItemId') ?? '',
+              account.externalAccountId,
+              token,
+              copied,
+            );
+            if (!this.current(generation, context)) return;
+            this.copyPhotoError.set(copied.photoError ?? null);
+            this.referenceContent.set(copied.content);
+            this.patch(copied.content, account.connectionId);
+            this.photoUrls.forEach((url) => URL.revokeObjectURL(url));
+            this.photoUrls.clear();
+            this.images.set(
+              copied.files.map((file) => {
+                const previewUrl = URL.createObjectURL(file);
+                this.photoUrls.add(previewUrl);
+                return {
+                  key: crypto.randomUUID(),
+                  storagePath: null,
+                  file,
+                  fileName: file.name,
+                  previewUrl,
+                };
+              }),
+            );
+            this.changed.update((value) => value + 1);
+          } catch (error) {
+            if (this.current(generation, context))
+              this.error.set(
+                error instanceof Error
+                  ? error.message
+                  : 'Der Verkaufsartikel konnte nicht vollständig geladen werden.',
+              );
+          } finally {
+            if (this.current(generation, context)) this.preparingSource.set(false);
+          }
+        }
       } else if (source) {
         if (source.entry.workspaceId !== workspaceId)
           throw new Error('Der Arbeitsbereich hat sich geändert.');

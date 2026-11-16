@@ -7,6 +7,7 @@ export interface VintedListingPhotoScope {
   readonly connectionId: string;
   readonly entryId: string;
   readonly saleItemId?: string;
+  readonly sourceActionId?: string;
 }
 
 /** Canvas und Upload lesen dieselben Bildbytes, ohne browserseitigen CDN-CORS-Zugriff. */

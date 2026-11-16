@@ -965,3 +965,32 @@ it('meldet ein belegtes Cloud-Konto beim Versandschein als wiederholbar', async 
     'gewählten Cloud-Konto',
   );
 });
+
+it('bindet den vollständigen Verkaufsabruf und Bildbeleg an Konto, Verkauf und Artikel', async () => {
+  const source = {
+    externalAccountId: '123',
+    externalId: '789',
+    title: 'Schuhe',
+    description: 'Vollständig',
+    priceCents: 2000,
+    currency: 'EUR',
+    photoReferences: ['https://images1.vinted.net/one.jpg'],
+    attributeHints: { category_id: '1453', category: 'Laufschuhe' },
+  };
+  const request = vi.fn().mockImplementation(() => Promise.resolve(Response.json({ source })));
+  mockWorkerFetch(request);
+  const result = await api.readSoldListingSource(scope, id, '789', '123', 'token');
+  expect(result.source).toEqual(source);
+  expect(result.actionId).toMatch(/^[a-f0-9-]{36}$/);
+  expect(JSON.parse(request.mock.calls[0][1].body)).toMatchObject({
+    ...scope,
+    entryId: id,
+    saleItemId: '789',
+  });
+  await expect(api.readSoldListingSource(scope, id, '789', '124', 'token')).rejects.toThrow(
+    'Lesebeleg',
+  );
+  await expect(api.readSoldListingSource(scope, id, '790', '123', 'token')).rejects.toThrow(
+    'Lesebeleg',
+  );
+});

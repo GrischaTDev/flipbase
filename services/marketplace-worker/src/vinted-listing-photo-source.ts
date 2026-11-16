@@ -1,4 +1,7 @@
-import { isVintedTransferPhotoUrl } from '../../../supabase/functions/_shared/kleinanzeigen-listing-validation.mts';
+import {
+  isVintedTransferPhotoUrl,
+  parseVintedTransferSource,
+} from '../../../supabase/functions/_shared/kleinanzeigen-listing-validation.mts';
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import { VintedEditAccess } from './vinted-edit-access.ts';
 
@@ -22,11 +25,23 @@ export class VintedListingPhotoSource {
     this.access = new VintedEditAccess(options);
   }
 
-  async read(scope: BrowserSessionScope, entryId: string, photoUrl: string, saleItemId?: string) {
+  async read(
+    scope: BrowserSessionScope,
+    entryId: string,
+    photoUrl: string,
+    saleItemId?: string,
+    sourceActionId?: string,
+  ) {
     if (!isVintedTransferPhotoUrl(photoUrl))
       throw new Error('Die Bildquelle ist nicht freigegeben.');
     if (saleItemId !== undefined && !/^[1-9][0-9]{0,31}$/.test(saleItemId))
       throw new Error('Die Artikelzuordnung ist ungültig.');
+    if (
+      sourceActionId !== undefined &&
+      (saleItemId === undefined ||
+        !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(sourceActionId))
+    )
+      throw new Error('Der Lesebeleg ist ungültig.');
     const kind = saleItemId === undefined ? 'publication' : 'sale';
     const authorizePhoto = async () => {
       const authorized = await this.access.entry(scope, kind, entryId);
@@ -59,13 +74,57 @@ export class VintedListingPhotoSource {
         const items = Array.isArray(body?.['itemIds']) ? body['itemIds'] : [body?.['itemId']];
         if (
           !body ||
-          body['isBundle'] === true ||
-          body['itemCount'] !== 1 ||
-          items.length !== 1 ||
-          items[0] !== saleItemId ||
+          !items.includes(saleItemId) ||
+          body['saleState'] === 'relisted' ||
+          (sourceActionId === undefined &&
+            (body['isBundle'] === true || body['itemCount'] !== 1 || items.length !== 1)) ||
           (body['sellerId'] != null && String(body['sellerId']) !== authorized.accountId)
         )
           throw new Error('Das Foto gehört nicht zum gewählten Verkaufsartikel.');
+      }
+      if (sourceActionId !== undefined) {
+        const receipt = await this.request(
+          new URL('/rest/v1/rpc/marketplace_account_action_read', this.options.url),
+          {
+            method: 'POST',
+            headers: {
+              apikey: this.options.publishableKey,
+              Authorization: 'Bearer ' + scope.userAccessToken,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              p_workspace_id: scope.workspaceId,
+              p_connection_id: scope.connectionId,
+              p_action_id: sourceActionId,
+            }),
+            redirect: 'error',
+            signal: AbortSignal.timeout(10_000),
+          },
+        );
+        if (!receipt.ok) throw new Error('Der Lesebeleg konnte nicht bestätigt werden.');
+        const result: unknown = await receipt.json();
+        const action = record(result) && record(result['action']) ? result['action'] : null;
+        const source =
+          action && record(action['result'])
+            ? parseVintedTransferSource(
+                action['result']['source'],
+                authorized.accountId,
+                saleItemId!,
+              )
+            : null;
+        if (
+          !action ||
+          action['id'] !== sourceActionId ||
+          action['workspaceId'] !== scope.workspaceId ||
+          action['connectionId'] !== scope.connectionId ||
+          action['entryId'] !== entryId ||
+          action['kind'] !== 'listing_content_read' ||
+          action['state'] !== 'succeeded' ||
+          action['resultExpired'] === true ||
+          !source?.photoReferences.includes(photoUrl)
+        )
+          throw new Error('Das Foto gehört nicht zum gelesenen Verkaufsartikel.');
+        return authorized;
       }
       const source = body && record(body['transferSource']) ? body['transferSource'] : null;
       const references =

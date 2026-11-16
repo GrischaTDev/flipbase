@@ -933,13 +933,26 @@ export class MarketplaceBrowserHttpApi {
         if (!this.listingPhotos) throw new RequestError(503);
         const entryId = body['entryId'],
           photoUrl = body['photoUrl'],
-          saleItemId = body['saleItemId'];
+          saleItemId = body['saleItemId'],
+          sourceActionId = body['sourceActionId'];
         if (
-          Object.keys(body).length !== (saleItemId === undefined ? 4 : 5) ||
+          Object.keys(body).length !==
+            (saleItemId === undefined ? 4 : sourceActionId === undefined ? 5 : 6) ||
           Object.keys(body).some(
             (key) =>
-              !['workspaceId', 'connectionId', 'entryId', 'photoUrl', 'saleItemId'].includes(key),
+              ![
+                'workspaceId',
+                'connectionId',
+                'entryId',
+                'photoUrl',
+                'saleItemId',
+                'sourceActionId',
+              ].includes(key),
           ) ||
+          (sourceActionId !== undefined &&
+            (typeof sourceActionId !== 'string' ||
+              !uuidPattern.test(sourceActionId) ||
+              saleItemId === undefined)) ||
           typeof entryId !== 'string' ||
           !uuidPattern.test(entryId) ||
           typeof photoUrl !== 'string' ||
@@ -948,7 +961,13 @@ export class MarketplaceBrowserHttpApi {
             (typeof saleItemId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(saleItemId)))
         )
           throw new RequestError(400);
-        const photo = await this.listingPhotos.read(scope, entryId, photoUrl, saleItemId);
+        const photo = await this.listingPhotos.read(
+          scope,
+          entryId,
+          photoUrl,
+          saleItemId,
+          sourceActionId,
+        );
         response.writeHead(200, {
           ...responseHeaders,
           'Content-Type': photo.mimeType,

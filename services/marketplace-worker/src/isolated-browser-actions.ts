@@ -1,3 +1,4 @@
+import { parseVintedTransferSource } from '../../../supabase/functions/_shared/kleinanzeigen-listing-validation.mts';
 import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
 import {
@@ -235,6 +236,7 @@ export async function executeBrowserAction(
     readListingPresence: [2],
     readListingCategory: [3, 4],
     readListingContent: [2],
+    readSoldListingSource: [2],
     deleteListing: [2],
     updateListingContent: [4, 5],
     updateListing: [3],
@@ -293,6 +295,17 @@ export async function executeBrowserAction(
         ),
         categoryId,
       );
+    }
+    case 'readSoldListingSource': {
+      const accountId = identifier(argumentsList[0]),
+        externalId = identifier(argumentsList[1]);
+      const source = parseVintedTransferSource(
+        await required(browser.readSoldListingSource)(accountId, externalId, authorize),
+        accountId,
+        externalId,
+      );
+      if (!source) throw new VintedListingReadError('result');
+      return source;
     }
     case 'readListingContent': {
       const accountId = identifier(argumentsList[0]),
@@ -1112,6 +1125,15 @@ export function isolatedBrowserActions(transport: BrowserCommandTransport): Brow
         ),
         categoryId,
       ),
+    readSoldListingSource: async (accountId, externalId, authorize) => {
+      const source = parseVintedTransferSource(
+        await run('readSoldListingSource', [accountId, externalId], authorize),
+        accountId,
+        externalId,
+      );
+      if (!source) throw new VintedListingReadError('result');
+      return source;
+    },
     readListingContent: async (accountId, externalId, authorize) => {
       const listing = await run('readListingContent', [accountId, externalId], authorize);
       try {
@@ -1278,6 +1300,16 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     return parseVintedListingCategoryFields(input, value['categoryId']);
   }
   if (name === 'deleteListing') return parseVintedListingDeleteResult(input);
+  if (name === 'readSoldListingSource') {
+    const value = commandRecord(input);
+    const source = parseVintedTransferSource(
+      input,
+      identifier(value['externalAccountId']),
+      identifier(value['externalId']),
+    );
+    if (!source) throw new VintedListingReadError('result');
+    return source;
+  }
   if (name === 'readListingContent') {
     const value = commandRecord(input);
     return parseVintedListingCurrentContent(

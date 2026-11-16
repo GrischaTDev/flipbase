@@ -139,6 +139,13 @@ export interface BrowserInfo extends Pick<Browser, 'version'> {
   ): Promise<
     import('../../../supabase/functions/_shared/marketplace-listing-contracts.d.ts').VintedListingCurrentContent
   >;
+  readSoldListingSource?(
+    accountId: string,
+    externalId: string,
+    authorize: () => Promise<void>,
+  ): Promise<
+    import('../../../supabase/functions/_shared/kleinanzeigen-listing-contracts.ts').VintedTransferSource
+  >;
   deleteListing?(
     accountId: string,
     externalId: string,
