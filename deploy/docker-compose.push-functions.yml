@@ -31,6 +31,9 @@ services:
     networks: [default, push-observer]
     mem_limit: 512m
     cpus: 0.5
+    logging:
+      driver: json-file
+      options: {max-size: '5m', max-file: '3'}
   push-gateway:
     image: ${FLIPBASE_PUSH_IMAGE:?Geprueften Pushdigest angeben}
     container_name: flipbase-push-gateway

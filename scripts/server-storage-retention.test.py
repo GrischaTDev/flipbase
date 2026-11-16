@@ -124,6 +124,137 @@ class ImageRetentionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 retention.read_supabase_compose_images()
 
+    def test_broker_and_push_images_follow_two_rollback_retention(self):
+        for repo in (
+            "ghcr.io/grischatdev/flipbase-chromium-broker",
+            "ghcr.io/grischatdev/flipbase-push",
+        ):
+            with self.subTest(repo=repo):
+                images = [image(number, [repo]) for number in range(1, 6)]
+                selected = retention.select_old_images(images, {images[-1]["id"]})
+                self.assertEqual([images[0]["id"], images[1]["id"]], [item["id"] for item in selected])
+
+    def test_session_images_keep_configured_and_one_rollback(self):
+        session_repo = "ghcr.io/grischatdev/flipbase-chromium-session"
+        images = [image(number, [session_repo]) for number in range(1, 5)]
+        selected = retention.select_old_images(images, {images[-1]["id"]})
+        self.assertEqual([images[0]["id"], images[1]["id"]], [item["id"] for item in selected])
+        selected_idle = retention.select_old_images(images, set())
+        self.assertEqual([images[0]["id"], images[1]["id"]], [item["id"] for item in selected_idle])
+
+    def test_reads_configured_marketplace_session_image_and_protects_on_apply(self):
+        session_repo = "ghcr.io/grischatdev/flipbase-chromium-session"
+        candidate = image(1, [session_repo])
+        with patch.object(retention.subprocess, "run") as inspect:
+            inspect.side_effect = [
+                subprocess.CompletedProcess([], 0, json.dumps(["OTHER=1", f"MARKETPLACE_CHROMIUM_IMAGE={session_repo}@sha256:abc"])),
+                subprocess.CompletedProcess([], 1, "", "Error response from daemon: No such container: broker"),
+                subprocess.CompletedProcess([], 0, candidate["id"] + "\n"),
+            ]
+            self.assertEqual({candidate["id"]}, retention.read_marketplace_session_images())
+        with patch.object(retention, "read_referenced_images", return_value=set()), patch.object(
+            retention, "read_marketplace_session_images", return_value={candidate["id"]}
+        ), patch.object(retention, "run_command") as command:
+            retention.apply_images([candidate])
+            command.assert_not_called()
+
+    def test_read_referenced_images_ignores_ephemeral_containers_removed_mid_inspect(self):
+        with patch.object(retention, "run_command") as ls_cmd, patch.object(
+            retention.subprocess, "run"
+        ) as inspect:
+            ls_cmd.return_value.stdout = "c_live\nc_gone\n"
+            inspect.side_effect = [
+                subprocess.CompletedProcess([], 1, "", "Error: No such container: c_gone"),
+                subprocess.CompletedProcess([], 0, "sha256:live\n"),
+                subprocess.CompletedProcess([], 1, "", "Error response from daemon: No such object: c_gone"),
+            ]
+            self.assertEqual({"sha256:live"}, retention.read_referenced_images())
+
+
+class ChromiumRetentionTests(unittest.TestCase):
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory()
+        self.root = Path(self.temporary.name)
+        self.chromium = self.root / "chromium"
+        self.worker = self.root / "chromium-worker"
+        (self.chromium / "profiles").mkdir(parents=True)
+        (self.chromium / "archive").mkdir(parents=True)
+        (self.worker / "profiles").mkdir(parents=True)
+        self.old = 1_700_000_000
+        self.now = self.old + 3600
+
+    def tearDown(self):
+        self.temporary.cleanup()
+
+    def write_aged(self, path, content=b"x", mtime=None):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+        stamp = self.old if mtime is None else mtime
+        os.utime(path, (stamp, stamp))
+        return path
+
+    def test_cleans_only_disposable_telemetry_on_idle_active_and_caches_on_archived(self):
+        idle_id = "chromium_00000000-0000-4000-8000-000000000001"
+        idle = self.chromium / "profiles" / idle_id
+        metric = self.write_aged(idle / "BrowserMetrics" / "old.pma", b"12345")
+        fresh_metric = self.write_aged(idle / "BrowserMetrics" / "fresh.pma", b"123", mtime=self.now - 10)
+        crash = self.write_aged(idle / "Crashpad" / "reports" / "c.dmp", b"1234")
+        cookies = self.write_aged(idle / "Default" / "Cookies", b"session-cookie")
+        http_cache = self.write_aged(idle / "Default" / "Cache" / "Cache_Data" / "data_0", b"warm-cache")
+        os.utime(idle, (self.old, self.old))
+
+        locked_id = "chromium_00000000-0000-4000-8000-000000000002"
+        locked = self.chromium / "profiles" / locked_id
+        locked_metric = self.write_aged(locked / "BrowserMetrics" / "keep.pma", b"keep")
+        os.utime(locked, (self.old, self.old))
+        (self.worker / "profiles" / f"{locked_id}.running").mkdir()
+
+        container_id = "chromium_00000000-0000-4000-8000-000000000003"
+        container_prof = self.chromium / "profiles" / container_id
+        container_metric = self.write_aged(container_prof / "BrowserMetrics" / "keep.pma", b"keep")
+        os.utime(container_prof, (self.old, self.old))
+
+        archived_id = "chromium_00000000-0000-4000-8000-000000000004"
+        archived = self.chromium / "archive" / archived_id
+        archived_cache = self.write_aged(archived / "Default" / "Cache" / "Cache_Data" / "c0", b"123456")
+        archived_cookies = self.write_aged(archived / "Default" / "Cookies", b"archived-cookie")
+        archived_json = self.write_aged(self.chromium / "archive" / f"{archived_id}.json", b"{}")
+
+        entries = retention.plan_chromium_cleanup(
+            self.chromium, self.worker, min_idle_seconds=120, active_containers={container_id}, now=self.now,
+        )
+        planned_paths = {entry["path"] for entry in entries}
+        self.assertEqual({metric, crash, archived / "Default" / "Cache"}, planned_paths)
+
+        retention.apply_chromium_cleanup(
+            entries, worker_directory=self.worker, min_idle_seconds=120, active_containers={container_id},
+        )
+        self.assertFalse(metric.exists())
+        self.assertFalse(crash.exists())
+        self.assertTrue(fresh_metric.exists())
+        self.assertTrue(cookies.exists())
+        self.assertTrue(http_cache.exists())
+        self.assertTrue(locked_metric.exists())
+        self.assertTrue(container_metric.exists())
+        self.assertFalse(archived_cache.exists())
+        self.assertTrue(archived_cookies.exists())
+        self.assertTrue(archived_json.exists())
+
+    def test_apply_rechecks_locks_before_removing_planned_files(self):
+        profile_id = "chromium_00000000-0000-4000-8000-000000000005"
+        profile = self.chromium / "profiles" / profile_id
+        metric = self.write_aged(profile / "BrowserMetrics" / "old.pma", b"12345")
+        os.utime(profile, (self.old, self.old))
+        entries = retention.plan_chromium_cleanup(
+            self.chromium, self.worker, min_idle_seconds=120, active_containers=set(), now=self.now,
+        )
+        self.assertEqual(1, len(entries))
+        (self.worker / "profiles" / f"{profile_id}.running").mkdir()
+        retention.apply_chromium_cleanup(
+            entries, worker_directory=self.worker, min_idle_seconds=120, active_containers=set(),
+        )
+        self.assertTrue(metric.exists())
+
 
 class BackupRetentionTests(unittest.TestCase):
     def setUp(self):

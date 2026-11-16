@@ -193,13 +193,27 @@ Backend auszuliefern.
 Die Aufbewahrung ist getrennt nach Zweck:
 
 - Alle von laufenden oder gestoppten Containern verwendeten Images bleiben bestehen.
-  Zusätzlich bleiben je Flipbase-Dienst zwei unbenutzte Rückfallversionen erhalten.
-  Ein Dienst ohne Container behält seine drei neuesten Versionen. Mit
-  `--include-supabase` gilt dieselbe Grenze für Supabase. Docker-Hub- und ECR-Namen
-  desselben Dienstes teilen die Grenze; ein Image wird anhand seiner ID gezählt.
-  Alle in den aktiven Compose-Dateien vorgesehenen Images bleiben zusätzlich
-  geschützt. Fehlende Compose-Metadaten brechen die Bereinigung ab. Fremde Images,
-  Container und Volumes werden nicht entfernt.
+  Zusätzlich bleiben je Flipbase-Dienst zwei unbenutzte Rückfallversionen erhalten;
+  beim großen `flipbase-chromium-session`-Abbild bleibt zusätzlich zum laufenden oder
+  konfigurierten Stand (`MARKETPLACE_CHROMIUM_IMAGE`) ein Rückfallstand erhalten.
+  Ein normaler Dienst ohne Container behält seine drei neuesten Versionen (das
+  Sitzungsimage zwei). Mit `--include-supabase` gilt die Zwei-Versionen-Grenze für
+  Supabase; Docker-Hub- und ECR-Namen desselben Dienstes teilen die Grenze. Alle in
+  den aktiven Compose-Dateien vorgesehenen Images bleiben zusätzlich geschützt.
+  Fehlende Compose-Metadaten brechen die Bereinigung ab. Fremde Images, Container
+  und Volumes werden nicht entfernt.
+- Mit `--include-chromium` begrenzt die Bereinigung zusätzlich reine Telemetrie-,
+  Absturz- und GPU-Shader-Reste (`BrowserMetrics`, `Crashpad`, `*ShaderCache`,
+  `Default/GPUCache`) in nachweislich gestoppten Vinted-Profilen sowie große
+  Download-/Cache-Unterordner bereits archivierter Profile unter `archive/`. Cookies,
+  `IndexedDB`, `Local Storage`, `Preferences` und der laufende HTTP-Cache aktiver
+  Profile bleiben vollständig erhalten.
+- `archive-app-build.py` speichert identische geprüfte App-Dateien über Hardlinks
+  innerhalb von `/opt/flipbase/app-builds/` ohne Duplikate und entfernt Stände über
+  zwei Rückfallversionen hinaus nach 30 Tagen.
+- `docker-daemon.json`, `journald-flipbase.conf` und `logrotate-flipbase` begrenzen
+  Docker-Containerprotokolle (einschließlich Supabase-Envoy/Realtime/Pooler),
+  das Systemd-Journal und `/var/log/flipbase-*.log`.
 - Lokal bleiben drei verschlüsselte Sicherungen vor Release-Migrationen sowie
   sieben vollständige nächtliche Sätze aus Datenbank, Dateien und Konfiguration.
   Unvollständige oder unbekannte Dateien werden nicht automatisch gelöscht.
@@ -327,21 +341,26 @@ Ein späterer Bereinigungsschritt muss Aliasse aus Docker Hub/ECR, aktuelle
 Compose-Konfigurationen und alle Container gemeinsam berücksichtigen. Docker-
 Volumen, Datenbankdateien und Browserprofile sind keine pauschalen Löschkandidaten.
 
-| Datei                           | Ort auf dem Server                               |
-| ------------------------------- | ------------------------------------------------ |
-| `Caddyfile`                     | `/opt/supabase/volumes/proxy/caddy/Caddyfile`    |
-| `docker-compose.localports.yml` | `/opt/supabase/`                                 |
-| `docker-compose.landing.yml`    | `/opt/supabase/`                                 |
-| `docker-compose.app.yml`        | `/opt/flipbase/docker-compose.yml`               |
-| `docker-compose.sniper.yml`     | `/opt/flipbase-sniper/docker-compose.sniper.yml` |
-| `backup.sh`                     | `/opt/flipbase/backup.sh`                        |
-| `deploy.sh`                     | `/opt/flipbase/deploy.sh` (ausführbar)           |
-| `cron-aufraeumen-n8n-server`    | `/etc/cron.d/…` auf dem **zweiten** Server       |
-| `docker-compose.authelia.yml`   | `/opt/supabase/`                                 |
-| `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`         |
-| `authelia/passwort-setzen.sh`   | `/opt/authelia/passwort-setzen.sh`               |
-| `authelia/users.example.yml`    | Vorlage für `/opt/authelia/config/users.yml`     |
-| `landing/index.html`            | `/opt/flipbase-landing/index.html`               |
+| Datei                           | Ort auf dem Server                                   |
+| ------------------------------- | ---------------------------------------------------- |
+| `Caddyfile`                     | `/opt/supabase/volumes/proxy/caddy/Caddyfile`        |
+| `docker-compose.localports.yml` | `/opt/supabase/`                                     |
+| `docker-compose.landing.yml`    | `/opt/supabase/`                                     |
+| `docker-compose.app.yml`        | `/opt/flipbase/docker-compose.yml`                   |
+| `docker-compose.sniper.yml`     | `/opt/flipbase-sniper/docker-compose.sniper.yml`     |
+| `backup.sh`                     | `/opt/flipbase/backup.sh`                            |
+| `deploy.sh`                     | `/opt/flipbase/deploy.sh` (ausführbar)               |
+| `cleanup-server-storage.py`     | `/opt/flipbase/cleanup-server-storage.py` (`0700`)   |
+| `cron-server-storage`           | `/etc/cron.d/flipbase-server-storage` (`0644`)       |
+| `docker-daemon.json`            | `/etc/docker/daemon.json`                            |
+| `journald-flipbase.conf`        | `/etc/systemd/journald.conf.d/99-flipbase-size.conf` |
+| `logrotate-flipbase`            | `/etc/logrotate.d/flipbase`                          |
+| `cron-aufraeumen-n8n-server`    | `/etc/cron.d/…` auf dem **zweiten** Server           |
+| `docker-compose.authelia.yml`   | `/opt/supabase/`                                     |
+| `authelia/configuration.yml`    | `/opt/authelia/config/configuration.yml`             |
+| `authelia/passwort-setzen.sh`   | `/opt/authelia/passwort-setzen.sh`                   |
+| `authelia/users.example.yml`    | Vorlage für `/opt/authelia/config/users.yml`         |
+| `landing/index.html`            | `/opt/flipbase-landing/index.html`                   |
 
 Die beiden Zusatzdateien unter `/opt/supabase` sind in `COMPOSE_FILE` in der
 `.env` eingetragen. Reihenfolge beachten: `docker-compose.caddy.yml` muss vor
