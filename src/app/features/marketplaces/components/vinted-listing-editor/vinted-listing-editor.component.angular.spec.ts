@@ -242,6 +242,7 @@ function setup(
               title: 'Verkaufte Jacke',
               description: 'Gesicherte Beschreibung',
               priceCents: 2300,
+              packageSizeId: 2,
             },
             files: [new File(['original'], 'original.jpg', { type: 'image/jpeg' })],
           }),
@@ -377,6 +378,7 @@ it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speic
   expect(f.component.relisting()).toBe(false);
   expect(f.component.form.controls.title.value).toBe('Verkaufte Jacke');
   expect(f.component.form.controls.description.value).toBe('Gesicherte Beschreibung');
+  expect(f.component.content().packageSizeId).toBe(2);
   expect(f.component.images()[0].storagePath).toBeNull();
   expect(await f.component.images()[0].file!.text()).toBe('original');
   f.component.form.controls.title.setValue('Neue unabhängige Anzeige');
@@ -389,6 +391,7 @@ it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speic
       title: 'Neue unabhängige Anzeige',
       description: 'Geänderte Beschreibung',
       priceCents: 2900,
+      packageSizeId: 2,
     }),
     'account-a',
     expect.any(String),

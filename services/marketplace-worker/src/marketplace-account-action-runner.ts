@@ -518,7 +518,12 @@ export class MarketplaceAccountActionRunner {
       case 'listing_content_read': {
         if (typeof p.saleItemId === 'string') {
           const source = parseVintedTransferSource(
-            await required(browser.readSoldListingSource)(account, p.saleItemId, authorize),
+            await required(browser.readSoldListingSource)(
+              account,
+              p.saleItemId,
+              authorize,
+              external,
+            ),
             account,
             p.saleItemId,
           );
