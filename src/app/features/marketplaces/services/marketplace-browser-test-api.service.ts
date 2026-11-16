@@ -1,3 +1,4 @@
+import { parseVintedTransferSource } from '../../../../../supabase/functions/_shared/kleinanzeigen-listing-validation.mjs';
 import type { VintedShippingLabelRequestResult } from '../models/vinted-shipping-label';
 import {
   runVintedAccountAction,
@@ -1069,6 +1070,37 @@ export class MarketplaceBrowserTestApiService {
       if (error instanceof VintedAccountActionRejectedError) throw error;
       throw new Error('Das Vinted-Inserat lieferte ungültige Daten.', { cause: error });
     }
+  }
+
+  async readSoldListingSource(
+    scope: AccountScope,
+    saleId: string,
+    itemId: string,
+    accountId: string,
+    accessToken: string,
+  ) {
+    let actionId = '';
+    const response = await this.post(
+      '/marketplace-browser/listings/content/read',
+      { ...scope, entryId: saleId, saleItemId: itemId },
+      accessToken,
+      90_000,
+      (action) => {
+        actionId = action.id;
+      },
+    );
+    if (!response.ok)
+      throw new Error(
+        'Der verkaufte Artikel konnte bei Vinted nicht gelesen werden. Versuche es erneut.',
+      );
+    const body: unknown = await response.json();
+    const source =
+      body && typeof body === 'object' && 'source' in body
+        ? parseVintedTransferSource(body.source, accountId, itemId)
+        : null;
+    if (!source || !actionId)
+      throw new Error('Vinted lieferte keinen gültigen Lesebeleg für diesen Artikel.');
+    return { source, actionId };
   }
 
   async readListingData(

@@ -15,6 +15,48 @@ import {
 } from '../src/vinted-account-import.ts';
 import { VintedInteractionRequiredError } from '../src/vinted-browser-reader.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
+
+test('isolated sold source read preserves its account and item binding', async () => {
+  const source = {
+    externalAccountId: '123',
+    externalId: '789',
+    title: 'Schuhe',
+    description: 'Vollständig',
+    priceCents: 2000,
+    currency: 'EUR',
+    photoReferences: ['https://images1.vinted.net/one.jpg'],
+    attributeHints: { category_id: '1453', category: 'Laufschuhe' },
+  };
+  let result: unknown = source;
+  const browser = isolatedBrowserActions({
+    request: async (input) =>
+      input.action === 'start'
+        ? { id: '00000000-0000-0000-0000-000000000001' }
+        : input.action === 'poll'
+          ? { kind: 'result', value: result }
+          : null,
+  });
+  assert.deepEqual(
+    await browser.readSoldListingSource!('123', '789', async () => undefined),
+    source,
+  );
+  result = { ...source, externalId: '790' };
+  await assert.rejects(browser.readSoldListingSource!('123', '789', async () => undefined));
+  result = { ...source, externalAccountId: '124' };
+  await assert.rejects(browser.readSoldListingSource!('123', '789', async () => undefined));
+  assert.deepEqual(
+    await executeBrowserAction(
+      { version: () => 'fixture', readSoldListingSource: async () => source },
+      { name: 'readSoldListingSource', arguments: ['123', '789'] },
+      async () => undefined,
+      async () => {
+        throw new Error('must not write');
+      },
+    ),
+    source,
+  );
+  assert.deepEqual(validateBrowserResult('readSoldListingSource', source), source);
+});
 import {
   BrowserActionFailedError,
   unexpectedFailureDetail,

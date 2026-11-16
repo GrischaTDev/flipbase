@@ -297,14 +297,24 @@ export function prepareFlipbaseVintedListingContent(
       ? letters[0]
       : allSizes.find((choice) => choice.label === content.sizeLabel.trim()));
   const withoutBrand = catalog && !schema.fields.some((field) => field.field === 'brand');
+  const conditionLabel = (label: string) =>
+    label.replaceAll(',', '').trim().toLocaleLowerCase('de');
+  const matchingConditions =
+    schema.fields
+      .find((field) => field.field === 'condition')
+      ?.choices.filter(
+        (choice) => conditionLabel(choice.label) === conditionLabel(content.conditionLabel),
+      ) ?? [];
+  const condition =
+    realCondition?.[0] ?? (matchingConditions.length === 1 ? matchingConditions[0] : null);
   return {
     ...content,
     ...(withoutBrand ? { brandId: null, brandLabel: '' } : {}),
     packageSizeId: catalogPackageSizeId(content, stored),
     sizeId: size?.id ?? null,
     sizeLabel: size?.label ?? content.sizeLabel,
-    conditionId: realCondition?.[0]?.id ?? id('condition', content.conditionLabel),
-    ...(realCondition ? { conditionLabel: realCondition[0]!.label } : {}),
+    conditionId: condition?.id ?? null,
+    ...(condition ? { conditionLabel: condition.label } : {}),
     colorIds: realColors
       ? realColors.map((choice) => choice.id as number)
       : content.colorLabels.flatMap((label) => {

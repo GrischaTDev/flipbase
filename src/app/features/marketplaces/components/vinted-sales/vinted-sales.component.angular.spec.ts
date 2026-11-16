@@ -266,8 +266,10 @@ it('verwendet die Kleiderschrankstruktur mit gekürztem Titel und kompakter Fuß
   expect(element.querySelector('app-card')?.getAttribute('padding')).toBe('none');
   expect(element.querySelector('[data-sale-details]')?.textContent).toContain('Jako');
   expect(element.querySelector('[data-sale-details]')?.textContent).toContain('Abgeschlossen');
-  expect(element.querySelector('[data-sale-footer]')?.textContent).toContain('Zugestellt');
-  expect(element.querySelector('[data-sale-footer]')?.textContent).toContain('Chat öffnen');
+  expect(element.querySelector('[data-sale-footer] a')?.getAttribute('aria-label')).toContain(
+    'Chat zu',
+  );
+  expect(element.textContent).not.toContain('Zugestellt');
 });
 
 it('bietet bei einem frischen Verkauf das Anfordern des Versandscheins mit Frist an', () => {

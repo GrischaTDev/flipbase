@@ -1,3 +1,4 @@
+import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../../core/services/supabase.service';
@@ -95,6 +96,7 @@ function setup(
     : vi.fn().mockResolvedValue(file);
   TestBed.configureTestingModule({
     providers: [
+      { provide: MarketplaceBrowserTestApiService, useValue: { readSoldListingSource: vi.fn() } },
       { provide: SupabaseService, useValue: { client: { from } } },
       { provide: VintedListingOriginalPhotoService, useValue: { readSource } },
       { provide: VintedListingImageService, useValue: { renamedFile } },
@@ -127,7 +129,8 @@ it('kopiert Angaben und Originalbytes ohne Verkaufs-, Bestands-, Relist- oder Bi
   });
   expect(copy.files).toEqual([f.file]);
   expect(await copy.files[0].text()).toBe('original');
-  expect(Object.keys(copy).sort()).toEqual(['content', 'files']);
+  expect(copy.hasOriginals).toBe(true);
+  expect(copy.needsCurrent).toBe(true);
   expect(f.sale).toEqual(before);
   expect(f.saleQuery.eq.mock.calls).toEqual([
     ['workspace_id', scope.workspaceId],
@@ -252,5 +255,53 @@ it('ersetzt unlesbare gesicherte Originale nicht durch Anbieterbilder und behäl
   expect(copy.content.description).toBe('Letzter gespeicherter Stand');
   expect(copy.files).toEqual([]);
   expect(copy.photoError).toContain('Originalfoto fehlt');
+  expect(f.photoRead).not.toHaveBeenCalled();
+});
+
+it('übernimmt nach dem vollständigen Abruf alle neun Fotos, Beschreibung und Kategorie ohne Verkaufsänderung', async () => {
+  const f = setup({ missingOriginals: true, missingPublication: true });
+  const saved = await f.service.read(scope, 'sale-a', '123');
+  const before = structuredClone(f.sale);
+  const source = {
+    externalAccountId: '789',
+    externalId: '123',
+    title: 'Laufschuhe',
+    description: 'Vollständige Beschreibung',
+    priceCents: 9890,
+    currency: 'EUR',
+    photoReferences: Array.from(
+      { length: 9 },
+      (_, index) => `https://images1.vinted.net/${index}.jpg`,
+    ),
+    attributeHints: {
+      category_id: '1453',
+      category: 'Laufschuhe',
+      size: '45',
+      status: 'Neu, ohne Etikett',
+      color: 'Weiß, Grau',
+    },
+  };
+  const browser = TestBed.inject(MarketplaceBrowserTestApiService);
+  vi.mocked(browser.readSoldListingSource).mockResolvedValue({ source, actionId: 'receipt-a' });
+  const result = await f.service.refresh(scope, 'sale-a', '123', '789', 'token', saved);
+  expect(result.content.description).toBe(source.description);
+  expect(result.content.categoryId).toBe(1453);
+  expect(result.content.sizeId).toBeNull();
+  expect(result.content.conditionId).toBeNull();
+  expect(result.content.colorLabels).toEqual(['Weiß', 'Grau']);
+  expect(result.files).toHaveLength(9);
+  expect(f.photoRead).toHaveBeenLastCalledWith(source.photoReferences[8], {
+    ...scope,
+    entryId: 'sale-a',
+    saleItemId: '123',
+    sourceActionId: 'receipt-a',
+  });
+  expect(f.sale).toEqual(before);
+  f.photoRead.mockClear();
+  const originalCopy = await f.service.refresh(scope, 'sale-a', '123', '789', 'token', {
+    ...saved,
+    hasOriginals: true,
+  });
+  expect(originalCopy.files).toEqual(saved.files);
   expect(f.photoRead).not.toHaveBeenCalled();
 });

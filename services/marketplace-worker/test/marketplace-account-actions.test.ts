@@ -887,3 +887,57 @@ test('a provider failure after browser start is retried as provider_failed, not 
   const retry = calls.find((call) => call.name === 'marketplace_account_action_retry');
   assert.equal(retry?.body.p_error_code, 'provider_failed');
 });
+
+test('sold listing source read uses the item in the sale and never writes its historic entry', async () => {
+  const { claim, store, calls } = fixture('listing_content_read', { entryId, saleItemId: '789' });
+  claim.target.entryKind = 'sale';
+  claim.target.body = { itemIds: ['789'], sellerId: '123' };
+  const source = {
+    externalAccountId: '123',
+    externalId: '789',
+    title: 'Schuhe',
+    description: 'Vollständig',
+    priceCents: 2000,
+    currency: 'EUR',
+    photoReferences: ['https://images1.vinted.net/one.jpg'],
+    attributeHints: { category_id: '1453', category: 'Laufschuhe' },
+  };
+  const runner = new MarketplaceAccountActionRunner({
+    url: 'https://db.example',
+    serviceRoleKey: 'server',
+    publishableKey: 'public',
+    store,
+    fetch: async () => {
+      throw new Error('historic entry must not change');
+    },
+    broker: {
+      open: async () => sessionId,
+      run: async (_scope, _id, operation) =>
+        operation({
+          version: () => '',
+          readSoldListingSource: async (account, item, authorize) => {
+            assert.equal(account, '123');
+            assert.equal(item, '789');
+            await authorize();
+            return source;
+          },
+        }),
+      close: async () => undefined,
+      discardUnstartedAction: async () => undefined,
+    },
+  });
+  await runner.run(claim);
+  assert.equal(calls.at(-1)?.body.p_state, 'succeeded');
+  assert.deepEqual(calls.at(-1)?.body.p_result, { source });
+  assert.equal(
+    calls.some((call) => call.name === 'marketplace_account_action_begin_write'),
+    false,
+  );
+  for (const saleItemId of [null, 789, '', '../789'])
+    assert.throws(() =>
+      validateAccountActionPayload('listing_content_read', { entryId, saleItemId }),
+    );
+  assert.throws(() =>
+    validateAccountActionPayload('listing_content_save', { entryId, saleItemId: '789' }),
+  );
+});

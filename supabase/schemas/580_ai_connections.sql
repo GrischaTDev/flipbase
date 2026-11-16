@@ -705,6 +705,12 @@ begin
     or not exists(select 1 from public.marketplace_browser_profiles where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id and provider_profile_id=p_action.provider_profile_id) then return false; end if;
   if p_action.entry_id is not null and not exists(select 1 from public.marketplace_account_entries where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id
       and id=p_action.entry_id and kind=p_action.entry_kind and external_id=p_action.external_id) then return false; end if;
+  if p_action.kind='listing_content_read' and p_action.payload ? 'saleItemId' and not exists(
+    select 1 from public.marketplace_account_entries where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id
+      and id=p_action.entry_id and kind='sale' and external_id=p_action.external_id
+      and body->'itemIds' ? (p_action.payload->>'saleItemId') and coalesce(body->>'saleState','')<>'relisted'
+      and (not body ? 'sellerId' or body->>'sellerId'=p_action.external_account_id)
+  ) then return false; end if;
   -- Ein eigener wartender direkter Auftrag bleibt gültig; die gemeinsame Ressourcenauswahl ordnet Relist und Änderungen.
   return true;
 end;

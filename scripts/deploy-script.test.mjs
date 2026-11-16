@@ -327,6 +327,22 @@ def stopped_fixture(code=0, **overrides):
     state.update(overrides)
     return {"Id": "fixture-container", "State": state}
 
+class FakeClock:
+    """Gesteuerte Zeit: Wartezeiten laufen ohne echte Pausen."""
+    def __init__(self):
+        self.now = 0.0
+        self.sleeps = 0
+        self.on_sleep = None
+
+    def monotonic(self):
+        return self.now
+
+    def sleep(self, seconds):
+        self.sleeps += 1
+        self.now += seconds
+        if self.on_sleep:
+            self.on_sleep(self.sleeps)
+
 def idle_snapshot(live=True):
     return {
         "counts": {key: 0 for key in rollout.COUNT_KEYS},
@@ -434,6 +450,10 @@ class RolloutFixture:
         self.stack.enter_context(mock.patch.object(rollout, "discover_active", side_effect=lambda: copy.deepcopy(self.context)))
         self.stack.enter_context(mock.patch.object(rollout, "run_command", side_effect=self.run_command))
         self.health = self.stack.enter_context(mock.patch.object(rollout, "public_health", return_value={"ok": True, "apiVersion": 2, "readOnly": False}))
+        # Ohne ausdrückliche Wartezeit lehnen die Prüfungen sofort ab.
+        self.clock = FakeClock()
+        self.stack.enter_context(mock.patch.object(rollout, "time", self.clock))
+        self.stack.enter_context(mock.patch.object(rollout, "IDLE_WAIT_SECONDS", 0))
         self.stack.enter_context(contextlib.redirect_stdout(self.output))
         self.stack.enter_context(contextlib.redirect_stderr(self.output))
         return self
@@ -1325,6 +1345,80 @@ with RolloutFixture() as fixture:
     assert_rejected(lambda: rollout.apply_release(manifest))
     assert fixture.mutations() == operations
     assert (fixture.directory / "deployment-state.json").stat().st_mode & 0o777 == 0o600
+`);
+  },
+);
+
+test(
+  'Marketplace-SSH wartet vor dem ersten Stopp auf Leerlauf statt abzubrechen',
+  marketplaceRolloutOptions,
+  () => {
+    runMarketplaceRolloutPython(String.raw`
+def waiting_fixture(fixture):
+    rollout.IDLE_WAIT_SECONDS = 1800
+    manifest = manifest_fixture()
+    fixture.select_manifest(manifest)
+    return manifest
+
+# Laufender Auftrag beim Start: warten, ohne Journal, dann regulär ausliefern.
+with RolloutFixture() as fixture:
+    manifest = waiting_fixture(fixture)
+    fixture.counts["accountActions"] = 1
+    fixture.clock.on_sleep = lambda count: count == 3 and fixture.counts.update(accountActions=0)
+    assert rollout.apply_release(manifest)["phase"] == "verified"
+    assert fixture.clock.sleeps == 3
+    assert len(fixture.mutations()) == 3
+    assert [entry["phase"] for entry in fixture.journal()["history"]].count("preparing") == 1
+    assert fixture.output.getvalue().count("wartet auf Leerlauf") == 1
+
+# Browsersitzung beginnt während des Abbilderladens: Vorbereitung wird fortgesetzt.
+with RolloutFixture() as fixture:
+    manifest = waiting_fixture(fixture)
+    original_pull = fixture.run_command
+    def browser_during_pull(args, **kwargs):
+        if args[:2] == ["docker", "pull"] and not fixture.sessions and fixture.clock.sleeps == 0:
+            fixture.sessions.append("e" * 64)
+        return original_pull(args, **kwargs)
+    fixture.clock.on_sleep = lambda count: fixture.sessions.clear()
+    with mock.patch.object(rollout, "run_command", side_effect=browser_during_pull):
+        assert rollout.apply_release(manifest)["phase"] == "verified"
+    assert fixture.clock.sleeps == 1
+    assert len(fixture.mutations()) == 3
+    assert [entry["phase"] for entry in fixture.journal()["history"]].count("preparing") == 1
+
+# Auftrag startet nach der Vorbereitung, unmittelbar vor dem Workerstopp.
+with RolloutFixture() as fixture:
+    manifest = waiting_fixture(fixture)
+    original_record = rollout.write_deployment_record
+    def busy_before_stop(approved, phase):
+        original_record(approved, phase)
+        if phase == "pending" and fixture.clock.sleeps == 0:
+            fixture.counts["listingJobs"] = 1
+    fixture.clock.on_sleep = lambda count: fixture.counts.update(listingJobs=0)
+    with mock.patch.object(rollout, "write_deployment_record", side_effect=busy_before_stop):
+        assert rollout.apply_release(manifest)["phase"] == "verified"
+    assert fixture.clock.sleeps == 1
+    assert len(fixture.mutations()) == 3
+    assert fixture.operation_phases[0] == ("worker", "worker_stop_started")
+
+# Dauerhaft beschäftigt: begrenzte Wartezeit, kein Dienst gestoppt.
+with RolloutFixture() as fixture:
+    manifest = waiting_fixture(fixture)
+    fixture.counts["operations"] = 1
+    error = assert_rejected(lambda: rollout.apply_release(manifest))
+    assert isinstance(error, rollout.RolloutBusy) and "noch kein Dienst gestoppt" in str(error)
+    assert fixture.clock.now <= 1800 and fixture.clock.sleeps == 1800 // rollout.IDLE_POLL_SECONDS
+    assert fixture.mutations() == []
+    assert fixture.journal() is None
+
+# Nach dem Workerstopp wird nie gewartet oder wiederholt.
+with RolloutFixture() as fixture:
+    manifest = waiting_fixture(fixture)
+    fixture.after_worker_counts = {"listingJobs": 1}
+    assert_rejected(lambda: rollout.apply_release(manifest))
+    assert fixture.clock.sleeps == 0
+    assert fixture.journal()["phase"] == "worker_stop_started"
+    assert len(fixture.mutations()) == 1
 `);
   },
 );

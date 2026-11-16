@@ -20,6 +20,8 @@ function fixture(
     response?: () => Response;
     kind?: 'publication' | 'sale';
     bodyAfter?: Record<string, unknown>;
+    receipt?: Record<string, unknown>;
+    receiptAfter?: Record<string, unknown>;
   } = {},
 ) {
   let downloads = 0;
@@ -41,6 +43,10 @@ function fixture(
       }
       assert.equal(new Headers(init?.headers).get('authorization'), 'Bearer fixture-token');
       assert.equal(new Headers(init?.headers).get('apikey'), 'public-key');
+      if (url.pathname.endsWith('/marketplace_account_action_read'))
+        return Response.json(
+          downloads && options.receiptAfter ? options.receiptAfter : options.receipt,
+        );
       assert.equal(url.searchParams.get('workspace_id'), 'eq.' + scope.workspaceId);
       reads.push(url.pathname);
       if (url.pathname.endsWith('/marketplace_connections'))
@@ -151,4 +157,55 @@ test('behält das Foto bei einem während des Downloads widerrufenen Konto zurü
   const f = fixture({ after: [] });
   await assert.rejects(f.source.read(scope, entryId, photoUrl));
   assert.equal(f.downloads(), 1);
+});
+
+test('bindet neu gelesene Verkaufsbilder vor und nach dem Download an denselben erfolgreichen Lesebeleg', async () => {
+  const actionId = '25600000-0000-4000-8000-000000000051';
+  const body = { itemIds: ['777', '778'], itemCount: 2, isBundle: true, sellerId: '789' };
+  const source = {
+    externalAccountId: '789',
+    externalId: '777',
+    title: 'Schuhe',
+    description: 'Alle Angaben',
+    priceCents: 2000,
+    currency: 'EUR',
+    photoReferences: [photoUrl],
+    attributeHints: {},
+  };
+  const action = {
+    id: actionId,
+    ...scope,
+    entryId,
+    kind: 'listing_content_read',
+    state: 'succeeded',
+    resultExpired: false,
+    result: { source },
+  };
+  const f = fixture({ kind: 'sale', body, receipt: { action } });
+  assert.equal(
+    (await f.source.read(scope, entryId, photoUrl, '777', actionId)).mimeType,
+    'image/jpeg',
+  );
+  assert.equal(f.downloads(), 1);
+  for (const patch of [
+    { state: 'running' },
+    { entryId: actionId },
+    { workspaceId: actionId },
+    { connectionId: actionId },
+    { resultExpired: true },
+    { result: { source: { ...source, externalId: '778' } } },
+    { result: { source: { ...source, externalAccountId: '999' } } },
+    { result: { source: { ...source, photoReferences: [] } } },
+  ]) {
+    const denied = fixture({ kind: 'sale', body, receipt: { action: { ...action, ...patch } } });
+    await assert.rejects(denied.source.read(scope, entryId, photoUrl, '777', actionId));
+    assert.equal(denied.downloads(), 0);
+  }
+  const revoked = fixture({
+    kind: 'sale',
+    body,
+    receipt: { action },
+    receiptAfter: { action: { ...action, resultExpired: true } },
+  });
+  await assert.rejects(revoked.source.read(scope, entryId, photoUrl, '777', actionId));
 });

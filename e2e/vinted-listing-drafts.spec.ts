@@ -646,9 +646,8 @@ for (const width of [390, 1440]) {
         const sales = page.locator('app-vinted-sales');
         await expect(sales.getByRole('heading', { name: sale.title, exact: true })).toBeVisible();
         await sales
-          .getByRole('button', { name: 'Aktionen für ' + sale.title, exact: true })
+          .getByRole('link', { name: sale.title + ' neu einstellen', exact: true })
           .click();
-        await sales.getByRole('link', { name: 'Neu einstellen', exact: true }).click();
         const editor = page.locator('app-vinted-listing-editor');
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
           source.content.title,
@@ -748,13 +747,46 @@ for (const width of [390, 1440]) {
           route.fulfill({ json: { items: [] } }),
         );
         let photoAvailable = true;
-        await page.route('**/marketplace-browser/listings/photo/read', (route) => {
-          expect(route.request().postDataJSON()).toEqual({
+        const source = {
+          externalAccountId: '100',
+          externalId: '123',
+          title: 'Vollständig übernommene Laufschuhe',
+          description: 'Vollständige Beschreibung mit allen Angaben.',
+          priceCents: 9890,
+          currency: 'EUR',
+          photoReferences: Array.from(
+            { length: 9 },
+            (_, index) => `https://images1.vinted.net/sold-${index}.png`,
+          ),
+          attributeHints: {
+            category_id: '2',
+            category: 'Sportoberteile',
+            size: '45',
+            status: 'Neu, ohne Etikett',
+          },
+        };
+        const loadedPhotos: string[] = [];
+        await page.route('**/marketplace-browser/healthz', (route) =>
+          route.fulfill({ json: { ok: true, accountActionsEnabled: true } }),
+        );
+        await page.route('**/marketplace-browser/listings/content/read', (route) => {
+          expect(route.request().postDataJSON()).toMatchObject({
             ...scope,
             entryId: sale.id,
             saleItemId: '123',
-            photoUrl: sale.imageUrl,
           });
+          return photoAvailable
+            ? route.fulfill({ json: { source } })
+            : route.fulfill({ status: 404 });
+        });
+        await page.route('**/marketplace-browser/listings/photo/read', (route) => {
+          const body = route.request().postDataJSON();
+          expect(body).toMatchObject({ ...scope, entryId: sale.id, saleItemId: '123' });
+          if (body.sourceActionId) {
+            expect(body.sourceActionId).toMatch(/^[a-f0-9-]{36}$/);
+            expect(source.photoReferences).toContain(body.photoUrl);
+            loadedPhotos.push(body.photoUrl);
+          } else expect(body.photoUrl).toBe(sale.imageUrl);
           return photoAvailable
             ? route.fulfill({ contentType: 'image/png', body: state.pixel })
             : route.fulfill({ status: 404, json: { error: 'photo_unavailable' } });
@@ -763,11 +795,11 @@ for (const width of [390, 1440]) {
         await page.goto('/marketplaces/vinted/listings/new?' + query);
         const editor = page.locator('app-vinted-listing-editor');
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
-          sale.title,
+          source.title,
         );
         await expect(
           editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }),
-        ).toHaveValue('18,00');
+        ).toHaveValue('98,90');
         await expect(
           editor.getByRole('button', {
             name: 'Hauptbild: vinted-123-1.png, Details öffnen',
@@ -787,8 +819,20 @@ for (const width of [390, 1440]) {
           path: testInfo.outputPath('imported-sale-copy.png'),
           fullPage: true,
         });
+        await expect(
+          editor.getByRole('textbox', { name: 'Beschreibung', exact: true }),
+        ).toHaveValue(source.description);
+        expect([...loadedPhotos].sort()).toEqual([...source.photoReferences].sort());
+        await expect(editor.getByRole('combobox', { name: 'Zustand', exact: true })).toContainText(
+          'Neu ohne Etikett',
+        );
+        await expect(page.locator('html')).toHaveClass(theme === 'dark' ? /dark/ : /^(?!.*dark)/);
+        await expect(editor.getByRole('alert')).toHaveCount(0);
         await saveDraft(page);
-        expect(state.draft().images).toHaveLength(1);
+        expect(state.draft().images).toHaveLength(9);
+        expect(state.draft().content.categoryId).toBe(2);
+        expect(state.draft().content.conditionId).not.toBeNull();
+        expect(state.draft().content.conditionLabel).toBe('Neu ohne Etikett');
         expect(state.draft().inventoryItemId).toBeNull();
         expect(state.draft()).not.toHaveProperty('relistExternalId');
         photoAvailable = false;
@@ -797,7 +841,7 @@ for (const width of [390, 1440]) {
         await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
           sale.title,
         );
-        await expect(editor.getByRole('alert')).toContainText('Fotos');
+        await expect(editor.getByRole('alert')).toContainText('Vinted');
         await expect(editor.getByRole('button', { name: 'Gespeicherten Stand laden' })).toHaveCount(
           0,
         );
@@ -805,7 +849,7 @@ for (const width of [390, 1440]) {
         await editor
           .locator('input[type=file]')
           .setInputFiles({ name: 'ergänzt.png', mimeType: 'image/png', buffer: state.pixel });
-        await expect(editor.getByRole('alert')).toHaveCount(0);
+        await expect(editor.getByRole('alert')).toContainText('Vinted');
         await saveDraft(page);
         expect(state.draft().images).toHaveLength(1);
         expect(state.draft().inventoryItemId).toBeNull();
