@@ -334,8 +334,10 @@ begin
   if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure'='unauthorized') then v_reason:='needs_login'; end if;
   if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure'='forbidden') then v_reason:='forbidden'; end if;
   if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure'='rate_limited') then v_reason:='rate_limited'; end if;
-  if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure' in ('network','timeout','browser_context')) then v_reason:='network'; end if;
-  if v_reason is null and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure' in ('provider_unavailable','invalid_response')) then v_reason:='server'; end if;
+  -- Ein einzelner vorübergehender Teilfehler in einem sonst übernommenen Abgleich ist keine
+  -- Kontostörung: kein Warnschild und kein Aufschub, der nächste reguläre Abruf liest erneut.
+  if v_reason is null and p_outcome->>'state'<>'succeeded' and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure' in ('network','timeout','browser_context')) then v_reason:='network'; end if;
+  if v_reason is null and p_outcome->>'state'<>'succeeded' and exists(select 1 from jsonb_each(coalesce(v_operation.source_results,'{}')) a where a.value->>'failure' in ('provider_unavailable','invalid_response')) then v_reason:='server'; end if;
   if exists(select 1 from public.marketplace_browser_sessions where public_id=v_operation.browser_session_id and state in ('active','stopping')) then v_reason:='cleanup'; end if;
   update public.marketplace_operations set state=p_outcome->>'state',stage='cleanup',error_code=case when v_reason='cleanup' then 'cleanup' else p_outcome->>'errorCode' end,finished_at=clock_timestamp() where id=p_operation_id;
   -- Kein alter Abschluss darf eine inzwischen neu erteilte Freigabe umschreiben.
@@ -362,11 +364,15 @@ begin
     and v_operation.source_results->'profile'->>'status'='complete'
     and not exists(select 1 from jsonb_each(v_operation.source_results) a where a.value->>'failure' is not null)
     and public.marketplace_sync_authorization_valid(v_operation.workspace_id,v_operation.requested_by) then
-    -- Ein neuer bestätigter Abruf löst die alte Anbieterwarnung. Eine Pause,
-    -- Freigabeänderung nach Abrufbeginn oder ungeklärte Bereinigung bleibt erhalten.
+    -- Ein neuer bestätigter Abruf löst die alte Anbieter- oder Verbindungswarnung und holt einen
+    -- dadurch aufgeschobenen Abruf auf das gewählte Intervall zurück. Eine Pause, Wartezeit des
+    -- Anbieters, Freigabeänderung nach Abrufbeginn oder ungeklärte Bereinigung bleibt erhalten.
     update public.marketplace_sync_schedules set paused_reason=null,retry_after=null,
-      consecutive_failures=0,updated_at=clock_timestamp()
-      where id=v_schedule.id and paused_reason in ('needs_login','forbidden','challenge')
+      consecutive_failures=0,
+      next_due_at=case when enabled and next_due_at is not null
+        then least(next_due_at,public.marketplace_next_sync_due_at(workspace_id,connection_id,interval_minutes)) else next_due_at end,
+      updated_at=clock_timestamp()
+      where id=v_schedule.id and paused_reason in ('needs_login','forbidden','challenge','network','server','interrupted')
         and updated_at<=v_operation.started_at;
   end if;
   return true;

@@ -16,6 +16,7 @@ import { isolatedBrowserActions, validateBrowserResult } from '../src/isolated-b
 import { parseVintedProfileSaveResult } from '../src/vinted-profile-contracts.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
+import type { VintedAccountImport, VintedImportEntry } from '../src/vinted-account-import.ts';
 
 const ids = Array.from(
   { length: 7 },
@@ -792,4 +793,97 @@ test('already confirmed target price completes as a no-op without pretending to 
   );
   assert.equal(calls.at(-1)?.body.p_state, 'succeeded');
   assert.equal((calls.at(-1)?.body.p_result as Record<string, unknown>).noWriteNeeded, true);
+});
+function conversationReadRunner(
+  store: SupabaseMarketplaceAccountActionStore,
+  importAccount: NonNullable<BrowserInfo['importAccount']>,
+) {
+  const written: VintedAccountImport[] = [];
+  const runner = new MarketplaceAccountActionRunner({
+    url: 'https://db.example',
+    serviceRoleKey: 'server',
+    publishableKey: 'public',
+    store,
+    broker: {
+      open: async () => sessionId,
+      run: async (_scope, _id, operation) => operation({ version: () => '', importAccount }),
+      close: async () => undefined,
+      discardUnstartedAction: async () => undefined,
+    },
+  });
+  Reflect.set(runner, 'imports', {
+    conversationVersions: async () => [],
+    write: async (_scope: unknown, _session: string, snapshot: VintedAccountImport) => {
+      written.push(snapshot);
+      return { profile: 1, publication: 0, conversation: 1, message: 1, sale: 0 };
+    },
+  });
+  return { runner, written };
+}
+test('conversation read stores only the requested conversation as a partial snapshot', async () => {
+  const { claim, store, calls } = fixture('conversations_read', { conversationId: entryId });
+  const observedAt = new Date().toISOString();
+  const entry = (
+    kind: VintedImportEntry['kind'],
+    externalId: string,
+    extra: Partial<VintedImportEntry> = {},
+  ): VintedImportEntry => ({
+    kind,
+    externalId,
+    sortAt: observedAt,
+    body: {},
+    ...extra,
+  });
+  const { runner, written } = conversationReadRunner(
+    store,
+    async (): Promise<VintedAccountImport> => ({
+      identity: { id: '123', username: 'konto' },
+      observedAt,
+      entries: [
+        entry('profile', '123'),
+        entry('conversation', '456', { body: { detailCheckedAt: observedAt } }),
+        entry('conversation', '789'),
+        entry('message', '4561', { parentExternalId: '456' }),
+        entry('message', '7891', { parentExternalId: '789' }),
+        entry('sale', '999'),
+      ],
+      areas: {
+        profile: { status: 'complete' },
+        publications: { status: 'partial' },
+        conversations: { status: 'complete' },
+        messages: { status: 'partial' },
+        sales: { status: 'partial' },
+        feedback: { status: 'partial' },
+      },
+      rejectedSaleIds: ['999'],
+      inboxEvents: {
+        version: 1,
+        observedAt,
+        events: [],
+        complete: true,
+        coveredConversationIds: ['456', '789'],
+      },
+    }),
+  );
+  await runner.run(claim);
+  assert.equal(calls.at(-1)?.body.p_state, 'succeeded');
+  assert.equal(written.length, 1);
+  const snapshot = written[0]!;
+  assert.deepEqual(
+    snapshot.entries.map((item) => `${item.kind}:${item.externalId}`),
+    ['profile:123', 'conversation:456', 'message:4561'],
+  );
+  assert.equal(snapshot.areas.conversations.status, 'partial');
+  assert.equal(snapshot.rejectedSaleIds, undefined);
+  assert.equal(snapshot.inboxEvents?.complete, false);
+  assert.deepEqual(snapshot.inboxEvents?.coveredConversationIds, ['456']);
+});
+test('a provider failure after browser start is retried as provider_failed, not browser_unavailable', async () => {
+  const { claim, store, calls } = fixture('conversations_read', { conversationId: entryId });
+  const { runner } = conversationReadRunner(store, async () => {
+    throw new Error('Gespräch nicht bestätigt');
+  });
+  await runner.run(claim);
+  const retry = calls.find((call) => call.name === 'marketplace_account_action_retry');
+  assert.equal(retry?.body.p_error_code, 'provider_failed');
 });
