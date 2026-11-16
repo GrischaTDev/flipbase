@@ -1322,7 +1322,7 @@ for (const width of [390, 1440])
         await expect(
           detail.getByRole('link', { name: 'Zurück zu Inseraten', exact: true }),
         ).toBeFocused();
-        expect(saves).toHaveLength(2);
+        await expect.poll(() => saves.length).toBe(2);
         await runningActions.click();
         await expect(page.getByText('Preis wird geändert …', { exact: true })).toBeVisible();
         await page.keyboard.press('Escape');
@@ -2683,7 +2683,12 @@ test('Relist-Auftrag schließt das Modal und übernimmt Originale bis zur verzö
     .locator('app-vinted-action-overview-menu')
     .getByRole('button', { name: /Laufende Aktionen/ })
     .click();
-  await expect(page.getByText('Relisting · Meine Schuhe', { exact: true })).toBeVisible();
+  // Aktion und Artikel stehen in der Seitenleiste als getrennte Zeilen.
+  const relisting = page
+    .getByRole('dialog', { name: 'Aktionen', exact: true })
+    .locator('li')
+    .filter({ hasText: 'Relisting' });
+  await expect(relisting.getByText('Meine Schuhe', { exact: true })).toBeVisible();
   releaseCreation();
   await expect.poll(() => enqueues.length).toBe(1);
   const overview = page.locator('app-vinted-listing-action-overview');
