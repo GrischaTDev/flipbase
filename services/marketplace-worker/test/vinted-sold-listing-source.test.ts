@@ -10,6 +10,7 @@ import {
 function fixture(
   overrides: Record<string, unknown> = {},
   description = 'Vollständige Beschreibung\nGröße 45 – Weiß',
+  resourceHints = '',
 ) {
   const record = (id: string, value: unknown) => id + ':' + JSON.stringify(value) + '\n';
   const photos = Array.from({ length: 9 }, (_, index) => ({
@@ -19,6 +20,7 @@ function fixture(
     is_hidden: false,
   }));
   const flight =
+    resourceHints +
     record('1', {
       id: 123,
       seller_id: 456,
@@ -91,6 +93,24 @@ test('verwirft fremde Artikel, Konten, fehlende Bezüge und nicht freigegebene B
     { photos: '$1:photos' },
   ])
     assert.throws(() => parseVintedSoldListingDocument(fixture(override), '456', '123'));
+});
+
+test('liest alle Artikeldaten trotz wiederholter unnummerierter Next-Ladehinweise', () => {
+  const hints =
+    ':HL["https://marketplace-web-assets.vinted.com/_next/static/chunks/fixture.css","style"]\n';
+  const source = parseVintedSoldListingDocument(
+    fixture({}, undefined, hints.repeat(2)),
+    '456',
+    '123',
+  );
+  assert.deepEqual(source, parseVintedSoldListingDocument(fixture(), '456', '123'));
+});
+
+test('verwirft ungültige oder abgeschnittene unnummerierte Ladehinweise', () => {
+  for (const hints of [':HL[invalid]\n', ':HL{}\n', ':HL["style"]', ':[]\n', ':HL["style"]\n:[]\n'])
+    assert.throws(() =>
+      parseVintedSoldListingDocument(fixture({}, undefined, hints), '456', '123'),
+    );
 });
 
 test('führt Skriptinhalt nicht aus und bricht bei abgeschnittenen Streaming-Daten ab', () => {

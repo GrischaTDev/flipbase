@@ -43,6 +43,19 @@ export function parseVintedSoldListingDocument(
     const colon = bytes.indexOf(58, offset);
     if (colon < 0) return invalid();
     const id = bytes.toString('utf8', offset, colon);
+    // Next liefert CSS-Ladehinweise ohne Datensatzkennung; sie enthalten keine Artikeldaten.
+    if (id === '' && bytes.toString('ascii', colon + 1, colon + 3) === 'HL') {
+      const newline = bytes.indexOf(10, colon);
+      if (newline < 0) return invalid();
+      try {
+        if (!Array.isArray(JSON.parse(bytes.toString('utf8', colon + 3, newline))))
+          return invalid();
+      } catch {
+        return invalid();
+      }
+      offset = newline + 1;
+      continue;
+    }
     if (!/^[a-f0-9]+$/i.test(id) || records.has(id)) return invalid();
     offset = colon + 1;
     if (bytes[offset] === 84) {

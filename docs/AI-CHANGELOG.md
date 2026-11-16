@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-16 - Juna - Vollständige Übernahme verkaufter Vinted-Inserate wiederherstellen
+
+**Auftrag und Grundlage:** Fehlende Beschreibung und weitere Bilder beim erneuten Einstellen eines verkauften Artikels untersuchen und korrigieren. GitHub frisch abgeglichen und den eigenen Zweig `juna/vinted-sold-listing-prefill` vom aktuellen `origin/master` (`aa8e9f46`) in einer getrennten Arbeitskopie angelegt. Die belegte primäre Arbeitskopie, der anderweitig belegte lokale Hauptzweig und fremde Änderungen bleiben erhalten.
+
+**Nachgewiesene Ursache:** Der freigegebene gespeicherte Verkauf enthält Titel und Vorschaubild, aber keine Beschreibung oder vollständige Fotoliste. Das echte Originalinserat ist weiterhin erreichbar und enthält eine Beschreibung mit 666 Zeichen sowie neun Fotos. Sein Next-Datenstrom beginnt zusätzlich mit unnummerierten `:HL`-Ladehinweisen für CSS. Der bisherige Dokumentleser verwirft die leere Datensatzkennung und bricht vor den vollständigen Artikeldaten mit dem Schritt `values` ab. Die sichtbare Vinted-Seite und die dahinterliegenden Artikel-, Verkäufer-, Beschreibungs- und Fotobezüge wurden ausschließlich lesend geprüft; keine echte Anzeige verändert oder veröffentlicht.
+
+**Korrektur und Reichweite:** Nur den gemeinsamen Leser für verkaufte Vinted-Inserate angepasst: syntaktisch gültige `:HL`-Arraydatensätze ohne Kennung überspringen. Artikeldaten, Kontozuordnung, Referenzen, Bildquellen und bestehende Größen-/Tiefengrenzen bleiben unverändert streng geprüft. Ungültige und abgeschnittene Hinweise bleiben Fehler. Aufrufkette über Browseraktionen, isolierten Transport, Auftragsausführung und Editor geprüft; keine Änderung an Oberfläche, gespeicherten Nutzerdaten oder Abhängigkeiten.
+
+**Nachweise:** Neuer Parserfall reproduziert vor der Korrektur den echten Abbruch; danach alle sechs Parserfälle erfolgreich, einschließlich wiederholter und über Streaming-Blöcke getrennter Ladehinweise sowie fehlerhafter Daten. Neuer nativer Chromiumfall bestätigt über den echten isolierten Transport vollständige Beschreibung, neun Fotos in Reihenfolge, Kategorie, erhaltenen Ursprungstab und ausschließlich lesende Anfragen. Alle fünf Fälle der betroffenen Browserdatei erfolgreich. Vollständige Workerprüfungen mit Node `24.22.3` und gesperrten Abhängigkeiten: 930 bestanden, acht bestehende Auslassungen; Worker-Typprüfung und -Bau erfolgreich. Lokale Protokolle liegen außerhalb des Repositorys. Die ausgewählten CI-Freigabeprüfungen einschließlich Marketplace-Images/Isolation und der produktive Nachtest stehen bis zur Freigabe und Veröffentlichung aus.
+
 ## 2026-11-16 - Juna - Vinted-Gesprächsteilfehler eingrenzen und die gemeinsame Korrektur freigeben
 
 **Fortsetzung und Freigabe:** Der Nutzer autorisiert PR-Erstellung, Merge nach erfolgreichen Pflichtprüfungen und die vorgesehene Bereinigung; zusätzlich die Nachrichten-/Verkaufsteilfehler untersuchen. Fortsetzung auf `juna/vinted-sync-provider-diagnosis`, GitHub erneut abgeglichen. Die primäre Arbeitskopie bleibt wegen fremder Änderungen unangetastet.
