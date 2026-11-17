@@ -130,7 +130,6 @@ interface BrowserApiOptions {
       scope: BrowserSessionScope,
       sessionId: string,
       snapshot: VintedAccountImport,
-      conversationExternalId?: string,
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   edits?: VintedEditAccess;
@@ -1521,7 +1520,6 @@ export class MarketplaceBrowserHttpApi {
             requestedConversation
               ? restrictVintedImportToConversation(result, requestedConversation.externalId)
               : result,
-            requestedConversation?.externalId,
           );
           await (this.broker.finishAction?.(scope, currentSessionId) ??
             this.broker.close(scope, currentSessionId));

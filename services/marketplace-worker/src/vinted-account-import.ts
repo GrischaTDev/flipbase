@@ -491,6 +491,10 @@ function parseFeedbacks(rawFeedbacks: unknown[], fallbackDate: string): Record<s
 }
 
 // Vinteds Verfügbarkeitsstatus gehört in den Verlauf, ist aber keine neue Chataktivität.
+function isSalePreview(value: unknown): boolean {
+  return /^Verkauft(?:!| \(vor dem [^()]{3,40} verschicken\))?$/u.test(string(value) ?? '');
+}
+
 function isUnavailableItemText(value: unknown): boolean {
   return (
     typeof value === 'string' &&
@@ -1101,6 +1105,7 @@ async function pages(
   authorize: () => Promise<void>,
   stage: VintedImportStage,
   context?: SourceReadContext,
+  untilConversationId?: string,
 ): Promise<{ values: unknown[]; result: VintedImportAreaResult }> {
   const values: unknown[] = [];
   for (let number = 1; number <= 20; number++) {
@@ -1129,6 +1134,11 @@ async function pages(
       if (key === 'conversations' && items.length === 0)
         return { values, result: { status: 'complete' } };
       if (number >= totalPages) return { values, result: { status: 'complete' } };
+      if (
+        untilConversationId &&
+        items.some((item) => identifier(record(item)?.['id']) === untilConversationId)
+      )
+        return { values, result: { status: 'partial' } };
     } catch (error) {
       return { values, result: sourceFailure(stage, error, number > 1) };
     }
@@ -1434,6 +1444,7 @@ export async function readVintedAccountImport(
     authorize,
     'conversations',
     reads,
+    requestedConversation?.externalId,
   );
   const areas: VintedImportAreas = {
     profile: { status: 'complete' },
@@ -1495,13 +1506,16 @@ export async function readVintedAccountImport(
       const attemptedAt =
         sameSource || !sourceUpdatedAt ? pastTime(previous?.detailAttemptedAt) : 0;
       const unavailablePreview = isUnavailableItemText(previous?.text);
-      const salePreview = /^Verkauft(?:!| \(vor dem [^()]{3,40} verschicken\))?$/u.test(
-        string(conversation?.['description']) ?? '',
-      );
+      const salePreview = isSalePreview(conversation?.['description']);
+      const needsSaleRecheck =
+        previous?.saleTrackingVersion === 2 &&
+        previous.saleSellerId === identity.id &&
+        !!previous.saleTransactionId &&
+        (salePreview || isSalePreview(previous.text));
       const freshlyChecked =
         sameSource &&
         (previous?.saleTrackingVersion === 3 ||
-          (previous?.saleTrackingVersion === 2 && !(salePreview && previous.saleTransactionId))) &&
+          (previous?.saleTrackingVersion === 2 && !needsSaleRecheck)) &&
         !unavailablePreview &&
         checkedAt > 0 &&
         now - checkedAt < 24 * 60 * 60 * 1000;

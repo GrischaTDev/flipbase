@@ -723,7 +723,6 @@ export class MarketplaceAccountActionRunner {
           scope,
           sessionId,
           restrictVintedImportToConversation(read, external),
-          external,
         );
         return { conversationId: p.conversationId, observedAt: read.observedAt };
       }

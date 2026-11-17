@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-17 - Juna - Verkaufschat samt Versandstatus speichern
+
+**Live-Nachweis:** In „Maike Vintage“ blieb der Verkauf des Burberry-Schals von 20:18 Uhr auf „Abgeschlossen“. Der Vergleichsabruf eines anderen Chats gelang in 26 Sekunden und mit einem Versuch. Beim Verkaufschat scheiterten die beobachteten Aufträge nach drei Versuchen und 36–48 Sekunden. Die schreibgeschützte Produktionsdiagnose bestätigte den Widerspruch zwischen PR #691 und der aktiven Datenbankfunktion: Der Worker liefert den bestätigten Verkauf mit, während die Datenbank in einem Chatabruf nur Profil, Gespräch und Nachrichten akzeptiert. Die Datenbankprüfung reproduziert den Abbruch mit SQLSTATE `42501`. Eigener Zweig vom abgeglichenen `origin/master` (`203a3844`) in getrennter Arbeitskopie.
+
+**Umsetzung:** Der Teilimport akzeptiert den Verkauf ausschließlich mit frischer Bestätigung derselben Transaktion im angefragten Chat und demselben Verkäuferkonto. Andere Gespräche, fremde Verkäufe und Bereinigungen bleiben für diesen Abruf gesperrt. Die Datenbank bewahrt vorhandene Artikelmerkmale beim Speichern. Der Worker beendet die Suche im Postfach auf der Seite mit dem angefragten Chat. Die gespeicherte Verkaufsvorschau kann beim Hintergrundabgleich eine alte Versandprüfung erneut auslösen, auch wenn Vinted die Vorschau in der Liste auslässt.
+
+**Nachweis:** Mit der erzeugten Migration wird ein zuvor fälschlich abgeschlossener Verkauf aus dem Testfall zusammen mit der Nachricht auf „Verkauft“ und „Versandschein anfordern“ aktualisiert. Die Worker-Regression prüft den frühen Abbruch der Postfachsuche. Die produktive Diagnose blieb lesend. Die Korrektur und die tatsächliche Ladezeit sind in Produktion noch nicht gemessen.
+
+**Integration:** PR und Merge nach grünen Pflichtprüfungen sind freigegeben. Der Zweig übernimmt den aktuellen Hauptstand (`20d4a6ef`). Nach der Bereitstellung sind der Verkaufsstatus, der Versandknopf und die Dauer des Abrufs am betroffenen Chat zu prüfen.
+
 ## 2026-11-17 - Juna - Geänderte Kleinanzeigen-Kontokennung erkennen
 
 **Befund:** Beim gemeldeten Neuinserieren stoppte der Bestandsabgleich vor der Neuanlage. Die aktuelle Anbieterseite „Meine Anzeigen“ übergibt dem Renderer eine lokale Kontokennung als Konstante. Die Kontoprüfung verlangte bisher direkt im Aufruf eine numerische Kennung.

@@ -16,7 +16,8 @@ insert into public.marketplace_browser_profiles(workspace_id,connection_id,provi
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at,observed_at) values
  ('58000000-0000-4000-8000-000000000031','58000000-0000-4000-8000-000000000011','58000000-0000-4000-8000-000000000021','profile','5801','{}','2026-11-01T10:00:00Z','2026-11-01T10:00:00Z'),
  ('58000000-0000-4000-8000-000000000032','58000000-0000-4000-8000-000000000011','58000000-0000-4000-8000-000000000021','conversation','58011','{"title":"Ziel"}','2026-11-01T10:00:00Z','2026-11-01T10:00:00Z'),
- ('58000000-0000-4000-8000-000000000033','58000000-0000-4000-8000-000000000011','58000000-0000-4000-8000-000000000021','conversation','58012','{"title":"Anderes"}','2026-11-01T10:00:00Z','2026-11-01T10:00:00Z');
+ ('58000000-0000-4000-8000-000000000033','58000000-0000-4000-8000-000000000011','58000000-0000-4000-8000-000000000021','conversation','58012','{"title":"Anderes"}','2026-11-01T10:00:00Z','2026-11-01T10:00:00Z'),
+ ('58000000-0000-4000-8000-000000000034','58000000-0000-4000-8000-000000000011','58000000-0000-4000-8000-000000000021','sale','58021','{"sellerId":"5801","externalConversationId":"58011","saleState":"completed","saleStateAt":"2026-11-01T10:00:00Z","itemIds":["58031"],"itemCount":1,"brand":"Burberry"}','2026-11-01T10:00:00Z','2026-11-01T10:00:00Z');
 create temporary table read_context(name text primary key,body jsonb);
 grant all on read_context to authenticated,service_role;
 
@@ -33,9 +34,11 @@ set local role service_role;
 insert into read_context values('claim',public.marketplace_browser_work_claim('58000000-0000-4000-8000-000000000041',1,gen_random_uuid(),true)->'claim');
 select is((select body->>'actionKind' from read_context where name='claim'),'conversations_read','Gesprächsabruf wird als Auftrag beansprucht');
 
--- Snapshot wie aus dem Postfach: Profil, Zielgespräch mit Nachricht und ein fremdes Gespräch.
+-- Snapshot wie aus dem Postfach: Profil, Zielgespräch mit Nachricht und der bestätigte Verkauf.
 create function pg_temp.snapshot(p_entries jsonb, p_conversations text) returns jsonb language sql as $$
-  select jsonb_build_object('identity',jsonb_build_object('id','5801'),'observedAt',clock_timestamp(),'entries',p_entries,
+  select jsonb_build_object('identity',jsonb_build_object('id','5801'),'observedAt',statement_timestamp(),'entries',(
+    select jsonb_agg(case when entry->>'kind'='conversation' then jsonb_set(entry,'{body,detailCheckedAt}',to_jsonb(statement_timestamp())) else entry end)
+    from jsonb_array_elements(p_entries) entry),
     'areas',jsonb_build_object('profile','{"status":"complete"}'::jsonb,'publications','{"status":"partial"}'::jsonb,
       'conversations',jsonb_build_object('status',p_conversations),'messages','{"status":"partial"}'::jsonb,
       'sales','{"status":"partial"}'::jsonb,'feedback','{"status":"partial"}'::jsonb));
@@ -48,14 +51,42 @@ insert into read_context values('profile','{"kind":"profile","externalId":"5801"
 insert into read_context values('target','{"kind":"conversation","externalId":"58011","sortAt":"2026-11-16T00:00:00Z","body":{"title":"Ziel neu"}}');
 insert into read_context values('message','{"kind":"message","externalId":"580111","parentExternalId":"58011","sortAt":"2026-11-16T00:00:00Z","body":{"text":"Hallo"}}');
 insert into read_context values('foreign','{"kind":"conversation","externalId":"58012","sortAt":"2026-11-16T00:00:00Z","body":{"title":"Anderes neu"}}');
+insert into read_context values('sale','{"kind":"sale","externalId":"58021","sortAt":"2026-11-16T00:00:00Z","body":{"sellerId":"5801","externalConversationId":"58011","saleState":"sold","saleStateAt":"2026-11-01T10:00:00Z","status":"Verkauft","itemIds":["58031"],"itemCount":1,"shippingLabelAction":"order"}}');
+insert into read_context values('confirmed',
+  jsonb_set((select body from read_context where name='target'),'{body}','{"title":"Ziel neu","saleTrackingVersion":3,"saleTransactionId":"58021","saleSellerId":"5801"}'));
 
 select throws_ok($$select pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
   (select body from read_context where name='profile'),(select body from read_context where name='target'),
   (select body from read_context where name='message'),(select body from read_context where name='foreign')),'complete'))$$,
   '42501','Auftragsgebundener Importzugriff verweigert','Ungefilterter Postfachstand mit fremdem Gespräch wird abgelehnt');
-select is((pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
+select throws_ok($$select pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
+  (select body from read_context where name='profile'),(select body from read_context where name='confirmed'),
+  (select body from read_context where name='sale')),'complete'))$$,
+  '42501','Auftragsgebundener Importzugriff verweigert','Gezielter Abruf darf andere Gespräche nicht bereinigen');
+select throws_ok($$select pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
   (select body from read_context where name='profile'),(select body from read_context where name='target'),
-  (select body from read_context where name='message')),'partial'))->>'message')::integer,1,'Auf das Zielgespräch beschränkter Stand wird übernommen');
+  (select body from read_context where name='sale')),'partial'))$$,
+  '42501','Auftragsgebundener Importzugriff verweigert','Verkauf ohne bestätigte Zuordnung im Chat wird abgelehnt');
+select throws_ok(format($$select pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
+  (select body from read_context where name='profile'),(select body from read_context where name='confirmed'),
+  jsonb_set((select body from read_context where name='sale'),%L,%L::jsonb)),'partial'))$$,field_path,replacement),
+  '42501','Auftragsgebundener Importzugriff verweigert',description)
+from (values
+  ('{body,externalConversationId}','"58012"','Verkauf aus einem anderen Chat wird abgelehnt'),
+  ('{body,sellerId}','"5802"','Verkauf eines anderen Verkäuferkontos wird abgelehnt'),
+  ('{externalId}','"58022"','Abweichende Transaktion wird abgelehnt')
+) as invalid(field_path,replacement,description);
+select is(pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
+  (select body from read_context where name='profile'),(select body from read_context where name='confirmed'),
+  (select body from read_context where name='message'),(select body from read_context where name='sale')),'partial')),
+  '{"profile":1,"publication":0,"conversation":1,"message":1,"sale":1}'::jsonb,
+  'Zielgespräch, Nachricht und gebundener Verkauf werden gemeinsam übernommen');
+select is((select body->>'shippingLabelAction' from public.marketplace_account_entries where kind='sale' and external_id='58021'),
+  'order','Die Versandaktion ist im gespeicherten Verkauf vorhanden');
+select is((select body->>'saleState' from public.marketplace_account_entries where kind='sale' and external_id='58021'),
+  'sold','Ein fälschlich abgeschlossener Verkauf kehrt zu Verkauft zurück');
+select is((select body->>'brand' from public.marketplace_account_entries where kind='sale' and external_id='58021'),
+  'Burberry','Die Datenbank bewahrt die gesicherte Artikelmarke beim Teilimport');
 select is((select body->>'title' from public.marketplace_account_entries where external_id='58011' and kind='conversation'),'Ziel neu','Zielgespräch ist aktualisiert');
 select is((select count(*)::integer from public.marketplace_account_entries where kind='message' and external_id='580111'),1,'Nachricht des Zielgesprächs ist gespeichert');
 select is((select body->>'title' from public.marketplace_account_entries where external_id='58012' and kind='conversation'),'Anderes','Teilstand löscht und ändert andere Gespräche nicht');
