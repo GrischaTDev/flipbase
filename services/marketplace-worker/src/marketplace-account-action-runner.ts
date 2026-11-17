@@ -59,6 +59,15 @@ export function restrictVintedImportToConversation(
 ): VintedAccountImport {
   const partial = (area: VintedImportAreaResult): VintedImportAreaResult =>
     area.status === 'complete' ? { ...area, status: 'partial' } : area;
+  const conversation = read.entries.find(
+    (entry) => entry.kind === 'conversation' && entry.externalId === conversationExternalId,
+  );
+  const confirmedSaleId =
+    conversation?.body['saleTrackingVersion'] === 3 &&
+    conversation.body['detailCheckedAt'] === read.observedAt &&
+    conversation.body['saleSellerId'] === read.identity.id
+      ? conversation.body['saleTransactionId']
+      : null;
   const {
     rejectedSaleIds: _rejectedSaleIds,
     favoriteEvents: _favoriteEvents,
@@ -73,7 +82,11 @@ export function restrictVintedImportToConversation(
       (entry) =>
         entry.kind === 'profile' ||
         (entry.kind === 'conversation' && entry.externalId === conversationExternalId) ||
-        (entry.kind === 'message' && entry.parentExternalId === conversationExternalId),
+        (entry.kind === 'message' && entry.parentExternalId === conversationExternalId) ||
+        (entry.kind === 'sale' &&
+          entry.externalId === confirmedSaleId &&
+          entry.body['externalConversationId'] === conversationExternalId &&
+          entry.body['sellerId'] === read.identity.id),
     ),
     areas: {
       ...read.areas,
@@ -86,6 +99,9 @@ export function restrictVintedImportToConversation(
       ? {
           inboxEvents: {
             ...inboxEvents,
+            events: inboxEvents.events.filter(
+              (event) => event.externalConversationId === conversationExternalId,
+            ),
             complete: false,
             coveredConversationIds: inboxEvents.coveredConversationIds.filter(
               (id) => id === conversationExternalId,
@@ -707,6 +723,7 @@ export class MarketplaceAccountActionRunner {
           scope,
           sessionId,
           restrictVintedImportToConversation(read, external),
+          external,
         );
         return { conversationId: p.conversationId, observedAt: read.observedAt };
       }

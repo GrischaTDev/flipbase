@@ -114,6 +114,7 @@ export function readVintedSale(
       /^Verkauft(?:$|[! (])/u.test(title);
     if (sold) state = 'sold';
     else if (group === 'cancelation') state = type === 'reuploaded' ? 'relisted' : 'cancelled';
+    else if (group === 'completion' && type === 'completed') state = 'completed';
     else if (
       group === 'shipment' &&
       type === 'shipment_completed' &&
@@ -140,18 +141,14 @@ export function readVintedSale(
   const providerState =
     status === 'Versendet'
       ? 'shipped'
-      : ['Transaktion erfolgreich beendet.', 'Zahlung abgeschlossen!'].includes(status ?? '')
+      : status === 'Transaktion erfolgreich beendet.'
         ? 'completed'
         : null;
   if (
     !previouslyConfirmed &&
     !events.some((event) => event.state === 'sold') &&
     !paymentAt &&
-    !(
-      ordered &&
-      (providerState ||
-        events.some((event) => event.state === 'cancelled' || event.state === 'relisted'))
-    )
+    !(ordered && (providerState || events.some((event) => event.state !== 'sold')))
   )
     return null;
   if (previouslyConfirmed && !events.length && !providerState && !paymentAt) return null;

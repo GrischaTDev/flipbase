@@ -820,7 +820,7 @@ function conversationReadRunner(
   });
   return { runner, written };
 }
-test('conversation read stores only the requested conversation as a partial snapshot', async () => {
+test('conversation read stores the requested conversation and its verified sale in a partial snapshot', async () => {
   const { claim, store, calls } = fixture('conversations_read', { conversationId: entryId });
   const observedAt = new Date().toISOString();
   const entry = (
@@ -841,10 +841,20 @@ test('conversation read stores only the requested conversation as a partial snap
       observedAt,
       entries: [
         entry('profile', '123'),
-        entry('conversation', '456', { body: { detailCheckedAt: observedAt } }),
+        entry('conversation', '456', {
+          body: {
+            detailCheckedAt: observedAt,
+            saleTrackingVersion: 3,
+            saleTransactionId: '555',
+            saleSellerId: '123',
+          },
+        }),
         entry('conversation', '789'),
         entry('message', '4561', { parentExternalId: '456' }),
         entry('message', '7891', { parentExternalId: '789' }),
+        entry('sale', '555', { body: { externalConversationId: '456', sellerId: '123' } }),
+        entry('sale', '556', { body: { externalConversationId: '456', sellerId: '123' } }),
+        entry('sale', '557', { body: { externalConversationId: '789', sellerId: '123' } }),
         entry('sale', '999'),
       ],
       areas: {
@@ -871,7 +881,7 @@ test('conversation read stores only the requested conversation as a partial snap
   const snapshot = written[0]!;
   assert.deepEqual(
     snapshot.entries.map((item) => `${item.kind}:${item.externalId}`),
-    ['profile:123', 'conversation:456', 'message:4561'],
+    ['profile:123', 'conversation:456', 'message:4561', 'sale:555'],
   );
   assert.equal(snapshot.areas.conversations.status, 'partial');
   assert.equal(snapshot.rejectedSaleIds, undefined);

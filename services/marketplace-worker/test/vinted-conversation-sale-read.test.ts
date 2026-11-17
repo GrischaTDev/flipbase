@@ -163,7 +163,7 @@ test('a scheduled import refreshes a bound sale from shortened conversation data
   );
   assert.equal(
     snapshot.entries.find((entry) => entry.kind === 'conversation')?.body['saleTrackingVersion'],
-    2,
+    3,
   );
 });
 
@@ -226,9 +226,9 @@ test('a transaction response with a different identity never refreshes the cache
   }
 });
 
-test('opening a known-sale chat does not refresh its unchecked sale and the next bounded import checks it', async (t) => {
+test('a failed transaction read when opening a known-sale chat leaves the next import able to retry it', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date(observedAt) });
-  const item = importFixture({ id: 71 });
+  const item = importFixture({ id: 71 }, true);
   const opened = await readVintedAccountImport(
     item.page,
     async () => undefined,
@@ -237,26 +237,24 @@ test('opening a known-sale chat does not refresh its unchecked sale and the next
     { externalId: '51', accountId: '123' },
   );
   const conversation = opened.entries.find((entry) => entry.kind === 'conversation');
-  assert.equal(
-    item.paths.some((path) => path.startsWith('/api/v2/transactions/')),
-    false,
-  );
+  assert.equal(item.paths.filter((path) => path === '/api/v2/transactions/71').length, 1);
   assert.equal(conversation?.body['detailCheckedAt'], observedAt);
   assert.equal(conversation?.body['saleTransactionId'], '71');
   assert.equal(conversation?.body['saleSellerId'], '123');
   assert.equal(conversation?.body['saleTrackingVersion'], undefined);
-  item.paths.length = 0;
-  const snapshot = await readVintedAccountImport(item.page, async () => undefined, undefined, [
-    { ...item.previous, detailCheckedAt: observedAt, saleTrackingVersion: undefined },
+  assert.equal(opened.areas.sales.failure, 'network');
+  const retry = importFixture({ id: 71 });
+  const snapshot = await readVintedAccountImport(retry.page, async () => undefined, undefined, [
+    { ...conversation?.body, externalId: '51' } as unknown as VintedConversationVersion,
   ]);
-  assert.equal(item.paths.filter((path) => path === '/api/v2/transactions/71').length, 1);
+  assert.equal(retry.paths.filter((path) => path === '/api/v2/transactions/71').length, 1);
   assert.equal(
     snapshot.entries.find((entry) => entry.kind === 'sale')?.body['saleState'],
     'shipped',
   );
 });
 
-test('opening a newly sold chat invalidates the older no-sale confirmation before the next bounded import', async (t) => {
+test('opening a newly sold chat replaces the older no-sale confirmation without a duplicate background read', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date(observedAt) });
   const item = importFixture({ id: 71, seller_id: 123 }, false, {}, undefined, {
     messages: [
@@ -284,14 +282,13 @@ test('opening a newly sold chat invalidates the older no-sale confirmation befor
   );
   const conversation = opened.entries.find((entry) => entry.kind === 'conversation');
   assert.ok(conversation);
-  assert.equal(
-    item.paths.some((path) => path.startsWith('/api/v2/transactions/')),
-    false,
-  );
-  assert.equal(opened.entries.find((entry) => entry.kind === 'sale')?.externalId, '71');
+  assert.equal(item.paths.filter((path) => path === '/api/v2/transactions/71').length, 1);
+  const sale = opened.entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.externalId, '71');
+  assert.equal(sale.body['saleState'], 'shipped');
   assert.equal(conversation.body['saleTransactionId'], '71');
   assert.equal(conversation.body['detailCheckedAt'], observedAt);
-  assert.equal(conversation.body['saleTrackingVersion'], undefined);
+  assert.equal(conversation.body['saleTrackingVersion'], 3);
   item.paths.length = 0;
   const snapshot = await readVintedAccountImport(item.page, async () => undefined, undefined, [
     {
@@ -299,11 +296,11 @@ test('opening a newly sold chat invalidates the older no-sale confirmation befor
       externalId: conversation.externalId,
     } as unknown as VintedConversationVersion,
   ]);
-  assert.equal(item.paths.filter((path) => path === '/api/v2/conversations/51').length, 1);
-  assert.equal(item.paths.filter((path) => path === '/api/v2/transactions/71').length, 1);
+  assert.equal(item.paths.includes('/api/v2/conversations/51'), false);
+  assert.equal(item.paths.includes('/api/v2/transactions/71'), false);
   assert.equal(
-    snapshot.entries.find((entry) => entry.kind === 'sale')?.body['saleState'],
-    'shipped',
+    snapshot.entries.find((entry) => entry.kind === 'conversation')?.body['saleTransactionId'],
+    '71',
   );
 });
 
