@@ -51,10 +51,20 @@
         ),
       );
       if (renders.length > 1) return null;
-      const legacyId =
-        renders.length === 1
-          ? accountId(renders[0][1].match(/\buserId:\s*([1-9][0-9]*)\s*(?:,|$)/u)?.[1])
-          : null;
+      const render = renders[0];
+      const idProperties = render ? Array.from(render[1].matchAll(/\buserId\s*:/gu)) : [];
+      if (idProperties.length > 1) return null;
+      const value = render?.[1].match(/\buserId\s*:\s*([1-9][0-9]*|userId)\s*(?:,|$)/u)?.[1];
+      let legacyId = accountId(value);
+      if (astro && value === 'userId') {
+        // Der neue Aufruf verwendet die Konstante aus derselben Funktion als zweite Kontokennung.
+        const scope = render.input.slice(0, render.index);
+        legacyId = accountId(
+          scope.match(
+            /^\s*\(function\s*\(\)\s*\{\s*const\s+userId\s*=\s*([1-9][0-9]*)\s*;\s*const\s+containerId\s*=\s*(['"])my-ads-frontend\2\s*;\s*window\.__renderMyAds\s*=\s*function\s*\(\)\s*\{\s*if\s*\(window\.myAdsFrontend\)\s*\{\s*$/u,
+          )?.[1],
+        );
+      }
       if (astro)
         return identity && (!renders.length || legacyId === identity.externalAccountId)
           ? identity

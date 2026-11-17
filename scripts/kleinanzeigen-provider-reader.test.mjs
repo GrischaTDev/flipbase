@@ -168,6 +168,38 @@ test('a second conflicting legacy identity cannot pass', () => {
   assert.equal(reader.pageIdentity(page, '/m-meine-anzeigen.html'), null);
 });
 
+const renderOwnListings = (declaration, property = 'userId: userId,') => `
+  <script>
+    (function(){${declaration}
+      const containerId = 'my-ads-frontend';
+      window.__renderMyAds = function () {
+        if (window.myAdsFrontend) {
+          window.myAdsFrontend.render({containerId: containerId, ${property}});
+        }
+      };
+    })();
+  </script>`;
+
+test('recognizes the current own-listings renderer with a matching local account constant', () => {
+  const page = doc(renderOwnListings('const userId = 123;'), '/m-meine-anzeigen.html');
+  assert.equal(reader.pageIdentity(page, '/m-meine-anzeigen.html')?.externalAccountId, '123');
+});
+
+test('rejects conflicting, ambiguous or unbound account constants in the renderer', () => {
+  for (const html of [
+    renderOwnListings('const userId = 124;'),
+    '<script>const userId = 123;</script>' + renderOwnListings(''),
+    renderOwnListings('const userId = getUserId();'),
+    renderOwnListings('const userId = 123;', 'userId: userId, userId: 124,'),
+    renderOwnListings('const userId = 123;') + renderOwnListings('const userId = 124;'),
+  ]) {
+    assert.equal(
+      reader.pageIdentity(doc(html, '/m-meine-anzeigen.html'), '/m-meine-anzeigen.html'),
+      null,
+    );
+  }
+});
+
 test('returns verifiable page cursors instead of reusing an unbounded next token', () => {
   const page = doc(
     '<main><h1>Mein Profil und meine Anzeigen</h1><ul id="my-manageitems-adlist"><li data-testid="ad-card" data-adid="999"><h3><a href="/s-anzeige/test/999-160-1">Anzeige Test</a></h3><button>Reservieren</button></li></ul><nav aria-label="Seiten-Navigation"><button aria-current="page">Seite 1</button><button aria-label="Nächste" aria-disabled="false">Nächste</button></nav></main>',

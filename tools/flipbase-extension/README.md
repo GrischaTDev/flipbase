@@ -1,6 +1,11 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.7
+## Aktuell: Version 1.14.8
+
+Die Erweiterung erkennt die neue Kontokennung auf „Meine Anzeigen“ und kann
+den Anzeigenbestand vor dem erneuten Inserieren wieder prüfen.
+
+## Version 1.14.7
 
 Beim erneuten Inserieren erkennt die Erweiterung die Kategorieauswahl im neuen
 Kleinanzeigen-Dialog. Sie prüft die gewählte Kategorie im vorbereiteten Formular,

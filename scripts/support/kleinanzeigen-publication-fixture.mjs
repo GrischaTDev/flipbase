@@ -366,7 +366,8 @@ export function createKleinanzeigenPublicationFixture() {
       return route.fulfill({
         contentType: 'text/html',
         body: html(
-          '<main>Mein Profil und meine Anzeigen<ul id="my-manageitems-adlist">' +
+          '<script>(function(){const userId = 88; const containerId = "my-ads-frontend"; window.__renderMyAds = function () { if (window.myAdsFrontend) { window.myAdsFrontend.render({containerId: containerId, userId: userId,}); } }; })();</script>' +
+            '<main>Mein Profil und meine Anzeigen<ul id="my-manageitems-adlist">' +
             (!removed
               ? '<li data-testid="ad-card" data-adid="999"><h3><a href="https://www.kleinanzeigen.de/s-anzeige/alt/999-1-2">Anzeige Jacke</a></h3><a href="/p-anzeige-bearbeiten.html?adId=999">Bearbeiten</a><button>Reservieren</button><button id="delete-old">Löschen</button></li>'
               : '') +

@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-17 - Juna - Geänderte Kleinanzeigen-Kontokennung erkennen
+
+**Befund:** Beim gemeldeten Neuinserieren stoppte der Bestandsabgleich vor der Neuanlage. Die aktuelle Anbieterseite „Meine Anzeigen“ übergibt dem Renderer eine lokale Kontokennung als Konstante. Die Kontoprüfung verlangte bisher direkt im Aufruf eine numerische Kennung.
+
+**Korrektur:** Die Erweiterung 1.14.8 liest die Konstante aus der beobachteten Struktur im selben Skript und gleicht sie mit den vorhandenen Kontodaten ab. Mehrdeutige oder widersprüchliche Signale werden weiterhin abgelehnt. Der Lesertest stellt das neue Format nach und die native Browserfixture verwendet es im vollständigen Veröffentlichungslauf.
+
 ## 2026-11-17 - Juna - Vinted-Verkaufschat mit Versandaktion synchronisieren
 
 **Auftrag und Nachweis:** Beim Burberry-Schal im Cloud-Konto „Maike Vintage“ zeigt der Live-Chat den Verkauf von 20:18 Uhr und die Versandfrist, der eindeutig zugehörige Verkauf steht bereits auf „Abgeschlossen“. Beide Ansichten zeigen keine Versandaktion. Der aktuelle Parser kann „Zahlung abgeschlossen!“ als Bestellabschluss einordnen und so denselben Fehler im Test reproduzieren. Die unverarbeitete Anbieterantwort für diesen Verkauf lag nicht vor. Weitere reproduzierte Lücken: Neue Verkaufschats konnten hinter älteren Details warten und der gezielte Chatabruf übersprang die Transaktion und verwarf bereits erkannte Verkäufe. Eigener Zweig vom frisch abgeglichenen `origin/master` (`2789448c`) in einer getrennten Arbeitskopie.
