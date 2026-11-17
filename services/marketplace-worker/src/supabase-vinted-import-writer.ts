@@ -273,51 +273,9 @@ export class SupabaseVintedImportWriter {
     scope: BrowserSessionScope,
     sessionId: string,
     snapshot: VintedAccountImport,
-    conversationExternalId?: string,
   ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>> {
     await this.assertActive(scope, sessionId);
     const { sellingCategories, categoryFields, ...accountSnapshot } = snapshot;
-    const sale = conversationExternalId
-      ? accountSnapshot.entries.find(
-          (entry) =>
-            entry.kind === 'sale' &&
-            entry.body['externalConversationId'] === conversationExternalId &&
-            (entry.body['brand'] == null || entry.body['size'] == null),
-        )
-      : undefined;
-    const itemIds = sale?.body['itemIds'];
-    if (sale && Array.isArray(itemIds) && itemIds.length === 1 && sale.body['isBundle'] === false) {
-      // Der gezielte Chatabruf lädt den Kleiderschrank nicht. Gesicherte Artikelangaben übernehmen.
-      const url = new URL('/rest/v1/marketplace_account_entries', this.baseUrl);
-      url.searchParams.set('select', 'brand:body->>brand,size:body->>size,itemIds:body->itemIds');
-      url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
-      url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
-      url.searchParams.set('kind', 'eq.sale');
-      url.searchParams.set('external_id', `eq.${sale.externalId}`);
-      const result = await this.json(
-        await this.request(url, {
-          headers: this.serverHeaders(),
-          signal: AbortSignal.timeout(10_000),
-        }),
-      );
-      if (!Array.isArray(result)) throw new Error('Verkaufscache nicht verfügbar');
-      const previous = record(result[0]);
-      const previousItems = previous?.['itemIds'];
-      if (
-        Array.isArray(previousItems) &&
-        previousItems.length === 1 &&
-        previousItems[0] === itemIds[0]
-      ) {
-        const body = { ...sale.body };
-        for (const field of ['brand', 'size']) {
-          if (body[field] == null && typeof previous?.[field] === 'string')
-            body[field] = previous[field];
-        }
-        accountSnapshot.entries = accountSnapshot.entries.map((entry) =>
-          entry === sale ? { ...sale, body } : entry,
-        );
-      }
-    }
     const categories =
       sellingCategories === undefined ? undefined : parseVintedSellingTree(sellingCategories);
     // Zugriff, Identität, Einträge und Abrufstände werden in derselben Transaktion geprüft.

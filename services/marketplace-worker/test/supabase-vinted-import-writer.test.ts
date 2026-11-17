@@ -174,57 +174,6 @@ test('RPC-Ablehnung führt zu keinem nachfolgenden Teil-Schreibversuch', async (
   assert.equal(calls.length, 2);
 });
 
-test('der gezielte Chatimport bewahrt die gespeicherte Größe desselben verkauften Artikels', async () => {
-  const sale = {
-    kind: 'sale' as const,
-    externalId: '71',
-    sortAt: snapshot.observedAt,
-    body: {
-      externalConversationId: '456',
-      itemIds: ['81'],
-      isBundle: false,
-      shippingLabelAction: 'order',
-      brand: 'Neue Marke',
-      size: null,
-    },
-  };
-  const importedSizes: unknown[] = [];
-  let previousItemId = '81';
-  const writer = new SupabaseVintedImportWriter({
-    url: 'https://db.example.test',
-    publishableKey: 'public-token',
-    serviceRoleKey: 'server-token',
-    fetch: async (input, init) => {
-      const url = new URL(String(input));
-      if (url.pathname.endsWith('marketplace_browser_session_check'))
-        return Response.json({
-          active: true,
-          id: sessionId,
-          workspaceId: scope.workspaceId,
-          connectionId: scope.connectionId,
-        });
-      if (url.pathname.endsWith('marketplace_account_entries')) {
-        assert.equal(url.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
-        assert.equal(url.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
-        assert.equal(url.searchParams.get('kind'), 'eq.sale');
-        assert.equal(url.searchParams.get('external_id'), 'eq.71');
-        return Response.json([{ itemIds: [previousItemId], size: 'M', brand: 'Alte Marke' }]);
-      }
-      assert.ok(url.pathname.endsWith('marketplace_apply_vinted_import'));
-      const [entry] = JSON.parse(String(init?.body)).p_snapshot.entries;
-      assert.equal(entry.body.brand, 'Neue Marke');
-      assert.equal(entry.body.shippingLabelAction, 'order');
-      importedSizes.push(entry.body.size);
-      return Response.json(counts);
-    },
-  });
-  await writer.write(scope, sessionId, { ...snapshot, entries: [sale] }, '456');
-  previousItemId = '99';
-  await writer.write(scope, sessionId, { ...snapshot, entries: [sale] }, '456');
-  assert.deepEqual(importedSizes, ['M', null]);
-  assert.equal(sale.body.size, null);
-});
-
 test('fehlerhafte oder fehlende RPC-Zähler bestätigen keine Speicherung', async () => {
   for (const result of [
     { profile: 1 },

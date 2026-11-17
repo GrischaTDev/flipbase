@@ -1394,7 +1394,7 @@ function saleConversation(id: number) {
   };
 }
 
-test('a cached sale with an open shipping preview is checked once under the corrected sale rules', async (t) => {
+test('a saved open shipping preview is rechecked even when the inbox omits its description', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-17T19:22:00Z') });
   const sourceUpdatedAt = '2026-11-17T19:18:00.000Z';
   const paths: string[] = [];
@@ -1407,7 +1407,6 @@ test('a cached sale with an open shipping preview is checked once under the corr
             id: 456,
             unread: false,
             updated_at: sourceUpdatedAt,
-            description: 'Verkauft (vor dem 24 Nov. 20:18 verschicken)',
           },
         ],
         pagination: { total_pages: 1 },
@@ -1453,7 +1452,7 @@ test('an explicit conversation read confirms its own shipping action and sale de
             { id: 456, unread: true },
             { id: 789, unread: false },
           ],
-          pagination: { total_pages: 1 },
+          pagination: { total_pages: 3 },
         };
       if (path === '/api/v2/conversations/456') return { conversation: saleConversation(456) };
       if (path === '/api/v2/transactions/71') return { transaction: saleTransaction };
@@ -1470,6 +1469,7 @@ test('an explicit conversation read confirms its own shipping action and sale de
     '/api/v2/conversations/456',
     '/api/v2/transactions/71',
   ]);
+  assert.equal(snapshot.areas.conversations.status, 'partial');
   const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
   assert.equal(sale?.body.saleState, 'sold');
   assert.equal(sale?.body.shippingLabelAction, 'order');

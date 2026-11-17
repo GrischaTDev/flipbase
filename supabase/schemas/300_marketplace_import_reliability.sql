@@ -89,10 +89,25 @@ begin
       and action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.requested_by=p_user_id
       and action.worker_id=v_session.worker_id and action.worker_epoch=v_session.worker_epoch
       and public.marketplace_account_action_check(action.public_id,action.claim_token,action.worker_id,action.worker_epoch,action.runner_id,false)->>'active'='true'
+      and p_snapshot->'areas'->'conversations'->>'status' is distinct from 'complete'
+      and p_snapshot->'areas'->'publications'->>'status' is distinct from 'complete'
+      and coalesce(p_snapshot->'rejectedSaleIds','[]'::jsonb)='[]'::jsonb
       and jsonb_typeof(p_snapshot->'entries')='array' and not exists(
-        select 1 from jsonb_array_elements(p_snapshot->'entries') entry where entry->>'kind' not in ('profile','conversation','message')
+        select 1 from jsonb_array_elements(p_snapshot->'entries') entry where entry->>'kind' not in ('profile','conversation','message','sale')
           or (entry->>'kind'='conversation' and entry->>'externalId' is distinct from action.external_id)
-          or (entry->>'kind'='message' and entry->>'parentExternalId' is distinct from action.external_id))
+          or (entry->>'kind'='message' and entry->>'parentExternalId' is distinct from action.external_id)
+          or (entry->>'kind'='sale' and (
+            entry->'body'->>'externalConversationId' is distinct from action.external_id
+            or entry->'body'->>'sellerId' is distinct from v_connection.external_account_id
+            or not exists (
+              select 1 from jsonb_array_elements(p_snapshot->'entries') conversation
+              where conversation->>'kind'='conversation' and conversation->>'externalId'=action.external_id
+                and conversation->'body'->'saleTrackingVersion'='3'::jsonb
+                and conversation->'body'->>'saleTransactionId'=entry->>'externalId'
+                and conversation->'body'->>'saleSellerId'=v_connection.external_account_id
+                and conversation->'body'->>'detailCheckedAt'=p_snapshot->>'observedAt'
+            )
+          )))
   ) then raise exception 'Auftragsgebundener Importzugriff verweigert' using errcode='42501'; end if;
   if v_session.operation_id is not null and not exists (
     select 1 from public.marketplace_operations o
