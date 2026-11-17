@@ -16,7 +16,6 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import {
-  negotiationStateLabels,
   validateCounterPrice,
   type NegotiationAction,
   type NegotiationState,
@@ -85,24 +84,6 @@ export class VintedOfferActionsComponent {
     () =>
       this.restoredReceipt() ?? this.actions.receipts().get(this.actions.key(this.entry())) ?? null,
   );
-  readonly receiptLabel = computed(() => {
-    const receipt = this.receipt();
-    if (!receipt) return '';
-    if (receipt.state === 'sent') return this.confirmedLabels[receipt.action];
-    if (receipt.state === 'queued')
-      return {
-        accept: 'Annahme beauftragt',
-        decline: 'Ablehnung beauftragt',
-        counter: 'Gegenangebot beauftragt',
-      }[receipt.action];
-    if (receipt.state === 'claimed' || receipt.state === 'sending')
-      return {
-        accept: 'Angebot wird angenommen',
-        decline: 'Angebot wird abgelehnt',
-        counter: 'Gegenangebot wird gesendet',
-      }[receipt.action];
-    return this.labels[receipt.state];
-  });
   readonly statusReady = computed(() => this.overview?.hasLoaded() ?? true);
   readonly statusReadError = computed(() => this.overview?.error() ?? null);
   readonly showManualRefresh = computed(() => !this.overview?.enabled());
@@ -131,12 +112,6 @@ export class VintedOfferActionsComponent {
       cents / 100,
     );
   }
-  readonly labels = negotiationStateLabels;
-  readonly confirmedLabels = {
-    accept: 'Angebot angenommen',
-    decline: 'Angebot abgelehnt',
-    counter: 'Gegenangebot gesendet',
-  };
   private readonly context = computed(() => {
     const entry = this.entry();
     const account = this.accounts.selectedConnection();

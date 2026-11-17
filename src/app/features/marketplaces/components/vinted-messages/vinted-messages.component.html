@@ -439,6 +439,21 @@
                   }
                 </div>
               }
+              @if (offerActionTile(entry); as tile) {
+                <app-vinted-chat-pending-bubble
+                  data-offer-action-tile
+                  [attr.data-offer-action]="tile.action"
+                  [attr.data-offer-action-state]="tile.state"
+                  [pending]="tile.pending"
+                  [statusLabel]="tile.statusLabel"
+                  [statusTone]="tile.statusTone"
+                >
+                  <p class="font-semibold">{{ tile.title }}</p>
+                  @if (tile.detail) {
+                    <p class="break-words [overflow-wrap:anywhere]">{{ tile.detail }}</p>
+                  }
+                </app-vinted-chat-pending-bubble>
+              }
             } @empty {
               @if (!store.error() && !store.loadingMessages()) {
                 <p class="text-[13px] text-fb-text-secondary">
@@ -451,57 +466,46 @@
               }
             }
             @for (queued of queuedMessages(); track queued.id) {
-              <div
-                class="ml-auto w-fit max-w-[90%] space-y-1 rounded-2xl rounded-br-sm bg-fb-brand-strong px-3 py-2 text-fb-on-accent"
+              <app-vinted-chat-pending-bubble
                 [attr.data-queue-state]="queued.state"
+                [pending]="isQueuePending(queued)"
+                [statusLabel]="queueStatus(queued)"
+                [statusTone]="queueTone(queued)"
               >
-                <div class="flex items-start justify-between gap-2">
-                  @if (queued.text) {
-                    <p class="whitespace-pre-wrap break-words text-[13px]">{{ queued.text }}</p>
-                  }
-                  @if (canRetryMessage(queued)) {
-                    <app-button
-                      class="shrink-0"
-                      size="slim"
-                      [icon]="retryIcon"
-                      [iconOnly]="true"
-                      [ariaLabel]="
-                        queued.state === 'outcome_unknown'
-                          ? 'Versand prüfen und wiederholen'
-                          : 'Nachricht erneut senden'
-                      "
-                      [title]="
-                        queued.state === 'outcome_unknown'
-                          ? 'Versand prüfen und wiederholen'
-                          : 'Nachricht erneut senden'
-                      "
-                      [loading]="retryingMessageId() === queued.id"
-                      [disabled]="messaging.busy() || local.busy() || retryingMessageId() !== null"
-                      (clicked)="retryMessage(queued)"
-                    />
-                  }
-                </div>
+                @if (queued.text) {
+                  <p class="whitespace-pre-wrap break-words">{{ queued.text }}</p>
+                }
                 @if (queued.attachment) {
                   <p class="text-xs">Bild: {{ queued.attachment.name }}</p>
                 }
-                <app-badge
-                  [tone]="
-                    queued.state === 'sent'
-                      ? 'success'
-                      : queued.state === 'failed'
-                        ? 'critical'
-                        : queued.state === 'outcome_unknown'
-                          ? 'caution'
-                          : 'neutral'
-                  "
-                  >{{ queueStatus(queued) }}</app-badge
-                >
-                <p class="text-right text-xs">
+                <p class="mt-1 text-right text-xs">
                   <time [attr.datetime]="queued.createdAt"
                     >{{ queued.createdAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</time
                   >
                 </p>
-              </div>
+                @if (canRetryMessage(queued)) {
+                  <app-button
+                    bubble-action
+                    class="shrink-0"
+                    size="slim"
+                    [icon]="retryIcon"
+                    [iconOnly]="true"
+                    [ariaLabel]="
+                      queued.state === 'outcome_unknown'
+                        ? 'Versand prüfen und wiederholen'
+                        : 'Nachricht erneut senden'
+                    "
+                    [title]="
+                      queued.state === 'outcome_unknown'
+                        ? 'Versand prüfen und wiederholen'
+                        : 'Nachricht erneut senden'
+                    "
+                    [loading]="retryingMessageId() === queued.id"
+                    [disabled]="messaging.busy() || local.busy() || retryingMessageId() !== null"
+                    (clicked)="retryMessage(queued)"
+                  />
+                }
+              </app-vinted-chat-pending-bubble>
             }
             <div
               data-conversation-sync

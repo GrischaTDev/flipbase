@@ -111,11 +111,10 @@ describe('Manuelle Angebotsaktionen', () => {
     });
     const { component } = create();
     expect(component.receipt()).toEqual({ id: 'restored-job', action: 'accept', state: 'queued' });
-    expect(component.receiptLabel()).toBe('Annahme beauftragt');
     await component.queue('accept');
     expect(api.enqueue).not.toHaveBeenCalled();
     overviewActions.set([{ ...overviewActions()[0], state: 'outcome_unknown' }]);
-    expect(component.receiptLabel()).not.toContain('angenommen');
+    expect(component.receipt()?.state).toBe('outcome_unknown');
     overviewActions.set([{ ...overviewActions()[0], state: 'succeeded' }]);
     TestBed.tick();
     overviewActions.set([]);

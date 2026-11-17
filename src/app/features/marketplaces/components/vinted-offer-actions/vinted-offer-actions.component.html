@@ -1,8 +1,10 @@
-<div class="mt-3 space-y-2" data-offer-actions>
-  @if (receipt(); as receipt) {
-    <p role="status">
-      {{ receiptLabel() }}
-    </p>
+<div
+  class="space-y-2"
+  [class.mt-3]="!receipt() || showManualRefresh() || !!error()"
+  data-offer-actions
+>
+  @if (receipt()) {
+    <!-- Der Stand der Aktion steht als eigene Kachel im Chat unter dem Angebot. -->
     @if (showManualRefresh()) {
       <app-button [disabled]="busy()" (clicked)="refresh()">Aktionsstatus aktualisieren</app-button>
     }
