@@ -134,7 +134,13 @@ app.flipbase.de {
 		reverse_proxy flipbase-marketplace-worker:4179
 	}
 	handle {
-		reverse_proxy flipbase-web:80
+		# Beim Ausliefern startet der Web-Container einige Sekunden neu. Anfragen
+		# warten in dieser Luecke auf den neuen Container, statt sofort mit 502 zu
+		# scheitern; die Updatepruefung der App meldet sonst einen falschen Fehler.
+		reverse_proxy flipbase-web:80 {
+			lb_try_duration 20s
+			lb_try_interval 250ms
+		}
 	}
 
 	# Verwaltungsoberflaeche gehoert nicht in Suchmaschinen.

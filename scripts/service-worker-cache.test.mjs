@@ -65,6 +65,42 @@ test('runtime repairs only matching build bytes and refuses corrupted/new releas
   assert.equal((await worker.request('/chunk-A1.js')).status, 503);
   assert.equal(worker.calls.length, callsBefore, 'repair is bounded');
 });
+async function seedPreviousBuild(worker, files) {
+  const previousId = 'b'.repeat(64);
+  const previous = await worker.caches.open(`flipbase-app-${previousId}`);
+  await previous.put(
+    '/pwa-assets.json',
+    Response.json({ ...worker.inventory, buildId: previousId }),
+  );
+  for (const [url, content] of Object.entries(files))
+    await previous.put(url, new Response(content));
+}
+test('an update reuses unchanged verified files from the previous build instead of downloading them', async () => {
+  const worker = createWorker();
+  await seedPreviousBuild(worker, { '/chunk-A1.js': 'lazy-a', '/app-startup.js': 'startup-a' });
+  worker.resources.delete('/chunk-A1.js');
+  worker.resources.delete('/app-startup.js');
+  await worker.dispatch('install');
+  assert.ok(!worker.calls.some((url) => url.endsWith('/chunk-A1.js')));
+  assert.ok(worker.calls.some((url) => url.endsWith('/index.html')));
+  worker.resources.clear();
+  assert.equal(await (await worker.request('/chunk-A1.js')).text(), 'lazy-a');
+  assert.equal(await (await worker.request('/app-startup.js')).text(), 'startup-a');
+});
+test('an update downloads a previous file again when its cached bytes no longer match', async () => {
+  const worker = createWorker();
+  await seedPreviousBuild(worker, { '/chunk-A1.js': 'damaged', '/app-startup.js': 'startup-a' });
+  await worker.dispatch('install');
+  assert.ok(worker.calls.some((url) => url.endsWith('/chunk-A1.js')));
+  worker.resources.clear();
+  assert.equal(await (await worker.request('/chunk-A1.js')).text(), 'lazy-a');
+});
+test('a failed parallel download leaves no partial build behind', async () => {
+  const worker = createWorker();
+  worker.resources.set('/app-startup.js', 'unexpected bytes');
+  await assert.rejects(worker.dispatch('install'));
+  assert.ok(!(await worker.caches.keys()).includes(`flipbase-app-${worker.inventory.buildId}`));
+});
 test('activation preserves unrelated browser caches', async () => {
   const worker = createWorker();
   await worker.caches.open('another-app-cache');

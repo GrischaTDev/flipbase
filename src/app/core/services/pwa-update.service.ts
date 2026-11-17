@@ -4,6 +4,16 @@ import { WorkspaceContextLockService } from './workspace-context-lock.service';
 import { hasOpenEntry } from '../../shared/guards/unsaved-entry.guard';
 
 type UpdateResult = 'applied' | 'blocked' | 'failed';
+
+/** Grenze für eine einzelne Netzwerkprüfung; mobil startet der Worker oft verzögert. */
+const updateCheckTimeout = 15_000;
+/**
+ * Kurze Ausfälle, etwa der Containerwechsel beim Ausliefern, werden still
+ * wiederholt. Erst wenn auch diese Versuche scheitern, erscheint ein Hinweis.
+ */
+const updateCheckRetryDelays = [3_000, 7_000];
+/** Muss länger sein als die Wartezeit des Workers auf dieses Fenster (sw.js). */
+const activationTimeout = 15_000;
 interface UpdateBarrier {
   attemptId: string;
   buildId: string;
@@ -44,6 +54,7 @@ export class PwaUpdateService {
   private readonly entryRevision = signal(0);
   private lastSynchronizationProbe = 0;
   private releaseTimer: ReturnType<typeof setTimeout> | null = null;
+  private activationTimedOut = false;
   private readonly editedControls = new Map<HTMLElement, string>();
 
   constructor() {
@@ -110,7 +121,8 @@ export class PwaUpdateService {
           this.lastSynchronizationProbe = Date.now();
           this.inspectWaitingWorker();
         }
-      }, 500);
+        // Eingaben melden sich zusätzlich sofort über focusin/input/change.
+      }, 1000);
       this.destroyRef.onDestroy(() => {
         navigator.serviceWorker.removeEventListener('message', receive);
         navigator.serviceWorker.removeEventListener('controllerchange', changed);
@@ -447,9 +459,55 @@ export class PwaUpdateService {
     this.checkingForUpdate.set(true);
     const abort = new AbortController();
     this.checkAbort = abort;
+    this.checkInFlight = (async () => {
+      for (let attempt = 0; ; attempt++) {
+        try {
+          await this.runUpdateCheck(options, abort.signal);
+          return;
+        } catch (error) {
+          const delay = updateCheckRetryDelays[attempt];
+          if (abort.signal.aborted) return;
+          if (delay === undefined || !navigator.onLine) throw error;
+          await this.waitForRetry(delay, abort.signal);
+          if (abort.signal.aborted) return;
+        }
+      }
+    })()
+      .catch(() => {
+        this.checkError.set(
+          navigator.onLine
+            ? 'Die Updateprüfung konnte nicht abgeschlossen werden. Bitte versuche es erneut.'
+            : 'Du bist offline. Die Updateprüfung startet wieder, sobald Du online bist.',
+        );
+      })
+      .finally(() => {
+        abort.abort();
+        this.checkAbort = null;
+        this.checkingForUpdate.set(false);
+        this.checkInFlight = null;
+        this.settleStartup();
+      });
+    return this.checkInFlight;
+  }
+
+  private waitForRetry(delay: number, signal: AbortSignal): Promise<void> {
+    return new Promise((resolve) => {
+      const timer = setTimeout(resolve, delay);
+      signal.addEventListener(
+        'abort',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true },
+      );
+    });
+  }
+
+  private async runUpdateCheck(options: { force?: boolean }, signal: AbortSignal): Promise<void> {
     // Nur die Netzwerkprüfung begrenzen. Die anschließende Installation kann
     // mobil länger dauern und wird unabhängig über updatefound/statechange erkannt.
-    let timeout: ReturnType<typeof setTimeout>;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
     const limit = new Promise<void>((resolve, reject) => {
       timeout = setTimeout(() => {
         const installing = this.registration?.installing;
@@ -464,41 +522,40 @@ export class PwaUpdateService {
         } else {
           reject(new Error('Updateprüfung ohne Antwort'));
         }
-      }, 8000);
-      abort.signal.addEventListener('abort', () => resolve(), { once: true });
+      }, updateCheckTimeout);
+      signal.addEventListener('abort', () => resolve(), { once: true });
     });
     const inspect = async () => {
       if (!this.registration) await this.registrationRecovery?.();
-      if (abort.signal.aborted) return;
+      if (signal.aborted) return;
       if (!this.registration) throw new Error('Update-Dienst nicht erreichbar');
       // Nach einer Wiederherstellung den aktuellen Browser-Verweis verwenden.
       const current = options.force
         ? await navigator.serviceWorker.getRegistration?.('/')
         : undefined;
-      if (abort.signal.aborted) return;
+      if (signal.aborted) return;
       if (current && current !== this.registration) this.connect(current);
       const registration = this.registration!;
       await registration.update();
-      if (!abort.signal.aborted) this.inspectWaitingWorker();
+      if (!signal.aborted) this.inspectWaitingWorker();
     };
-    this.checkInFlight = Promise.race([inspect(), limit])
-      .catch(() => {
-        this.checkError.set(
-          'Die Updateprüfung konnte nicht abgeschlossen werden. Bitte versuche es erneut.',
-        );
-      })
-      .finally(() => {
-        clearTimeout(timeout);
-        abort.abort();
-        this.checkAbort = null;
-        this.checkingForUpdate.set(false);
-        this.checkInFlight = null;
-        this.settleStartup();
-      });
-    return this.checkInFlight;
+    try {
+      await Promise.race([inspect(), limit]);
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   async applyUpdate(): Promise<UpdateResult> {
+    const result = await this.startActivation();
+    if (result !== 'failed' || !this.activationTimedOut || this.reloading) return result;
+    // Ein gerade aufgeweckter Worker antwortet mobil manchmal zu spät. Ein
+    // zweiter Versuch erspart den sichtbaren Fehler und das erneute Tippen.
+    return this.startActivation();
+  }
+
+  private async startActivation(): Promise<UpdateResult> {
+    this.activationTimedOut = false;
     if (this.reloading) return 'blocked';
     if (!this.isSafe()) {
       this.message.set('Speichere oder verwerfe zuerst deine offenen Änderungen.');
@@ -535,9 +592,10 @@ export class PwaUpdateService {
       this.releaseTimer = setTimeout(() => {
         this.revokeBarrier();
         this.message.set('Die Aktualisierung hat nicht geantwortet. Bitte versuche es erneut.');
+        this.activationTimedOut = true;
         this.complete('failed');
         this.releaseBarrier();
-      }, 8000);
+      }, activationTimeout);
       try {
         waiting.postMessage({
           type: 'ACTIVATE_UPDATE',
@@ -624,9 +682,10 @@ export class PwaUpdateService {
         if (!this.releaseTimer)
           this.releaseTimer = setTimeout(() => {
             this.revokeBarrier();
+            this.activationTimedOut = true;
             this.complete('failed');
             this.releaseBarrier();
-          }, 8000);
+          }, activationTimeout);
       }
       worker.postMessage({ type: 'PWA_UPDATE_ACK', buildId, attemptId, clientBuildId, safe });
     } else if (this.barrier?.attemptId === attemptId && this.barrier.buildId === buildId) {

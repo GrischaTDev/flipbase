@@ -77,17 +77,73 @@ async function announce(type, details = {}) {
   const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
   for (const client of clients) client.postMessage({ type, buildId: BUILD_ID, ...details });
 }
+// Mehrere Dateien gleichzeitig laden, ohne mobile Verbindungen zu überlasten.
+const INSTALL_CONCURRENCY = 6;
+async function forEachLimited(items, limit, task) {
+  let next = 0;
+  let failure;
+  const run = async () => {
+    while (!failure && next < items.length) {
+      const item = items[next++];
+      try {
+        await task(item);
+      } catch (error) {
+        failure ??= error;
+      }
+    }
+  };
+  // Erst nach dem Ende aller laufenden Aufgaben scheitern, damit kein später
+  // Schreibvorgang den bereits verworfenen unfertigen Bau neu anlegt.
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
+  if (failure) throw failure;
+}
+/** Unveränderte Dateien früherer eigener Bauten, nach Pfad und Prüfsumme. */
+async function previousBuildFiles() {
+  const files = new Map();
+  for (const name of await caches.keys()) {
+    if (name === CACHE_NAME || !/^flipbase-app-[a-f0-9]{64}$/.test(name)) continue;
+    try {
+      const cache = await caches.open(name);
+      const listing = await cache.match('/pwa-assets.json');
+      if (!listing) continue;
+      const previous = validateInventory(await listing.json(), name.slice(CACHE_PREFIX.length));
+      for (const asset of previous.assets) {
+        const key = `${asset.url}|${asset.sha256}`;
+        if (!files.has(key)) files.set(key, []);
+        files.get(key).push(cache);
+      }
+    } catch {
+      /* Eine beschädigte alte Dateiliste liefert keine übernehmbaren Bytes. */
+    }
+  }
+  return files;
+}
+async function reusedFile(asset, previousFiles) {
+  for (const cache of previousFiles.get(`${asset.url}|${asset.sha256}`) ?? []) {
+    try {
+      const response = await cache.match(asset.url);
+      // Auch übernommene Bytes werden gegen die neue Dateiliste geprüft.
+      if (response && (await digest(response)) === asset.sha256) return response;
+    } catch {
+      /* Dann wird die Datei regulär aus dem Netz geladen. */
+    }
+  }
+  return null;
+}
 async function installBuild() {
   try {
     const current = await fetchInventory();
     const cache = await caches.open(CACHE_NAME);
+    const previousFiles = await previousBuildFiles();
     // Ein Fehler entfernt ausschließlich diesen unfertigen neuen Bau.
-    for (const asset of current.inventory.assets) {
+    await forEachLimited(current.inventory.assets, INSTALL_CONCURRENCY, async (asset) => {
+      const reused = await reusedFile(asset, previousFiles);
+      if (reused) return cache.put(asset.url, reused);
       const response = await fetch(asset.url, { cache: 'no-store' });
       if (!response.ok || (await digest(response)) !== asset.sha256)
         throw new Error(`App-Datei fehlt oder passt nicht: ${asset.url}`);
       await cache.put(asset.url, response);
-    }
+    });
     await cache.put('/pwa-assets.json', current.response);
     inventoryPromise = Promise.resolve(current.inventory);
     assetsReady = true;
@@ -190,9 +246,11 @@ async function reportAssets(client) {
     const manifest = await inventoryForBuild(build);
     const cache = await caches.open(`${CACHE_PREFIX}${build}`);
     ready = true;
+    // Nur das Vorhandensein prüfen: Dateien werden beim Speichern und bei jeder
+    // Auslieferung gegen ihre Prüfsumme geprüft und bei Abweichung repariert.
+    // Eine erneute Prüfsumme aller Dateien bei jedem Start kostet mobil spürbar Zeit.
     for (const asset of manifest.assets) {
-      const response = await cache.match(asset.url);
-      if (!response || (await digest(response)) !== asset.sha256) {
+      if (!(await cache.match(asset.url))) {
         ready = false;
         break;
       }
@@ -369,7 +427,9 @@ async function beginUpdate(event) {
     updateAttempt = attempt;
     attempt.timer = setTimeout(() => {
       if (updateAttempt === attempt) void finishUpdate('blocked', 'requester_timeout');
-    }, 4000);
+      // Ein gerade aus dem Hintergrund geholtes Handy antwortet oft verzögert.
+      // Die App wartet selbst länger (pwa-update.service.ts), damit dieses Ergebnis ankommt.
+    }, 10000);
     // Nur dieses Dokument wird gesperrt. Fremde Fenster behalten ihre Eingaben.
     attempt.client.postMessage({
       type: 'PWA_PREPARE_UPDATE',

@@ -125,7 +125,7 @@ test('a committed activation cannot report requester timeout while skipWaiting i
     },
   });
   await started;
-  t.mock.timers.tick(4001);
+  t.mock.timers.tick(10_001);
   release();
   await update;
   await new Promise((resolve) => setImmediate(resolve));
@@ -163,7 +163,7 @@ test('an expired requester lookup cannot activate after the attempt has ended', 
     },
   });
   await started;
-  t.mock.timers.tick(4001);
+  t.mock.timers.tick(10_001);
   await update;
   release();
   await new Promise((resolve) => setImmediate(resolve));
