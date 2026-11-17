@@ -57,6 +57,14 @@ for (const theme of ['light', 'dark'] as const)
           name: 'KA Jacke 01 auswählen',
           exact: true,
         });
+        const item =
+          width < 768
+            ? section.getByRole('article', { name: 'KA Jacke 01', exact: true })
+            : section.getByRole('row').filter({ hasText: 'KA Jacke 01' });
+        const menuTrigger = item.getByRole('button', {
+          name: 'Aktionen für KA Jacke 01',
+          exact: true,
+        });
         await expect(
           section.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true }),
         ).toHaveCount(0);
@@ -66,6 +74,9 @@ for (const theme of ['light', 'dark'] as const)
         if (width < 768) await selection.tap();
         else await selection.click();
         await expect(selection).toHaveAttribute('aria-checked', 'true');
+        const initialSection = (await section.boundingBox())!;
+        const initialItem = (await item.boundingBox())!;
+        const initialMenu = (await menuTrigger.boundingBox())!;
         await section
           .getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true })
           .click();
@@ -74,15 +85,9 @@ for (const theme of ['light', 'dark'] as const)
           exact: true,
         });
         await confirmation.getByRole('button', { name: 'Neu inserieren', exact: true }).click();
-        const item =
-          width < 768
-            ? section.getByRole('article', { name: 'KA Jacke 01', exact: true })
-            : section.getByRole('row').filter({ hasText: 'KA Jacke 01' });
-        await expect(
-          section.getByRole('button', { name: 'Ausgewählte neu inserieren', exact: true }),
-        ).toHaveCount(0);
+        await expect(section.getByText('Ausgewählte neu inserieren', { exact: true })).toBeHidden();
         await expect(item).toHaveAttribute('aria-busy', 'true');
-        await expect(item.getByText('Alter unbekannt', { exact: true })).toHaveCount(0);
+        await expect(item.getByText('Alter unbekannt', { exact: true })).toBeHidden();
         await expect(item).not.toHaveClass(/bg-fb-brand-surface|ring-fb-brand/);
         await expect(item).toHaveClass(/bg-black\/5/);
         await expect(item).toHaveCSS('filter', 'grayscale(1)');
@@ -92,7 +97,29 @@ for (const theme of ['light', 'dark'] as const)
           .poll(() => thumbnail.evaluate((image: HTMLImageElement) => image.naturalWidth))
           .toBe(160);
         await expect(item).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
-        await expect(item.getByText('Wird inseriert …', { exact: true })).toBeVisible();
+        const progress = item.getByText('Wird inseriert …', { exact: true });
+        await expect(progress).toBeVisible();
+        await expect(menuTrigger).toBeDisabled();
+        const runningSection = (await section.boundingBox())!;
+        const runningItem = (await item.boundingBox())!;
+        const runningMenu = (await menuTrigger.boundingBox())!;
+        const runningProgress = (await progress.boundingBox())!;
+        expect(runningItem.height).toBeCloseTo(initialItem.height);
+        expect(runningItem.y - runningSection.y).toBeCloseTo(initialItem.y - initialSection.y);
+        expect(runningMenu.x - runningItem.x).toBeCloseTo(initialMenu.x - initialItem.x);
+        expect(runningMenu.y - runningItem.y).toBeCloseTo(initialMenu.y - initialItem.y);
+        expect(
+          Math.abs(
+            runningProgress.x + runningProgress.width / 2 - (runningItem.x + runningItem.width / 2),
+          ),
+        ).toBeLessThanOrEqual(1);
+        expect(
+          Math.abs(
+            runningProgress.y +
+              runningProgress.height / 2 -
+              (runningItem.y + runningItem.height / 2),
+          ),
+        ).toBeLessThanOrEqual(1);
         await page.addScriptTag({ content: axe.source });
         expect(
           await page.evaluate(
@@ -118,6 +145,7 @@ for (const theme of ['light', 'dark'] as const)
           page.getByRole('button', { name: 'Laufende Aktionen (0)', exact: true }),
         ).toBeVisible();
         await expect(item).not.toHaveAttribute('aria-busy', 'true');
+        await expect(menuTrigger).toBeEnabled();
         await page.getByRole('button', { name: 'Dialog schließen', exact: true }).click();
         await expect(section.getByRole('alert')).toHaveCount(0);
         await expect(page.locator('[data-action-overview-error]')).toBeVisible();
@@ -133,10 +161,6 @@ for (const theme of ['light', 'dark'] as const)
               (await (window as unknown as { axe: typeof axe }).axe.run(document.body)).violations,
           ),
         ).toEqual([]);
-        const menuTrigger = item.getByRole('button', {
-          name: 'Aktionen für KA Jacke 01',
-          exact: true,
-        });
         if (width >= 768) {
           const settings = section.getByRole('button', {
             name: 'Konto Kleinanzeigen Testkonto A verwalten',

@@ -366,7 +366,14 @@ try {
   assert.equal(provider.deletes, 0);
   assert.equal(provider.uploads, 0);
   assert.equal(provider.submits, 0);
-  provider.reset({ used: 8, relisting: true });
+  provider.reset({ used: 8, relisting: true, categoryDialog: true, initialWrongCategory: true });
+  await provider.prepare(worker);
+  const wrongCategory = await relist();
+  assert.equal(wrongCategory.result.errorCode, 'schema_changed', JSON.stringify(wrongCategory));
+  assert.equal(provider.deletes, 0);
+  assert.equal(provider.uploads, 0);
+  assert.equal(provider.submits, 0);
+  provider.reset({ used: 8, relisting: true, categoryDialog: true });
   await provider.prepare(worker);
   const recreated = await relist();
   assert.equal(recreated.success, true, JSON.stringify(recreated));
@@ -397,6 +404,14 @@ try {
   assert.equal(provider.deletes, 1);
   assert.equal(provider.uploads, 1);
   assert.equal(provider.submits, 1);
+  assert.ok(
+    provider.calls.some(({ url }) =>
+      url.endsWith('/p-anzeige-aufgeben-bestaetigung.html?adId=1001'),
+    ),
+  );
+  assert.ok(
+    !context.pages().some((page) => page.url().includes('/p-anzeige-aufgeben-bestaetigung.html')),
+  );
   const repeated = await relist();
   assert.equal(repeated.result.outcome, 'confirmed');
   assert.equal(provider.deletes, 1);

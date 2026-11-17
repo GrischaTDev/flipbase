@@ -156,7 +156,8 @@
     let record = await adapter.load();
     if (!record?.snapshot) return { outcome: 'needs_user_action', errorCode: 'source_missing' };
     const save = async (fields) => {
-      const next = { ...record, ...fields };
+      // Die Vorbereitung kann seit dem letzten Phasenwechsel einen neuen Formulartab gesichert haben.
+      const next = { ...(await adapter.load()), ...fields };
       await adapter.save(next);
       record = next;
     };

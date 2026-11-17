@@ -504,6 +504,23 @@ test('nach Gebührenstopp kann eine korrigierte Altanzeige mit erneuerter Freiga
   assert.equal((await runtime.run(f.request, 'https://app.flipbase.de')).outcome, 'confirmed');
   assert.equal([...f.records.values()][0].snapshot.content.title, 'Korrigierte Jacke');
 });
+test('beim Fortsetzen bleibt der neu geöffnete Formulartab bis zur Veröffentlichung gebunden', async () => {
+  const f = relistingJobsFixture();
+  const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);
+  f.costs(false);
+  await runtime.run(f.request, 'https://app.flipbase.de');
+  const target = await f.adapter.target();
+  const newTarget = { ...target, tabId: 3, minimumDocumentTime: target.minimumDocumentTime + 1 };
+  f.adapter.target = async () => newTarget;
+  const step = f.adapter.step;
+  f.adapter.step = async (progress, action) => {
+    assert.equal(progress.tabId, newTarget.tabId);
+    assert.equal(progress.minimumDocumentTime, newTarget.minimumDocumentTime);
+    return await step(progress, action);
+  };
+  f.costs(true);
+  assert.equal((await runtime.run(f.request, 'https://app.flipbase.de')).outcome, 'confirmed');
+});
 test('offene Sicherungen sind kontogebunden lesbar und verschwinden nach bestätigtem Abschluss', async () => {
   const f = relistingJobsFixture();
   const runtime = context.FlipbaseKleinanzeigenRelistingJobs.create(f.adapter);

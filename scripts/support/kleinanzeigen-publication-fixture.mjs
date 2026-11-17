@@ -10,6 +10,7 @@ const workspaceId = publicationWorkspaceId,
 const draftId = '51000000-0000-4000-8000-000000000041',
   imageId = '51000000-0000-4000-8000-000000000071';
 const target = 'https://www.kleinanzeigen.de/s-anzeige/jacke/1001-1-2';
+const confirmationPath = '/p-anzeige-aufgeben-bestaetigung.html';
 // Echte Fotomaße statt eines 16-Pixel-Icons; die Vorschauroute liefert absichtlich nur 96 Pixel.
 function photoPng(width, height) {
   const chunk = (name, data) => {
@@ -76,6 +77,29 @@ const html = (body) =>
 const category = html(
   '<div id="postad-category-select-box"><a id="cat_153" href="#?path=153&isParent=true">Mode &amp; Beauty</a><a id="cat_160" href="#?path=153/160&isParent=true">Herrenbekleidung</a><a id="cat_shirts" href="#?path=153/160/shirts&isParent=undefined">Shirts</a></div><form method="post" action="/p-anzeige-aufgeben-schritt2.html"><button type="submit">Weiter</button></form>',
 );
+const categoryDialog = `
+<dialog aria-labelledby="category-title"><header><h2 id="category-title">Kategorie wählen</h2></header>
+<section aria-label="Kategorie wählen Inhalt"><ul></ul></section>
+<footer><button type="button" disabled>Übernehmen</button></footer></dialog>
+<script>
+const categoryModal=document.currentScript.previousElementSibling;
+const categoryList=categoryModal.querySelector('ul');
+const applyCategory=categoryModal.querySelector('footer button');
+document.querySelector('main a').onclick=(event)=>{event.preventDefault();categoryModal.showModal();showCategory('Mode &amp; Beauty','Herrenbekleidung');};
+function showCategory(name,next){
+const option=document.createElement('li');
+option.innerHTML='<button type="button"><span>'+name+'</span><span class="sr-only">, öffnet Unterkategorien</span></button>';
+option.firstElementChild.onclick=()=>next?showCategory(next,null):showLeafCategory();
+categoryList.replaceChildren(option);
+}
+function showLeafCategory(){
+const option=document.createElement('li');
+option.innerHTML='<button type="button" aria-pressed="false">Shirts</button>';
+option.firstElementChild.onclick=()=>{option.firstElementChild.setAttribute('aria-pressed','true');applyCategory.disabled=false;};
+categoryList.replaceChildren(option);
+}
+applyCategory.onclick=()=>{document.getElementById('ad-category-path').textContent='Mode & Beauty > Herrenbekleidung';categoryModal.close();};
+</script>`;
 function form(paid) {
   return html(`
 <main><a href="/p-kategorie-aendern.html">Kategorie ändern</a><div id="ad-category-path">Mode &amp; Beauty &gt; Herrenbekleidung</div>
@@ -406,6 +430,17 @@ export function createKleinanzeigenPublicationFixture() {
         contentType: 'text/html',
         body: form(options.paid === true)
           .replace(
+            "location.href='/p-anzeige-aufgeben-schritt3.html'",
+            options.categoryDialog
+              ? `location.href='${confirmationPath}?adId=1001'`
+              : "location.href='/p-anzeige-aufgeben-schritt3.html'",
+          )
+          .replace(
+            'href="/p-kategorie-aendern.html"',
+            options.categoryDialog ? 'href="#"' : 'href="/p-kategorie-aendern.html"',
+          )
+          .replace('</body>', options.categoryDialog ? categoryDialog + '</body>' : '</body>')
+          .replace(
             '>Shirts</button>',
             options.initialWrongCategory ? '>Pullover</button>' : '>Shirts</button>',
           )
@@ -452,6 +487,13 @@ export function createKleinanzeigenPublicationFixture() {
       submits++;
       published = true;
       return route.fulfill({ json: { ok: true } });
+    }
+    if (url.pathname === confirmationPath) {
+      assert.equal(url.search, '?adId=1001');
+      return route.fulfill({
+        contentType: 'text/html',
+        body: html('<main><h1>Geschafft! Deine Anzeige geht bald online.</h1></main>'),
+      });
     }
     if (url.pathname === '/p-anzeige-aufgeben-schritt3.html') {
       await new Promise((resolve) => setTimeout(resolve, 500));
