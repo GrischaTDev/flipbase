@@ -32,6 +32,8 @@ import { NoticeBannerComponent } from '../../../../shared/components/notice-bann
 import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
+import { VintedNegotiationActionStore } from '../../services/vinted-negotiation-action.store';
+import { VintedChatPendingBubbleComponent } from '../vinted-chat-pending-bubble/vinted-chat-pending-bubble.component';
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
@@ -157,6 +159,10 @@ beforeAll(async () => {
     {
       type: VintedShippingLabelActionsComponent,
       path: 'src/app/features/marketplaces/components/vinted-shipping-label-actions/vinted-shipping-label-actions.component.ts',
+    },
+    {
+      type: VintedChatPendingBubbleComponent,
+      path: 'src/app/features/marketplaces/components/vinted-chat-pending-bubble/vinted-chat-pending-bubble.component.ts',
     },
     {
       type: VintedMessagesComponent,
@@ -352,6 +358,30 @@ describe('Freigabe aktueller Käuferangebote', () => {
     expect(component.canActOnOffer(entry)).toBe(true);
     messaging.cloudSendAllowed.set(false);
     expect(component.canActOnOffer(entry)).toBe(false);
+  });
+  it('zeigt eine beauftragte Annahme als eigene Kachel, bis Vinted den neuen Angebotsstand liefert', () => {
+    const { component, entry } = offerComponent();
+    const actions = TestBed.inject(VintedNegotiationActionStore);
+    expect(component.offerActionTile(entry)).toBeNull();
+    actions.record(actions.key(entry), { id: 'job-1', state: 'queued' }, 'accept');
+    expect(component.offerActionTile(entry)).toMatchObject({
+      title: 'Angebot annehmen',
+      detail: '20,00 €',
+      statusLabel: 'Preis wird angenommen',
+      pending: true,
+    });
+    actions.record(actions.key(entry), { id: 'job-1', state: 'failed' });
+    expect(component.offerActionTile(entry)).toMatchObject({
+      statusLabel: 'Fehlgeschlagen',
+      statusTone: 'critical',
+      pending: false,
+    });
+    actions.record(actions.key(entry), { id: 'job-1', state: 'sent' });
+    expect(component.offerActionTile(entry)).toMatchObject({
+      statusLabel: 'Angebot angenommen',
+      pending: false,
+    });
+    expect(component.offerActionTile({ ...entry, offerStatus: 'accepted' })).toBeNull();
   });
   it('sperrt überholte, unvollständige und fremde Angebote', () => {
     const { component, entry, transcript } = offerComponent();
@@ -1230,6 +1260,61 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     messaging.messages.set([{ ...queued, externalMessageId: '124' }]);
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[data-queue-state="sent"]')).not.toBeNull();
+  });
+  it('zeigt eine bereits im Verlauf stehende Nachricht nicht zusätzlich als wartend an', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(scope, [
+        {
+          id: 'older',
+          text: 'Danke',
+          direction: 'outbound',
+          occurredAt: '2026-10-05T09:00:00Z',
+        },
+        {
+          id: 'delivered',
+          text: 'Bin unterwegs',
+          direction: 'outbound',
+          occurredAt: '2026-10-05T10:00:05Z',
+        },
+      ]),
+    );
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    const queued = (id: string, text: string): LocalQueuedMessage => ({
+      id,
+      requestId: `request-${id}`,
+      conversationId: 'conversation-1',
+      text,
+      state: 'queued',
+      createdAt: '2026-10-05T10:00:00Z',
+      updatedAt: '2026-10-05T10:00:00Z',
+      externalMessageId: null,
+      errorCode: null,
+      attachment: null,
+    });
+    // Veralteter Warteschlangenstand: Vinted zeigt die erste Nachricht schon.
+    messaging.messages.set([
+      queued('first', 'Bin unterwegs'),
+      queued('second', 'Bin unterwegs'),
+      queued('third', 'Danke'),
+    ]);
+    await settle(fixture);
+    expect(fixture.componentInstance.queuedMessages().map((message) => message.id)).toEqual([
+      'second',
+      'third',
+    ]);
+    const pending = fixture.nativeElement.querySelectorAll('[data-queue-state="queued"]');
+    expect(pending).toHaveLength(2);
+    const bubble = pending[0].querySelector('[data-chat-pending-bubble]');
+    expect(bubble.getAttribute('aria-busy')).toBe('true');
+    expect(bubble.querySelector('[data-chat-pending-status]').textContent).toContain(
+      'In der Warteschlange',
+    );
   });
   it('sendet einen unklaren Auftrag nicht erneut, wenn der frische Verlauf denselben Text enthält', async () => {
     api.listConnections.mockResolvedValue({

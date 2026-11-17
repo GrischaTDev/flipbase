@@ -495,12 +495,12 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   });
   await page.goto(actionOverviewMessagesUrl);
   const offer = page.locator('app-vinted-offer-actions');
-  await expect(offer).toContainText('Annahme beauftragt');
+  await expect(page.locator('[data-offer-action-tile]')).toContainText('Preis wird angenommen');
   await expect(offer).not.toContainText('siehe Aktionen rechts');
   await expect(offer.getByRole('button', { name: 'Annehmen', exact: true })).toBeHidden();
   await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   await page.reload();
-  await expect(offer).toContainText('Annahme beauftragt');
+  await expect(page.locator('[data-offer-action-tile]')).toContainText('Preis wird angenommen');
   await page.getByRole('button', { name: 'Laufende Aktionen (2)', exact: true }).click();
   const overview = actionDrawer(page);
   await showTab(overview, 'Vergangen');
@@ -522,7 +522,7 @@ test('stellt Annahme nach Neuladen wieder her und trennt Abruffehler vom Chatsta
   await expect(overview.getByRole('alert')).toContainText('nicht aktualisiert', {
     timeout: 15_000,
   });
-  await expect(offer).toContainText('Annahme beauftragt');
+  await expect(page.locator('[data-offer-action-tile]')).toContainText('Preis wird angenommen');
   await expect(page.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
   expect(writes).toBe(0);
 });
@@ -543,7 +543,7 @@ test('bietet bei fehlgeschlagener erster Wiederherstellung nur erneutes Lesen an
   await expect(offer.getByRole('button', { name: 'Annehmen', exact: true })).toBeHidden();
   fixture.rejectRead(false);
   await offer.getByRole('button', { name: 'Aktionsstatus erneut laden' }).click();
-  await expect(offer).toContainText('Annahme beauftragt');
+  await expect(page.locator('[data-offer-action-tile]')).toContainText('Preis wird angenommen');
   expect(writes).toBe(0);
 });
 
