@@ -615,7 +615,8 @@ export async function executeBrowserAction(
         if (
           version.saleTrackingVersion !== undefined &&
           version.saleTrackingVersion !== 1 &&
-          version.saleTrackingVersion !== 2
+          version.saleTrackingVersion !== 2 &&
+          version.saleTrackingVersion !== 3
         )
           throw new Error('Ungültiger Verkaufsprüfstand');
         const detailAttemptedAt = version.detailAttemptedAt;
@@ -629,8 +630,10 @@ export async function executeBrowserAction(
           throw new Error('Ungültiger Gesprächscache');
         return {
           ...(detailAttemptedAt === undefined ? {} : { detailAttemptedAt }),
-          ...(version.saleTrackingVersion === 1 || version.saleTrackingVersion === 2
-            ? { saleTrackingVersion: version.saleTrackingVersion as 1 | 2 }
+          ...(version.saleTrackingVersion === 1 ||
+          version.saleTrackingVersion === 2 ||
+          version.saleTrackingVersion === 3
+            ? { saleTrackingVersion: version.saleTrackingVersion as 1 | 2 | 3 }
             : {}),
           ...(version.saleTransactionId !== undefined
             ? { saleTransactionId: identifier(version.saleTransactionId) }

@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-17 - Juna - Vinted-Verkaufschat mit Versandaktion synchronisieren
+
+**Auftrag und Nachweis:** Beim Burberry-Schal im Cloud-Konto „Maike Vintage“ zeigt der Live-Chat den Verkauf von 20:18 Uhr und die Versandfrist, der eindeutig zugehörige Verkauf steht bereits auf „Abgeschlossen“. Beide Ansichten zeigen keine Versandaktion. Der aktuelle Parser kann „Zahlung abgeschlossen!“ als Bestellabschluss einordnen und so denselben Fehler im Test reproduzieren. Die unverarbeitete Anbieterantwort für diesen Verkauf lag nicht vor. Weitere reproduzierte Lücken: Neue Verkaufschats konnten hinter älteren Details warten und der gezielte Chatabruf übersprang die Transaktion und verwarf bereits erkannte Verkäufe. Eigener Zweig vom frisch abgeglichenen `origin/master` (`2789448c`) in einer getrennten Arbeitskopie.
+
+**Umsetzung:** Der Verkaufsstatus erfordert einen belegten Bestellabschluss. Zuletzt zwischengespeicherte Verkaufschats mit aktueller Verkaufsvorschau werden nach den korrigierten Regeln neu geprüft. Eine neue Verkaufsvorschau rückt innerhalb der vorhandenen Abrufgrenzen nach vorn. Der gezielte Abruf liest bei bestätigtem Verkaufsbezug die gebundene Transaktion und übernimmt den eigenen Verkauf zusammen mit dem Chat. Der Teilimport bewahrt Marke und Größe für dieselbe Artikelkennung. Die Versandaktion setzt weiterhin ein bestätigtes Vinted-Signal voraus. Das Anfordern und Speichern der Datei unter „Versandscheine“ läuft über die vorhandene Schaltfläche.
+
+**Nachweis und Grenzen:** Regressionstests reproduzieren die falsche Einordnung einer bestätigten Zahlung, die verspätete Auswahl, den fehlenden Transaktionsabruf und den verworfenen Verkauf. Abgedeckt sind außerdem der einmalige Neuabruf älterer Versandfälle, echte Bestellabschlussmeldungen, Abruffehler, die Abgrenzung anderer Gespräche und erhaltene Artikelangaben. Die Live-Diagnose war lesend. Die Korrektur und eine Anforderung beim Anbieter sind noch nicht live geprüft.
+
+**Integration:** Der Nutzer hat den PR und den Merge nach erfolgreichen Pflichtprüfungen freigegeben und die Prüfung des konkreten Chats nach der Bereitstellung beauftragt. Der Zweig wurde mit dem aktuellen Hauptstand (`8c9c92aa`) abgeglichen.
+
 ## 2026-11-17 - Juna - Kleinanzeigen-Neuinserieren an die neue Kategorieauswahl anpassen
 
 **Befund:** Das vom Assistenten offen gelassene Formular war die Bearbeitungsansicht der bestehenden Anzeige. In einem getrennten, ungespeicherten Anbieterformular öffnete sich die Kategorieauswahl als Dialog im selben Dokument. Die alte Erweiterung wartete auf eine separate Kategorieseite und brach im nachgestellten Ablauf vor Upload, Löschung und Veröffentlichung ab.

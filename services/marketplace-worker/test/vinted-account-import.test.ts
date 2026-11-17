@@ -649,6 +649,47 @@ test('background detail attempts rotate a ten-chat backlog and five regular slot
   );
 });
 
+test('a new sale preview gets a detail slot ahead of the backlog without extending the budget', async () => {
+  const sourceUpdatedAt = '2026-11-17T19:18:00.000Z';
+  const soldDescription = 'Verkauft (vor dem 24 Nov. 20:18 verschicken)';
+  const chats = Array.from({ length: 12 }, (_, index) => ({
+    id: 700 + index,
+    unread: false,
+    updated_at: sourceUpdatedAt,
+    description: index >= 10 ? soldDescription : 'Nachricht',
+  }));
+  const paths: string[] = [];
+  const page = importPage((path) => {
+    if (path.startsWith('/api/v2/inbox'))
+      return { conversations: chats, pagination: { total_pages: 1 } };
+    if (path.startsWith('/api/v2/conversations/')) {
+      const id = Number(path.split('/').at(-1));
+      paths.push(String(id));
+      return id === 711
+        ? { conversation: saleConversation(id) }
+        : { conversation: { id, messages: [] } };
+    }
+    if (path === '/api/v2/transactions/71') return { transaction: saleTransaction };
+    return undefined;
+  });
+  const snapshot = await readVintedAccountImport(page, async () => undefined, undefined, [
+    {
+      externalId: '710',
+      sourceUpdatedAt,
+      detailAttemptedAt: new Date().toISOString(),
+      detailCheckedAt: null,
+      text: soldDescription,
+      occurredAt: null,
+    },
+  ]);
+  assert.deepEqual(paths, ['711', ...chats.slice(0, 9).map(({ id }) => String(id))]);
+  assert.equal(
+    snapshot.entries.find((entry) => entry.kind === 'sale')?.body.shippingLabelAction,
+    'order',
+  );
+  assert.ok(snapshot.inboxEvents?.events.some((event) => event.notificationKind === 'sale_sold'));
+});
+
 test('background detail start budget leaves later chats unattempted and preserves the next run', async (t) => {
   let now = Date.now();
   t.mock.method(Date, 'now', () => now);
@@ -1316,6 +1357,128 @@ test('explicitly opening a conversation reads unread details without opening oth
   assert.equal(
     result.entries.find((entry) => entry.kind === 'message')?.body['text'],
     'New message',
+  );
+});
+
+const saleTransaction = {
+  id: 71,
+  seller_id: 123,
+  debit_processed_at: '2026-11-17T19:18:00.000Z',
+  status_title: 'Zahlung abgeschlossen!',
+  status_updated_at: '2026-11-17T19:18:00.000Z',
+  offer: { price: { amount: '40.00', currency_code: 'EUR' } },
+  order: { id: 72, item_ids: [81] },
+};
+
+function saleConversation(id: number) {
+  return {
+    id,
+    item_id: 81,
+    opposite_user: { id: 91 },
+    transaction: {
+      id: 71,
+      current_user_side: 'seller',
+      shipment_id: 73,
+      available_actions: ['order_shipping_label'],
+    },
+    messages: [
+      {
+        id: 101,
+        entity_type: 'action_message',
+        event_group: 'sale',
+        event_type: 'success_preparing_shipment',
+        created_at_ts: '2026-11-17T19:18:00.000Z',
+        entity: { title: 'Verkauft (vor dem 24 Nov. 20:18 verschicken)' },
+      },
+    ],
+  };
+}
+
+test('a cached sale with an open shipping preview is checked once under the corrected sale rules', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-17T19:22:00Z') });
+  const sourceUpdatedAt = '2026-11-17T19:18:00.000Z';
+  const paths: string[] = [];
+  const page = importPage((path) => {
+    paths.push(path);
+    if (path.startsWith('/api/v2/inbox'))
+      return {
+        conversations: [
+          {
+            id: 456,
+            unread: false,
+            updated_at: sourceUpdatedAt,
+            description: 'Verkauft (vor dem 24 Nov. 20:18 verschicken)',
+          },
+        ],
+        pagination: { total_pages: 1 },
+      };
+    if (path === '/api/v2/conversations/456') return { conversation: saleConversation(456) };
+    if (path === '/api/v2/transactions/71') return { transaction: saleTransaction };
+    return undefined;
+  });
+  const refreshed = await readVintedAccountImport(page, async () => undefined, undefined, [
+    {
+      externalId: '456',
+      sourceUpdatedAt,
+      detailCheckedAt: '2026-11-17T19:20:00.000Z',
+      saleTrackingVersion: 2,
+      saleTransactionId: '71',
+      saleSellerId: '123',
+      text: 'Verkauft (vor dem 24 Nov. 20:18 verschicken)',
+      occurredAt: sourceUpdatedAt,
+    },
+  ]);
+  assert.equal(
+    refreshed.entries.find(({ kind }) => kind === 'sale')?.body.shippingLabelAction,
+    'order',
+  );
+  paths.length = 0;
+  await readVintedAccountImport(
+    page,
+    async () => undefined,
+    undefined,
+    cachedConversationVersions(refreshed),
+  );
+  assert.ok(!paths.includes('/api/v2/conversations/456'));
+});
+
+test('an explicit conversation read confirms its own shipping action and sale details in one import', async () => {
+  const paths: string[] = [];
+  const snapshot = await readVintedAccountImport(
+    importPage((path) => {
+      paths.push(path);
+      if (path.startsWith('/api/v2/inbox'))
+        return {
+          conversations: [
+            { id: 456, unread: true },
+            { id: 789, unread: false },
+          ],
+          pagination: { total_pages: 1 },
+        };
+      if (path === '/api/v2/conversations/456') return { conversation: saleConversation(456) };
+      if (path === '/api/v2/transactions/71') return { transaction: saleTransaction };
+      return undefined;
+    }),
+    async () => undefined,
+    undefined,
+    [],
+    { externalId: '456', accountId: '123' },
+  );
+  assert.deepEqual(paths, [
+    '/api/v2/users/current',
+    '/api/v2/inbox?page=1&per_page=20',
+    '/api/v2/conversations/456',
+    '/api/v2/transactions/71',
+  ]);
+  const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body.saleState, 'sold');
+  assert.equal(sale?.body.shippingLabelAction, 'order');
+  assert.equal(sale?.body.shippingDeadline, '24 Nov. 20:18');
+  assert.equal(sale?.body.price, 40);
+  assert.deepEqual(sale?.body.itemIds, ['81']);
+  assert.equal(
+    snapshot.entries.find((entry) => entry.externalId === '456')?.body.saleTrackingVersion,
+    3,
   );
 });
 

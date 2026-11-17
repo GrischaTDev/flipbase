@@ -135,6 +135,33 @@ test('ein akzeptiertes Angebot ohne Kaufbeleg erzeugt keinen Verkauf', () => {
   );
 });
 
+test('eine bestätigte Zahlung beendet einen noch zu verschickenden Verkauf nicht', () => {
+  const sold = system('sale', 'success', 'Verkauft (vor dem 24 Okt. 12:00 verschicken)');
+  const payment = {
+    status_title: 'Zahlung abgeschlossen!',
+    status_updated_at: '2026-10-22T10:00:00Z',
+  };
+  const shipping = { available_actions: ['order_shipping_label'] };
+  const sale = snapshot([sold], payment, shipping).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body['saleState'], 'sold');
+  assert.equal(sale?.body['shippingLabelAction'], 'order');
+
+  const completed = snapshot(
+    [
+      sold,
+      system(
+        'completion',
+        'completed',
+        'Die Bestellung wurde abgeschlossen!',
+        '2026-10-23T09:00:00Z',
+      ),
+    ],
+    payment,
+  ).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(completed?.body['saleState'], 'completed');
+  assert.equal(completed?.body['shippingLabelAction'], null);
+});
+
 test('ein später aktualisierter alter Versandstatus überschreibt keine belegte Stornierung', () => {
   const result = snapshot(
     [
@@ -244,12 +271,12 @@ test('ergänzt ältere unveränderte Chats einmalig um den Verkaufsablauf und ve
   assert.equal(result.entries.find((entry) => entry.kind === 'sale')?.body['saleState'], 'sold');
   assert.equal(
     result.entries.find((entry) => entry.kind === 'conversation')?.body['saleTrackingVersion'],
-    2,
+    3,
   );
   assert.ok(calls.includes('/api/v2/transactions/71'));
   calls.length = 0;
   await readVintedAccountImport(page, async () => undefined, undefined, [
-    { ...previous, saleTrackingVersion: 2 },
+    { ...previous, saleTrackingVersion: 3 },
   ]);
   assert.equal(
     calls.some((path) => path.includes('/conversations/') || path.includes('/transactions/')),

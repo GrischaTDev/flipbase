@@ -101,7 +101,8 @@ export interface VintedConversationVersion {
   itemPrice?: number | null;
   itemCurrency?: string | null;
   transactionStatus?: string | null;
-  saleTrackingVersion?: 1 | 2;
+  /** Version 3 bestätigt die getrennte Bewertung von Zahlung und Bestellabschluss. */
+  saleTrackingVersion?: 1 | 2 | 3;
   saleTransactionId?: string;
   saleSellerId?: string;
 }
@@ -679,10 +680,6 @@ export function parseVintedAccountImport(
         identifier(record(conversation?.['opposite_user'])?.['id']) ??
         conversationEntry.body['partnerId'];
       conversationEntry.body['detailCheckedAt'] = observedAt;
-      if (detail?.['saleTrackingChecked'] === true)
-        conversationEntry.body['saleTrackingVersion'] = 2;
-      else if (detail?.['saleTrackingChecked'] === false)
-        delete conversationEntry.body['saleTrackingVersion'];
       for (const [field, value] of Object.entries(parseConversationItem(conversation))) {
         if (value !== null) conversationEntry.body[field] = value;
       }
@@ -860,6 +857,12 @@ export function parseVintedAccountImport(
         ? { transactionId: previous.saleTransactionId, sellerId: previous.saleSellerId }
         : undefined,
     );
+    if (conversationEntry) {
+      if (detail?.['saleTrackingChecked'] === true)
+        conversationEntry.body['saleTrackingVersion'] = sale ? 3 : 2;
+      else if (detail?.['saleTrackingChecked'] === false)
+        delete conversationEntry.body['saleTrackingVersion'];
+    }
     if (sale && !sales.has(sale.externalId)) {
       sales.add(sale.externalId);
       const publication =
@@ -1453,7 +1456,7 @@ export async function readVintedAccountImport(
   const detailAttempts = new Map<string, string>();
   const missingConversations = new Map<string, VintedImportRequestError>();
   const detailPhaseStartedAt = Date.now();
-  const canReadBackgroundDetail = () =>
+  const canReadDetail = () =>
     !reads.blocked &&
     (requestedConversation !== undefined || Date.now() - detailPhaseStartedAt < 45_000);
   let detailReads = 0;
@@ -1492,12 +1495,18 @@ export async function readVintedAccountImport(
       const attemptedAt =
         sameSource || !sourceUpdatedAt ? pastTime(previous?.detailAttemptedAt) : 0;
       const unavailablePreview = isUnavailableItemText(previous?.text);
+      const salePreview = /^Verkauft(?:!| \(vor dem [^()]{3,40} verschicken\))?$/u.test(
+        string(conversation?.['description']) ?? '',
+      );
       const freshlyChecked =
         sameSource &&
-        previous?.saleTrackingVersion === 2 &&
+        (previous?.saleTrackingVersion === 3 ||
+          (previous?.saleTrackingVersion === 2 && !(salePreview && previous.saleTransactionId))) &&
         !unavailablePreview &&
         checkedAt > 0 &&
         now - checkedAt < 24 * 60 * 60 * 1000;
+      // Ein neuer Verkauf nutzt einen vorhandenen Detailplatz. Die Vorschau ist kein Verkaufsbeleg.
+      const newSalePreview = salePreview && !checkedAt && !attemptedAt;
       return [
         {
           id,
@@ -1509,7 +1518,7 @@ export async function readVintedAccountImport(
           // Ungelesene Chats werden weiter gegengeprüft; eine frische Prüfung ist kein Rückstand.
           needsCatchUp: !freshlyChecked,
           // Fehlversuche derselben Version rotieren mit den alten Prüfungen, ohne Erfolg zu belegen.
-          priority: attemptedAt || (checkedAt && !unavailablePreview) ? 1 : 0,
+          priority: newSalePreview ? -1 : attemptedAt || (checkedAt && !unavailablePreview) ? 1 : 0,
           checkedAt: Math.max(checkedAt, attemptedAt),
         },
       ];
@@ -1519,11 +1528,10 @@ export async function readVintedAccountImport(
     candidates.filter((candidate) => candidate.needsCatchUp).length > 5 ? 10 : 5;
   for (const { id, index, wasUnread, partnerId, previous, skipForCache } of candidates) {
     if (requestedConversation && id !== requestedConversation.externalId) continue;
-    if (!requestedConversation && (detailReads >= detailReadLimit || !canReadBackgroundDetail()))
-      break;
+    if (!requestedConversation && (detailReads >= detailReadLimit || !canReadDetail())) break;
     if (!requestedConversation && skipForCache) continue;
     await atImportStage('messages', authorize);
-    if (!requestedConversation && !canReadBackgroundDetail()) break;
+    if (!requestedConversation && !canReadDetail()) break;
     detailReads++;
     detailAttempts.set(id, new Date(Date.now()).toISOString());
     let conversation: unknown;
@@ -1576,19 +1584,22 @@ export async function readVintedAccountImport(
       }
     }
     eventBatches.push(parseVintedInboxEvents(conversation, identity.id, observedAt));
-    const saleRead = vintedConversationSaleRead(
-      relation,
-      identity.id,
-      observedAt,
+    const previousSale =
       previous?.saleTransactionId && previous.saleSellerId
         ? { transactionId: previous.saleTransactionId, sellerId: previous.saleSellerId }
-        : undefined,
-    );
+        : undefined;
+    const saleRead = vintedConversationSaleRead(relation, identity.id, observedAt, previousSale);
     const transactionId = saleRead.transactionId;
     let transaction: unknown = null;
-    if (!requestedConversation && transactionId && canReadBackgroundDetail()) {
+    if (
+      transactionId &&
+      canReadDetail() &&
+      (!requestedConversation ||
+        previousSale?.sellerId === identity.id ||
+        readVintedSale(relation, null, identity.id, observedAt) !== null)
+    ) {
       await atImportStage('transaction', authorize);
-      if (canReadBackgroundDetail())
+      if (canReadDetail())
         try {
           const response = await vintedJson(page, `/api/v2/transactions/${transactionId}`, reads);
           if (
@@ -1610,13 +1621,9 @@ export async function readVintedAccountImport(
     details.push({
       ...record(conversation),
       transaction,
-      saleTrackingChecked: requestedConversation
-        ? transactionId || (previous?.saleTransactionId && previous.saleSellerId === identity.id)
-          ? false
-          : undefined
-        : transactionId
-          ? transaction !== null
-          : saleRead.canConfirmWithoutTransaction,
+      saleTrackingChecked: transactionId
+        ? transaction !== null
+        : saleRead.canConfirmWithoutTransaction,
     });
   }
   if (missingConversations.size) {

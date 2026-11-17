@@ -6,6 +6,7 @@ import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.
 import type { MarketplaceBrowserDialog } from './marketplace-browser-dialog.ts';
 import {
   accountActionRoutes,
+  restrictVintedImportToConversation,
   validateAccountActionPayload,
 } from './marketplace-account-action-runner.ts';
 import {
@@ -129,6 +130,7 @@ interface BrowserApiOptions {
       scope: BrowserSessionScope,
       sessionId: string,
       snapshot: VintedAccountImport,
+      conversationExternalId?: string,
     ): Promise<Record<'profile' | 'publication' | 'conversation' | 'message' | 'sale', number>>;
   };
   edits?: VintedEditAccess;
@@ -1513,7 +1515,14 @@ export class MarketplaceBrowserHttpApi {
           )
             throw new ImportError('messages');
           await this.broker.run(scope, currentSessionId, async () => undefined);
-          const counts = await this.imports.write(scope, currentSessionId, result);
+          const counts = await this.imports.write(
+            scope,
+            currentSessionId,
+            requestedConversation
+              ? restrictVintedImportToConversation(result, requestedConversation.externalId)
+              : result,
+            requestedConversation?.externalId,
+          );
           await (this.broker.finishAction?.(scope, currentSessionId) ??
             this.broker.close(scope, currentSessionId));
           sessionId = undefined;

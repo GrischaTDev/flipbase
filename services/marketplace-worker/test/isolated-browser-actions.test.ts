@@ -706,7 +706,10 @@ test('isolated import preserves central authorizations, article cache and inbox 
     version: () => '',
     importAccount: async (authorize, onStage, previous, _target, publications) => {
       assert.equal(publications?.length, 0);
-      if (previous?.length) assert.equal(previous[0]?.itemTitle, 'Vintage Jacke');
+      if (previous?.length) {
+        assert.equal(previous[0]?.itemTitle, 'Vintage Jacke');
+        assert.equal(previous[0]?.saleTrackingVersion, 3);
+      }
       await authorize();
       await onStage?.('profile');
       await authorize();
@@ -727,7 +730,7 @@ test('isolated import preserves central authorizations, article cache and inbox 
           externalId: '777',
           sourceUpdatedAt: snapshot.observedAt,
           detailCheckedAt: snapshot.observedAt,
-          saleTrackingVersion: 1,
+          saleTrackingVersion: 3,
           saleTransactionId: '71',
           saleSellerId: '123',
           text: null,
