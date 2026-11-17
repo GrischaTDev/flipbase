@@ -375,7 +375,9 @@ for (const width of [1440, 390]) {
         fullPage: true,
       });
       await dialog.getByRole('button', { name: 'Gegenangebot vormerken' }).click();
-      await expect(actions).toContainText('Gegenangebot beauftragt');
+      await expect(page.locator('[data-offer-action-tile]')).toContainText(
+        'Gegenangebot wird gesendet',
+      );
       expect(mocked.enqueues).toHaveLength(1);
       expect(mocked.enqueues[0]).toMatchObject({
         p_action: 'counter',
@@ -384,7 +386,7 @@ for (const width of [1440, 390]) {
       });
       mocked.confirm();
       await actions.getByRole('button', { name: 'Aktionsstatus aktualisieren' }).click();
-      await expect(actions).toContainText('Gegenangebot gesendet');
+      await expect(page.locator('[data-offer-action-tile]')).toContainText('Gegenangebot gesendet');
       await accessibility(page, 'app-vinted-messages');
       expect(mocked.writes()).toBe(0);
       await page.screenshot({
@@ -408,7 +410,7 @@ test('Unklare Anfrage verwendet dieselbe Request-ID und darf keine alternative A
   await actions.getByRole('button', { name: 'Ablehnen', exact: true }).click();
   expect(mocked.enqueues).toHaveLength(1);
   await actions.getByRole('button', { name: 'Annehmen', exact: true }).click();
-  await expect(actions).toContainText('Annahme beauftragt');
+  await expect(page.locator('[data-offer-action-tile]')).toContainText('Preis wird angenommen');
   expect(mocked.enqueues[0].p_request_id).toBe(mocked.enqueues[1].p_request_id);
   expect(mocked.writes()).toBe(0);
 });

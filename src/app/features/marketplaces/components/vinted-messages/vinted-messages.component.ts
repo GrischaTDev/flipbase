@@ -54,6 +54,29 @@ import { formatConversationTime, formatMessageDay } from './vinted-message-time'
 import { VintedMessagingStore } from '../../services/vinted-messaging.store';
 import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
 import { VintedActionOverviewStore } from '../../services/vinted-action-overview.store';
+import { VintedChatPendingBubbleComponent } from '../vinted-chat-pending-bubble/vinted-chat-pending-bubble.component';
+import { VintedNegotiationActionStore } from '../../services/vinted-negotiation-action.store';
+import {
+  negotiationStateLabels,
+  type NegotiationAction,
+  type NegotiationState,
+} from '../../models/vinted-negotiation';
+
+const offerActionTitles: Record<NegotiationAction, string> = {
+  accept: 'Angebot annehmen',
+  decline: 'Angebot ablehnen',
+  counter: 'Gegenangebot senden',
+};
+const offerActionPendingLabels: Record<NegotiationAction, string> = {
+  accept: 'Preis wird angenommen',
+  decline: 'Preis wird abgelehnt',
+  counter: 'Gegenangebot wird gesendet',
+};
+const offerActionDoneLabels: Record<NegotiationAction, string> = {
+  accept: 'Angebot angenommen',
+  decline: 'Angebot abgelehnt',
+  counter: 'Gegenangebot gesendet',
+};
 
 function preserveConversationMetadata(
   entry: MarketplaceEntry,
@@ -71,6 +94,17 @@ function preserveConversationMetadata(
     transactionStatus: entry.transactionStatus ?? previous?.transactionStatus ?? null,
   };
 }
+
+/** Zustände, in denen eine Nachricht bereits bei Vinted angekommen sein kann. */
+const deliverableQueueStates = new Set<LocalQueuedMessage['state']>([
+  'queued',
+  'claimed',
+  'sending',
+  'sent',
+  'outcome_unknown',
+]);
+/** Vinted- und Flipbase-Zeitstempel stammen von verschiedenen Servern. */
+const deliveryClockTolerance = 30_000;
 
 type ConversationFilter = 'all' | 'unread' | 'questions' | 'negotiating' | 'sold' | 'system';
 
@@ -108,6 +142,7 @@ interface ReadingPosition {
     LucideTag,
     LucideBot,
     VintedOfferActionsComponent,
+    VintedChatPendingBubbleComponent,
     VintedShippingLabelActionsComponent,
   ],
   providers: [VintedActionOverviewStore],
@@ -124,6 +159,7 @@ export class VintedMessagesComponent {
   readonly messaging = inject(VintedMessagingStore);
   readonly actionOverview = inject(VintedActionOverviewStore);
   private readonly shippingLabels = inject(VintedShippingLabelStore);
+  private readonly negotiationActions = inject(VintedNegotiationActionStore);
   readonly search = signal('');
   readonly conversationFilter = signal<ConversationFilter | null>('all');
   readonly conversationSort = signal<'latest' | 'oldest' | null>('latest');
@@ -169,19 +205,38 @@ export class VintedMessagesComponent {
     const attachment = this.attachment();
     return attachment ? `data:${attachment.mimeType};base64,${attachment.base64}` : null;
   });
-  readonly queuedMessages = computed(() =>
-    this.messaging
+  /**
+   * Warteschlange und Vinted-Verlauf laden getrennt. Steht eine Nachricht schon im
+   * Verlauf, während die Warteschlange noch einen älteren Stand kennt, wird sie hier
+   * ausgeblendet, damit sie nicht doppelt erscheint.
+   */
+  readonly queuedMessages = computed(() => {
+    const transcript = this.transcript();
+    const deliveredIds = new Set(transcript.map((entry) => entry.externalId));
+    // Jede eigene Verlaufsnachricht deckt höchstens einen Warteschlangen-Eintrag ab.
+    const unmatched = transcript.filter(
+      (entry) => entry.direction === 'outbound' && entry.text?.trim(),
+    );
+    return this.messaging
       .messages()
-      .filter(
-        (message) =>
-          message.conversationId === this.store.selectedConversationId() &&
-          !(
-            message.state === 'sent' &&
-            message.externalMessageId &&
-            this.transcript().some((entry) => entry.externalId === message.externalMessageId)
-          ),
-      ),
-  );
+      .filter((message) => message.conversationId === this.store.selectedConversationId())
+      .filter((message) => {
+        // Mit Vinted-ID gilt nur die exakte Zuordnung.
+        if (message.externalMessageId) return !deliveredIds.has(message.externalMessageId);
+        if (!deliverableQueueStates.has(message.state)) return true;
+        const text = message.text?.trim();
+        const queuedAt = Date.parse(message.createdAt);
+        if (!text || !Number.isFinite(queuedAt)) return true;
+        const match = unmatched.findIndex(
+          (entry) =>
+            entry.text?.trim() === text &&
+            Date.parse(entry.occurredAt ?? '') >= queuedAt - deliveryClockTolerance,
+        );
+        if (match < 0) return true;
+        unmatched.splice(match, 1);
+        return false;
+      });
+  });
   readonly preparingAttachment = signal(false);
   readonly composerError = signal<string | null>(null);
   readonly imageIcon = LucideImagePlus;
@@ -340,6 +395,29 @@ export class VintedMessagesComponent {
   constructor() {
     const clock = setInterval(() => this.now.set(Date.now()), 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(clock));
+    // Neue eigene Nachricht im Verlauf: Warteschlange sofort statt erst beim nächsten Intervall abgleichen.
+    let outboundCount: number | null = null;
+    effect(() => {
+      const count = this.transcript().filter((entry) => entry.direction === 'outbound').length;
+      untracked(() => {
+        const grew = outboundCount !== null && count > outboundCount;
+        outboundCount = count;
+        const account = this.store.selectedConnection();
+        const conversationId = this.store.selectedConversationId();
+        if (
+          grew &&
+          account &&
+          conversationId &&
+          this.messaging
+            .messages()
+            .some((message) => ['queued', 'claimed', 'sending'].includes(message.state))
+        )
+          void this.messaging.load(
+            { workspaceId: account.workspaceId, connectionId: account.connectionId },
+            conversationId,
+          );
+      });
+    });
     effect(() => {
       this.context();
       const key = this.conversationKey();
@@ -532,6 +610,23 @@ export class VintedMessagesComponent {
         return 'Wird gesendet';
       default:
         return 'In der Warteschlange';
+    }
+  }
+
+  isQueuePending(message: LocalQueuedMessage): boolean {
+    return ['queued', 'claimed', 'sending'].includes(message.state);
+  }
+
+  queueTone(message: LocalQueuedMessage): BadgeTone {
+    switch (message.state) {
+      case 'sent':
+        return 'success';
+      case 'failed':
+        return 'critical';
+      case 'outcome_unknown':
+        return 'caution';
+      default:
+        return 'neutral';
     }
   }
 
@@ -898,6 +993,53 @@ export class VintedMessagesComponent {
         ? this.messaging.cloudSendAllowed()
         : this.local.hasValidBinding() && this.local.binding()?.messagesSend === true)
     );
+  }
+
+  /** Eigene Chatkachel für eine beauftragte Angebotsaktion, bis Vinted den neuen Stand zeigt. */
+  offerActionTile(entry: MarketplaceEntry): {
+    action: NegotiationAction;
+    state: NegotiationState;
+    title: string;
+    detail: string | null;
+    statusLabel: string;
+    statusTone: BadgeTone;
+    pending: boolean;
+  } | null {
+    if (this.messageKind(entry) !== 'offer') return null;
+    const receipt = this.negotiationActions.receipts().get(this.negotiationActions.key(entry));
+    if (!receipt) return null;
+    const offerStillOpen = ['pending', '10'].includes(entry.offerStatus ?? 'pending');
+    // Zeigt Vinted den neuen Angebotsstand, übernimmt das Angebot selbst die Anzeige.
+    if (receipt.state === 'sent' && !offerStillOpen) return null;
+    const pending = ['queued', 'claimed', 'sending'].includes(receipt.state);
+    const offered = entry.negotiationOffer?.offeredPriceCents;
+    const price =
+      receipt.action !== 'counter' && typeof offered === 'number'
+        ? new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(
+            offered / 100,
+          )
+        : null;
+    const detail = [price, this.offerTitle(entry)].filter(Boolean).join(' · ') || null;
+    return {
+      action: receipt.action,
+      state: receipt.state,
+      title: offerActionTitles[receipt.action],
+      detail,
+      statusLabel: pending
+        ? offerActionPendingLabels[receipt.action]
+        : receipt.state === 'sent'
+          ? offerActionDoneLabels[receipt.action]
+          : negotiationStateLabels[receipt.state],
+      statusTone:
+        receipt.state === 'sent'
+          ? 'success'
+          : receipt.state === 'failed'
+            ? 'critical'
+            : receipt.state === 'outcome_unknown'
+              ? 'caution'
+              : 'neutral',
+      pending,
+    };
   }
 
   hasOfferReceipt(entry: MarketplaceEntry): boolean {
