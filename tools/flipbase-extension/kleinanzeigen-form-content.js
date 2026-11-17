@@ -25,6 +25,50 @@
     Array.from(document.querySelectorAll('dialog[open]')).find((dialog) =>
       Array.from(dialog.querySelectorAll('h2')).some((node) => text(node) === 'Versandmethoden'),
     );
+  const categoryDialog = () =>
+    Array.from(document.querySelectorAll('dialog[open][aria-labelledby]')).find((dialog) => {
+      const heading = document.getElementById(dialog.getAttribute('aria-labelledby'));
+      return heading && dialog.contains(heading) && text(heading) === 'Kategorie wählen';
+    });
+  async function chooseCategoryInDialog(categoryPath, categoryLabel) {
+    const labels = categoryLabel.split('>').map((part) => part.trim());
+    if (
+      !reader.validPath(categoryPath) ||
+      labels.length !== categoryPath.split('/').length ||
+      labels.some((part) => !part || part.length > 200)
+    )
+      throw new Error('schema_changed');
+    const dialog = await wait(categoryDialog);
+    const rootButtons = Array.from(dialog.querySelectorAll('li > button[type="button"]')).filter(
+      (node) => text(node) === 'Alle Kategorien/',
+    );
+    if (rootButtons.length > 1) throw new Error('schema_changed');
+    rootButtons[0]?.click();
+    const choice = (name, leaf) => {
+      const matches = Array.from(dialog.querySelectorAll('li > button[type="button"]')).filter(
+        (node) =>
+          !node.disabled &&
+          node.getAttribute('aria-disabled') !== 'true' &&
+          (leaf
+            ? node.hasAttribute('aria-pressed') && text(node) === name
+            : !node.hasAttribute('aria-pressed') &&
+              text(node).replace(/\s*, öffnet Unterkategorien$/u, '') === name &&
+              text(node).endsWith(', öffnet Unterkategorien')),
+      );
+      return matches.length === 1 ? matches[0] : null;
+    };
+    for (const [index, name] of labels.entries()) {
+      const leaf = index === labels.length - 1;
+      (await wait(() => choice(name, leaf))).click();
+    }
+    const leaf = labels.at(-1);
+    await wait(() => choice(leaf, true)?.getAttribute('aria-pressed') === 'true');
+    button(dialog.querySelector('footer'), 'Übernehmen').click();
+    await wait(
+      () => !categoryDialog() && reader.readCategory(document, categoryPath, categoryLabel),
+    );
+    return { path: categoryPath, label: categoryLabel, applied: true };
+  }
   async function collect(expectedAccountId, categoryPath, categoryLabel) {
     const base = reader.readBase(document, expectedAccountId);
     const category = reader.readCategory(document, categoryPath, categoryLabel);
@@ -162,6 +206,8 @@
           );
           if (links.length !== 1) throw new Error('schema_changed');
           links[0].click();
+          if (links[0].getAttribute('href') === '#' && typeof message.categoryLabel === 'string')
+            return await chooseCategoryInDialog(message.categoryPath, message.categoryLabel);
           return { moving: true };
         }
         if (message.action === 'categories') {

@@ -32,18 +32,23 @@
     };
     await identity();
     let page = await adapter.open();
-    if (page?.path !== '') throw new Error('Die Kategorieauswahl hat sich geändert.');
-    const parts = input.categoryPath ? input.categoryPath.split('/') : [];
-    for (let index = 0; index < parts.length; index++) {
-      const path = parts.slice(0, index + 1).join('/');
-      const choices = page?.choices?.filter((choice) => choice.path === path);
-      if (choices?.length !== 1 || (index < parts.length - 1 && !choices[0].isParent))
-        throw new Error('Diese Kategorie wird nicht angeboten.');
-      await check();
-      page = await adapter.choose(path);
-      if (page?.path !== path) throw new Error('Kategorie nicht bestätigt.');
+    if (page?.applied) {
+      if (page.path !== input.categoryPath || !page.label)
+        throw new Error('Kategorie nicht bestätigt.');
+    } else {
+      if (page?.path !== '') throw new Error('Die Kategorieauswahl hat sich geändert.');
+      const parts = input.categoryPath ? input.categoryPath.split('/') : [];
+      for (let index = 0; index < parts.length; index++) {
+        const path = parts.slice(0, index + 1).join('/');
+        const choices = page?.choices?.filter((choice) => choice.path === path);
+        if (choices?.length !== 1 || (index < parts.length - 1 && !choices[0].isParent))
+          throw new Error('Diese Kategorie wird nicht angeboten.');
+        await check();
+        page = await adapter.choose(path);
+        if (page?.path !== path) throw new Error('Kategorie nicht bestätigt.');
+      }
     }
-    if (!page.selectedLeaf) {
+    if (!page.applied && !page.selectedLeaf) {
       if (!Array.isArray(page.choices) || !page.choices.length)
         throw new Error('Kategorieauswahl unvollständig.');
       await identity();
@@ -60,9 +65,11 @@
         observedAt: new Date(adapter.now()).toISOString(),
       };
     }
-    if (!page.canContinue) throw new Error('Kategorie nicht bestätigt.');
     await check();
-    await adapter.continue(input.categoryPath);
+    if (!page.applied) {
+      if (!page.canContinue) throw new Error('Kategorie nicht bestätigt.');
+      await adapter.continue(input.categoryPath);
+    }
     const schema = await adapter.readSchema(input.categoryPath, page.label);
     if (
       schema?.categoryPath !== input.categoryPath ||

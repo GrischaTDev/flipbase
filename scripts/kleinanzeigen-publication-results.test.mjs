@@ -31,6 +31,38 @@ test('confirms only a new exact receipt target also present as active in the sam
   assert.equal(result.externalId, '999');
   assert.equal(result.url, item.url);
 });
+test('bestätigt die neue Bestätigungsseite nur mit eindeutiger Kennung und aktivem eigenem Inserat', () => {
+  const address = 'https://www.kleinanzeigen.de/p-anzeige-aufgeben-bestaetigung.html?adId=999';
+  const dom = new JSDOM('<main><h1>Geschafft! Deine Anzeige geht bald online.</h1></main>', {
+    url: address,
+  });
+  try {
+    const confirmation = results.readReceipt(dom.window.document);
+    assert.equal(confirmation?.url, address);
+    assert.equal(confirmation.candidates.length, 0);
+    assert.equal(
+      results.confirm(job, ['77'], confirmation, [page], Date.now()).outcome,
+      'confirmed',
+    );
+    for (const candidate of [
+      { ...confirmation, url: address + '&adId=999' },
+      { ...confirmation, url: address.replace('999', '998') },
+      { ...confirmation, candidates: [item.url] },
+    ])
+      assert.equal(
+        results.confirm(job, ['77'], candidate, [page], Date.now()).outcome,
+        'outcome_unknown',
+      );
+    assert.equal(
+      results.confirm(job, ['999'], confirmation, [page], Date.now()).outcome,
+      'outcome_unknown',
+    );
+    dom.window.document.querySelector('h1').hidden = true;
+    assert.equal(results.readReceipt(dom.window.document), null);
+  } finally {
+    dom.window.close();
+  }
+});
 for (const patch of [
   'existing',
   'different_account',

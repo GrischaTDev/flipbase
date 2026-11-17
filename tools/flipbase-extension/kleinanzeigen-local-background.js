@@ -565,7 +565,12 @@
           });
           await readyPage('/p-anzeige-aufgeben-schritt2.html');
           try {
-            await step('enter_categories', '');
+            const result = await step(
+              'enter_categories',
+              owner?.categoryLabel ? request.categoryPath : '',
+              owner?.categoryLabel,
+            );
+            if (result?.applied) return result;
           } catch (error) {
             if (error?.code) throw error;
           }
@@ -1091,7 +1096,7 @@
         page.items.map((item) => item.externalId),
       ),
     target: async (installation, request, categoryPath, record) => {
-      const owner = { reuseTabId: record?.tabId };
+      const owner = { reuseTabId: record?.tabId, categoryLabel: record.snapshot.categoryLabel };
       await loadFormSchema({ ...request, categoryPath }, installation.appOrigin, owner);
       return owner;
     },
@@ -1131,7 +1136,11 @@
             address.origin === 'https://www.kleinanzeigen.de' &&
             ((address.pathname === '/p-anzeige-bearbeiten.html' &&
               address.searchParams.get('adId') === record.externalId) ||
-              address.pathname === '/p-anzeige-aufgeben-schritt3.html')
+              address.pathname === '/p-anzeige-aufgeben-schritt3.html' ||
+              (address.pathname === '/p-anzeige-aufgeben-bestaetigung.html' &&
+                record.result?.outcome === 'confirmed' &&
+                address.searchParams.getAll('adId').length === 1 &&
+                address.searchParams.get('adId') === record.result.externalId))
           )
             await chrome.tabs.remove(tabId);
         } catch {

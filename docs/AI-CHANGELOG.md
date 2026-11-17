@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-17 - Juna - Kleinanzeigen-Neuinserieren an die neue Kategorieauswahl anpassen
+
+**Befund:** Das vom Assistenten offen gelassene Formular war die Bearbeitungsansicht der bestehenden Anzeige. In einem getrennten, ungespeicherten Anbieterformular öffnete sich die Kategorieauswahl als Dialog im selben Dokument. Die alte Erweiterung wartete auf eine separate Kategorieseite und brach im nachgestellten Ablauf vor Upload, Löschung und Veröffentlichung ab.
+
+**Umsetzung:** Beim Neu-Inserieren wählt die Erweiterung die gesicherte Kategorie im Dialog und prüft sie anschließend im Anbieterformular. Der bisherige Weg über eine eigene Kategorieseite bleibt unterstützt. Version `1.14.7` berücksichtigt die parallel lokal vorhandene `1.14.6`. Flipbase blendet den Ladezustand mittig über der abgedunkelten Zeile oder Karte ein. Das Drei-Punkte-Menü behält währenddessen seine Position und ist deaktiviert. Prüfung und Umsetzung auf `juna/kleinanzeigen-relist-form` vom frisch abgerufenen `origin/master` in getrennter Arbeitskopie. Die echte Anzeige wurde ausschließlich gelesen.
+
+**Veröffentlichungsbeleg:** Auch die im Live-Ablauf vom 02.11. beobachtete Bestätigungsseite ohne Inseratlink wird erkannt. Erst ihre eindeutige Anzeigenkennung, die sichtbare Erfolgsmeldung und das passende neue aktive Inserat im eigenen vollständig geprüften Bestand bestätigen den Vorgang. Beim Fortsetzen bleibt der neu vorbereitete Formulartab auch über den Löschschritt gebunden.
+
+**Browsernachweis:** 68 ausgewählte UI-Fälle gegen eine ruhende Vorschau mit Testdaten bestanden. Die Kleinanzeigen-Fälle prüfen die zentrierte Ladeanzeige, unveränderte Zeilenhöhe und Menüposition, deaktivierte Aktionen und Axe auf Desktop hell und Mobil dunkel. Der echte MV3-Browser prüft die Neuanlage und den Stopp bei abweichender Kategorie mit einem synthetischen Anbieter. Die Veröffentlichung der Änderung und die Pflichtprüfungen in GitHub stehen aus.
+
 ## 2026-11-16 - Juna - Vinted-Veröffentlichung mit Etikettzustand und Minutenalter erkennen
 
 **Auftrag und Grundlage:** Nach einer tatsächlich erfolgreichen Veröffentlichung die Meldung „Veröffentlichung nicht bestätigt“ und „Alter unbekannt“ untersuchen. Eigener Zweig `juna/vinted-publication-confirmation-time` vom frisch abgeglichenen `origin/master` (`4f9f028f`) in getrennter Arbeitskopie; fremde Änderungen und belegte Hauptarbeitskopien bleiben erhalten.

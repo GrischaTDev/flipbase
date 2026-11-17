@@ -1,6 +1,12 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.5
+## Aktuell: Version 1.14.7
+
+Beim erneuten Inserieren erkennt die Erweiterung die Kategorieauswahl im neuen
+Kleinanzeigen-Dialog. Sie prüft die gewählte Kategorie im vorbereiteten Formular,
+bevor die alte Anzeige gelöscht werden darf.
+
+## Version 1.14.5
 
 Favoritenangebote werden nur gesendet, wenn die bestätigte automatische Nachricht
 weiterhin der einzige Gesprächsinhalt ist. Antworten und manuelle Nachrichten

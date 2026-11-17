@@ -1,6 +1,15 @@
 // Ergebnis nur aus konkretem Ziel im eigenen Veröffentlichungstab und dem vollständig gelesenen eigenen Konto.
 (function definePublicationResults(root) {
   const unknown = () => ({ outcome: 'outcome_unknown', errorCode: 'publication_unconfirmed' });
+  const confirmationPath = '/p-anzeige-aufgeben-bestaetigung.html';
+  function confirmationId(url) {
+    const ids = url.searchParams.getAll('adId');
+    return url.pathname === confirmationPath &&
+      ids.length === 1 &&
+      /^[1-9][0-9]{0,31}$/u.test(ids[0])
+      ? ids[0]
+      : null;
+  }
   function target(address) {
     try {
       const url = new URL(address);
@@ -25,9 +34,9 @@
         !url.username &&
         !url.password &&
         !url.hash &&
-        (!!target(address) ||
-          (/^\/p-anzeige-aufgeben[-a-z0-9.]*$/u.test(url.pathname) &&
-            url.pathname !== '/p-anzeige-aufgeben-schritt2.html'))
+        (url.pathname === confirmationPath
+          ? !!confirmationId(url)
+          : !!target(address) || url.pathname === '/p-anzeige-aufgeben-schritt3.html')
       );
     } catch {
       return false;
@@ -53,6 +62,7 @@
       return unknown();
     const before = new Set(baseline);
     const targets = receipt.candidates.map(target).filter(Boolean);
+    const confirmedId = confirmationId(new URL(receipt.url));
     const matches = pages
       .flatMap((page) => page.items)
       .filter(
@@ -60,7 +70,13 @@
           !before.has(item.externalId) &&
           item.title === job.content.title.trim() &&
           item.state === 'active' &&
-          targets.some((value) => value.externalId === item.externalId && value.url === item.url),
+          (confirmedId
+            ? receipt.candidates.length === 0 &&
+              item.externalId === confirmedId &&
+              target(item.url)?.externalId === confirmedId
+            : targets.some(
+                (value) => value.externalId === item.externalId && value.url === item.url,
+              )),
       );
     if (matches.length !== 1) return unknown();
     const item = matches[0];
@@ -75,6 +91,18 @@
   }
   function readReceipt(doc) {
     if (!receiptUrl(doc.URL) || doc.getElementById('ad-title')) return null;
+    const confirmedId = confirmationId(new URL(doc.URL));
+    if (confirmedId) {
+      const headings = Array.from(doc.querySelectorAll('main h1')).filter(
+        (node) =>
+          !node.closest('[hidden],[aria-hidden="true"]') &&
+          (node.textContent ?? '').replace(/\s+/gu, ' ').trim() ===
+            'Geschafft! Deine Anzeige geht bald online.',
+      );
+      return headings.length === 1
+        ? { url: new URL('?adId=' + confirmedId, doc.URL).href, candidates: [] }
+        : null;
+    }
     const links = Array.from(doc.querySelectorAll('a[href]'))
       .map((link) => target(link.href))
       .filter(Boolean);

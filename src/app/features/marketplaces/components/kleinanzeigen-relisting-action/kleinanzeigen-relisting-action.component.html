@@ -1,5 +1,3 @@
-@if (section().selection.length && !relisting.busy()) {
-  <app-button [icon]="icon" [disabled]="section().loading" (clicked)="run()"
-    >Ausgewählte neu inserieren</app-button
-  >
-}
+<app-button [icon]="icon" [disabled]="section().loading || relisting.busy()" (clicked)="run()"
+  >Ausgewählte neu inserieren</app-button
+>
