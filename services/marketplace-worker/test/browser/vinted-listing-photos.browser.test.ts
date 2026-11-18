@@ -525,6 +525,53 @@ test('preview and upload share filters and frame sizes without changing the orig
     );
     assert.ok(straightenedSample.topLeftCorner[0]! < 200);
     assert.ok(straightenedSample.bottomRightCorner[0]! < 200);
+    // Untergrundberuhigung mit BiRefNet-Maske entsättigt den Teppich außerhalb der Maske und erhält Originalpixel im Motiv.
+    const subjectAndCarpet = await page.evaluate(() => {
+      const makeCanvas = (draw: (ctx: CanvasRenderingContext2D) => void) => {
+        const c = document.createElement('canvas');
+        c.width = 200;
+        c.height = 120;
+        draw(c.getContext('2d')!);
+        return c.toDataURL('image/png').split(',')[1]!;
+      };
+      const photoB64 = makeCanvas((ctx) => {
+        // Links: unruhiger grell-grüner Teppich (Hintergrund); Rechts: roter Artikel (Vordergrund)
+        ctx.fillStyle = '#00dc30';
+        ctx.fillRect(0, 0, 100, 120);
+        ctx.fillStyle = '#d82020';
+        ctx.fillRect(100, 0, 100, 120);
+      });
+      const maskB64 = makeCanvas((ctx) => {
+        ctx.fillStyle = '#000000';
+        ctx.fillRect(0, 0, 100, 120);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(100, 0, 100, 120);
+      });
+      return { photoB64, maskB64 };
+    });
+    const calmedExport = await exportVintedListingPhoto(
+      page,
+      {
+        id: '3',
+        fileName: 'carpet.png',
+        mimeType: 'image/png',
+        bytes: Buffer.from(subjectAndCarpet.photoB64, 'base64'),
+        maskBytes: Buffer.from(subjectAndCarpet.maskB64, 'base64'),
+        maskMimeType: 'image/png',
+      },
+      {
+        resize: null,
+        crops: {},
+        backgroundCalm: {
+          '3': { maskId: '77777777-7777-4777-8777-777777777777', strength: 90 },
+        },
+      },
+    );
+    const calmedSample = await sampleDetailed(Buffer.from(calmedExport.bytes).toString('base64'));
+    // Links (Teppich): stark entsättigt — Grünkanal nähert sich stark Rot/Blau an
+    assert.ok(calmedSample.left[1]! - calmedSample.left[0]! < 35);
+    // Rechts (rotes Produkt innerhalb der Maske): kräftiges Rot bleibt pixelgenau erhalten
+    assert.ok(calmedSample.right[0]! > 195 && calmedSample.right[1]! < 55);
     assert.deepEqual(Buffer.from(photo.bytes), original);
   } finally {
     await browser.close();

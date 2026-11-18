@@ -1,0 +1,10 @@
+# Reicht den serverseitigen API-Schluessel fuer BiRefNet-Vordergrundmasken
+# (fal.ai oder Replicate) an Supabase Edge Functions durch.
+# Der Schluessel bleibt in /opt/supabase/.env und gelangt nie in den Browser-Bau.
+services:
+  functions:
+    environment:
+      FAL_KEY: ${FAL_KEY:-}
+      REPLICATE_API_TOKEN: ${REPLICATE_API_TOKEN:-}
+      PHOTO_MASK_PROVIDER: ${PHOTO_MASK_PROVIDER:-}
+      REPLICATE_BIREFNET_VERSION: ${REPLICATE_BIREFNET_VERSION:-}

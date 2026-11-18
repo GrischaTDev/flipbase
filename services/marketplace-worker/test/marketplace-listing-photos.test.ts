@@ -188,3 +188,44 @@ test('network errors do not expose server credentials or private object paths', 
     return true;
   });
 });
+
+test('loads the foreground PNG mask for backgroundCalm from the private masks bucket and fails closed if missing', async () => {
+  const maskId = '66666666-6666-4666-8666-666666666666';
+  const claimWithMask = {
+    ...claim,
+    snapshot: {
+      ...claim.snapshot,
+      photoOptions: {
+        resize: null,
+        crops: {},
+        backgroundCalm: {
+          [image.id]: { maskId, strength: 80 },
+        },
+      },
+    },
+  };
+  const okFixture = fixture();
+  const loaded = await okFixture.store.loadPhoto(claimWithMask, image.id);
+  assert.deepEqual(loaded.maskBytes, bytes);
+  assert.equal(loaded.maskMimeType, 'image/png');
+  assert.ok(
+    okFixture.calls.some((call) =>
+      call.url.pathname.endsWith(
+        `/storage/v1/object/marketplace-listing-masks/${claim.scope.workspaceId}/${maskId}.png`,
+      ),
+    ),
+  );
+
+  const missingMaskFixture = fixture({
+    response: (() => {
+      let count = 0;
+      return () =>
+        ++count === 1
+          ? new Response(bytes, {
+              headers: { 'Content-Type': 'image/png', 'Content-Length': String(bytes.length) },
+            })
+          : new Response('missing', { status: 404 });
+    })(),
+  });
+  await assert.rejects(missingMaskFixture.store.loadPhoto(claimWithMask, image.id), /Foto/);
+});

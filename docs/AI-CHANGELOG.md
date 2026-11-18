@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-20 - Juna - KI-Vordergrundmasken und Untergrundberuhigung im Vinted-Relisting-Editor (Stufe 3A)
+
+**Auftrag und Grundlage:** Umsetzung von Stufe 3A („Untergrund beruhigen – KI-Vordergrundmaske + 1:1 Originalpixel-Komposition“) gemäß abgestimmtem Plan auf eigenem Zweig `juna/vinted-photo-background-calm` (auf den aktuellen `origin/master`, `728b8f37`, angehoben).
+
+**Umsetzung:**
+
+- **Datenbank, Speicher-Bucket & Migration (`supabase/schemas/459_vinted_photo_background_masks.sql`, `460_marketplace_listing_drafts.sql`, `461_marketplace_listing_images.sql`, `463_marketplace_listing_jobs.sql`, `supabase/config.toml`, `supabase/migrations/20261120080000_vinted_photo_background_masks.sql`, `supabase/tests/vinted_photo_background_masks.test.sql`):** Private Tabelle `vinted_photo_background_masks` mit RLS und privatem Storage-Bucket `marketplace-listing-masks` (`image/png`), atomare Reservierungs-/Cache-/Rate-Limit-Funktion `reserve_vinted_photo_background_mask` (`mask_busy`, `mask_limit`), Validierung von `photoOptions.backgroundCalm` inkl. Workspace-Zugriffsprüfung (`marketplace_listing_photo_masks_accessible`), Bereinigung verwaister Maskenreferenzen (`marketplace_drop_photo_option_image`, `marketplace_keep_photo_option_images`) sowie zugehörige pgTAP-Tests.
+- **Edge Function & Deployment (`supabase/functions/vinted-photo-background-mask/`, `deploy/docker-compose.vinted-photo-mask.yml`, `deploy/README.md`, `scripts/ci-checks.mjs`, `scripts/affected-tests.mjs`):** Authentifizierte Edge Function für Workspace-Admins mit SHA-256-Maskencache, BiRefNet-Provider-Anbindung (`fal-ai/birefnet` über `FAL_KEY` oder `men1scus/birefnet` über `REPLICATE_API_TOKEN`), privater Speicherung der PNG-Maske im Bucket sowie CI- und Compose-Registrierung.
+- **Gemeinsamer Renderer, Extension-Laufzeit & Worker (`supabase/functions/_shared/marketplace-listing-contracts.d.ts`, `vinted-listing-photo-renderer.mts`, `tools/flipbase-extension/vinted-listing-runtime.js`, `services/marketplace-worker/src/`):** Synchron transformierte Vordergrundmaske mit strenger Bewahrung der Originalpixel im Vordergrund (`fg >= 0.996`) und separabler Entsättigung/Glättung ausschließlich im Hintergrund vor anschließenden Bildreglern und Weißrändern; Masken-Download im Worker aus `marketplace-listing-masks` mit PNG-Kopfprüfung.
+- **Vinted-Relisting-Editor UI (`src/app/features/marketplaces/`):** `VintedPhotoBackgroundMaskService` inkl. clientseitiger Verkleinerung großer Arbeitskopien vor der Maskenberechnung und Laden gespeicherter Masken für bestehende Entwürfe; UI-Steuerung in `VintedListingEditorComponent` (`Untergrund beruhigen (KI)`, `Untergrund`-Regler `1–100 %` inkl. Mausrad und Doppelklick auf `70`, `Untergrund zurücksetzen`, `Alle Fotos beruhigen`) inkl. Übernahme beim Kopieren veröffentlichter Entwürfe (`copyAsNewDraft`) sowie Vorschau-Integration in `VintedListingPhotoPreviewComponent`.
+
+**Prüfung & offene CI-Schritte:** siehe finalen PR- und Vorabcheck-Nachweis; vor Produktiveinsatz `FAL_KEY` (oder `REPLICATE_API_TOKEN`) + `deploy/docker-compose.vinted-photo-mask.yml` + Migration `20261120080000_vinted_photo_background_masks.sql` ausrollen.
+
 ## 2026-11-19 - Juna - Zielgruppe, Größen und Kategorie direkt im Vinted-Feed
 
 Jede Feed-Suche kann Zielgruppe, Größen, Marke und Kategorie direkt auf dem gespeicherten Artikelbestand kombinieren. Pflichtfeldfehler beim Bearbeiten eines Suchfilters erscheinen erst nach einem Speicherversuch.

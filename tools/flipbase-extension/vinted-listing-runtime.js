@@ -1042,6 +1042,7 @@
           ...(raw && Object.hasOwn(raw, 'border') ? ['border'] : []),
           ...(raw && Object.hasOwn(raw, 'adjustments') ? ['adjustments'] : []),
           ...(raw && Object.hasOwn(raw, 'photoAdjustments') ? ['photoAdjustments'] : []),
+          ...(raw && Object.hasOwn(raw, 'backgroundCalm') ? ['backgroundCalm'] : []),
         ]);
         if (
           (options.resize !== null && ![1200, 1600, 2400].includes(options.resize)) ||
@@ -1142,6 +1143,33 @@
           }
           photoAdjustments = Object.freeze(map);
         }
+        let backgroundCalm;
+        if (Object.hasOwn(options, 'backgroundCalm')) {
+          if (
+            !options.backgroundCalm ||
+            typeof options.backgroundCalm !== 'object' ||
+            Array.isArray(options.backgroundCalm)
+          )
+            throw invalid();
+          const map = {};
+          for (const [imageId, rawCalm] of Object.entries(options.backgroundCalm)) {
+            if (!seen.has(imageId)) throw invalid();
+            const entry = fields(rawCalm, ['maskId', 'strength']);
+            if (
+              typeof entry.maskId !== 'string' ||
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+                entry.maskId,
+              ) ||
+              typeof entry.strength !== 'number' ||
+              !Number.isSafeInteger(entry.strength) ||
+              entry.strength < 1 ||
+              entry.strength > 100
+            )
+              throw invalid();
+            map[imageId] = Object.freeze({ maskId: entry.maskId, strength: entry.strength });
+          }
+          backgroundCalm = Object.freeze(map);
+        }
         photoOptions = Object.freeze({
           resize: options.resize,
           crops: Object.freeze(crops),
@@ -1149,6 +1177,7 @@
           ...(Object.hasOwn(options, 'border') ? { border: options.border } : {}),
           ...(adjustments ? { adjustments } : {}),
           ...(photoAdjustments ? { photoAdjustments } : {}),
+          ...(backgroundCalm ? { backgroundCalm } : {}),
         });
       }
       return Object.freeze({

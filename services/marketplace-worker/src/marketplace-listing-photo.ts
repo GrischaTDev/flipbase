@@ -6,14 +6,76 @@ export interface MarketplaceListingPhoto {
   readonly fileName: string;
   readonly mimeType: 'image/jpeg' | 'image/png' | 'image/webp';
   readonly bytes: Uint8Array;
+  readonly maskBytes?: Uint8Array;
+  readonly maskMimeType?: 'image/png';
 }
 interface PhotoOptions {
   url: string;
   serviceRoleKey: string;
   request: typeof fetch;
 }
+const UUID_HEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_MASK_BYTES = 15 * 1024 * 1024;
 function invalid(): Error {
   return new Error('Das Foto konnte nicht geladen werden.');
+}
+async function readExactStream(
+  body: ReadableStream<Uint8Array>,
+  byteSize: number,
+): Promise<Uint8Array> {
+  const bytes = new Uint8Array(byteSize);
+  const reader = body.getReader();
+  let offset = 0;
+  let complete = false;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        complete = true;
+        break;
+      }
+      if (value.byteLength > bytes.length - offset) throw invalid();
+      bytes.set(value, offset);
+      offset += value.byteLength;
+    }
+  } finally {
+    if (!complete) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+  if (offset !== bytes.length) throw invalid();
+  return bytes;
+}
+async function readBoundedStream(
+  body: ReadableStream<Uint8Array>,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  const reader = body.getReader();
+  let total = 0;
+  let complete = false;
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        complete = true;
+        break;
+      }
+      total += value.byteLength;
+      if (total > maxBytes) throw invalid();
+      chunks.push(value);
+    }
+  } finally {
+    if (!complete) await reader.cancel().catch(() => undefined);
+    reader.releaseLock();
+  }
+  if (total < 1) throw invalid();
+  const out = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    out.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return out;
 }
 function matchesImageType(bytes: Uint8Array, type: MarketplaceListingPhoto['mimeType']): boolean {
   if (type === 'image/jpeg')
@@ -92,33 +154,62 @@ export async function loadMarketplaceListingPhoto(
       await response.body?.cancel().catch(() => undefined);
       throw invalid();
     }
-    const bytes = new Uint8Array(image.byteSize),
-      reader = response.body.getReader();
-    let offset = 0,
-      complete = false;
-    try {
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
-          complete = true;
-          break;
-        }
-        if (value.byteLength > bytes.length - offset) throw invalid();
-        bytes.set(value, offset);
-        offset += value.byteLength;
-      }
-    } finally {
-      if (!complete) await reader.cancel().catch(() => undefined);
-      reader.releaseLock();
-    }
-    if (offset !== bytes.length || !matchesImageType(bytes, image.mimeType) || !(await authorize()))
-      throw invalid();
+    const bytes = await readExactStream(response.body, image.byteSize);
+    if (!matchesImageType(bytes, image.mimeType) || !(await authorize())) throw invalid();
     return Object.freeze({
       id: image.id,
       fileName: image.fileName,
       mimeType: image.mimeType,
       bytes,
     });
+  } catch {
+    throw invalid();
+  }
+}
+
+export async function loadMarketplaceListingPhotoMask(
+  options: PhotoOptions,
+  workspaceId: string,
+  maskId: string,
+  authorize: () => Promise<boolean>,
+): Promise<Uint8Array> {
+  try {
+    if (!UUID_HEX.test(workspaceId) || !UUID_HEX.test(maskId)) throw invalid();
+    const url = new URL(
+      `/storage/v1/object/marketplace-listing-masks/${encodeURIComponent(workspaceId)}/${encodeURIComponent(maskId.toLowerCase())}.png`,
+      options.url,
+    );
+    if (
+      !['https:', 'http:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      !(await authorize())
+    )
+      throw invalid();
+    const response = await options.request(url, {
+      method: 'GET',
+      headers: {
+        apikey: options.serviceRoleKey,
+        Authorization: 'Bearer ' + options.serviceRoleKey,
+      },
+      redirect: 'error',
+      signal: AbortSignal.timeout(20_000),
+    });
+    const length = response.headers.get('Content-Length');
+    if (
+      response.status !== 200 ||
+      response.redirected ||
+      !response.body ||
+      response.headers.get('Content-Type')?.split(';')[0]?.trim().toLowerCase() !== 'image/png' ||
+      (length !== null &&
+        (!/^[0-9]+$/.test(length) || Number(length) < 1 || Number(length) > MAX_MASK_BYTES))
+    ) {
+      await response.body?.cancel().catch(() => undefined);
+      throw invalid();
+    }
+    const bytes = await readBoundedStream(response.body, MAX_MASK_BYTES);
+    if (!matchesImageType(bytes, 'image/png') || !(await authorize())) throw invalid();
+    return bytes;
   } catch {
     throw invalid();
   }

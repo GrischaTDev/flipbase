@@ -5,6 +5,7 @@ import { loadMarketplaceListingCategoryPath } from './marketplace-listing-catego
 import { validateMarketplaceMessageLease } from './supabase-marketplace-message-store.ts';
 import {
   loadMarketplaceListingPhoto,
+  loadMarketplaceListingPhotoMask,
   type MarketplaceListingPhoto,
 } from './marketplace-listing-photo.ts';
 
@@ -181,13 +182,14 @@ export class SupabaseMarketplaceListingStore {
   async loadPhoto(claim: CloudListingClaim, imageId: string): Promise<MarketplaceListingPhoto> {
     try {
       this.binding(claim);
-      const original = snapshot(
+      const parsedSnapshot = snapshot(
         claim.snapshot,
         claim.scope.workspaceId,
         claim.scope.connectionId,
-      ).images.find((image) => image.id === imageId);
+      );
+      const original = parsedSnapshot.images.find((image) => image.id === imageId);
       if (!original) throw invalid();
-      return await loadMarketplaceListingPhoto(
+      const photo = await loadMarketplaceListingPhoto(
         {
           url: this.options.url,
           serviceRoleKey: this.options.serviceRoleKey,
@@ -197,6 +199,23 @@ export class SupabaseMarketplaceListingStore {
         original,
         () => this.check(claim),
       );
+      const calm = parsedSnapshot.photoOptions?.backgroundCalm?.[imageId];
+      if (!calm) return photo;
+      const maskBytes = await loadMarketplaceListingPhotoMask(
+        {
+          url: this.options.url,
+          serviceRoleKey: this.options.serviceRoleKey,
+          request: this.request,
+        },
+        claim.scope.workspaceId,
+        calm.maskId,
+        () => this.check(claim),
+      );
+      return Object.freeze({
+        ...photo,
+        maskBytes,
+        maskMimeType: 'image/png' as const,
+      });
     } catch {
       throw new Error('Das Foto konnte nicht geladen werden.');
     }

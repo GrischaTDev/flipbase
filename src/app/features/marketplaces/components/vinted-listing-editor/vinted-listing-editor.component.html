@@ -199,6 +199,75 @@
               }
             </div>
 
+            <div class="space-y-2 border-t border-fb-border-subtle pt-3">
+              @if (activePhotoBackgroundCalm(); as activeCalm) {
+                <div
+                  class="flex min-h-7 items-center gap-3"
+                  (wheel)="onBackgroundCalmWheel($event)"
+                >
+                  <label
+                    for="vinted-relist-slider-backgroundCalm"
+                    class="w-32 shrink-0 text-[13px] font-medium text-fb-text-secondary"
+                  >
+                    Untergrund
+                  </label>
+                  <input
+                    id="vinted-relist-slider-backgroundCalm"
+                    type="range"
+                    min="1"
+                    max="100"
+                    step="1"
+                    [value]="activeCalm.strength"
+                    [attr.aria-valuetext]="activeCalm.strength + ' % beruhigt'"
+                    [disabled]="saving() || preparingPhotos() || calmingBackground()"
+                    (input)="onBackgroundCalmSlider($any($event.target).value)"
+                    (dblclick)="resetBackgroundCalmSlider()"
+                    class="h-5 min-w-0 flex-1 cursor-pointer accent-fb-primary disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                  <span
+                    class="w-12 shrink-0 text-right text-xs tabular-nums text-fb-text-secondary"
+                  >
+                    {{ activeCalm.strength }} %
+                  </span>
+                </div>
+              }
+              <div class="flex flex-wrap items-center gap-2">
+                @if (!activePhotoBackgroundCalm()) {
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    [loading]="calmingBackground()"
+                    [disabled]="
+                      saving() || preparingPhotos() || !selectedPhoto() || calmingBackground()
+                    "
+                    (clicked)="calmSelectedPhotoBackground(false)"
+                    >Untergrund beruhigen (KI)</app-button
+                  >
+                } @else {
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    [disabled]="saving() || preparingPhotos() || calmingBackground()"
+                    (clicked)="removeBackgroundCalm()"
+                    >Untergrund zurücksetzen</app-button
+                  >
+                }
+                @if (hasUnmaskedRelistPhotos()) {
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    [loading]="calmingBackground()"
+                    [disabled]="saving() || preparingPhotos() || calmingBackground()"
+                    (clicked)="calmSelectedPhotoBackground(true)"
+                    >Alle Fotos beruhigen</app-button
+                  >
+                }
+              </div>
+              @if (backgroundCalmError(); as calmError) {
+                <p role="alert" class="text-xs text-fb-critical">{{ calmError }}</p>
+              }
+            </div>
+
             <div class="flex flex-wrap items-center gap-2 pt-1">
               <app-button
                 size="slim"
@@ -278,6 +347,7 @@
             [selectedIndex]="selectedPhotoIndex()"
             (selectedIndexChange)="selectRelistPhoto($event)"
             [options]="photoOptions()"
+            [backgroundMasks]="loadedBackgroundMasks()"
           />
         </div>
       </div>

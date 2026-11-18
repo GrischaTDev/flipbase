@@ -337,7 +337,10 @@ begin
     perform 1 from public.inventory_items where id=v_draft.inventory_item_id and workspace_id=v_draft.workspace_id and archived_at is null and status in ('ready','listed') for share;
     if not found or not exists(select 1 from public.inventory_item_sale_states where inventory_item_id=v_draft.inventory_item_id and workspace_id=v_draft.workspace_id and sale_state='no_active_sale') then raise exception 'Dieser Artikel kann momentan nicht angeboten werden.' using errcode='22023'; end if;
   end if;
-  if not public.marketplace_listing_photo_options_valid(v_draft.photo_options,v_draft.image_ids) then raise exception 'Die Bildbearbeitung passt nicht mehr zur Fotoauswahl.' using errcode='22023'; end if;
+  if not public.marketplace_listing_photo_options_valid(v_draft.photo_options,v_draft.image_ids)
+    or not public.marketplace_listing_photo_masks_accessible(v_draft.workspace_id,v_draft.photo_options) then
+    raise exception 'Die Bildbearbeitung passt nicht mehr zur Fotoauswahl.' using errcode='22023';
+  end if;
   if not public.marketplace_listing_content_valid(v_draft.content) or coalesce(length(btrim(v_draft.content->>'title')),0)=0 or coalesce(length(btrim(v_draft.content->>'description')),0)=0
     or coalesce(v_draft.content->>'currency','')<>'EUR' or coalesce((v_draft.content->>'priceCents')::bigint,0)<=0 or coalesce((v_draft.content->>'categoryId')::bigint,0)<=0
     or coalesce((v_draft.content->>'conditionId')::bigint,0)<=0 or coalesce((v_draft.content->>'packageSizeId')::bigint,0)<=0 or cardinality(v_draft.image_ids) not between 1 and 20 then raise exception 'Bitte Angaben und Fotos vor der Anbieteraktion vervollständigen.' using errcode='22023'; end if;

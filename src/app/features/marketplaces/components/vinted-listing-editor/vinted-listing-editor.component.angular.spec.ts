@@ -39,6 +39,7 @@ import { VintedListingOperationStore } from '../../services/vinted-listing-opera
 import { listingCurrentContentFixture } from '../../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 import { VintedRelistingSubmissionService } from '../../services/vinted-relisting-submission.service';
 import { VintedListingPhotoSourceService } from '../../services/vinted-listing-photo-source.service';
+import { VintedPhotoBackgroundMaskService } from '../../services/vinted-photo-background-mask.service';
 import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
@@ -220,6 +221,20 @@ function setup(
         },
       },
       {
+        provide: VintedPhotoBackgroundMaskService,
+        useValue: {
+          createMask: vi.fn().mockResolvedValue({
+            maskId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+            mask: { base64: btoa('mask-png'), mimeType: 'image/png' },
+          }),
+          loadStoredMask: vi.fn().mockResolvedValue({
+            base64: btoa('stored-mask-png'),
+            mimeType: 'image/png',
+          }),
+          cachedMask: vi.fn().mockReturnValue(null),
+        },
+      },
+      {
         provide: VintedBrandSearchService,
         useValue: { search: vi.fn().mockResolvedValue([{ id: 254956, name: 'Jako' }]) },
       },
@@ -360,6 +375,7 @@ function setup(
     startRelisting,
     snapshot,
     photoSources: TestBed.inject(VintedListingPhotoSourceService),
+    maskService: TestBed.inject(VintedPhotoBackgroundMaskService),
     readListingContent,
     readRelistingContent,
     create,
@@ -765,6 +781,90 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     f.fixture!.detectChanges();
     expect(preview.viewMode()).toBe('edited');
     expect(preview.preview()).toBe('https://images.example.test/original.jpg');
+  });
+
+  it('beruhigt Foto-Untergründe über die Masken-API, rendert per Stärke-Regler ohne Modalsprung und übergibt photoKeys beim Relist', async () => {
+    const baseSource = localRelisting();
+    const f = setup(
+      {},
+      {
+        ...baseSource,
+        entry: {
+          ...baseSource.entry,
+          imageUrls: [
+            'https://images.example.test/photo-1.jpg',
+            'https://images.example.test/photo-2.jpg',
+          ],
+        },
+      },
+    );
+    await settle();
+    const key1 = f.component.images()[0]!.key;
+    const key2 = f.component.images()[1]!.key;
+
+    await f.component.calmSelectedPhotoBackground(false);
+    await settle();
+
+    expect(f.maskService.createMask).toHaveBeenCalledTimes(1);
+    expect(f.component.photoOptions().backgroundCalm).toEqual({
+      [key1]: { maskId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', strength: 70 },
+    });
+    await vi.waitFor(() =>
+      expect(mockRenderVintedListingPhoto).toHaveBeenCalledWith(
+        expect.objectContaining({
+          maskBase64: btoa('mask-png'),
+          maskMimeType: 'image/png',
+          backgroundCalm: 70,
+        }),
+      ),
+    );
+
+    // Stärke lokal und per Mausrad nachregeln ohne weiteren API-Aufruf
+    f.component.onBackgroundCalmSlider('85');
+    expect(f.component.photoOptions().backgroundCalm?.[key1]?.strength).toBe(85);
+    const wheel = new WheelEvent('wheel', { deltaY: -120, shiftKey: true, cancelable: true });
+    vi.spyOn(wheel, 'preventDefault');
+    f.component.onBackgroundCalmWheel(wheel);
+    expect(wheel.preventDefault).toHaveBeenCalledOnce();
+    expect(f.component.photoOptions().backgroundCalm?.[key1]?.strength).toBe(90);
+    expect(f.maskService.createMask).toHaveBeenCalledTimes(1);
+
+    // Zweites Foto ebenfalls über "Alle Fotos beruhigen" ergänzen, ohne Foto 1 erneut zu rufen
+    vi.mocked(f.maskService.createMask).mockResolvedValueOnce({
+      maskId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      mask: { base64: btoa('mask-png-2'), mimeType: 'image/png' },
+    });
+    await f.component.calmSelectedPhotoBackground(true);
+    expect(f.maskService.createMask).toHaveBeenCalledTimes(2);
+    expect(f.component.photoOptions().backgroundCalm).toEqual({
+      [key1]: { maskId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', strength: 90 },
+      [key2]: { maskId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', strength: 90 },
+    });
+
+    await f.component.submitRelisting();
+    expect(f.startRelisting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        photoKeys: [key1, key2],
+        photoOptions: expect.objectContaining({
+          backgroundCalm: {
+            [key1]: { maskId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', strength: 90 },
+            [key2]: { maskId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', strength: 90 },
+          },
+        }),
+      }),
+    );
+
+    // Fehlerfall sauber inline anzeigen ohne Exception
+  });
+
+  it('meldet Masken-Fehler im Relisting-Editor ohne laufende Formularwerte zu verwerfen', async () => {
+    const f = setup({}, localRelisting());
+    await settle();
+    vi.mocked(f.maskService.createMask).mockRejectedValueOnce(
+      new Error('Das Limit für KI-Masken ist vorübergehend erreicht.'),
+    );
+    await f.component.calmSelectedPhotoBackground(false);
+    expect(f.component.backgroundCalmError()).toContain('Limit für KI-Masken');
   });
 
   it('schließt nach dem bestätigten Klick sofort und übergibt unveränderliche Formularwerte', async () => {
@@ -1491,6 +1591,9 @@ describe('Vinted-Inserateditor', () => {
         previewUrl: '',
       },
     ]);
+    component.photoBackgroundCalm.set({
+      '2': { maskId: '11111111-1111-4111-8111-111111111111', strength: 75 },
+    });
     component.form.patchValue({ title: 'Burberry Schal grau', connectionId: 'account-a' });
     const original = new File(['abc'], 'schal.jpg', { type: 'image/jpeg' });
     const renamedFile = vi.fn().mockResolvedValue(original);
@@ -1525,6 +1628,14 @@ describe('Vinted-Inserateditor', () => {
     );
     expect(save.mock.calls.every(([current]) => current.id === '77')).toBe(true);
     expect(upload).toHaveBeenCalledWith(expect.objectContaining({ id: '77' }), original, undefined);
+    expect(imageApi.savePhotoOptions).toHaveBeenCalledWith(
+      expect.objectContaining({ id: '77' }),
+      expect.objectContaining({
+        backgroundCalm: {
+          '9': { maskId: '11111111-1111-4111-8111-111111111111', strength: 75 },
+        },
+      }),
+    );
     expect(component.error()).toBeNull();
     expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith([
       '/marketplaces/vinted/listing-drafts',

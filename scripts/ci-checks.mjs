@@ -63,6 +63,7 @@ const checks = {
         'supabase/functions/kleinanzeigen-account/index.ts',
         'supabase/functions/kleinanzeigen-local-extension/index.ts',
         'supabase/functions/vinted-ai-search/index.ts',
+        'supabase/functions/vinted-photo-background-mask/index.ts',
       ],
     },
     {
@@ -73,6 +74,8 @@ const checks = {
         '--no-config',
         '--node-modules-dir=none',
         '--allow-env',
+        'supabase/functions/vinted-photo-background-mask/index.test.ts',
+        'supabase/functions/vinted-photo-background-mask/provider.test.ts',
         'supabase/functions/vinted-ai-search/index.test.ts',
         'supabase/functions/ai-connection/handler.test.ts',
         'supabase/functions/ai-connection/image-validation.test.ts',

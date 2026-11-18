@@ -23,6 +23,10 @@ import {
   VintedListingPhotoSourceService,
   type VintedListingPhotoScope,
 } from '../../services/vinted-listing-photo-source.service';
+import {
+  VintedPhotoBackgroundMaskService,
+  type ForegroundPhotoMask,
+} from '../../services/vinted-photo-background-mask.service';
 
 /** Liest nur die Originalquelle; die kurzlebige Ausgabe wird nie in die Bildauswahl geschrieben. */
 @Component({
@@ -40,7 +44,9 @@ export class VintedListingPhotoPreviewComponent {
   readonly selectedIndexChange = output<number>();
   readonly options = input.required<VintedListingPhotoOptions>();
   readonly photoScope = input<VintedListingPhotoScope | null>(null);
+  readonly backgroundMasks = input<Readonly<Record<string, ForegroundPhotoMask>>>({});
   private readonly photos = inject(VintedListingPhotoSourceService);
+  private readonly maskService = inject(VintedPhotoBackgroundMaskService);
   readonly preview = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
@@ -127,6 +133,7 @@ export class VintedListingPhotoPreviewComponent {
           options.border ?? 'none',
           options.crops[image.key] ?? null,
           resolveVintedListingPhotoAdjustment(options, image.key).flipX,
+          options.backgroundCalm?.[image.key]?.maskId ?? null,
         ]);
         const discreteChanged = photoChanged || discreteKey !== this.lastDiscreteKey;
         this.activeKey = image.key;
@@ -224,7 +231,8 @@ export class VintedListingPhotoPreviewComponent {
     const opts = this.options();
     return (
       !!opts.crops[photo.key] ||
-      !isNeutralVintedListingPhotoAdjustment(opts.photoAdjustments?.[photo.key])
+      !isNeutralVintedListingPhotoAdjustment(opts.photoAdjustments?.[photo.key]) ||
+      !!opts.backgroundCalm?.[photo.key]
     );
   }
 
@@ -258,6 +266,16 @@ export class VintedListingPhotoPreviewComponent {
       }
       const original = await pending;
       if (generation !== this.generation) return;
+      const calm = options.backgroundCalm?.[image.key];
+      let mask: ForegroundPhotoMask | null = null;
+      if (calm && calm.strength > 0) {
+        mask =
+          this.backgroundMasks()[calm.maskId] ?? this.maskService.cachedMask(calm.maskId) ?? null;
+        if (!mask && photoScope?.workspaceId) {
+          mask = await this.maskService.loadStoredMask(photoScope.workspaceId, calm.maskId);
+        }
+      }
+      if (generation !== this.generation) return;
       const adjustment = resolveVintedListingPhotoAdjustment(options, image.key);
       const encoded = await renderVintedListingPhoto({
         ...original,
@@ -266,6 +284,13 @@ export class VintedListingPhotoPreviewComponent {
         filter: options.filter,
         border: options.border,
         ...(isNeutralVintedListingPhotoAdjustment(adjustment) ? {} : { adjustments: adjustment }),
+        ...(calm && calm.strength > 0 && mask
+          ? {
+              maskBase64: mask.base64,
+              maskMimeType: mask.mimeType,
+              backgroundCalm: calm.strength,
+            }
+          : {}),
       });
       if (generation === this.generation) this.preview.set('data:image/jpeg;base64,' + encoded);
     } catch {

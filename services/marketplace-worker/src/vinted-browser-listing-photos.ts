@@ -99,12 +99,17 @@ export async function uploadVintedListingPhotos(
     const state = await page.evaluate(collectPhotoState);
     if (!matchesPrefix(state, accepted) || state.items.length !== accepted.length) throw invalid();
     const photo = await loadPhoto(original.id);
+    const hasCalmMask = !!options.photoOptions?.backgroundCalm?.[original.id];
     if (
       photo.id !== original.id ||
       photo.fileName !== original.fileName ||
       photo.mimeType !== original.mimeType ||
       !(photo.bytes instanceof Uint8Array) ||
-      photo.bytes.byteLength !== original.byteSize
+      photo.bytes.byteLength !== original.byteSize ||
+      (hasCalmMask &&
+        (!(photo.maskBytes instanceof Uint8Array) ||
+          !photo.maskBytes.byteLength ||
+          photo.maskMimeType !== 'image/png'))
     )
       throw invalid();
     const upload = options.photoOptions
