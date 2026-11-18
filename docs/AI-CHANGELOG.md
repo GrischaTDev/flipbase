@@ -10,6 +10,14 @@
 
 **Nachweis:** `npm run test:pwa:scripts`: 56 von 57 bestanden. Der eine Fehlschlag, `pwa-build-archive.test.mjs`, ist unverändert und liegt an der Windows-Zeichenkodierung der Python-Ausgabe; mit `PYTHONUTF8=1` sind beide Fälle bestanden. Neue Worker-Fälle prüfen die Übernahme unveränderter Dateien, den Neuabruf beschädigter alter Bytes und das Verwerfen nach einem Fehler beim parallelen Laden. Die Angular-Tests des Update-Dienstes sind bestanden, einschließlich eines neuen Falls für die stille Wiederholung beim Ausliefern. `e2e/pwa-production.spec.ts` mit echten Testbauten lokal unter Windows für `chromium-pwa` und `android-pwa-updates`: 18 bestanden; die Linux-Läufe liefert die CI. Die Caddyfile wurde mit `caddy:2.10.2-alpine` übersetzt und enthält die Wartezeit. Die Wirkung beim nächsten echten Ausliefern ist noch nicht beobachtet.
 
+## 2026-11-18 - Juna - Gemeinsame Vinted-Versandscheinliste
+
+Die Seite „Versandscheine“ zeigt die gespeicherten Dateien aller Vinted-Konten im aktuellen Workspace. Der Artikel erhält links die vorhandene Verkaufsvorschau und unter dem Titel den Kontonamen. Gesucht werden kann auch nach Konto. Vorschauen werden anhand des Kontos und der Vinted-Transaktion zugeordnet. Für ältere Einträge ohne Foto erscheint der gemeinsame Artikelplatzhalter.
+
+Der Direktlink aus Chat und Verkäufen scrollt zum richtigen Eintrag, fokussiert ihn und hinterlegt die Zeile vier Sekunden dezent. Die Seite braucht keine Kontoauswahl. Auf Verkaufskarten steht der gelbe Versandschein-Iconbutton als erste Aktion vor Neu-Einstellen und Chat. Kontogebundene Abrufe im Postfach und bei Verkäufen bleiben erhalten. Die vorhandenen Lesefreigaben für Workspace und Datei gelten auch für die gemeinsame Liste.
+
+Beim Burberry-Verkauf lag das Foto vor. Der nachträglich abgeholte Schein hatte keinen Versanddienst. Die abgeschickte Sendung war anhand von `shipped_tracked` und der Transaktion belegt, die Verkaufskarte stand trotzdem auf „Verkauft“. Der Worker erkennt beide Versandbelege. Er liest den Versanddienst auch beim Abholen und kann beim gezielten Chatabruf einen fehlenden Namen am bereits gespeicherten Schein ergänzen. Fehlt der Anbieterbeleg, steht in der Liste „Unbekannt“. Die Produktionsdiagnose war lesend.
+
 ## 2026-11-18 - Juna - Automatische Vinted-Verkaufsentwürfe
 
 Ein neu importierter bestätigter Vinted-Verkauf erscheint als Entwurf unter Verkäufe. Bei aktivem Shop übernimmt er den eindeutig mit der Veröffentlichung verknüpften und verfügbaren Bestandsartikel. Bei ausgeschaltetem Shop übernimmt er die belegten Daten in eine freie Position. Die Anlage verändert den Bestand nicht. Die Datenbank verbucht den Entwurf erst beim Abschluss und schützt auch bei Wiederholungen vor Doppelbuchungen.

@@ -59,6 +59,33 @@ test('übernimmt einen bestätigten Paketverkauf bereits vor dem Versand mit sä
   assert.equal(sale.body['externalConversationId'], '51');
 });
 
+test('setzt einen nachweislich verschickten Verkauf auf Versendet', () => {
+  const sold = system('sale', 'success', 'Verkauft');
+  const shipped = {
+    ...system(
+      'shipment',
+      'shipped_tracked',
+      'Sendung wurde an Käufer verschickt.',
+      '2026-10-22T11:00:00Z',
+    ),
+    entity_type: 'action_message',
+  };
+  const tracked = snapshot([sold, shipped]).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(tracked?.body.saleState, 'shipped');
+  assert.equal(tracked?.body.saleStateAt, '2026-10-22T11:00:00.000Z');
+  assert.equal(tracked?.body.occurredAt, '2026-10-22T10:00:00.000Z');
+  assert.equal(tracked?.body.status, 'Versendet');
+  const detail = snapshot([sold], {
+    shipment: { status_title: 'Sendung verschickt und auf dem Weg!' },
+    status_updated_at: '2026-10-22T09:00:00Z',
+  }).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(detail?.body.saleState, 'shipped');
+  const chatText = snapshot([sold, { ...shipped, entity_type: 'text_message' }]).entries.find(
+    (entry) => entry.kind === 'sale',
+  );
+  assert.equal(chatText?.body.saleState, 'sold');
+});
+
 test('behält den stornierten Paketverkauf und erkennt anschließend den Vinted-Wiedereinstellbeleg', () => {
   const messages = [
     system('sale', 'success', 'Verkauft'),

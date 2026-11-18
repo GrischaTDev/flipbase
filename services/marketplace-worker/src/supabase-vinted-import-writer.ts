@@ -318,6 +318,41 @@ export class SupabaseVintedImportWriter {
         throw new Error('Vinted-Daten konnten nicht bestätigt werden');
       counts[kind] = value;
     }
+    if (scope.accountAction && counts.sale > 0) {
+      // Nur der bestätigte Einzelabruf kann fehlende Angaben zu einem vorhandenen Schein ergänzen.
+      const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
+      const carrier = sale?.body['shippingCarrierName'];
+      const shipment = sale?.body['shipmentId'];
+      if (
+        sale &&
+        sale.body['sellerId'] === snapshot.identity.id &&
+        /^[1-9][0-9]{0,31}$/.test(sale.externalId) &&
+        typeof shipment === 'string' &&
+        /^[1-9][0-9]{0,31}$/.test(shipment) &&
+        typeof carrier === 'string' &&
+        carrier.trim() &&
+        carrier.length <= 120
+      ) {
+        try {
+          await this.assertActive(scope, sessionId);
+          const url = new URL('/rest/v1/marketplace_shipping_labels', this.baseUrl);
+          url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
+          url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
+          url.searchParams.set('external_transaction_id', `eq.${sale.externalId}`);
+          url.searchParams.set('external_shipment_id', `eq.${shipment}`);
+          url.searchParams.set('carrier_name', 'is.null');
+          const response = await this.request(url, {
+            method: 'PATCH',
+            headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
+            body: JSON.stringify({ carrier_name: carrier }),
+            signal: AbortSignal.timeout(2500),
+          });
+          if (!response.ok) throw new Error('Versanddienst konnte nicht gespeichert werden');
+        } catch {
+          process.stderr.write('Vinted-Versanddienst konnte nicht ergänzt werden!\n');
+        }
+      }
+    }
     if (categories) {
       await this.assertActive(scope, sessionId);
       const response = await this.request(

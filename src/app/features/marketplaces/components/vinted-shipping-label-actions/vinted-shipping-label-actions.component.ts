@@ -14,6 +14,7 @@ import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.s
 })
 export class VintedShippingLabelActionsComponent {
   readonly sale = input.required<MarketplaceEntry>();
+  readonly iconOnly = input(false);
   readonly labels = inject(VintedShippingLabelStore);
   readonly openIcon = FileText;
   readonly requestIcon = Truck;
@@ -27,6 +28,16 @@ export class VintedShippingLabelActionsComponent {
   readonly deadline = computed(() =>
     this.sale().saleState === 'sold' ? (this.sale().shippingDeadline ?? null) : null,
   );
+
+  readonly actionLabel = computed(() => {
+    if (this.label()) return 'Zum Versandschein';
+    return this.action() === 'order' ? 'Versandschein anfordern' : 'Versandschein abholen';
+  });
+  readonly actionTooltip = computed(() => {
+    if (!this.iconOnly()) return '';
+    const deadline = this.deadline();
+    return deadline ? `${this.actionLabel()} · Verschicken bis ${deadline}` : this.actionLabel();
+  });
 
   request(): void {
     void this.labels.request(this.sale());

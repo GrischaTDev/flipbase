@@ -74,6 +74,71 @@ const snapshot = {
 } satisfies import('../src/vinted-account-import.ts').VintedAccountImport;
 const counts = { profile: 1, publication: 0, conversation: 0, message: 0, sale: 0 };
 
+test('ergänzt den bestätigten Versanddienst nur an einem passenden vorhandenen Schein', async () => {
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+  const absoluteExpiresAt = new Date(Date.now() + 600_000).toISOString();
+  const accountAction = {
+    sessionId,
+    actionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    claimToken: '11111111-1111-4111-8111-111111111111',
+    workerId: '22222222-2222-4222-8222-222222222222',
+    workerEpoch: 2,
+    runnerId: 'ffffffff-ffff-4fff-8fff-ffffffffffff',
+    expiresAt,
+    absoluteExpiresAt,
+  };
+  const patch: URL[] = [];
+  const writer = new SupabaseVintedImportWriter({
+    url: 'https://db.example.test',
+    publishableKey: 'public-token',
+    serviceRoleKey: 'server-token',
+    fetch: async (input, init) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith('marketplace_account_action_check'))
+        return Response.json({
+          active: true,
+          sessionId,
+          expiresAt,
+          absoluteExpiresAt,
+          target: {
+            accountId: '123',
+            externalId: '51',
+            entryId: null,
+            entryKind: 'conversation',
+            body: null,
+          },
+        });
+      if (url.pathname.endsWith('marketplace_apply_vinted_import'))
+        return Response.json({ ...counts, sale: 1 });
+      assert.equal(init?.method, 'PATCH');
+      assert.equal(new Headers(init.headers).get('Authorization'), 'Bearer server-token');
+      assert.deepEqual(JSON.parse(String(init.body)), { carrier_name: 'DHL' });
+      patch.push(url);
+      return new Response(null, { status: 204 });
+    },
+  });
+  await writer.write({ ...scope, userAccessToken: '', accountAction }, sessionId, {
+    ...snapshot,
+    entries: [
+      {
+        kind: 'sale',
+        externalId: '71',
+        sortAt: snapshot.observedAt,
+        body: { sellerId: '123', shipmentId: '987', shippingCarrierName: 'DHL' },
+      },
+    ],
+  });
+  assert.equal(patch.length, 1);
+  assert.equal(patch[0]?.pathname, '/rest/v1/marketplace_shipping_labels');
+  assert.deepEqual(Object.fromEntries(patch[0]!.searchParams), {
+    workspace_id: `eq.${scope.workspaceId}`,
+    connection_id: `eq.${scope.connectionId}`,
+    external_transaction_id: 'eq.71',
+    external_shipment_id: 'eq.987',
+    carrier_name: 'is.null',
+  });
+});
+
 test('imports a durable read only through the bound operation and fenced server RPC', async () => {
   const readScope = {
     ...scope,

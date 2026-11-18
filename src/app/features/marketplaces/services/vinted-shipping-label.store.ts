@@ -2,7 +2,6 @@ import { Injectable, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { ToastService } from '../../../shared/components/toast/toast.service';
-import type { AccountScope } from '../models/marketplace.models';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
 import {
   parseVintedShippingLabelRow,
@@ -13,15 +12,20 @@ import {
 import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 
 const signedUrlSeconds = 120;
+const workspacePageSize = 100;
+interface ShippingLabelScope {
+  workspaceId: string;
+  connectionId?: string;
+}
 
-/** Versandscheine des gewählten Vinted-Kontos: Liste, Anfordern und Öffnen der privaten Kopie. */
+/** Gespeicherte Vinted-Versandscheine im Workspace oder in einem einzelnen Konto. */
 @Injectable({ providedIn: 'root' })
 export class VintedShippingLabelStore {
   private readonly client = inject(SupabaseService).client;
   private readonly auth = inject(AuthService);
   private readonly api = inject(MarketplaceBrowserTestApiService);
   private readonly toast = inject(ToastService);
-  private readonly scope = signal<AccountScope | null>(null);
+  private readonly scope = signal<ShippingLabelScope | null>(null);
   private revision = 0;
 
   readonly labels = signal<readonly VintedShippingLabel[]>([]);
@@ -43,29 +47,32 @@ export class VintedShippingLabelStore {
     return matches.length === 1 ? (matches[0] ?? null) : null;
   }
 
-  async load(scope: AccountScope): Promise<void> {
+  async load(scope: ShippingLabelScope): Promise<void> {
     const revision = ++this.revision;
     this.scope.set(scope);
     this.loading.set(true);
     this.loadError.set(null);
     try {
-      const { data, error } = await this.client
-        .from('marketplace_shipping_labels')
-        .select(
-          'id,workspace_id,connection_id,external_transaction_id,external_shipment_id,external_conversation_id,title,carrier_name,label_type,storage_path,mime_type,requested_by_flipbase,fetched_at',
-        )
-        .eq('workspace_id', scope.workspaceId)
-        .eq('connection_id', scope.connectionId)
-        .order('fetched_at', { ascending: false })
-        .limit(200);
-      if (revision !== this.revision) return;
-      if (error) throw error;
-      this.labels.set(
-        (data ?? []).flatMap((row: unknown) => {
+      const labels: VintedShippingLabel[] = [];
+      let beforeId: number | null = null;
+      do {
+        const { data, error } = await this.readPage(scope, beforeId);
+        if (revision !== this.revision) return;
+        if (error) throw error;
+        const page = (data ?? []).flatMap((row) => {
           const label = parseVintedShippingLabelRow(row);
           return label ? [label] : [];
-        }),
-      );
+        });
+        labels.push(
+          ...(scope.connectionId ? page : await this.withSalePhotos(scope.workspaceId, page)),
+        );
+        if (revision !== this.revision) return;
+        beforeId =
+          !scope.connectionId && data?.length === workspacePageSize
+            ? (data.at(-1)?.id ?? null)
+            : null;
+      } while (beforeId !== null);
+      this.labels.set(labels.sort((a, b) => Date.parse(b.fetchedAt) - Date.parse(a.fetchedAt)));
     } catch {
       if (revision === this.revision) {
         this.labels.set([]);
@@ -74,6 +81,44 @@ export class VintedShippingLabelStore {
     } finally {
       if (revision === this.revision) this.loading.set(false);
     }
+  }
+
+  private async readPage(scope: ShippingLabelScope, beforeId: number | null) {
+    const query = this.client
+      .from('marketplace_shipping_labels')
+      .select(
+        'id,workspace_id,connection_id,external_transaction_id,external_shipment_id,external_conversation_id,title,carrier_name,label_type,storage_path,mime_type,requested_by_flipbase,fetched_at',
+      )
+      .eq('workspace_id', scope.workspaceId);
+    if (scope.connectionId)
+      return query
+        .eq('connection_id', scope.connectionId)
+        .order('fetched_at', { ascending: false })
+        .limit(200);
+    return (beforeId === null ? query : query.lt('id', beforeId))
+      .order('id', { ascending: false })
+      .limit(workspacePageSize);
+  }
+
+  private async withSalePhotos(
+    workspaceId: string,
+    labels: readonly VintedShippingLabel[],
+  ): Promise<readonly VintedShippingLabel[]> {
+    if (!labels.length) return labels;
+    const { data, error } = await this.client
+      .from('marketplace_account_entries')
+      .select('connection_id,external_id,image_url:body->>imageUrl')
+      .eq('workspace_id', workspaceId)
+      .eq('kind', 'sale')
+      .in('external_id', [...new Set(labels.map((label) => label.transactionId))]);
+    if (error || !data) return labels;
+    const photos = new Map(
+      data.map((sale) => [`${sale.connection_id}/${sale.external_id}`, sale.image_url]),
+    );
+    return labels.map((label) => {
+      const imageUrl = photos.get(`${label.connectionId}/${label.transactionId}`);
+      return typeof imageUrl === 'string' && imageUrl ? { ...label, imageUrl } : label;
+    });
   }
 
   /** Fordert den Versandschein an (oder holt den vorhandenen) und lädt danach die Liste neu. */
@@ -90,8 +135,11 @@ export class VintedShippingLabelStore {
       else if (result.outcome === 'pending')
         this.toast.info('Vinted erstellt den Versandschein noch. Hol ihn gleich noch einmal ab.');
       const current = this.scope();
-      if (current?.workspaceId === scope.workspaceId && current.connectionId === scope.connectionId)
-        await this.load(scope);
+      if (
+        current?.workspaceId === scope.workspaceId &&
+        (!current.connectionId || current.connectionId === scope.connectionId)
+      )
+        await this.load(current);
     } catch (error) {
       this.toast.error(
         error instanceof Error && error.message

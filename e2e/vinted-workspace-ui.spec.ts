@@ -783,6 +783,7 @@ for (const [width, theme, hasTouch] of [
       page,
     }) => {
       await mockMarketplace(page, false, false, false, false, []);
+      await page.addInitScript((theme) => localStorage.setItem('flipbase_theme', theme), theme);
       const sale = {
         id: '25000000-0000-4000-8000-000000000061',
         title: 'Verkaufter Schal',
@@ -790,6 +791,7 @@ for (const [width, theme, hasTouch] of [
         shipmentId: '201',
         shippingLabelAction: 'available',
         shippingDeadline: '24 Nov. 20:18',
+        itemIds: ['123'],
         conversationId,
       };
       await page.route('**/rest/v1/rpc/marketplace_read_snapshot', async (route) => {
@@ -808,44 +810,75 @@ for (const [width, theme, hasTouch] of [
               total: 1,
               items: [{ ...scope, id: conversationId, title: 'Verkaufter Schal' }],
             },
-            sales: { ...empty, total: 1, items: [{ ...scope, ...sale }] },
+            sales: {
+              ...empty,
+              total: 2,
+              items: [
+                { ...scope, ...sale },
+                {
+                  ...scope,
+                  ...sale,
+                  id: '25000000-0000-4000-8000-000000000062',
+                  title: 'Verkauftes Hemd',
+                  shipmentId: '203',
+                  shippingLabelAction: null,
+                  shippingDeadline: null,
+                },
+              ],
+            },
             activity: empty,
           },
         });
       });
+      const storedLabels = [
+        {
+          id: 22,
+          workspace_id: workspaceId,
+          connection_id: accountIds[1],
+          external_transaction_id: '102',
+          external_shipment_id: '202',
+          title: 'Andere Bestellung',
+          carrier_name: 'DPD Classic',
+          label_type: 'printable',
+          storage_path: 'other.pdf',
+          mime_type: 'application/pdf',
+          fetched_at: '2026-11-18T16:00:00Z',
+        },
+        {
+          id: 21,
+          workspace_id: workspaceId,
+          connection_id: accountIds[0],
+          external_transaction_id: '101',
+          external_shipment_id: '201',
+          title: sale.title,
+          carrier_name: 'DHL',
+          storage_path: 'shipping.png',
+          mime_type: 'image/png',
+          fetched_at: '2026-11-18T15:00:00Z',
+        },
+      ];
       await page.route('**/rest/v1/marketplace_shipping_labels?*', async (route) => {
-        const account = new URL(route.request().url()).searchParams.get('connection_id');
+        const params = new URL(route.request().url()).searchParams;
+        expect(params.get('workspace_id')).toBe('eq.' + workspaceId);
+        const account = params.get('connection_id');
         await route.fulfill({
-          json:
-            account === 'eq.' + accountIds[0]
-              ? [
-                  {
-                    id: 22,
-                    workspace_id: workspaceId,
-                    connection_id: accountIds[0],
-                    external_transaction_id: '102',
-                    external_shipment_id: '202',
-                    title: 'Andere Bestellung',
-                    carrier_name: 'DPD Classic',
-                    label_type: 'printable',
-                    storage_path: 'other.pdf',
-                    mime_type: 'application/pdf',
-                    fetched_at: '2026-11-18T16:00:00Z',
-                  },
-                  {
-                    id: 21,
-                    workspace_id: workspaceId,
-                    connection_id: accountIds[0],
-                    external_transaction_id: '101',
-                    external_shipment_id: '201',
-                    title: sale.title,
-                    carrier_name: 'DHL',
-                    storage_path: 'shipping.png',
-                    mime_type: 'image/png',
-                    fetched_at: '2026-11-18T15:00:00Z',
-                  },
-                ]
-              : [],
+          json: storedLabels.filter((label) => !account || account === 'eq.' + label.connection_id),
+        });
+      });
+      const photo = 'https://images.example.test/versand-schal.svg';
+      await page.route(photo, (route) =>
+        route.fulfill({
+          contentType: 'image/svg+xml',
+          body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#935653"/></svg>',
+        }),
+      );
+      await page.route('**/rest/v1/marketplace_account_entries?*', async (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        if (params.get('select') !== 'connection_id,external_id,image_url:body->>imageUrl')
+          return route.fallback();
+        expect(params.get('workspace_id')).toBe('eq.' + workspaceId);
+        await route.fulfill({
+          json: [{ connection_id: accountIds[0], external_id: '101', image_url: photo }],
         });
       });
       await page.goto(
@@ -864,14 +897,57 @@ for (const [width, theme, hasTouch] of [
       const other = page.getByRole('row', { name: /Andere Bestellung/ });
       await expect(other).not.toHaveAttribute('aria-current', 'true');
       await expect(other.getByRole('button', { name: 'Druck-PDF öffnen' })).toBeVisible();
-      expect(await target.evaluate((row) => getComputedStyle(row).backgroundColor)).not.toBe(
-        await other.evaluate((row) => getComputedStyle(row).backgroundColor),
-      );
+      await expect(target).toContainText('Testkonto A');
+      await expect(other).toContainText('Testkonto B');
+      await expect(target.locator('img')).toHaveAttribute('src', photo);
+      await expect(other.locator('[data-product-placeholder]')).toBeVisible();
+      await expect(page.getByRole('combobox', { name: 'Vinted-Konto auswählen' })).toHaveCount(0);
+      const markedColor = () => target.evaluate((row) => getComputedStyle(row).backgroundColor);
+      const brandColor = /^rgba?\(252, 198, 1, /;
+      await expect.poll(markedColor).toMatch(brandColor);
+      await expect(target).toHaveCSS('box-shadow', 'none');
+      await expect(target).toHaveCSS('outline-style', 'none');
       await checkSurface(page, 'app-vinted-shipping-labels');
+      await expect(target).not.toHaveAttribute('aria-current', 'true');
+      await expect.poll(markedColor).not.toMatch(brandColor);
+      await expect(target).toBeFocused();
 
       await openVintedSection(page, 'Verkäufe', width);
-      await expect(jump).toHaveAttribute('href', /shipping-labels\?.*labelId=21/);
+      if (hasTouch) await page.setViewportSize({ width: 320, height: 900 });
+      const card = page.locator('article').filter({
+        has: page.getByRole('heading', { name: sale.title, exact: true }),
+      });
+      const footer = card.locator('[data-sale-footer]');
+      const controls = footer.getByRole('link');
+      await expect(controls).toHaveCount(3);
+      expect(
+        await controls.evaluateAll((links) => links.map((link) => link.getAttribute('aria-label'))),
+      ).toEqual([
+        'Zum Versandschein',
+        'Verkaufter Schal neu einstellen',
+        'Chat zu Verkaufter Schal öffnen',
+      ]);
+      await expect(jump).toHaveCSS('background-color', /^rgb\(252, 198, 1\)$/);
+      const centers = await controls.evaluateAll((links) =>
+        links.map((link) => {
+          const { top, height } = link.getBoundingClientRect();
+          return Math.round(top + height / 2);
+        }),
+      );
+      expect(new Set(centers).size).toBe(1);
+      const footerWithoutLabel = page
+        .locator('article')
+        .filter({
+          has: page.getByRole('heading', { name: 'Verkauftes Hemd', exact: true }),
+        })
+        .locator('[data-sale-footer]');
+      expect((await footer.boundingBox())!.height).toBe(
+        (await footerWithoutLabel.boundingBox())!.height,
+      );
+      await expect(jump).toHaveAttribute('href', /shipping-labels\?labelId=21$/);
       await expect(page.getByRole('button', { name: 'Versandschein abholen' })).toHaveCount(0);
+      await (hasTouch ? jump.tap() : jump.click());
+      await expect(target).toHaveAttribute('aria-current', 'true');
     });
   });
 }

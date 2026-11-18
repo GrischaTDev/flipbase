@@ -1,15 +1,15 @@
 <div>
   <app-data-table
     ariaLabel="Versandscheine"
-    searchPlaceholder="Artikel, Verkauf oder Versanddienst suchen"
+    searchPlaceholder="Artikel, Konto oder Versanddienst suchen"
     searchAriaLabel="Versandscheine durchsuchen"
     [searchValue]="search()"
     (searchValueChange)="search.set($event)"
-    [loading]="labels.loading()"
+    [loading]="store.loading() || labels.loading()"
     [errorMessage]="labels.loadError()"
-    [hasRows]="cloud() && rows().length > 0"
+    [hasRows]="rows().length > 0"
     loadingText="Versandscheine werden geladen …"
-    [emptyTitle]="cloud() ? 'Noch keine Versandscheine' : 'Versandscheine gibt es für Cloud-Konten'"
+    emptyTitle="Noch keine Versandscheine"
   >
     <app-button table-error-action variant="secondary" class="mt-3" (clicked)="refresh()"
       >Erneut versuchen</app-button
@@ -23,7 +23,7 @@
     >
       <table class="w-full min-w-[720px] text-left text-[13px]">
         <caption class="sr-only">
-          Gespeicherte Versandscheine mit Artikel, Versanddienst, Art und Abrufzeit
+          Gespeicherte Versandscheine mit Artikel, Vinted-Konto, Versanddienst, Art und Abrufzeit
         </caption>
         <thead>
           <tr class="border-b border-fb-line text-fb-text-muted">
@@ -36,21 +36,28 @@
         </thead>
         <tbody>
           @for (label of rows(); track label.id) {
+            @let targeted = label.id === targetLabelId();
             @let highlighted = label.id === highlightedLabelId();
             @let qrCode = typeLabel(label) === 'QR-Code';
             <tr
-              class="border-b border-fb-line text-fb-text-primary"
+              class="border-b border-fb-line text-fb-text-primary transition-colors duration-300 focus:outline-none motion-reduce:transition-none"
               [attr.aria-current]="highlighted ? 'true' : null"
-              [attr.tabindex]="highlighted ? -1 : null"
+              [attr.data-shipping-label-target]="targeted ? '' : null"
+              [attr.tabindex]="targeted ? -1 : null"
               [class.bg-fb-brand-surface]="highlighted"
-              [class.ring-2]="highlighted"
-              [class.ring-inset]="highlighted"
-              [class.ring-fb-text-primary]="highlighted"
             >
               <th scope="row" class="max-w-72 px-3 py-3 font-medium">
-                <span class="block truncate" [attr.title]="label.title">{{ label.title }}</span>
+                <div class="flex min-w-0 items-center gap-2">
+                  <app-product-thumbnail [src]="label.imageUrl ?? null" alt="" size="sm" />
+                  <div class="min-w-0">
+                    <span class="block truncate" [attr.title]="label.title">{{ label.title }}</span>
+                    <span class="block truncate text-xs font-normal text-fb-text-secondary">
+                      {{ accountNames().get(label.connectionId) ?? 'Vinted-Konto' }}
+                    </span>
+                  </div>
+                </div>
               </th>
-              <td class="px-3 py-3">{{ label.carrierName ?? '—' }}</td>
+              <td class="px-3 py-3">{{ label.carrierName ?? 'Unbekannt' }}</td>
               <td class="px-3 py-3">{{ typeLabel(label) }}</td>
               <td class="px-3 py-3 tabular-nums">
                 {{ label.fetchedAt | date: 'dd.MM.yyyy, HH:mm' }}

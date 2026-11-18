@@ -17,6 +17,15 @@ const errorCodes: readonly VintedShippingLabelErrorCode[] = [
   'provider_unavailable',
 ];
 const identifierPattern = /^[1-9][0-9]{0,31}$/;
+const record = (value: unknown): Record<string, unknown> =>
+  value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+
+export function vintedShippingCarrierName(response: unknown): string | null {
+  const name = record(record(record(response)['label_options'])['carrier'])['name'];
+  return typeof name === 'string' && name.trim() ? name.trim().slice(0, 120) : null;
+}
 
 /** Prüft, dass Flipbase ausschließlich Vinteds eigene Versandschein-Ablage herunterlädt. */
 export function isVintedShippingLabelUrl(value: unknown): value is string {
