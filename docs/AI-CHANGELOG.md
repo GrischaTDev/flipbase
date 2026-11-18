@@ -21,6 +21,14 @@
 - `npm run preflight` unter Node `24.22.3` und npm `11.13.0` vollständig erfolgreich: Migrationsumfang und SQL-Paket (321 Migrationen), `lockfile:check`, `format:check`, `lint`, `typecheck`, `test:audit` (`606` Dateien, `5614` Tests), 7 Skriptvertragsdateien, Testorchestrierung, 14 `node`-Testdateien, 67 `angular`-Testdateien (inkl. `vinted-listing-editor` mit 59 Fällen und `vinted-relisting-submission.service` mit 16 Fällen), `check-admin-shared-ui.mjs` (`279` Dateien, `0` Befunde) sowie vollständiger Angular-Produktionsbau (`309` geprüfte PWA-Dateien).
 - Die ausgewählten CI-Pflichtprüfungen auf GitHub (isolierte PostgreSQL-Migrationstransaktionen, lokale Supabase-Datenbanktests, Browser-Matrix und Marketplace-Images) folgen im PR.
 
+## 2026-11-18 - Juna - Versanddienst aus dem Vinted-Anforderungsformular übernehmen
+
+Bei allen drei gespeicherten Scheinen im geprüften Workspace fehlte der Versanddienst. Die Scheine wurden bei Vinted angefordert. Der gezielte Chatabruf des bereits versendeten Burberry-Schals war erfolgreich, lieferte aber weiterhin keinen Namen. Der Nutzer sah den Versanddienst als Text im Vinted-Anforderungsformular.
+
+Beim Konto- und Chatabruf übernimmt Flipbase den Versanddienst aus den Versanddaten oder dem offenen Anforderungsformular. Der Name wird mit Konto, Verkauf und Sendung verknüpft und beim späteren Abholen eines manuell angeforderten Scheins verwendet. Ein erneuter Abruf kann einen belegten Namen an einem passenden vorhandenen Schein ergänzen. Bei älteren Scheinen ohne verfügbaren Anbieterbeleg bleibt der Versanddienst unbekannt.
+
+Die Öffnen-Buttons der Tabelle haben dieselbe Breite. Die Artikelvorschaubilder füllen den Rahmen proportional aus.
+
 ## 2026-11-17 - Juna - App-Updates zuverlässiger und mobil schneller
 
 **Befund:** Gemeldet war „Die Updateprüfung konnte nicht abgeschlossen werden“ kurz bevor „Eine neue Version ist verfügbar“ erschien. Beim Ausliefern wird der Container `flipbase-web` neu erstellt. Caddy antwortete in dieser Lücke sofort mit einem Fehler, `registration.update()` scheiterte und die App zeigte den Hinweis ohne zweiten Versuch. Weitere Funde: Jedes Update lud alle rund 300 App-Dateien nacheinander neu, auch unveränderte. Jeder App-Start prüfte die Prüfsumme aller zwischengespeicherten Dateien, und die Eingabeprüfung lief alle 500 ms. Analyse und Umsetzung auf `juna/pwa-update-reliability` vom abgeglichenen `origin/master` (`0e4f1a24`) in getrennter Arbeitskopie.

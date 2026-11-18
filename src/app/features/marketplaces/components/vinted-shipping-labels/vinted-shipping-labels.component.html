@@ -48,7 +48,12 @@
             >
               <th scope="row" class="max-w-72 px-3 py-3 font-medium">
                 <div class="flex min-w-0 items-center gap-2">
-                  <app-product-thumbnail [src]="label.imageUrl ?? null" alt="" size="sm" />
+                  <app-product-thumbnail
+                    [src]="label.imageUrl ?? null"
+                    alt=""
+                    size="sm"
+                    fit="cover"
+                  />
                   <div class="min-w-0">
                     <span class="block truncate" [attr.title]="label.title">{{ label.title }}</span>
                     <span class="block truncate text-xs font-normal text-fb-text-secondary">
@@ -64,13 +69,16 @@
               </td>
               <td class="px-3 py-3">
                 <div class="flex items-center justify-end gap-2">
-                  <app-button
-                    variant="primary"
-                    size="slim"
-                    [icon]="openIcon"
-                    (clicked)="open(label, false)"
-                    >{{ qrCode ? 'QR-Code öffnen' : 'Druck-PDF öffnen' }}</app-button
-                  >
+                  <div class="w-40 shrink-0">
+                    <app-button
+                      variant="primary"
+                      size="slim"
+                      [fullWidth]="true"
+                      [icon]="openIcon"
+                      (clicked)="open(label, false)"
+                      >{{ qrCode ? 'QR-Code öffnen' : 'Druck-PDF öffnen' }}</app-button
+                    >
+                  </div>
                   <app-button
                     variant="secondary"
                     size="slim"

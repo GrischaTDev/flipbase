@@ -28,6 +28,7 @@ import { SupabaseVintedListingCache } from './supabase-vinted-listing-cache.ts';
 import { SupabaseVintedProfileCache } from './supabase-vinted-profile-cache.ts';
 import { SupabaseVintedImportWriter } from './supabase-vinted-import-writer.ts';
 import { SupabaseShippingLabelStore } from './supabase-shipping-label-store.ts';
+import { shippingCarrierFromSale } from './vinted-shipping-label-contracts.ts';
 import { loadMarketplaceListingCategoryPath } from './marketplace-listing-category.ts';
 import {
   resolveVintedListingEditIntent,
@@ -749,6 +750,7 @@ export class MarketplaceAccountActionRunner {
             transactionId: external,
             externalConversationId: conversation,
             title: typeof target.body?.title === 'string' ? target.body.title : 'Verkauf',
+            shippingCarrier: shippingCarrierFromSale(target.body),
           },
           result,
         );
@@ -830,6 +832,7 @@ export class MarketplaceAccountActionRunner {
             transactionId: external,
             externalConversationId: conversation,
             title: typeof target.body?.title === 'string' ? target.body.title : 'Verkauf',
+            shippingCarrier: shippingCarrierFromSale(target.body),
           },
           label,
         );

@@ -111,6 +111,20 @@ test('überschreibt beim späteren Abholen weder Anforderungsherkunft noch bekan
     assert.equal(Object.hasOwn(body, key), false, key);
 });
 
+test('ergänzt einen gespeicherten Versanddienst nur für dieselbe Sendung', async () => {
+  for (const shipmentId of [ready.shipmentId, '51458635364']) {
+    const { store, calls } = server({ sale: { shipmentId, shippingCarrierName: 'DHL' } });
+    const sale = await store.sale(scope, saleId);
+    assert.deepEqual(sale.shippingCarrier, { shipmentId, name: 'DHL' });
+    await store.save(scope, sale, { ...ready, requested: false, carrierName: null });
+    const row = calls.find((call) => call.url.includes('/rest/v1/marketplace_shipping_labels'));
+    assert.equal(
+      JSON.parse(String(row?.init?.body))['carrier_name'],
+      shipmentId === ready.shipmentId ? 'DHL' : undefined,
+    );
+  }
+});
+
 test('lehnt stornierte, fremde oder unvollständige Verkäufe ab', async () => {
   for (const sale of [
     { saleState: 'cancelled' },

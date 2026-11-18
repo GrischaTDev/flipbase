@@ -22,9 +22,31 @@ const record = (value: unknown): Record<string, unknown> =>
     ? (value as Record<string, unknown>)
     : {};
 
-export function vintedShippingCarrierName(response: unknown): string | null {
-  const name = record(record(record(response)['label_options'])['carrier'])['name'];
+export function vintedCarrierName(shipment: unknown): string | null {
+  const name = record(record(shipment)['carrier'])['name'];
   return typeof name === 'string' && name.trim() ? name.trim().slice(0, 120) : null;
+}
+
+export function vintedShippingCarrierName(response: unknown): string | null {
+  return vintedCarrierName(record(response)['label_options']);
+}
+
+export function parseVintedShippingCarrier(value: unknown) {
+  const { shipmentId, name } = record(value);
+  return typeof shipmentId === 'string' &&
+    identifierPattern.test(shipmentId) &&
+    typeof name === 'string' &&
+    name.trim() &&
+    name.length <= 120
+    ? { shipmentId, name: name.trim() }
+    : null;
+}
+
+export function shippingCarrierFromSale(body: Record<string, unknown> | null | undefined) {
+  return parseVintedShippingCarrier({
+    shipmentId: body?.['shipmentId'],
+    name: body?.['shippingCarrierName'],
+  });
 }
 
 /** Prüft, dass Flipbase ausschließlich Vinteds eigene Versandschein-Ablage herunterlädt. */

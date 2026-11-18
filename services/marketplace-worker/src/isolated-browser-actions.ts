@@ -58,7 +58,10 @@ import {
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
 import { parseVintedListingPhotoArrangement } from './vinted-browser-listing-photo-order.ts';
-import { parseVintedShippingLabelResult } from './vinted-shipping-label-contracts.ts';
+import {
+  parseVintedShippingCarrier,
+  parseVintedShippingLabelResult,
+} from './vinted-shipping-label-contracts.ts';
 
 import {
   parseVintedPublicationAge,
@@ -608,6 +611,7 @@ export async function executeBrowserAction(
                 'saleTrackingVersion',
                 'saleTransactionId',
                 'saleSellerId',
+                'shippingCarrier',
               ].includes(key),
           )
         )
@@ -619,6 +623,9 @@ export async function executeBrowserAction(
           version.saleTrackingVersion !== 3
         )
           throw new Error('Ungültiger Verkaufsprüfstand');
+        const shippingCarrier = parseVintedShippingCarrier(version.shippingCarrier);
+        if (version.shippingCarrier !== undefined && !shippingCarrier)
+          throw new Error('Ungültiger gespeicherter Versanddienst');
         const detailAttemptedAt = version.detailAttemptedAt;
         if (
           detailAttemptedAt !== undefined &&
@@ -629,6 +636,7 @@ export async function executeBrowserAction(
         )
           throw new Error('Ungültiger Gesprächscache');
         return {
+          ...(shippingCarrier ? { shippingCarrier } : {}),
           ...(detailAttemptedAt === undefined ? {} : { detailAttemptedAt }),
           ...(version.saleTrackingVersion === 1 ||
           version.saleTrackingVersion === 2 ||

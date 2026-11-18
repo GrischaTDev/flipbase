@@ -1,6 +1,9 @@
 import type { BrowserSessionScope } from './marketplace-browser-session-broker.ts';
 import type { VintedShippingLabelResult } from './vinted-browser-shipping-label.ts';
-import { isVintedShippingLabelUrl } from './vinted-shipping-label-contracts.ts';
+import {
+  isVintedShippingLabelUrl,
+  shippingCarrierFromSale,
+} from './vinted-shipping-label-contracts.ts';
 
 interface ShippingLabelStoreOptions {
   url: string;
@@ -14,6 +17,7 @@ export interface ShippingLabelSale {
   readonly transactionId: string;
   readonly externalConversationId: string;
   readonly title: string;
+  readonly shippingCarrier?: ReturnType<typeof shippingCarrierFromSale>;
 }
 
 export interface StoredShippingLabel {
@@ -109,7 +113,14 @@ export class SupabaseShippingLabelStore {
       typeof body['title'] === 'string' && body['title'].trim()
         ? body['title'].trim().slice(0, 500)
         : 'Verkauf';
-    return { accountId, transactionId, externalConversationId: conversationId, title };
+    const shippingCarrier = shippingCarrierFromSale(body);
+    return {
+      accountId,
+      transactionId,
+      externalConversationId: conversationId,
+      title,
+      ...(shippingCarrier ? { shippingCarrier } : {}),
+    };
   }
 
   async save(
@@ -158,6 +169,9 @@ export class SupabaseShippingLabelStore {
       'id,storage_path,mime_type,byte_size,label_type,carrier_name,requested_by_flipbase,fetched_at',
     );
     const fetchedAt = new Date().toISOString();
+    const carrierName =
+      result.carrierName ??
+      (sale.shippingCarrier?.shipmentId === result.shipmentId ? sale.shippingCarrier.name : null);
     const row = await this.request(rowUrl, {
       method: 'POST',
       headers: {
@@ -179,7 +193,7 @@ export class SupabaseShippingLabelStore {
         // Ein späteres Abholen überschreibt weder Anforderungsherkunft noch bekannte Angaben.
         ...(result.requested ? { requested_by_flipbase: true } : {}),
         ...(result.labelType ? { label_type: result.labelType } : {}),
-        ...(result.carrierName ? { carrier_name: result.carrierName } : {}),
+        ...(carrierName ? { carrier_name: carrierName } : {}),
       }),
       signal: AbortSignal.timeout(10_000),
     });
