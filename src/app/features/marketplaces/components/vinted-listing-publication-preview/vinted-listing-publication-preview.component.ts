@@ -67,9 +67,12 @@ export class VintedListingPublicationPreviewComponent {
   readonly direct = input(false);
   readonly replacesJob = input<VintedListingJob | null>(null);
   readonly relistDelaySeconds = input(0);
+  /** Erlaubt, einen bereits veröffentlichten Entwurf als neuen Entwurf weiterzuverwenden. */
+  readonly canCopy = input(false);
   private readonly directAttempted = signal(false);
   readonly accepted = output<VintedListingJob>();
   readonly closed = output<void>();
+  readonly copyRequested = output<void>();
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly busyChange = output<boolean>();

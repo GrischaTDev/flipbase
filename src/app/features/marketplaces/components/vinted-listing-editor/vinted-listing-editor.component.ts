@@ -1188,6 +1188,79 @@ export class VintedListingEditorComponent {
     this.saving.set(false);
     this.progress.set('');
   }
+  /**
+   * Legt aus einem bereits veröffentlichten Entwurf einen neuen Entwurf mit den aktuellen Eingaben
+   * und Originalfotos an. Der bisherige Entwurf und sein Auftrag bleiben unverändert.
+   */
+  async copyAsNewDraft(): Promise<void> {
+    const original = this.draft();
+    if (
+      !original ||
+      this.source() ||
+      this.plannedJob() ||
+      this.activeSave ||
+      this.saving() ||
+      this.imageEditing() ||
+      !this.canSelectBrand()
+    )
+      return;
+    const context = this.loadedContext;
+    const generation = this.generation;
+    this.saving.set(true);
+    this.error.set(null);
+    let copyId: string | null = null;
+    const task = (async () => {
+      const keys = new Map<string, string>();
+      const images: ListingImageDraft[] = [];
+      for (const [index, image] of this.images().entries()) {
+        this.progress.set(`Foto ${index + 1} von ${this.images().length} wird kopiert …`);
+        // Gespeichert ist immer das unveränderte Original; Zuschnitt bleibt ein Parameter.
+        const file =
+          image.originalFile ??
+          (image.crop ? null : image.file) ??
+          (await this.imageApi.renamedFile(original, image.key, image.fileName));
+        if (!this.current(generation, context)) return;
+        const key = crypto.randomUUID();
+        keys.set(image.key, key);
+        images.push({
+          ...image,
+          key,
+          storagePath: null,
+          file: image.file ?? file,
+          originalFile: file,
+        });
+      }
+      this.perPhotoAdjustments.update((adjustments) =>
+        Object.fromEntries(
+          Object.entries(adjustments).flatMap(([key, value]) =>
+            keys.has(key) ? [[keys.get(key)!, value]] : [],
+          ),
+        ),
+      );
+      this.closePublication();
+      this.draft.set(null);
+      this.requestId = crypto.randomUUID();
+      this.images.set(images);
+      this.dirty.set(true);
+      this.changed.update((value) => value + 1);
+      await this.persist(generation, this.changed());
+      const copy = this.draft();
+      if (this.current(generation, context) && !this.error() && copy && copy.id !== original.id)
+        copyId = copy.id;
+    })().catch((error: unknown) => {
+      if (this.current(generation, context))
+        this.error.set(
+          error instanceof Error ? error.message : 'Der Entwurf konnte nicht kopiert werden.',
+        );
+    });
+    this.activeSave = task;
+    await task;
+    if (this.activeSave === task) this.activeSave = null;
+    if (!this.current(generation, context)) return;
+    this.saving.set(false);
+    this.progress.set('');
+    if (copyId) await this.router.navigate(['/marketplaces/vinted/listing-drafts', copyId]);
+  }
   async reload(): Promise<void> {
     if (this.saving()) return;
     if (
@@ -1588,7 +1661,8 @@ export class VintedListingEditorComponent {
       context = this.loadedContext;
     this.categoryLoading.set(true);
     this.categoryError.set(null);
-    this.categories.set([]);
+    // Beim Kontowechsel bleibt die bisherige Liste sichtbar; die gewählte Kategorie verschwindet
+    // so weder während des Abrufs noch ohne Konto oder bei einem fehlgeschlagenen Abruf.
     try {
       if (!connectionId) return;
       const snapshot = await this.liveCategoryApi.readSnapshot(connectionId);

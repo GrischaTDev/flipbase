@@ -227,6 +227,8 @@ begin
   end if;
   select coalesce(jsonb_agg(public.marketplace_listing_draft_document(d) order by d.created_at desc,d.id desc),'[]'::jsonb) into v_rows from (
     select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id and deleted_at is null and relist_external_id is null
+      -- Ein bei Vinted bestätigter Entwurf ist verbraucht; er bleibt für Aufträge und Verlauf gespeichert.
+      and not exists (select 1 from public.marketplace_listing_jobs j where j.draft_id=marketplace_listing_drafts.id and j.state='confirmed')
       and (btrim(p_query)='' or position(lower(btrim(p_query)) in lower(content->>'title'))>0)
       and (v_cursor_id is null or (created_at,id)<(v_cursor_at,v_cursor_id))
     order by created_at desc,id desc limit p_limit+1

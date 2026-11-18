@@ -185,6 +185,13 @@ insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path
 select '46000000-0000-4000-8000-000000000011',draft_id,'46000000-0000-4000-8000-000000000011/'||draft_id||'/original.jpg','original.jpg','image/jpeg',100,'ready','46000000-0000-4000-8000-000000000001'
 from draft_delete_job_context where state='confirmed';
 set local role authenticated;
+select ok(not exists(select 1 from jsonb_array_elements(public.marketplace_list_listing_drafts('46000000-0000-4000-8000-000000000011',p_limit=>100)->'items') item
+ where item->'content'->>'title'='confirmed'),'Ein bei Vinted bestätigter Entwurf erscheint nicht mehr in der Entwurfsliste');
+select is((select count(*) from jsonb_array_elements(public.marketplace_list_listing_drafts('46000000-0000-4000-8000-000000000011',p_limit=>100)->'items') item
+ where item->'content'->>'title' in ('queued','paused','claimed','writing','outcome_unknown','failed','cancelled')),7::bigint,
+ 'Entwürfe mit offenem, fehlgeschlagenem oder abgebrochenem Auftrag bleiben sichtbar');
+select is(public.marketplace_read_listing_draft((select draft_id::text from draft_delete_job_context where state='confirmed'))->'content'->>'title','confirmed',
+ 'Der ausgeblendete Entwurf bleibt direkt lesbar');
 select throws_ok(format('select public.marketplace_delete_listing_draft(%L,%L,1)','46000000-0000-4000-8000-000000000011',draft_id::text),
  '55000',null,'Löschen schützt den Auftrag im Zustand '||state)
 from draft_delete_job_context where state in ('queued','paused','claimed','writing','outcome_unknown') order by state;
