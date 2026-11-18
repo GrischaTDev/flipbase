@@ -115,7 +115,7 @@
     "prettier": "^3.10.1",
     "supabase": "^2.114.0",
     "tailwindcss": "^4.3.5",
-    "typescript": "~6.0.2",
+    "typescript": "~7.0.2",
     "typescript-eslint": "^8.72.2",
     "vitest": "^4.1.12"
   },
