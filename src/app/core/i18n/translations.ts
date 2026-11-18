@@ -244,7 +244,7 @@ export const TRANSLATIONS_DE = {
     THEME: 'Design',
     LAYOUT: 'Layout',
     PAGE_WIDTH_narrow: 'Schmal',
-    PAGE_WIDTH_medium: 'Mittel',
+    PAGE_WIDTH_medium: 'Normal',
     PAGE_WIDTH_full: 'Volle Breite',
     WIDESCREEN_MODE: 'Widescreen-Modus',
     LANGUAGE: 'Sprache',

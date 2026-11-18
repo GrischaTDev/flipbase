@@ -335,7 +335,7 @@ describe('HeaderComponent', () => {
     const buttons = [...element.querySelectorAll<HTMLButtonElement>('[data-page-width]')];
     expect(buttons.map((button) => button.textContent?.trim())).toEqual([
       'Schmal',
-      'Mittel',
+      'Normal',
       'Volle Breite',
     ]);
     expect(buttons.map((button) => button.getAttribute('aria-pressed'))).toEqual([
