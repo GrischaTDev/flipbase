@@ -293,6 +293,24 @@ test('liest den gebundenen Kaufbetrag aus der Gesprächstransaktion auch ohne sp
     },
   ).entries.find((entry) => entry.kind === 'sale');
   assert.equal(sale?.body['price'], 18);
+  assert.equal(sale?.body['currencyConfirmed'], true);
+});
+
+test('unterscheidet die EUR-Vorbelegung von einer bestätigten Währung', () => {
+  const sale = snapshot([system('sale', 'success', 'Verkauft')], {
+    offer: { price: { amount: '18.00' } },
+  }).entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body['price'], 18);
+  assert.equal(sale?.body['currency'], 'EUR');
+  assert.equal(sale?.body['currencyConfirmed'], false);
+});
+
+test('kennzeichnet den Anzeigetitel ohne Artikelbeleg', () => {
+  const sale = snapshot([system('sale', 'success', 'Verkauft')], {}, {}, [], '').entries.find(
+    (entry) => entry.kind === 'sale',
+  );
+  assert.equal(sale?.body['title'], 'Verkauf');
+  assert.equal(sale?.body['titleConfirmed'], false);
 });
 
 test('verwendet einen Gesprächspreis ohne Kaufbeleg niemals als Verkauf', () => {

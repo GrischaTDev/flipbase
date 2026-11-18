@@ -91,5 +91,18 @@ select is((select body->>'title' from public.marketplace_account_entries where e
 select is((select count(*)::integer from public.marketplace_account_entries where kind='message' and external_id='580111'),1,'Nachricht des Zielgesprächs ist gespeichert');
 select is((select body->>'title' from public.marketplace_account_entries where external_id='58012' and kind='conversation'),'Anderes','Teilstand löscht und ändert andere Gespräche nicht');
 
+insert into read_context values('new-confirmed',jsonb_set((select body from read_context where name='confirmed'),'{body,saleTransactionId}','"58022"'));
+insert into read_context values('new-sale',(select jsonb_set(jsonb_set(body,'{externalId}','"58022"'),'{body,title}','"Neue Jacke"') from read_context where name='sale'));
+select is(pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
+  (select body from read_context where name='profile'),(select body from read_context where name='new-confirmed'),
+  (select body from read_context where name='new-sale')),'partial'))->>'sale','1',
+  'Gezielter Chatabruf importiert einen erstmals bestätigten Verkauf');
+select pg_temp.apply(pg_temp.snapshot(jsonb_build_array(
+  (select body from read_context where name='profile'),(select body from read_context where name='new-confirmed'),
+  (select body from read_context where name='new-sale')),'partial'));
+reset role;
+select is((select array_agg(title) from public.sale_drafts where workspace_id='58000000-0000-4000-8000-000000000011' and draft->>'externalOrderId'='58022'),
+  array['Neue Jacke'],'Der Verkauf aus wiederholtem Chatabruf steht als genau ein Verkaufsentwurf bereit');
+
 select * from finish();
 rollback;

@@ -185,9 +185,8 @@ export function readVintedSale(
   const title =
     text(transaction['item_title']) ??
     text(conversation['item_title']) ??
-    text(record(conversation['item'])['title']) ??
-    'Verkauf';
-  const countLabel = title.match(/^(\d+) Artikel$/u);
+    text(record(conversation['item'])['title']);
+  const countLabel = title?.match(/^(\d+) Artikel$/u);
   const count =
     transaction['items_count'] ??
     transaction['item_count'] ??
@@ -217,18 +216,20 @@ export function readVintedSale(
   // offer_price gehört zur gebundenen Transaktion; freie Angebote bleiben ausgeschlossen.
   const price = record(record(transaction['offer'])['price'] ?? relation['offer_price']);
   const amount =
-    typeof price['amount'] === 'number' || typeof price['amount'] === 'string'
+    typeof price['amount'] === 'number' ||
+    (typeof price['amount'] === 'string' && price['amount'].trim() !== '')
       ? Number(price['amount'])
       : NaN;
   const currency =
     typeof price['currency_code'] === 'string' && /^[A-Z]{3}$/u.test(price['currency_code'])
       ? price['currency_code']
-      : 'EUR';
+      : null;
   return {
     externalId: transactionId,
     sortAt: latest?.at ?? soldAt ?? '1970-01-01T00:00:00.000Z',
     body: {
-      title,
+      title: title ?? 'Verkauf',
+      titleConfirmed: title !== null,
       saleState: state,
       saleStateAt: latest?.at ?? paymentAt,
       sellerId: accountId,
@@ -239,7 +240,8 @@ export function readVintedSale(
       occurredAt: soldAt,
       status: stateLabels[state],
       price: Number.isFinite(amount) && amount >= 0 ? amount : null,
-      currency,
+      currency: currency ?? 'EUR',
+      currencyConfirmed: currency !== null,
       shipmentStatus: text(record(transaction['shipment'])['status_title']),
       shipmentId: id(relation['shipment_id']),
       ...(() => {

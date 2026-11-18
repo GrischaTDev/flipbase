@@ -45,6 +45,7 @@ function createDraftSubject() {
     additionalCosts: form.controls.additionalCosts,
     purchaseReferences: signal(new Map()),
     draftId: signal<string | null>(null),
+    draft: signal<SaleDraft | null>(null),
     isSavingDraft: signal(false),
     isSubmitting: signal(false),
     isPersisted: signal(false),
@@ -128,6 +129,66 @@ describe('Verkaufsentwürfe in der Verkaufserfassung', () => {
     await component.saveDraft();
     expect(draftService.save).toHaveBeenLastCalledWith(expect.objectContaining({ id: 'draft-1' }));
   });
+
+  it.each([
+    { shopEnabled: true, sourceTarget: 'inventory:article-1', target: 'inventory:article-1' },
+    { shopEnabled: false, sourceTarget: 'free:Pullover', target: 'free:Pullover' },
+    { shopEnabled: true, sourceTarget: 'free:Pullover', target: '' },
+    { shopEnabled: false, sourceTarget: 'inventory:article-1', target: 'free:Pullover' },
+  ])(
+    'öffnet einen Vinted-Entwurf für den aktuellen Shop-Modus ($target)',
+    ({ shopEnabled, sourceTarget, target }) => {
+      const { component } = createDraftSubject();
+      Object.assign(component, {
+        workspaceService: {
+          currentWorkspace: signal({ id: 'workspace-1', shop_enabled: shopEnabled }),
+        },
+      });
+      const draft: SaleDraft = {
+        id: 'vinted-draft-1',
+        workspaceId: 'workspace-1',
+        title: 'Pullover',
+        saleAmount: 24.5,
+        updatedAt: '2026-11-18T10:00:00Z',
+        vintedSource: {
+          saleState: 'sold',
+          title: 'Pullover',
+          amount: 24.5,
+          currency: 'EUR',
+          isBundle: false,
+        },
+        snapshot: {
+          ...component.draftSnapshot(),
+          platform: 'vinted',
+          saleDate: '2026-11-17',
+          externalOrderId: '53621',
+          lines: [
+            {
+              target: sourceTarget,
+              quantity: 1,
+              unitSalePrice: 24.5,
+              purchaseId: null,
+              sourceTitle: 'Pullover',
+            },
+          ],
+        },
+      };
+
+      internals(component).applyDraft(draft);
+
+      expect(component.lines.at(0).getRawValue()).toMatchObject({
+        target,
+        quantity: 1,
+        unitSalePrice: 24.5,
+      });
+      expect(component.form.getRawValue()).toMatchObject({
+        platform: 'vinted',
+        saleDate: '2026-11-17',
+        externalOrderId: '53621',
+      });
+      expect(component.form.controls.externalOrderId.disabled).toBe(true);
+    },
+  );
 
   it('bietet keinen Entwurf für Korrekturen oder eine leere Erfassung an', () => {
     const { component } = createDraftSubject();

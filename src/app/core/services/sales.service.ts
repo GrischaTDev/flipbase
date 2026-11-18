@@ -55,6 +55,7 @@ export interface RecordSaleCostInput {
 
 export interface RecordSaleInput {
   readonly bookingKey?: string;
+  readonly vintedDraftId?: string;
   readonly correctionSaleId?: string;
   readonly correctionReason?: string;
   readonly platform: string;
@@ -308,37 +309,45 @@ export class SalesService {
       return this.mutationFailure('Verkauf buchen', new Error('Kein aktiver Workspace'));
 
     try {
-      const { data, error } = await this.supabase.client.rpc('record_sale', {
-        p_workspace_id: workspaceId,
-        p_sale: {
-          booking_key: input.bookingKey ?? null,
-          correction_sale_id: input.correctionSaleId ?? null,
-          correction_reason: input.correctionReason ?? null,
-          platform: input.platform,
-          sale_date: input.saleDate,
-          platform_fee: input.platformFee ?? 0,
-          shipping_cost: input.shippingCost ?? 0,
-          shipping_revenue: input.shippingRevenue ?? 0,
-          shipping_mode: input.shippingMode ?? null,
-          cost_entries: this.saleCostInputs(input).map((cost) => ({
-            category: cost.category,
-            description: cost.description ?? null,
-            amount: cost.amount,
-          })),
-          external_order_id: input.externalOrderId ?? null,
-          external_listing_id: input.externalListingId ?? null,
-          buyer_notes: input.buyerNotes ?? null,
-        },
-        p_lines: input.lines.map((line) => ({
-          purchase_id: line.purchaseId ?? null,
-          position_kind: line.positionKind ?? 'stock',
-          catalog_product_id: line.catalogProductId ?? null,
-          inventory_item_id: line.inventoryItemId ?? null,
-          title_snapshot: line.titleSnapshot ?? null,
-          quantity: line.quantity,
-          unit_sale_price: line.unitSalePrice,
+      const sale = {
+        booking_key: input.bookingKey ?? null,
+        correction_sale_id: input.correctionSaleId ?? null,
+        correction_reason: input.correctionReason ?? null,
+        platform: input.platform,
+        sale_date: input.saleDate,
+        platform_fee: input.platformFee ?? 0,
+        shipping_cost: input.shippingCost ?? 0,
+        shipping_revenue: input.shippingRevenue ?? 0,
+        shipping_mode: input.shippingMode ?? null,
+        cost_entries: this.saleCostInputs(input).map((cost) => ({
+          category: cost.category,
+          description: cost.description ?? null,
+          amount: cost.amount,
         })),
-      });
+        external_order_id: input.externalOrderId ?? null,
+        external_listing_id: input.externalListingId ?? null,
+        buyer_notes: input.buyerNotes ?? null,
+      };
+      const lines = input.lines.map((line) => ({
+        purchase_id: line.purchaseId ?? null,
+        position_kind: line.positionKind ?? 'stock',
+        catalog_product_id: line.catalogProductId ?? null,
+        inventory_item_id: line.inventoryItemId ?? null,
+        title_snapshot: line.titleSnapshot ?? null,
+        quantity: line.quantity,
+        unit_sale_price: line.unitSalePrice,
+      }));
+      const parameters = {
+        p_workspace_id: workspaceId,
+        p_sale: sale,
+        p_lines: lines,
+      };
+      const { data, error } = input.vintedDraftId
+        ? await this.supabase.client.rpc('record_vinted_sale_draft', {
+            ...parameters,
+            p_draft_id: input.vintedDraftId,
+          })
+        : await this.supabase.client.rpc('record_sale', parameters);
       if (error || !data || typeof data !== 'object') {
         return this.mutationFailure(
           'Verkauf buchen',

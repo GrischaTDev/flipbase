@@ -64,6 +64,7 @@ const featureSpecs = {
     'free-sales',
     'inventory-sale',
     'sales-variant-picker',
+    'vinted-sale-drafts',
     'article-stock-removal',
     'company-documents',
   ],

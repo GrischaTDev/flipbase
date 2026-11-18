@@ -48,7 +48,8 @@ begin
     and (not public.marketplace_publication_time_valid(new.body->>'occurredAt',new.observed_at) or (v_previous->>'occurredAt')::timestamptz<(new.body->>'occurredAt')::timestamptz)
   then new.body:=new.body||jsonb_build_object('occurredAt',v_previous->'occurredAt'); end if;
   if new.body->>'price' is null and jsonb_typeof(v_previous->'price')='number' then
-    new.body:=new.body||jsonb_build_object('price',v_previous->'price','currency',v_previous->'currency');
+    new.body:=new.body||jsonb_build_object('price',v_previous->'price','currency',v_previous->'currency',
+      'currencyConfirmed',v_previous->'currencyConfirmed');
   end if;
   -- Verkaufte Artikel fehlen später in der Anbieterliste. Ihre gesicherten Merkmale bleiben erhalten.
   if jsonb_array_length(new.body->'itemIds')=1 and (new.body->>'itemCount')::integer=1 then
