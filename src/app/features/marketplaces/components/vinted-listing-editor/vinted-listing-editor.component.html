@@ -86,7 +86,7 @@
         [formGroup]="form"
         [attr.inert]="publication() || (copyingSale() && preparingSource()) ? '' : null"
       >
-        <div class="space-y-4 lg:col-span-5">
+        <div class="min-w-0 space-y-5 lg:col-span-5">
           <app-text-field
             label="Titel"
             [error]="visibleFieldErrors()['title'] ?? null"
@@ -95,14 +95,14 @@
           />
           <app-text-field
             label="Beschreibung"
-            [multiline]="3"
+            [multiline]="7"
             [error]="visibleFieldErrors()['description'] ?? null"
             [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
             formControlName="description"
           />
           <section
             aria-labelledby="vinted-relist-photo-heading"
-            class="space-y-4 border-t border-fb-border-subtle pt-4"
+            class="space-y-4 border-t border-fb-border-subtle pt-5"
           >
             <div class="flex flex-wrap items-center justify-between gap-2">
               <h3
@@ -165,12 +165,15 @@
               />
             </div>
 
-            <div class="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
+            <div class="space-y-1.5">
               @for (slider of photoAdjustmentSliders; track slider.key) {
-                <div class="flex items-center gap-2">
+                <div
+                  class="flex min-h-7 items-center gap-3"
+                  (wheel)="onPhotoSliderWheel(slider.key, $event)"
+                >
                   <label
                     [attr.for]="'vinted-relist-slider-' + slider.key"
-                    class="w-28 shrink-0 text-xs font-medium text-fb-text-secondary"
+                    class="w-32 shrink-0 text-[13px] font-medium text-fb-text-secondary"
                   >
                     {{ slider.label }}
                   </label>
@@ -184,10 +187,11 @@
                     [attr.aria-valuetext]="formatPhotoSliderValue(slider.key, slider.unit)"
                     [disabled]="saving() || preparingPhotos()"
                     (input)="onPhotoSlider(slider.key, $any($event.target).value)"
-                    class="h-1.5 min-w-0 flex-1 cursor-pointer accent-fb-primary disabled:cursor-not-allowed disabled:opacity-40"
+                    (dblclick)="resetSinglePhotoSlider(slider.key)"
+                    class="h-5 min-w-0 flex-1 cursor-pointer accent-fb-primary disabled:cursor-not-allowed disabled:opacity-40"
                   />
                   <span
-                    class="w-11 shrink-0 text-right text-xs tabular-nums text-fb-text-secondary"
+                    class="w-12 shrink-0 text-right text-xs tabular-nums text-fb-text-secondary"
                   >
                     {{ formatPhotoSliderValue(slider.key, slider.unit) }}
                   </span>
@@ -223,7 +227,7 @@
 
           <section
             aria-labelledby="vinted-relist-publication-heading"
-            class="space-y-3 border-t border-fb-border-subtle pt-4"
+            class="space-y-3 border-t border-fb-border-subtle pt-5"
           >
             <h3
               id="vinted-relist-publication-heading"
@@ -265,7 +269,7 @@
           </section>
         </div>
 
-        <div class="lg:col-span-7 lg:sticky lg:top-0">
+        <div class="min-w-0 lg:col-span-7 lg:sticky lg:top-0">
           <app-vinted-listing-photo-preview
             [compact]="false"
             [photoScope]="photoScope()"

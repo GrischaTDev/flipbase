@@ -3,10 +3,18 @@ import { vintedListingCategorySource } from '../../models/vinted-listing-categor
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
+
+const { mockRenderVintedListingPhoto } = vi.hoisted(() => ({
+  mockRenderVintedListingPhoto: vi.fn(async () => btoa('rendered-preview')),
+}));
+vi.mock('../../../../../../supabase/functions/_shared/vinted-listing-photo-renderer.mjs', () => ({
+  renderVintedListingPhoto: mockRenderVintedListingPhoto,
+}));
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -19,6 +27,7 @@ import { VintedListingJobService } from '../../services/vinted-listing-job.servi
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { VintedListingEditorComponent } from './vinted-listing-editor.component';
+import { VintedListingPhotoPreviewComponent } from './vinted-listing-photo-preview.component';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-listing-category-fixture';
 import { buildVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
@@ -364,6 +373,8 @@ afterEach(() => {
   TestBed.resetTestingModule();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  mockRenderVintedListingPhoto.mockReset();
+  mockRenderVintedListingPhoto.mockImplementation(async () => btoa('rendered-preview'));
 });
 
 it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speichert ohne Quellverknüpfung', async () => {
@@ -637,6 +648,123 @@ describe('Relisten aus der lokalen Lesekopie', () => {
         }),
       }),
     );
+  });
+
+  it('steuert Bildregler per Mausrad, unterstützt Shift-Grobschritt und setzt einzelne Regler zurück', async () => {
+    const f = setup({}, localRelisting());
+    await settle();
+
+    const makeWheel = (init: WheelEventInit = {}) => {
+      const event = new WheelEvent('wheel', { cancelable: true, ...init });
+      vi.spyOn(event, 'preventDefault');
+      return event;
+    };
+
+    const up = makeWheel({ deltaY: -120 });
+    f.component.onPhotoSliderWheel('exposure', up);
+    expect(up.preventDefault).toHaveBeenCalledOnce();
+    expect(f.component.photoAdjustments().exposure).toBe(1);
+
+    // Feine Trackpad-Deltas unterhalb der Schwelle werden akkumuliert.
+    f.component.onPhotoSliderWheel('exposure', makeWheel({ deltaY: -20 }));
+    expect(f.component.photoAdjustments().exposure).toBe(1);
+    f.component.onPhotoSliderWheel('exposure', makeWheel({ deltaY: -25 }));
+    expect(f.component.photoAdjustments().exposure).toBe(2);
+
+    // Shift+Mausrad (unter Windows oft als deltaX geliefert) nutzt 5-fachen Schritt und klemmt sauber.
+    f.component.onPhotoSliderWheel('straighten', makeWheel({ deltaX: -120, shiftKey: true }));
+    expect(f.component.photoAdjustments().straighten).toBe(2.5);
+    f.component.onPhotoSlider('exposure', '48');
+    f.component.onPhotoSliderWheel('exposure', makeWheel({ deltaY: -120, shiftKey: true }));
+    expect(f.component.photoAdjustments().exposure).toBe(50);
+
+    // Einzelreset setzt nur den betroffenen Regler zurück.
+    f.component.resetSinglePhotoSlider('exposure');
+    expect(f.component.photoAdjustments().exposure).toBe(0);
+    expect(f.component.photoAdjustments().straighten).toBe(2.5);
+
+    // Vergleichsregler reagiert ebenfalls per Mausrad.
+    const preview = f.fixture!.debugElement.query(By.directive(VintedListingPhotoPreviewComponent))
+      .componentInstance as VintedListingPhotoPreviewComponent;
+    const compareWheel = makeWheel({ deltaY: -120, shiftKey: true });
+    preview.onCompareSliderWheel(compareWheel);
+    expect(compareWheel.preventDefault).toHaveBeenCalledOnce();
+    expect(preview.compareSplit()).toBe(60);
+
+    // Während des Speicherns sind Rad- und Reset-Aktionen gesperrt.
+    f.component.saving.set(true);
+    f.component.onPhotoSliderWheel('straighten', makeWheel({ deltaY: 120 }));
+    f.component.resetSinglePhotoSlider('straighten');
+    expect(f.component.photoAdjustments().straighten).toBe(2.5);
+  });
+
+  it('behält bei Slider-Bewegungen die sichtbare Vorschau ohne Modalsprung und bündelt Neuberechnungen', async () => {
+    vi.useFakeTimers();
+    let resolveRender!: (value: string) => void;
+    mockRenderVintedListingPhoto.mockImplementation(
+      () =>
+        new Promise<string>((resolve) => {
+          resolveRender = resolve;
+        }),
+    );
+
+    const f = setup({}, localRelisting());
+    await settle();
+    const previewDebug = f.fixture!.debugElement.query(
+      By.directive(VintedListingPhotoPreviewComponent),
+    );
+    const preview = previewDebug.componentInstance as VintedListingPhotoPreviewComponent;
+    const hostEl = f.fixture!.nativeElement as HTMLElement;
+
+    expect(preview.preview()).toBe('https://images.example.test/original.jpg');
+    expect(hostEl.querySelector('app-vinted-listing-photo-preview img')).not.toBeNull();
+
+    // Schnelle aufeinanderfolgende Reglerbewegungen dürfen die Vorschau nicht auf null leeren
+    // und starten das Rendering erst nach der 50-ms-Entprellung gebündelt.
+    f.component.onPhotoSlider('exposure', '10');
+    f.fixture!.detectChanges();
+    f.component.onPhotoSlider('exposure', '15');
+    f.fixture!.detectChanges();
+    f.component.onPhotoSlider('contrast', '8');
+    f.fixture!.detectChanges();
+
+    expect(preview.preview()).toBe('https://images.example.test/original.jpg');
+    expect(hostEl.querySelector('app-vinted-listing-photo-preview img')).not.toBeNull();
+    expect(hostEl.textContent).not.toContain('Vorschau wird erstellt');
+    expect(preview.loadingIndicator()).toBe(false);
+    expect(mockRenderVintedListingPhoto).not.toHaveBeenCalled();
+
+    // Nach 150 ms erscheint nur ein unaufdringlicher Hinweis-Badge bei weiterhin sichtbarem Foto.
+    await vi.advanceTimersByTimeAsync(150);
+    f.fixture!.detectChanges();
+    expect(preview.loadingIndicator()).toBe(true);
+    expect(hostEl.querySelector('app-vinted-listing-photo-preview img')).not.toBeNull();
+    expect(hostEl.textContent).toContain('Aktualisiere …');
+
+    // Noch mehr Zeit zum Abschließen der Blob-/FileReader-Ausführung geben.
+    await vi.advanceTimersByTimeAsync(20);
+    expect(mockRenderVintedListingPhoto).toHaveBeenCalledTimes(1);
+    expect(mockRenderVintedListingPhoto).toHaveBeenCalledWith(
+      expect.objectContaining({
+        adjustments: expect.objectContaining({ exposure: 15, contrast: 8 }),
+      }),
+    );
+
+    resolveRender(btoa('updated-jpeg'));
+    await Promise.resolve();
+    await Promise.resolve();
+    f.fixture!.detectChanges();
+
+    expect(preview.loading()).toBe(false);
+    expect(preview.loadingIndicator()).toBe(false);
+    expect(preview.preview()).toBe(`data:image/jpeg;base64,${btoa('updated-jpeg')}`);
+
+    // Vergleichsansicht springt beim Zurücksetzen aller Änderungen wieder auf Bearbeitet.
+    preview.setViewMode('compare');
+    f.component.resetPhotoEdits();
+    f.fixture!.detectChanges();
+    expect(preview.viewMode()).toBe('edited');
+    expect(preview.preview()).toBe('https://images.example.test/original.jpg');
   });
 
   it('schließt nach dem bestätigten Klick sofort und übergibt unveränderliche Formularwerte', async () => {

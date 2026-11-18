@@ -44,6 +44,7 @@ export class VintedListingPhotoPreviewComponent {
   readonly preview = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly loading = signal(false);
+  readonly loadingIndicator = signal(false);
   readonly viewMode = signal<'edited' | 'original' | 'compare'>('edited');
   readonly compareSplit = signal(50);
   readonly zoom100 = signal(false);
@@ -73,28 +74,106 @@ export class VintedListingPhotoPreviewComponent {
   });
 
   private generation = 0;
+  private activeKey: string | null = null;
+  private lastDiscreteKey: string | null = null;
+  private renderTimer: ReturnType<typeof setTimeout> | null = null;
+  private loadingBadgeTimer: ReturnType<typeof setTimeout> | null = null;
+  private activeRender: Promise<void> | null = null;
+  private pendingRender: (() => void) | null = null;
   private readonly originalCache = new Map<string, Promise<{ base64: string; mimeType: string }>>();
 
   constructor() {
     inject(DestroyRef).onDestroy(() => {
       this.generation++;
+      if (this.renderTimer !== null) {
+        clearTimeout(this.renderTimer);
+        this.renderTimer = null;
+      }
+      this.clearLoadingBadgeTimer();
+      this.pendingRender = null;
       this.originalCache.clear();
+    });
+    effect(() => {
+      if (!this.hasActiveModification() && this.viewMode() === 'compare') {
+        untracked(() => this.viewMode.set('edited'));
+      }
     });
     effect(() => {
       const image = this.activeImage(),
         options = this.options(),
         photoScope = this.photoScope();
       untracked(() => {
+        if (this.renderTimer !== null) {
+          clearTimeout(this.renderTimer);
+          this.renderTimer = null;
+        }
         const generation = ++this.generation;
-        this.preview.set(null);
         this.error.set(null);
-        this.loading.set(!!image);
-        if (image && isNeutralVintedListingPhotoOptions(options, image.key)) {
-          this.preview.set(image.previewUrl);
-          this.loading.set(false);
+
+        if (!image) {
+          this.activeKey = null;
+          this.lastDiscreteKey = null;
+          this.preview.set(null);
+          this.setLoading(false);
+          this.pendingRender = null;
           return;
         }
-        if (image) void this.render(image, options, generation, photoScope);
+
+        const photoChanged = image.key !== this.activeKey;
+        const discreteKey = JSON.stringify([
+          image.key,
+          options.resize,
+          options.filter ?? 'none',
+          options.border ?? 'none',
+          options.crops[image.key] ?? null,
+          resolveVintedListingPhotoAdjustment(options, image.key).flipX,
+        ]);
+        const discreteChanged = photoChanged || discreteKey !== this.lastDiscreteKey;
+        this.activeKey = image.key;
+        this.lastDiscreteKey = discreteKey;
+
+        if (isNeutralVintedListingPhotoOptions(options, image.key)) {
+          this.pendingRender = null;
+          this.preview.set(image.previewUrl);
+          this.setLoading(false);
+          return;
+        }
+
+        // Bisherige Vorschau sichtbar lassen, damit das Modal waehrend der Neuberechnung niemals springt.
+        if (photoChanged || !this.preview()) {
+          this.preview.set(this.originalUrl(image) || null);
+        }
+        this.setLoading(true);
+
+        const startRender = () => {
+          if (generation !== this.generation) return;
+          const execute = () => {
+            if (generation !== this.generation) return;
+            const task = this.render(image, options, generation, photoScope).finally(() => {
+              if (this.activeRender === task) {
+                this.activeRender = null;
+                const next = this.pendingRender;
+                this.pendingRender = null;
+                if (next) next();
+              }
+            });
+            this.activeRender = task;
+          };
+          if (this.activeRender) {
+            this.pendingRender = execute;
+          } else {
+            execute();
+          }
+        };
+
+        if (discreteChanged) {
+          startRender();
+        } else {
+          this.renderTimer = setTimeout(() => {
+            this.renderTimer = null;
+            startRender();
+          }, 50);
+        }
       });
     });
   }
@@ -130,6 +209,15 @@ export class VintedListingPhotoPreviewComponent {
     if (Number.isFinite(value)) {
       this.compareSplit.set(Math.min(100, Math.max(0, Math.round(value))));
     }
+  }
+
+  onCompareSliderWheel(event: WheelEvent): void {
+    const rawDelta = event.deltaY !== 0 ? event.deltaY : event.shiftKey ? event.deltaX : 0;
+    if (rawDelta === 0) return;
+    event.preventDefault();
+    const step = event.shiftKey ? 10 : 2;
+    const direction = rawDelta < 0 ? 1 : -1;
+    this.compareSplit.update((current) => Math.min(100, Math.max(0, current + direction * step)));
   }
 
   hasCustomOverride(photo: ListingImageDraft): boolean {
@@ -183,10 +271,33 @@ export class VintedListingPhotoPreviewComponent {
     } catch {
       if (generation === this.generation) {
         this.originalCache.clear();
+        this.preview.set(null);
         this.error.set('Die Bildvorschau konnte nicht geladen werden.');
       }
     } finally {
-      if (generation === this.generation) this.loading.set(false);
+      if (generation === this.generation) this.setLoading(false);
+    }
+  }
+
+  private setLoading(active: boolean): void {
+    this.loading.set(active);
+    if (!active) {
+      this.clearLoadingBadgeTimer();
+      this.loadingIndicator.set(false);
+      return;
+    }
+    if (!this.loadingIndicator() && this.loadingBadgeTimer === null) {
+      this.loadingBadgeTimer = setTimeout(() => {
+        this.loadingBadgeTimer = null;
+        if (this.loading()) this.loadingIndicator.set(true);
+      }, 150);
+    }
+  }
+
+  private clearLoadingBadgeTimer(): void {
+    if (this.loadingBadgeTimer !== null) {
+      clearTimeout(this.loadingBadgeTimer);
+      this.loadingBadgeTimer = null;
     }
   }
 

@@ -228,6 +228,7 @@ export class VintedListingEditorComponent {
   readonly croppingPhotoKey = signal<string | null>(null);
   readonly croppingPhotoFile = signal<File | null>(null);
   readonly loadingCropPhoto = signal(false);
+  private readonly sliderWheelAccumulator = new Map<string, number>();
 
   readonly selectedPhoto = computed<ListingImageDraft | null>(() => {
     const list = this.images();
@@ -282,6 +283,37 @@ export class VintedListingEditorComponent {
     const clamped = Math.min(spec.max, Math.max(spec.min, parsed));
     const value = spec.step === 0.5 ? Math.round(clamped * 2) / 2 : Math.round(clamped);
     this.updatePhotoAdjustment({ [key]: value === 0 ? 0 : value });
+  }
+
+  onPhotoSliderWheel(
+    key: Exclude<keyof VintedListingPhotoAdjustment, 'flipX'>,
+    event: WheelEvent,
+  ): void {
+    if (this.saving() || this.preparingPhotos()) return;
+    const rawDelta = event.deltaY !== 0 ? event.deltaY : event.shiftKey ? event.deltaX : 0;
+    if (rawDelta === 0) return;
+    event.preventDefault();
+    const spec = this.photoAdjustmentSliders.find((s) => s.key === key);
+    if (!spec) return;
+    const normalized =
+      event.deltaMode === 1 ? rawDelta * 33 : event.deltaMode === 2 ? rawDelta * 120 : rawDelta;
+    const accumulated = (this.sliderWheelAccumulator.get(key) ?? 0) + normalized;
+    if (Math.abs(accumulated) < 40) {
+      this.sliderWheelAccumulator.set(key, accumulated);
+      return;
+    }
+    this.sliderWheelAccumulator.set(key, 0);
+    const direction = accumulated < 0 ? 1 : -1;
+    const step = spec.step * (event.shiftKey ? 5 : 1);
+    const next = this.activePhotoAdjustment()[key] + direction * step;
+    const clamped = Math.min(spec.max, Math.max(spec.min, next));
+    const rounded = spec.step === 0.5 ? Math.round(clamped * 2) / 2 : Math.round(clamped);
+    this.updatePhotoAdjustment({ [key]: rounded === 0 ? 0 : rounded });
+  }
+
+  resetSinglePhotoSlider(key: Exclude<keyof VintedListingPhotoAdjustment, 'flipX'>): void {
+    if (this.saving() || this.preparingPhotos()) return;
+    this.updatePhotoAdjustment({ [key]: 0 });
   }
 
   formatPhotoSliderValue(

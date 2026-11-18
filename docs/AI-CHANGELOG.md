@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-18 - Juna - Stabile Vorschau, entspanntere Controls und Mausrad-Steuerung im Vinted-Relisting-Editor
+
+**Auftrag und Grundlage:** Nutzer-Rückmeldung zum neu eingeführten zweispaltigen Vinted-Relisting-Modal auf eigenem Zweig `juna/vinted-relisting-editor-ux-stability` vom aktuellen `origin/master` (`2942c80c`): Beim Bewegen der Bildregler fiel die rechte Vorschau durch `preview.set(null)` auf `"Vorschau wird erstellt …"` zurück und veränderte die Modalhöhe/-breite sprunghaft; zudem war die Beschreibung mit 3 Zeilen im Verhältnis zu viel Leerraum unterhalb der Veröffentlichung zu klein, die 2-spaltigen Schieberegler wirkten gedrängt und es fehlte eine Mausrad-Bedienung auf den Reglern.
+
+**Umsetzung:**
+
+- **Sprungfreie Vorschau (`vinted-listing-photo-preview.component.ts/.html`):** Während Parameter-Änderungen oder Entprellung bleibt die bisherige Bildvorschau sichtbar (`preview()` wird beim Reglerziehen nicht mehr auf `null` gesetzt; beim Wechsel zu einem bereits bearbeiteten Foto erscheint sofort das Originalfoto statt eines leeren Platzhalters). Kontinuierliche Schieberegler sind auf 50 ms entprellt und laufende Render-Aufgaben werden über `activeRender`/`pendingRender` sauber gebündelt; ein unaufdringlicher Eck-Hinweis (`Aktualisiere …`) erscheint erst ab 150 ms Rechenzeit, ohne das Layout zu verschieben. Feste responsive Höhen (`h-[300px] sm:h-[400px] lg:h-[min(64dvh,640px)]`) verhindern vertikale Sprünge auch bei Hochformatfotos und im Vergleichsmodus.
+- **Entspanntere linke Spalte & mehr Platz für die Beschreibung (`vinted-listing-editor.component.html`):** `min-w-0` auf beiden Grid-Spalten (`lg:col-span-5` und `lg:col-span-7`), größere `Beschreibung` (`[multiline]="7"` statt `3`), großzügigere Abstände (`space-y-5`, `pt-5`) sowie eine ruhige einspaltige Liste für die sieben Bildregler (`min-h-7`, `w-32` Label, `h-5` Greifhöhe).
+- **Mausrad-Steuerung und Einzelreset (`vinted-listing-editor.component.ts/.html`, `vinted-listing-photo-preview.component.ts/.html`):** Scrollen über einem Bildregler oder dem Vorher/Nachher-Vergleichsregler ändert den Wert fein dosiert (inkl. Akkumulation kleiner Trackpad-Deltas, 5×-Grobschritt per `Shift` auch bei Windows-`deltaX` und Verhindern von ungewolltem Modal-Scrollen); Doppelklick auf einen einzelnen Regler setzt nur diesen Regler auf `0` zurück.
+
+**Nachweise und Grenzen:**
+
+- `node scripts/check-admin-shared-ui.mjs`: `279` geprüfte Dateien, `0` Befunde.
+- `npm run preflight` (unter Node `24.22.3` und npm `11.13.0`): `lockfile:check`, `format:check`, `lint`, `typecheck`, `test:audit` (`606` Dateien, `5617` Tests), `test:orchestrator` (`8` bestanden, `0` fehlgeschlagen, `3` unter Windows übersprungen), `1` betroffene Node-Testdatei (`4` Tests), `5` betroffene Angular-Testdateien (`189` Tests, davon `vinted-listing-editor.component.angular.spec.ts` mit `61` Tests inkl. Mausrad-, Einzelreset- und Vorschau-Stabilitätstests) sowie der vollständige Angular-Produktionsbau (`309` geprüfte PWA-Dateien) erfolgreich bestanden.
+- `scripts/preflight.mjs` zeigt als verbleibenden CI-Nachweis auf GitHub: Migrationsumfang/SQL-Paket sowie `Browser ui 1/2` und `Browser ui 2/2` (E2E-Prüfung gegen laufenden Stack).
+
 ## 2026-11-18 - Juna - Veröffentlichte Entwürfe ausblenden und als Kopie weiterverwenden
 
 **Anlass:** Ein bereits über Vinted veröffentlichter Entwurf (Burberry-Schal) stand weiter unter „Entwürfe“. Nach dem Bearbeiten sperrte die Veröffentlichung mit dem Hinweis auf einen bestehenden Auftrag „Veröffentlicht“ und verwies irreführend auf „Laufende Aktionen“. Außerdem ließen sich im geöffneten Entwurf Farbe und Material nicht ändern, und beim Kontowechsel verschwand die Kategorie.
