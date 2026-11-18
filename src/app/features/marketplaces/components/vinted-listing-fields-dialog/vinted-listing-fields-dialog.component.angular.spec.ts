@@ -8,7 +8,10 @@ import { CustomSelectComponent } from '../../../../shared/components/custom-sele
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { emptyVintedListingContent } from '../../models/vinted-listing-content';
+import {
+  emptyVintedListingContent,
+  type VintedListingContent,
+} from '../../models/vinted-listing-content';
 import { applyVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { VintedListingFieldsDialogComponent } from './vinted-listing-fields-dialog.component';
@@ -174,7 +177,7 @@ describe('Vinted category field dialog', () => {
     f.fixture.componentRef.setInput('inline', true);
     f.fixture.componentRef.setInput('section', 'details');
     f.read.mockReturnValue(new Promise(() => undefined));
-    let content = {
+    let content: VintedListingContent = {
       ...emptyVintedListingContent(),
       categoryId: 1223,
       colorIds: [2],
