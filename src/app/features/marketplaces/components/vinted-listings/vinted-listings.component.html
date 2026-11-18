@@ -299,7 +299,7 @@
 @if (editingPlan(); as job) {
   <app-modal-shell
     title="Geplantes Relisting"
-    size="lg"
+    size="2xl"
     [hasFooter]="!plannedEditor.publication()"
     (closed)="plannedEditor.cancel()"
   >
@@ -328,7 +328,7 @@
     [title]="
       source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden'
     "
-    [size]="source.mode === 'relist' ? 'lg' : 'full'"
+    [size]="source.mode === 'relist' ? '2xl' : 'full'"
     [hasFooter]="!editor.publication()"
     (closed)="editor.cancel()"
   >

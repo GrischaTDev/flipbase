@@ -562,6 +562,83 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     expect(f.save).not.toHaveBeenCalled();
   });
 
+  it('unterstützt globale und fotoindividuelle Bildbearbeitungen, 90°-Drehung, Spiegeln und gezieltes Zurücksetzen', async () => {
+    const baseSource = localRelisting();
+    const f = setup(
+      {},
+      {
+        ...baseSource,
+        entry: {
+          ...baseSource.entry,
+          imageUrls: [
+            'https://images.example.test/photo-1.jpg',
+            'https://images.example.test/photo-2.jpg',
+          ],
+        },
+      },
+    );
+    await settle();
+    expect(f.component.images()).toHaveLength(2);
+    const key1 = f.component.images()[0]!.key;
+    const key2 = f.component.images()[1]!.key;
+
+    f.component.onPhotoSlider('exposure', '15');
+    f.component.onPhotoSlider('warmth', '-10');
+    expect(f.component.photoOptions().adjustments).toEqual({
+      exposure: 15,
+      contrast: 0,
+      warmth: -10,
+      saturation: 0,
+      sharpness: 0,
+      denoise: 0,
+      straighten: 0,
+      flipX: false,
+    });
+
+    f.component.selectRelistPhoto(1);
+    f.component.setPhotoEditTarget('current');
+    f.component.onPhotoSlider('contrast', '20');
+    f.component.togglePhotoFlipX();
+    f.component.rotateSelectedPhoto90();
+
+    expect(f.component.photoOptions().photoAdjustments?.[key2]).toEqual({
+      exposure: 15,
+      contrast: 20,
+      warmth: -10,
+      saturation: 0,
+      sharpness: 0,
+      denoise: 0,
+      straighten: 0,
+      flipX: true,
+    });
+    expect(f.component.photoOptions().crops[key2]).toEqual({
+      x: 0,
+      y: 0,
+      width: 1,
+      height: 1,
+      rotation: 90,
+    });
+
+    f.component.resetPhotoEdits();
+    expect(f.component.photoOptions().photoAdjustments).toBeUndefined();
+    expect(f.component.photoOptions().crops[key2]).toBeUndefined();
+    expect(f.component.photoOptions().adjustments?.exposure).toBe(15);
+
+    f.component.onPhotoSlider('sharpness', '40');
+    await f.component.submitRelisting();
+    expect(f.startRelisting).toHaveBeenCalledWith(
+      expect.objectContaining({
+        photoKeys: [key1, key2],
+        photoOptions: expect.objectContaining({
+          adjustments: expect.objectContaining({ exposure: 15, warmth: -10 }),
+          photoAdjustments: {
+            [key2]: expect.objectContaining({ exposure: 15, warmth: -10, sharpness: 40 }),
+          },
+        }),
+      }),
+    );
+  });
+
   it('schließt nach dem bestätigten Klick sofort und übergibt unveränderliche Formularwerte', async () => {
     const f = setup({}, localRelisting());
     await settle();

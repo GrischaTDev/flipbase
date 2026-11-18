@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { LucideDynamicIcon, LucideIconInput, LucideX } from '@lucide/angular';
 import { ModalDialogDirective } from '../../directives/modal-dialog.directive';
 
-export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
+export type ModalSize = 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
 export type ModalTone = 'neutral' | 'brand' | 'info' | 'success' | 'caution' | 'critical';
 
 @Component({
@@ -43,6 +43,7 @@ export class ModalShellComponent {
       md: 'max-w-xl',
       lg: 'max-w-[620px]',
       xl: 'max-w-4xl',
+      '2xl': 'max-w-7xl',
       full: 'max-w-6xl',
     };
 

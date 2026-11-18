@@ -15,6 +15,7 @@ export async function exportVintedListingPhoto(
     crop: options.crops[photo.id] ?? null,
     filter: options.filter,
     border: options.border,
+    adjustments: options.photoAdjustments?.[photo.id] ?? options.adjustments,
   });
   return {
     id: photo.id,

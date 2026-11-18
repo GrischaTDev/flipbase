@@ -1040,11 +1040,15 @@
           'crops',
           ...(raw && Object.hasOwn(raw, 'filter') ? ['filter'] : []),
           ...(raw && Object.hasOwn(raw, 'border') ? ['border'] : []),
+          ...(raw && Object.hasOwn(raw, 'adjustments') ? ['adjustments'] : []),
+          ...(raw && Object.hasOwn(raw, 'photoAdjustments') ? ['photoAdjustments'] : []),
         ]);
         if (
           (options.resize !== null && ![1200, 1600, 2400].includes(options.resize)) ||
           (Object.hasOwn(options, 'filter') &&
-            !['none', 'lighter', 'darker', 'soft'].includes(options.filter)) ||
+            !['none', 'lighter', 'darker', 'soft', 'natural', 'contrast'].includes(
+              options.filter,
+            )) ||
           (Object.hasOwn(options, 'border') &&
             !['none', 'small', 'medium', 'large'].includes(options.border)) ||
           !options.crops ||
@@ -1052,6 +1056,55 @@
           Array.isArray(options.crops)
         )
           throw invalid();
+        const parseAdjustment = (item) => {
+          const adj = fields(item, [
+            'exposure',
+            'contrast',
+            'warmth',
+            'saturation',
+            'sharpness',
+            'denoise',
+            'straighten',
+            'flipX',
+          ]);
+          if (typeof adj.flipX !== 'boolean') throw invalid();
+          for (const key of ['exposure', 'contrast', 'warmth', 'saturation']) {
+            if (
+              typeof adj[key] !== 'number' ||
+              !Number.isSafeInteger(adj[key]) ||
+              adj[key] < -50 ||
+              adj[key] > 50
+            )
+              throw invalid();
+          }
+          for (const key of ['sharpness', 'denoise']) {
+            if (
+              typeof adj[key] !== 'number' ||
+              !Number.isSafeInteger(adj[key]) ||
+              adj[key] < 0 ||
+              adj[key] > 100
+            )
+              throw invalid();
+          }
+          if (
+            typeof adj.straighten !== 'number' ||
+            !Number.isFinite(adj.straighten) ||
+            adj.straighten < -15 ||
+            adj.straighten > 15 ||
+            !Number.isInteger(adj.straighten * 2)
+          )
+            throw invalid();
+          return Object.freeze({
+            exposure: adj.exposure,
+            contrast: adj.contrast,
+            warmth: adj.warmth,
+            saturation: adj.saturation,
+            sharpness: adj.sharpness,
+            denoise: adj.denoise,
+            straighten: adj.straighten === 0 ? 0 : adj.straighten,
+            flipX: adj.flipX,
+          });
+        };
         const crops = {};
         for (const [imageId, raw] of Object.entries(options.crops)) {
           if (!seen.has(imageId)) throw invalid();
@@ -1071,11 +1124,31 @@
             throw invalid();
           crops[imageId] = Object.freeze({ ...crop });
         }
+        const adjustments = Object.hasOwn(options, 'adjustments')
+          ? parseAdjustment(options.adjustments)
+          : undefined;
+        let photoAdjustments;
+        if (Object.hasOwn(options, 'photoAdjustments')) {
+          if (
+            !options.photoAdjustments ||
+            typeof options.photoAdjustments !== 'object' ||
+            Array.isArray(options.photoAdjustments)
+          )
+            throw invalid();
+          const map = {};
+          for (const [imageId, rawAdj] of Object.entries(options.photoAdjustments)) {
+            if (!seen.has(imageId)) throw invalid();
+            map[imageId] = parseAdjustment(rawAdj);
+          }
+          photoAdjustments = Object.freeze(map);
+        }
         photoOptions = Object.freeze({
           resize: options.resize,
           crops: Object.freeze(crops),
           ...(Object.hasOwn(options, 'filter') ? { filter: options.filter } : {}),
           ...(Object.hasOwn(options, 'border') ? { border: options.border } : {}),
+          ...(adjustments ? { adjustments } : {}),
+          ...(photoAdjustments ? { photoAdjustments } : {}),
         });
       }
       return Object.freeze({

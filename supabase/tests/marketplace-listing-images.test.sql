@@ -70,23 +70,34 @@ insert into image_test_context values('crop-b',public.marketplace_reserve_listin
 insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',body->>'storagePath','{"mimetype":"image/jpeg","size":120}' from image_test_context where kind in ('crop-a','crop-b');
 update image_test_context set body=public.marketplace_commit_listing_image(body->>'id',1,(select body->>'id' from image_test_context where kind='crop-a')) where kind='crop-draft';
 update image_test_context set body=public.marketplace_commit_listing_image(body->>'id',2,(select body->>'id' from image_test_context where kind='crop-b')) where kind='crop-draft';
-update image_test_context set body=public.marketplace_set_listing_photo_options(body->>'id',3,jsonb_build_object('resize',1600,'filter','lighter','border','medium','crops',jsonb_build_object(
+update image_test_context set body=public.marketplace_set_listing_photo_options(body->>'id',3,jsonb_build_object('resize',1600,'filter','lighter','border','medium',
+  'adjustments','{"exposure":10,"contrast":5,"warmth":-5,"saturation":8,"sharpness":25,"denoise":10,"straighten":1.5,"flipX":false}'::jsonb,
+  'photoAdjustments',jsonb_build_object(
+    (select body->>'id' from image_test_context where kind='crop-a'),'{"exposure":-10,"contrast":0,"warmth":0,"saturation":0,"sharpness":0,"denoise":0,"straighten":0,"flipX":true}'::jsonb,
+    (select body->>'id' from image_test_context where kind='crop-b'),'{"exposure":15,"contrast":10,"warmth":4,"saturation":0,"sharpness":20,"denoise":0,"straighten":-2,"flipX":false}'::jsonb),
+  'crops',jsonb_build_object(
   (select body->>'id' from image_test_context where kind='crop-a'),'{"x":0,"y":0,"width":0.5,"height":1,"rotation":0}'::jsonb,
   (select body->>'id' from image_test_context where kind='crop-b'),'{"x":0,"y":0,"width":1,"height":0.5,"rotation":0}'::jsonb))) where kind='crop-draft';
 update image_test_context set body=public.marketplace_set_listing_image_order(body->>'id',4,array[(select body->>'id' from image_test_context where kind='crop-b')]) where kind='crop-draft';
 select ok(not (select body->'photoOptions'->'crops' ? (select body->>'id' from image_test_context where kind='crop-a') from image_test_context where kind='crop-draft'),'Entferntes Foto hinterlässt keinen ungültigen Ausschnitt');
+select ok(not (select body->'photoOptions'->'photoAdjustments' ? (select body->>'id' from image_test_context where kind='crop-a') from image_test_context where kind='crop-draft'),'Entferntes Foto hinterlässt keine ungültigen Einzelfoto-Parameter');
 select ok((select body->'photoOptions'->'crops' ? (select body->>'id' from image_test_context where kind='crop-b') from image_test_context where kind='crop-draft'),'Ausschnitt des beibehaltenen Originals bleibt erhalten');
+select ok((select body->'photoOptions'->'photoAdjustments' ? (select body->>'id' from image_test_context where kind='crop-b') from image_test_context where kind='crop-draft'),'Einzelfoto-Parameter des beibehaltenen Originals bleiben erhalten');
 select is((select state from public.marketplace_listing_images where id=(select (body->>'id')::bigint from image_test_context where kind='crop-a')),'ready','Entfernen aus der Auswahl löscht die Originaldatei nicht');
 insert into image_test_context values('crop-c',public.marketplace_reserve_listing_image((select body->>'id' from image_test_context where kind='crop-draft'),'c.jpg','image/jpeg',120));
 insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',body->>'storagePath','{"mimetype":"image/jpeg","size":120}' from image_test_context where kind='crop-c';
 update image_test_context set body=public.marketplace_commit_listing_image(body->>'id',5,(select body->>'id' from image_test_context where kind='crop-c'),(select body->>'id' from image_test_context where kind='crop-b')) where kind='crop-draft';
 select is((select body->'photoOptions'->'crops' from image_test_context where kind='crop-draft'),'{}'::jsonb,'Neue Originaldatei erbt keinen Ausschnitt ihrer Vorgängerdatei');
+select is((select body->'photoOptions'->'photoAdjustments' from image_test_context where kind='crop-draft'),'{}'::jsonb,'Neue Originaldatei erbt keine Einzelfoto-Parameter ihrer Vorgängerdatei');
 select is((select body->'photoOptions'->>'resize' from image_test_context where kind='crop-draft'),'1600','Eine Größenoption bleibt beim Ersetzen erhalten');
 select is((select state from public.marketplace_listing_images where id=(select (body->>'id')::bigint from image_test_context where kind='crop-b')),'ready','Ersetzen bewahrt auch das vorherige Original');
 select ok((select public.marketplace_listing_photo_options_valid(body->'photoOptions',array(select (item->>'id')::bigint from jsonb_array_elements(body->'images') item)) from image_test_context where kind='crop-draft'),'Auswahl und Ausgabeparameter bleiben nach Entfernen und Ersetzen konsistent');
 select is((select body->'photoOptions'->>'filter' from image_test_context where kind='crop-draft'),'lighter','Filter bleibt beim Entfernen und Ersetzen der Originalauswahl erhalten');
 select is((select body->'photoOptions'->>'border' from image_test_context where kind='crop-draft'),'medium','Rahmen bleibt ausschließlich als Ausgabeparameter erhalten');
 select ok(public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{}}','{}'::bigint[]),'Alte Aufträge ohne neue Ausgabeparameter bleiben gültig');
+select ok(public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{},"filter":"natural","adjustments":{"exposure":12,"contrast":-8,"warmth":10,"saturation":5,"sharpness":30,"denoise":15,"straighten":-2.5,"flipX":true}}','{}'::bigint[]),'Neue Presets und Feinanpassungen werden akzeptiert');
+select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{},"adjustments":{"exposure":60,"contrast":0,"warmth":0,"saturation":0,"sharpness":0,"denoise":0,"straighten":0,"flipX":false}}','{}'::bigint[]),'Reglerwerte außerhalb des erlaubten Bereichs werden abgelehnt');
+select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{},"photoAdjustments":{"99":{"exposure":0,"contrast":0,"warmth":0,"saturation":0,"sharpness":0,"denoise":0,"straighten":0,"flipX":true}}}',array[1::bigint]),'Einzelfoto-Parameter für fremde Foto-IDs werden abgelehnt');
 select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{},"filter":"unknown"}','{}'::bigint[]),'Unbekannte Filter werden abgelehnt');
 select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{},"border":null}','{}'::bigint[]),'Ungültige Rahmen werden abgelehnt');
 select ok(not public.marketplace_listing_photo_options_valid('{"resize":null,"crops":{},"other":true}','{}'::bigint[]),'Unbekannte Bildparameter werden abgelehnt');

@@ -428,6 +428,103 @@ test('preview and upload share filters and frame sizes without changing the orig
       });
       assert.deepEqual(output.bytes, repeated.bytes);
     }
+    const detailedBase64 = await page.evaluate(() => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 200;
+      canvas.height = 120;
+      const ctx = canvas.getContext('2d')!;
+      ctx.fillStyle = '#506478';
+      ctx.fillRect(0, 0, 100, 120);
+      ctx.fillStyle = '#966450';
+      ctx.fillRect(100, 0, 100, 120);
+      return canvas.toDataURL('image/png').split(',')[1]!;
+    });
+    const detailedPhoto = {
+      id: '2',
+      fileName: 'split.png',
+      mimeType: 'image/png' as const,
+      bytes: new Uint8Array(Buffer.from(detailedBase64, 'base64')),
+    };
+    const sampleDetailed = async (encoded: string) =>
+      page.evaluate(async (encoded) => {
+        const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+        const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/jpeg' }));
+        const canvas = document.createElement('canvas');
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        const ctx = canvas.getContext('2d')!;
+        ctx.drawImage(bitmap, 0, 0);
+        bitmap.close();
+        const rgb = (x: number, y: number) =>
+          Array.from(ctx.getImageData(x, y, 1, 1).data.slice(0, 3));
+        return {
+          left: rgb(30, 60),
+          right: rgb(170, 60),
+          frameCorner: rgb(0, 0),
+          topLeftCorner: rgb(2, 2),
+          bottomRightCorner: rgb(canvas.width - 3, canvas.height - 3),
+        };
+      }, encoded);
+    const neutralDetailed = await sampleDetailed(
+      Buffer.from(
+        (await exportVintedListingPhoto(page, detailedPhoto, { resize: null, crops: {} })).bytes,
+      ).toString('base64'),
+    );
+    const flippedAndWarm = await exportVintedListingPhoto(page, detailedPhoto, {
+      resize: null,
+      crops: {},
+      border: 'large',
+      adjustments: {
+        exposure: 0,
+        contrast: 0,
+        warmth: 40,
+        saturation: 0,
+        sharpness: 20,
+        denoise: 10,
+        straighten: 0,
+        flipX: false,
+      },
+      photoAdjustments: {
+        '2': {
+          exposure: 0,
+          contrast: 0,
+          warmth: 40,
+          saturation: 0,
+          sharpness: 20,
+          denoise: 10,
+          straighten: 3.5,
+          flipX: true,
+        },
+      },
+    });
+    const editedDetailed = await sampleDetailed(
+      Buffer.from(flippedAndWarm.bytes).toString('base64'),
+    );
+    // Der weiße Rahmen bleibt trotz Farbtemperatur rein weiß.
+    assert.ok(editedDetailed.frameCorner.every((channel) => channel > 245));
+    // Horizontal spiegeln kehrt die wärmere rechte Seite nach links um, und Wärme hebt Rot gegenüber Blau an.
+    assert.ok(editedDetailed.left[0]! > neutralDetailed.right[0]! + 10);
+    assert.ok(editedDetailed.left[2]! < neutralDetailed.right[2]! - 5);
+    // Feinrotation ohne Rahmen erzeugt durch Auto-Zoom keine weißen Ecken an den Bildrändern.
+    const straightened = await exportVintedListingPhoto(page, detailedPhoto, {
+      resize: null,
+      crops: {},
+      adjustments: {
+        exposure: 0,
+        contrast: 0,
+        warmth: 0,
+        saturation: 0,
+        sharpness: 0,
+        denoise: 0,
+        straighten: 4,
+        flipX: false,
+      },
+    });
+    const straightenedSample = await sampleDetailed(
+      Buffer.from(straightened.bytes).toString('base64'),
+    );
+    assert.ok(straightenedSample.topLeftCorner[0]! < 200);
+    assert.ok(straightenedSample.bottomRightCorner[0]! < 200);
     assert.deepEqual(Buffer.from(photo.bytes), original);
   } finally {
     await browser.close();

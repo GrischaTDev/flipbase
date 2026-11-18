@@ -83,11 +83,34 @@ test('only a bound cloud claim becomes a tokenless frozen listing scope', async 
 });
 
 test('photo output options stay frozen separately from immutable original image metadata', async () => {
+  const imageId = response.snapshot.images[0]!.id;
   const photoOptions = {
     resize: 1600,
-    filter: 'lighter',
+    filter: 'natural',
     border: 'medium',
-    crops: { [response.snapshot.images[0]!.id]: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+    crops: { [imageId]: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+    adjustments: {
+      exposure: 10,
+      contrast: 8,
+      warmth: 6,
+      saturation: 4,
+      sharpness: 20,
+      denoise: 10,
+      straighten: 1.5,
+      flipX: false,
+    },
+    photoAdjustments: {
+      [imageId]: {
+        exposure: -5,
+        contrast: 12,
+        warmth: -4,
+        saturation: 0,
+        sharpness: 30,
+        denoise: 0,
+        straighten: -2,
+        flipX: true,
+      },
+    },
   };
   const f = fixture({ snapshot: { ...response.snapshot, photoOptions } });
   const claim = await f.store.claim(binding.workerId, 4, binding.runnerId);
@@ -95,7 +118,10 @@ test('photo output options stay frozen separately from immutable original image 
   assert.deepEqual(claim.snapshot.photoOptions, photoOptions);
   assert.ok(Object.isFrozen(claim.snapshot.photoOptions));
   assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops));
-  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops[response.snapshot.images[0]!.id]));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.crops[imageId]));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.adjustments));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.photoAdjustments));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.photoAdjustments?.[imageId]));
   assert.deepEqual(claim.snapshot.images, response.snapshot.images);
 });
 
@@ -158,6 +184,46 @@ test('claim rejects rounded identifiers, foreign worker, account, connection and
         photoOptions: {
           resize: null,
           crops: { unknown: { x: 0, y: 0, width: 1, height: 1, rotation: 0 } },
+        },
+      },
+    },
+    {
+      snapshot: {
+        ...response.snapshot,
+        photoOptions: {
+          resize: null,
+          crops: {},
+          adjustments: {
+            exposure: 55,
+            contrast: 0,
+            warmth: 0,
+            saturation: 0,
+            sharpness: 0,
+            denoise: 0,
+            straighten: 0,
+            flipX: false,
+          },
+        },
+      },
+    },
+    {
+      snapshot: {
+        ...response.snapshot,
+        photoOptions: {
+          resize: null,
+          crops: {},
+          photoAdjustments: {
+            unknown: {
+              exposure: 0,
+              contrast: 0,
+              warmth: 0,
+              saturation: 0,
+              sharpness: 0,
+              denoise: 0,
+              straighten: 0,
+              flipX: true,
+            },
+          },
         },
       },
     },
