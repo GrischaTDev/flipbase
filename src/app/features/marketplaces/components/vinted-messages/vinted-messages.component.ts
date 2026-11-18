@@ -325,7 +325,8 @@ export class VintedMessagesComponent {
       ?.sales?.items.find((entry) => entry.conversationId === conversation.id);
     if (!sale || (sale.saleState !== 'sold' && sale.saleState !== 'shipped')) return null;
     return sale.shippingLabelAction ||
-      (sale.externalId && this.shippingLabels.byTransaction().has(sale.externalId))
+      sale.shippingDeadline ||
+      this.shippingLabels.findForSale(sale)
       ? sale
       : null;
   });
@@ -395,6 +396,11 @@ export class VintedMessagesComponent {
   constructor() {
     const clock = setInterval(() => this.now.set(Date.now()), 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(clock));
+    effect(() => {
+      const account = this.store.selectedConnection();
+      if (account?.executionMode === 'cloud')
+        untracked(() => void this.shippingLabels.load(account));
+    });
     // Neue eigene Nachricht im Verlauf: Warteschlange sofort statt erst beim nächsten Intervall abgleichen.
     let outboundCount: number | null = null;
     effect(() => {

@@ -630,8 +630,18 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
     complete.selected.filter(([file]) => coreFiles.has(file)).length,
     coreBrowserTests.length,
   );
-  // Archivkopien, importierte Verkäufe und die vier datenbankfreien Verkaufsfälle bleiben enthalten.
-  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 69);
+  // Archivkopien, importierte Verkäufe und der Sprung zum gespeicherten Versandschein bleiben enthalten.
+  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 71);
+  for (const layout of ['1440px light', '390px dark'])
+    assert.equal(
+      complete.selected.filter(
+        ([file, title]) =>
+          file === 'vinted-workspace-ui.spec.ts' &&
+          title.includes(`Versandscheine bei ${layout}`) &&
+          title.includes('verlinkt aus Chat und Verkäufen zum passenden QR-Code'),
+      ).length,
+      1,
+    );
   for (const width of [390, 1440])
     for (const theme of ['light', 'dark'])
       assert.equal(

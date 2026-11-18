@@ -30,6 +30,7 @@ import { VintedActionOverviewApiService } from '../../services/vinted-action-ove
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { VintedOfferActionsComponent } from '../vinted-offer-actions/vinted-offer-actions.component';
+import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { VintedNegotiationApiService } from '../../services/vinted-negotiation-api.service';
 import { VintedNegotiationActionStore } from '../../services/vinted-negotiation-action.store';
@@ -238,6 +239,10 @@ beforeEach(() => {
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
+      {
+        provide: VintedShippingLabelStore,
+        useValue: { load: vi.fn(), findForSale: vi.fn(), requesting: signal(new Set<string>()) },
+      },
       MarketplaceAccountStore,
       {
         provide: AppDisplayPreferencesService,
@@ -497,8 +502,17 @@ describe('Vollständiges Laden eines Gesprächs', () => {
       ).toContain('Artikel noch nicht geladen');
     },
   );
-  it('zeigt im Gespräch eines frischen Verkaufs das Anfordern des Versandscheins', async () => {
+  it('ersetzt im Verkaufschat den Abruf durch den Link zur gespeicherten Datei', async () => {
     const base = snapshot(accounts[0]);
+    const savedLabelId = signal<string | null>(null);
+    const labels = TestBed.inject(VintedShippingLabelStore);
+    vi.mocked(labels.findForSale).mockImplementation((sale) =>
+      savedLabelId() && sale.shipmentId === '51458635363'
+        ? ({ id: savedLabelId(), connectionId: sale.connectionId } as ReturnType<
+            typeof labels.findForSale
+          >)
+        : null,
+    );
     api.readSnapshot.mockImplementation(async (scope: AccountScope) =>
       parseMarketplaceSnapshot(
         {
@@ -512,11 +526,11 @@ describe('Vollständiges Laden eines Gesprächs', () => {
               {
                 ...scope,
                 id: 'sale-1',
-                externalId: '24052549356',
+                shipmentId: '51458635363',
                 title: 'Schal',
                 saleState: 'sold',
                 conversationId: 'conversation-1',
-                shippingLabelAction: 'order',
+                shippingLabelAction: 'available',
                 shippingDeadline: '16 Nov. 10:00',
               },
             ],
@@ -531,8 +545,15 @@ describe('Vollständiges Laden eines Gesprächs', () => {
     button(fixture, 'Anfrage zum Schal').click();
     await settle(fixture);
     const actions = fixture.nativeElement.querySelector('[data-conversation-shipping-label]');
-    expect(actions?.textContent).toContain('Versandschein anfordern');
+    expect(actions?.textContent).toContain('Versandschein abholen');
     expect(actions?.textContent).toContain('Verschicken bis 16 Nov. 10:00');
+    expect(labels.load).toHaveBeenCalledWith(
+      expect.objectContaining({ connectionId: accounts[0].connectionId }),
+    );
+    savedLabelId.set('7');
+    await settle(fixture);
+    expect(actions?.textContent).not.toContain('Versandschein abholen');
+    expect(actions?.querySelector('a')?.getAttribute('href')).toContain('labelId=7');
   });
   it('überträgt einen fremden lokalen Fehler nicht auf ein gespeichertes Gespräch', async () => {
     const fixture = await render();

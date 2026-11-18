@@ -4,6 +4,7 @@ export interface VintedShippingLabel {
   readonly workspaceId: string;
   readonly connectionId: string;
   readonly transactionId: string;
+  readonly shipmentId: string;
   readonly conversationId: string | null;
   readonly title: string;
   readonly carrierName: string | null;
@@ -36,6 +37,8 @@ export function parseVintedShippingLabelRow(row: unknown): VintedShippingLabel |
     !uuidPattern.test(value['connection_id']) ||
     typeof value['external_transaction_id'] !== 'string' ||
     !identifierPattern.test(value['external_transaction_id']) ||
+    typeof value['external_shipment_id'] !== 'string' ||
+    !identifierPattern.test(value['external_shipment_id']) ||
     typeof value['storage_path'] !== 'string' ||
     !value['storage_path'] ||
     !mimeTypes.includes(value['mime_type'] as (typeof mimeTypes)[number]) ||
@@ -49,6 +52,7 @@ export function parseVintedShippingLabelRow(row: unknown): VintedShippingLabel |
     workspaceId: value['workspace_id'],
     connectionId: value['connection_id'],
     transactionId: value['external_transaction_id'],
+    shipmentId: value['external_shipment_id'],
     conversationId:
       typeof conversationId === 'string' && identifierPattern.test(conversationId)
         ? conversationId
@@ -88,7 +92,7 @@ export function vintedShippingLabelTypeLabel(label: VintedShippingLabel): string
 export function vintedShippingLabelErrorMessage(errorCode: string): string {
   switch (errorCode) {
     case 'label_choice_required':
-      return 'Für diesen Verkauf bietet Vinted mehrere Versandwege an. Fordere den Versandschein bitte direkt bei Vinted an.';
+      return 'Bestätige die Versandangaben im Vinted-Verkaufschat. Danach kannst Du den Versandschein hier abholen.';
     case 'address_choice_required':
       return 'Im Vinted-Konto ist keine eindeutige Absenderadresse hinterlegt. Fordere den Versandschein bitte direkt bei Vinted an.';
     case 'phone_required':

@@ -1,4 +1,4 @@
-@if (label() || action() || deadline() || notice()) {
+@if (label() || action() || deadline()) {
   <div data-shipping-label-actions class="flex min-w-0 flex-col gap-2">
     @if (deadline()) {
       <p
@@ -9,27 +9,15 @@
       </p>
     }
     @if (label(); as current) {
-      <div class="flex min-w-0 items-center gap-2">
-        <app-button
-          class="min-w-0 flex-1"
-          variant="primary"
-          size="slim"
-          [fullWidth]="true"
-          [icon]="openIcon"
-          (clicked)="open(false)"
-          >Versandschein öffnen</app-button
-        >
-        <app-button
-          class="shrink-0"
-          variant="secondary"
-          size="slim"
-          [icon]="downloadIcon"
-          [iconOnly]="true"
-          ariaLabel="Versandschein herunterladen"
-          title="Versandschein herunterladen"
-          (clicked)="open(true)"
-        />
-      </div>
+      <app-button
+        variant="primary"
+        size="slim"
+        [fullWidth]="true"
+        [icon]="openIcon"
+        link="/marketplaces/vinted/shipping-labels"
+        [queryParams]="{ connectionId: current.connectionId, labelId: current.id }"
+        >Zum Versandschein</app-button
+      >
     } @else if (action()) {
       <app-button
         variant="primary"
@@ -42,9 +30,6 @@
           action() === 'order' ? 'Versandschein anfordern' : 'Versandschein abholen'
         }}</app-button
       >
-    }
-    @if (notice()) {
-      <p role="status" class="text-xs text-fb-text-secondary">{{ notice() }}</p>
     }
   </div>
 }
