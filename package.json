@@ -113,7 +113,7 @@
     "nodemailer": "10.5.0",
     "postcss": "^8.5.33",
     "prettier": "^3.10.1",
-    "supabase": "^2.114.0",
+    "supabase": "^3.1.0",
     "tailwindcss": "^4.3.5",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.72.2",
