@@ -34,6 +34,7 @@ test('liest Gesprächsversionen nur für die aktive Sitzung und das gebundene Ko
             sourceUpdatedAt: '2026-09-28T09:00:00Z',
             detailCheckedAt: '2026-09-28T09:30:00Z',
             saleTrackingVersion: 1,
+            shippingCarrier: { shipmentId: '987', name: 'DHL' },
             text: 'Letzte Nachricht',
             occurredAt: '2026-09-28T09:20:00Z',
             itemId: '81',
@@ -53,6 +54,7 @@ test('liest Gesprächsversionen nur für die aktive Sitzung und das gebundene Ko
   assert.equal(versions[0]?.itemTitle, 'Saved article');
   assert.equal(versions[0]?.itemPrice, 24);
   assert.equal(versions[0]?.saleTrackingVersion, 1);
+  assert.deepEqual(versions[0]?.shippingCarrier, { shipmentId: '987', name: 'DHL' });
   assert.equal(calls[1]?.searchParams.get('workspace_id'), `eq.${scope.workspaceId}`);
   assert.equal(calls[1]?.searchParams.get('connection_id'), `eq.${scope.connectionId}`);
   assert.equal(calls[1]?.searchParams.get('kind'), 'eq.conversation');

@@ -869,7 +869,7 @@ for (const [width, theme, hasTouch] of [
       await page.route(photo, (route) =>
         route.fulfill({
           contentType: 'image/svg+xml',
-          body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="#935653"/></svg>',
+          body: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="48"><rect width="24" height="48" fill="#935653"/></svg>',
         }),
       );
       await page.route('**/rest/v1/marketplace_account_entries?*', async (route) => {
@@ -892,14 +892,23 @@ for (const [width, theme, hasTouch] of [
       const target = page.getByRole('row', { name: /Verkaufter Schal/ });
       await expect(target).toHaveAttribute('aria-current', 'true');
       await expect(target).toBeFocused();
-      await expect(target.getByRole('button', { name: 'QR-Code öffnen' })).toBeVisible();
+      const openQr = target.getByRole('button', { name: 'QR-Code öffnen' });
+      await expect(openQr).toBeVisible();
       await expect(target.getByRole('button', { name: 'QR-Code herunterladen' })).toBeAttached();
       const other = page.getByRole('row', { name: /Andere Bestellung/ });
       await expect(other).not.toHaveAttribute('aria-current', 'true');
-      await expect(other.getByRole('button', { name: 'Druck-PDF öffnen' })).toBeVisible();
+      const openPdf = other.getByRole('button', { name: 'Druck-PDF öffnen' });
+      await expect(openPdf).toBeVisible();
+      const buttonWidth = (button: HTMLElement) => button.getBoundingClientRect().width;
+      expect(await openQr.evaluate(buttonWidth)).toBe(await openPdf.evaluate(buttonWidth));
       await expect(target).toContainText('Testkonto A');
       await expect(other).toContainText('Testkonto B');
-      await expect(target.locator('img')).toHaveAttribute('src', photo);
+      const thumbnail = target.locator('img');
+      await expect(thumbnail).toHaveAttribute('src', photo);
+      await expect(thumbnail).toHaveCSS('object-fit', 'cover');
+      await expect
+        .poll(() => thumbnail.evaluate((image) => (image as HTMLImageElement).naturalWidth))
+        .toBe(24);
       await expect(other.locator('[data-product-placeholder]')).toBeVisible();
       await expect(page.getByRole('combobox', { name: 'Vinted-Konto auswählen' })).toHaveCount(0);
       const markedColor = () => target.evaluate((row) => getComputedStyle(row).backgroundColor);

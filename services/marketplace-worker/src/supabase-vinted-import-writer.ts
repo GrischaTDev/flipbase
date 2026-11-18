@@ -12,6 +12,10 @@ import {
 } from './supabase-vinted-listing-catalog.ts';
 import type { VintedListingCatalogRead } from './vinted-listing-catalog.ts';
 import type { VintedAccountImport, VintedConversationVersion } from './vinted-account-import.ts';
+import {
+  parseVintedShippingCarrier,
+  shippingCarrierFromSale,
+} from './vinted-shipping-label-contracts.ts';
 
 import {
   parseVintedPublicationAge,
@@ -233,6 +237,7 @@ export class SupabaseVintedImportWriter {
         (body['detailCheckedAt'] !== null && typeof body['detailCheckedAt'] !== 'string')
       )
         return [];
+      const shippingCarrier = parseVintedShippingCarrier(body['shippingCarrier']);
       return [
         {
           externalId: row['external_id'],
@@ -253,6 +258,7 @@ export class SupabaseVintedImportWriter {
           itemCurrency: typeof body['itemCurrency'] === 'string' ? body['itemCurrency'] : null,
           transactionStatus:
             typeof body['transactionStatus'] === 'string' ? body['transactionStatus'] : null,
+          ...(shippingCarrier ? { shippingCarrier } : {}),
           ...(body['saleTrackingVersion'] === 1 ||
           body['saleTrackingVersion'] === 2 ||
           body['saleTrackingVersion'] === 3
@@ -318,33 +324,28 @@ export class SupabaseVintedImportWriter {
         throw new Error('Vinted-Daten konnten nicht bestätigt werden');
       counts[kind] = value;
     }
-    if (scope.accountAction && counts.sale > 0) {
-      // Nur der bestätigte Einzelabruf kann fehlende Angaben zu einem vorhandenen Schein ergänzen.
-      const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
-      const carrier = sale?.body['shippingCarrierName'];
-      const shipment = sale?.body['shipmentId'];
-      if (
-        sale &&
-        sale.body['sellerId'] === snapshot.identity.id &&
-        /^[1-9][0-9]{0,31}$/.test(sale.externalId) &&
-        typeof shipment === 'string' &&
-        /^[1-9][0-9]{0,31}$/.test(shipment) &&
-        typeof carrier === 'string' &&
-        carrier.trim() &&
-        carrier.length <= 120
-      ) {
+    if (counts.sale > 0) {
+      for (const sale of snapshot.entries) {
+        if (
+          sale.kind !== 'sale' ||
+          sale.body['sellerId'] !== snapshot.identity.id ||
+          !/^[1-9][0-9]{0,31}$/.test(sale.externalId)
+        )
+          continue;
+        const carrier = shippingCarrierFromSale(sale.body);
+        if (!carrier) continue;
         try {
           await this.assertActive(scope, sessionId);
           const url = new URL('/rest/v1/marketplace_shipping_labels', this.baseUrl);
           url.searchParams.set('workspace_id', `eq.${scope.workspaceId}`);
           url.searchParams.set('connection_id', `eq.${scope.connectionId}`);
           url.searchParams.set('external_transaction_id', `eq.${sale.externalId}`);
-          url.searchParams.set('external_shipment_id', `eq.${shipment}`);
+          url.searchParams.set('external_shipment_id', `eq.${carrier.shipmentId}`);
           url.searchParams.set('carrier_name', 'is.null');
           const response = await this.request(url, {
             method: 'PATCH',
             headers: { ...this.serverHeaders(), 'Content-Type': 'application/json' },
-            body: JSON.stringify({ carrier_name: carrier }),
+            body: JSON.stringify({ carrier_name: carrier.name }),
             signal: AbortSignal.timeout(2500),
           });
           if (!response.ok) throw new Error('Versanddienst konnte nicht gespeichert werden');

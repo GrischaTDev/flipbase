@@ -191,6 +191,66 @@ test('a scoped chat read obtains the carrier for an already shipped sale', async
   assert.equal(sale?.body.shipmentId, '987');
 });
 
+test('a sale read remembers the carrier from the open order form for a later manual label', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(observedAt) });
+  const relation = { id: 71, shipment_id: 987, available_actions: ['order_shipping_label'] };
+  const before = importFixture(relation);
+  const snapshot = await readVintedAccountImport(before.page, async () => undefined, undefined, [
+    before.previous,
+  ]);
+  const saved = snapshot.entries.find((entry) => entry.kind === 'conversation')?.body
+    .shippingCarrier;
+  assert.deepEqual(saved, { shipmentId: '987', name: 'DHL' });
+  assert.equal(
+    snapshot.entries.find((entry) => entry.kind === 'sale')?.body.shippingCarrierName,
+    'DHL',
+  );
+
+  for (const shipmentId of [987, 988]) {
+    const after = importFixture({ id: 71, shipment_id: shipmentId }, false, {
+      shipment: { status_title: 'Sendung verschickt und auf dem Weg!' },
+    });
+    const imported = await readVintedAccountImport(
+      after.page,
+      async () => undefined,
+      undefined,
+      [
+        {
+          ...after.previous,
+          shippingCarrier: { shipmentId: '987', name: 'DHL' },
+        },
+      ],
+      { externalId: '51', accountId: '123' },
+    );
+    assert.equal(
+      imported.entries.find((entry) => entry.kind === 'sale')?.body.shippingCarrierName,
+      shipmentId === 987 ? 'DHL' : undefined,
+    );
+    assert.equal(
+      after.paths.some((path) => path.endsWith('/987/label_options')),
+      false,
+    );
+  }
+});
+
+test('an explicit shipment carrier is kept without calling the label form', async () => {
+  const item = importFixture({ id: 71, shipment_id: 987 }, false, {
+    shipment: {
+      status_title: 'Sendung verschickt und auf dem Weg!',
+      carrier: { name: 'DPD Classic' },
+    },
+  });
+  const snapshot = await readVintedAccountImport(item.page, async () => undefined, undefined, [
+    item.previous,
+  ]);
+  const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body.shippingCarrierName, 'DPD Classic');
+  assert.equal(
+    item.paths.some((path) => path.endsWith('/label_options')),
+    false,
+  );
+});
+
 test('uncertain current sale relations do not inherit a fresh confirmation from the old inbox cache', async (t) => {
   t.mock.timers.enable({ apis: ['Date'], now: new Date(observedAt) });
   for (const transaction of [undefined, { id: 72 }, { id: 71, seller_id: 999 }]) {

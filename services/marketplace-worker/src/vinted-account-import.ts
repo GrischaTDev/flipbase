@@ -27,7 +27,11 @@ import {
   readVintedShippingLabelState,
   vintedShipmentInTransit,
 } from './vinted-sales.ts';
-import { vintedShippingCarrierName } from './vinted-shipping-label-contracts.ts';
+import {
+  parseVintedShippingCarrier,
+  vintedCarrierName,
+  vintedShippingCarrierName,
+} from './vinted-shipping-label-contracts.ts';
 import {
   isVintedConversationSaleTransaction,
   vintedConversationSaleRead,
@@ -110,6 +114,7 @@ export interface VintedConversationVersion {
   saleTrackingVersion?: 1 | 2 | 3;
   saleTransactionId?: string;
   saleSellerId?: string;
+  shippingCarrier?: NonNullable<ReturnType<typeof parseVintedShippingCarrier>>;
 }
 
 export interface VintedConversationReadTarget {
@@ -670,6 +675,7 @@ export function parseVintedAccountImport(
         ...(previous?.saleTransactionId && previous.saleSellerId
           ? { saleTransactionId: previous.saleTransactionId, saleSellerId: previous.saleSellerId }
           : {}),
+        ...(previous?.shippingCarrier ? { shippingCarrier: previous.shippingCarrier } : {}),
       },
     });
   }
@@ -874,6 +880,10 @@ export function parseVintedAccountImport(
     }
     if (sale && !sales.has(sale.externalId)) {
       sales.add(sale.externalId);
+      const shippingCarrier = parseVintedShippingCarrier({
+        shipmentId: sale.body.shipmentId,
+        name: detail?.['shippingCarrierName'],
+      });
       const publication =
         !sale.body.isBundle && sale.body.itemCount === 1 && sale.body.itemIds.length === 1
           ? entries.find(
@@ -885,16 +895,20 @@ export function parseVintedAccountImport(
         ...sale,
         body: {
           ...sale.body,
-          ...(typeof detail?.['shippingCarrierName'] === 'string'
-            ? { shippingCarrierName: detail['shippingCarrierName'] }
-            : {}),
+          ...(shippingCarrier ? { shippingCarrierName: shippingCarrier.name } : {}),
           brand: publication?.body['brand'] ?? null,
           size: publication?.body['size'] ?? null,
         },
       });
       if (conversationEntry) {
+        const sameSale =
+          conversationEntry.body['saleTransactionId'] === sale.externalId &&
+          conversationEntry.body['saleSellerId'] === identity.id;
         conversationEntry.body['saleTransactionId'] = sale.externalId;
         conversationEntry.body['saleSellerId'] = identity.id;
+        if (shippingCarrier) conversationEntry.body['shippingCarrier'] = shippingCarrier;
+        else if (!sameSale || sale.body.shipmentId)
+          delete conversationEntry.body['shippingCarrier'];
       }
     }
   }
@@ -1643,16 +1657,23 @@ export async function readVintedAccountImport(
     const conversationTransaction = record(relation?.['transaction']);
     const shipmentId = identifier(conversationTransaction?.['shipment_id']);
     const shipment = record(record(record(transaction)?.['transaction'])?.['shipment']);
-    let shippingCarrierName: string | null = null;
-    // Beim gezielten Chatabruf den Versanddienst bereits abgeholter Scheine ergänzen.
+    const previousCarrier = previous?.shippingCarrier;
+    const cachedCarrierName =
+      previousCarrier &&
+      previousCarrier.shipmentId === shipmentId &&
+      previousSale?.transactionId === transactionId &&
+      previousSale?.sellerId === identity.id
+        ? previousCarrier.name
+        : null;
+    let shippingCarrierName = vintedCarrierName(shipment) ?? cachedCarrierName;
+    // Im offenen Anforderungsformular kann Vinted den Versanddienst schon vor dem Schein liefern.
     if (
-      requestedConversation &&
+      !shippingCarrierName &&
       transaction &&
       shipmentId &&
       canReadDetail() &&
-      (readVintedShippingLabelState(conversationTransaction, relation?.['messages']).action ===
-        'available' ||
-        shipment?.['status_title'] === vintedShipmentInTransit)
+      (readVintedShippingLabelState(conversationTransaction, relation?.['messages']).action ||
+        (requestedConversation && shipment?.['status_title'] === vintedShipmentInTransit))
     ) {
       await atImportStage('transaction', authorize);
       shippingCarrierName = vintedShippingCarrierName(

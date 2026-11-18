@@ -709,6 +709,7 @@ test('isolated import preserves central authorizations, article cache and inbox 
       if (previous?.length) {
         assert.equal(previous[0]?.itemTitle, 'Vintage Jacke');
         assert.equal(previous[0]?.saleTrackingVersion, 3);
+        assert.deepEqual(previous[0]?.shippingCarrier, { shipmentId: '987', name: 'DHL' });
       }
       await authorize();
       await onStage?.('profile');
@@ -733,6 +734,7 @@ test('isolated import preserves central authorizations, article cache and inbox 
           saleTrackingVersion: 3,
           saleTransactionId: '71',
           saleSellerId: '123',
+          shippingCarrier: { shipmentId: '987', name: 'DHL' },
           text: null,
           occurredAt: null,
           itemId: '99',

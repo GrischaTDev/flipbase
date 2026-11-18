@@ -1456,6 +1456,8 @@ test('an explicit conversation read confirms its own shipping action and sale de
         };
       if (path === '/api/v2/conversations/456') return { conversation: saleConversation(456) };
       if (path === '/api/v2/transactions/71') return { transaction: saleTransaction };
+      if (path === '/api/v2/shipments/73/label_options')
+        return { label_options: { carrier: { name: 'DHL' } } };
       return undefined;
     }),
     async () => undefined,
@@ -1468,12 +1470,14 @@ test('an explicit conversation read confirms its own shipping action and sale de
     '/api/v2/inbox?page=1&per_page=20',
     '/api/v2/conversations/456',
     '/api/v2/transactions/71',
+    '/api/v2/shipments/73/label_options',
   ]);
   assert.equal(snapshot.areas.conversations.status, 'partial');
   const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
   assert.equal(sale?.body.saleState, 'sold');
   assert.equal(sale?.body.shippingLabelAction, 'order');
   assert.equal(sale?.body.shippingDeadline, '24 Nov. 20:18');
+  assert.equal(sale?.body.shippingCarrierName, 'DHL');
   assert.equal(sale?.body.price, 40);
   assert.deepEqual(sale?.body.itemIds, ['81']);
   assert.equal(
