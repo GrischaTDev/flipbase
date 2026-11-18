@@ -47,7 +47,9 @@ const server = createServer(async (request, response) => {
   const path = requestUrl.pathname;
   if (path === '/api/__pwa_test__/asset-delay' && request.method === 'POST') {
     const asset = requestUrl.searchParams.get('path') ?? '';
-    if (asset && !/^\/fonts\/[\w.-]+$/.test(asset)) {
+    // index.html ist die einzige Datei, die sich zwischen den Testbauten a und b
+    // unterscheidet; unveränderte Dateien übernimmt der Worker ohne Download.
+    if (asset && !/^\/(?:fonts\/[\w.-]+|index\.html)$/.test(asset)) {
       response.writeHead(400).end();
       return;
     }

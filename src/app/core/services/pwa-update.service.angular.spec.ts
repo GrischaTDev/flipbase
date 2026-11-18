@@ -116,7 +116,10 @@ it('releases the startup after the current document times out without reopening 
   expect(service.startupPending()).toBe(false);
   registration.update.mockImplementation(() => new Promise(() => undefined));
   const check = service.checkForUpdate({ force: true, showScreen: true });
-  await vi.advanceTimersByTimeAsync(8000);
+  // Drei Versuche mit je 15 s Grenze und zwei stillen Pausen (3 s, 7 s).
+  await vi.advanceTimersByTimeAsync(54_000);
+  expect(service.checkError()).toBe('');
+  await vi.advanceTimersByTimeAsync(1_000);
   await check;
   expect(service.checkError()).not.toBe('');
   expect(service.startupPending()).toBe(false);
@@ -247,8 +250,8 @@ it('retries a blocked legacy handover when the current view resumes, without req
     attemptId: first.attemptId,
     result: 'blocked',
   });
-  await Promise.resolve();
-  await Promise.resolve();
+  // Alle Folgeaufgaben des abgelehnten Versuchs abwarten, unabhängig von ihrer Tiefe.
+  await new Promise((resolve) => setTimeout(resolve));
   await service.checkForUpdate();
   receive('PWA_WAITING_STATUS', { buildId: 'b'.repeat(64) });
   expect(
@@ -471,7 +474,7 @@ it('keeps the working page visible during a background check and offers retry on
   const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
   fixture.detectChanges();
   expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
-  await vi.advanceTimersByTimeAsync(8000);
+  await vi.advanceTimersByTimeAsync(55_000);
   fixture.detectChanges();
   expect(fixture.nativeElement.querySelector('[aria-modal="true"]')).toBeNull();
   expect(fixture.nativeElement.textContent).toContain('Erneut prüfen');
@@ -590,7 +593,7 @@ it('finishes the check while a slow update keeps downloading and offers it when 
   registration.dispatchEvent(new Event('updatefound'));
   registration.update.mockImplementation(() => new Promise(() => undefined));
   const check = service.checkForUpdate({ force: true, showScreen: true });
-  await vi.advanceTimersByTimeAsync(8100);
+  await vi.advanceTimersByTimeAsync(15_100);
   await check;
   expect(service.checkError()).toBe('');
   expect(service.checkingForUpdate()).toBe(false);
@@ -664,14 +667,36 @@ it('bundles simultaneous return events into one network check and can retry afte
   expect(registration.update).toHaveBeenCalledOnce();
   finish?.();
   await service.checkForUpdate();
-  registration.update.mockRejectedValueOnce(new Error('offline'));
+  vi.useFakeTimers();
+  registration.update
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockRejectedValueOnce(new Error('offline'))
+    .mockRejectedValueOnce(new Error('offline'));
   window.dispatchEvent(new Event('online'));
-  await service.checkForUpdate();
+  const failing = service.checkForUpdate();
+  await vi.advanceTimersByTimeAsync(10_000);
+  await failing;
   const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
   fixture.detectChanges();
   expect(fixture.nativeElement.textContent).toContain('Erneut prüfen');
   await service.checkForUpdate({ force: true });
   expect(service.checkError()).toBe('');
+});
+
+it('silently retries a check that fails while a new release is being deployed', async () => {
+  vi.useFakeTimers();
+  registration.update.mockClear();
+  registration.update.mockRejectedValueOnce(new TypeError('Failed to update: 502'));
+  const check = service.checkForUpdate({ force: true });
+  await vi.advanceTimersByTimeAsync(0);
+  expect(service.checkError()).toBe('');
+  await vi.advanceTimersByTimeAsync(3_000);
+  await check;
+  expect(registration.update).toHaveBeenCalledTimes(2);
+  expect(service.checkError()).toBe('');
+  const fixture = TestBed.createComponent(PwaUpdateNoticeComponent);
+  fixture.detectChanges();
+  expect(fixture.nativeElement.textContent).not.toContain('Erneut prüfen');
 });
 
 it('protects a dirty legacy form without route guards and reopens the update screen after leaving it', async () => {
