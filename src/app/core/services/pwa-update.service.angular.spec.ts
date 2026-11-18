@@ -149,14 +149,8 @@ it('releases a nonresponding worker and explains how to retry', async () => {
   vi.useFakeTimers();
   receive('PWA_WAITING_STATUS');
   const result = service.applyUpdate();
-  await vi.advanceTimersByTimeAsync(15_000);
-  // Ein verspäteter Worker bekommt automatisch einen zweiten Versuch.
-  expect(service.isApplying()).toBe(true);
-  await vi.advanceTimersByTimeAsync(15_000);
+  await vi.advanceTimersByTimeAsync(8000);
   expect(await result).toBe('failed');
-  expect(
-    waiting.postMessage.mock.calls.filter(([message]) => message.type === 'ACTIVATE_UPDATE'),
-  ).toHaveLength(2);
   expect(service.isApplying()).toBe(false);
   expect(service.message()).toMatch(/nicht geantwortet/);
 });
@@ -530,7 +524,7 @@ it('releases its activation barrier even when the worker stops before a timeout 
     throw new DOMException('stopped', 'InvalidStateError');
   });
   try {
-    await vi.advanceTimersByTimeAsync(15_000);
+    await vi.advanceTimersByTimeAsync(8000);
     expect(await result).toBe('failed');
     expect(service.isApplying()).toBe(false);
     const input = new Event('beforeinput', { cancelable: true });

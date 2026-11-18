@@ -539,10 +539,12 @@ test('a real second build downloads in the background without a false startup er
     .poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller)))
     .toBe(true);
   const oldBuild = await page.locator('html').getAttribute('data-flipbase-build');
+  // Unveränderte Dateien übernimmt der Worker aus dem bisherigen Bau. Langsam
+  // bleibt daher nur eine Datei, die sich im zweiten Testbau tatsächlich ändert.
   const asset = await page.evaluate(async () => {
     const inventory = await (await fetch('/pwa-assets.json')).json();
-    return inventory.assets.find((item: { url: string }) => item.url === '/fonts/fonts.css')
-      ?.url as string | undefined;
+    return inventory.assets.find((item: { url: string }) => item.url === '/index.html')?.url as
+      string | undefined;
   });
   expect(asset).toBeDefined();
   await page.request.post(`/api/__pwa_test__/asset-delay?path=${encodeURIComponent(asset!)}`);

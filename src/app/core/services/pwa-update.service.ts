@@ -12,8 +12,6 @@ const updateCheckTimeout = 15_000;
  * wiederholt. Erst wenn auch diese Versuche scheitern, erscheint ein Hinweis.
  */
 const updateCheckRetryDelays = [3_000, 7_000];
-/** Muss länger sein als die Wartezeit des Workers auf dieses Fenster (sw.js). */
-const activationTimeout = 15_000;
 interface UpdateBarrier {
   attemptId: string;
   buildId: string;
@@ -54,7 +52,6 @@ export class PwaUpdateService {
   private readonly entryRevision = signal(0);
   private lastSynchronizationProbe = 0;
   private releaseTimer: ReturnType<typeof setTimeout> | null = null;
-  private activationTimedOut = false;
   private readonly editedControls = new Map<HTMLElement, string>();
 
   constructor() {
@@ -547,15 +544,6 @@ export class PwaUpdateService {
   }
 
   async applyUpdate(): Promise<UpdateResult> {
-    const result = await this.startActivation();
-    if (result !== 'failed' || !this.activationTimedOut || this.reloading) return result;
-    // Ein gerade aufgeweckter Worker antwortet mobil manchmal zu spät. Ein
-    // zweiter Versuch erspart den sichtbaren Fehler und das erneute Tippen.
-    return this.startActivation();
-  }
-
-  private async startActivation(): Promise<UpdateResult> {
-    this.activationTimedOut = false;
     if (this.reloading) return 'blocked';
     if (!this.isSafe()) {
       this.message.set('Speichere oder verwerfe zuerst deine offenen Änderungen.');
@@ -592,10 +580,9 @@ export class PwaUpdateService {
       this.releaseTimer = setTimeout(() => {
         this.revokeBarrier();
         this.message.set('Die Aktualisierung hat nicht geantwortet. Bitte versuche es erneut.');
-        this.activationTimedOut = true;
         this.complete('failed');
         this.releaseBarrier();
-      }, activationTimeout);
+      }, 8000);
       try {
         waiting.postMessage({
           type: 'ACTIVATE_UPDATE',
@@ -682,10 +669,9 @@ export class PwaUpdateService {
         if (!this.releaseTimer)
           this.releaseTimer = setTimeout(() => {
             this.revokeBarrier();
-            this.activationTimedOut = true;
             this.complete('failed');
             this.releaseBarrier();
-          }, activationTimeout);
+          }, 8000);
       }
       worker.postMessage({ type: 'PWA_UPDATE_ACK', buildId, attemptId, clientBuildId, safe });
     } else if (this.barrier?.attemptId === attemptId && this.barrier.buildId === buildId) {

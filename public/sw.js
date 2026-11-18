@@ -427,9 +427,7 @@ async function beginUpdate(event) {
     updateAttempt = attempt;
     attempt.timer = setTimeout(() => {
       if (updateAttempt === attempt) void finishUpdate('blocked', 'requester_timeout');
-      // Ein gerade aus dem Hintergrund geholtes Handy antwortet oft verzögert.
-      // Die App wartet selbst länger (pwa-update.service.ts), damit dieses Ergebnis ankommt.
-    }, 10000);
+    }, 4000);
     // Nur dieses Dokument wird gesperrt. Fremde Fenster behalten ihre Eingaben.
     attempt.client.postMessage({
       type: 'PWA_PREPARE_UPDATE',
