@@ -70,7 +70,11 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { WorkspaceContextLockService } from '../../../../core/services/workspace-context-lock.service';
-import type { SaleDraft, SaleDraftSnapshot } from '../../models/sale-draft.models';
+import {
+  isVintedSaleDraftCancelled,
+  type SaleDraft,
+  type SaleDraftSnapshot,
+} from '../../models/sale-draft.models';
 import { SaleDraftService } from '../../services/sale-draft.service';
 import type {
   ExternalSaleEntryDraft,
@@ -81,7 +85,7 @@ import type {
 type SaleLineForm = FormGroup<{
   target: FormControl<string>;
   quantity: FormControl<number>;
-  unitSalePrice: FormControl<number>;
+  unitSalePrice: FormControl<number | null>;
 }>;
 
 type AdditionalCostForm = FormGroup<{
@@ -156,6 +160,7 @@ export class SaleCreateModalComponent {
   /** Gespeicherter Verkaufsentwurf, der in die Erfassung geladen wird. */
   readonly draft = input<SaleDraft | null>(null);
   readonly draftId = signal<string | null>(null);
+  private readonly vintedLineTitles = signal<ReadonlyMap<SaleLineForm, string>>(new Map());
   readonly isSavingDraft = signal(false);
   private previousExternalDraft: ExternalSaleEntryDraft | null = null;
   private readonly externalOutcomeBlocked = signal(false);
@@ -170,7 +175,14 @@ export class SaleCreateModalComponent {
     return this.isSubmitting() || !!this.isSavingDraft?.();
   }
 
-  /** Entwürfe gibt es nur für neue, frei erfasste Verkäufe. */
+  vintedSource() {
+    return this.draft?.()?.vintedSource;
+  }
+
+  vintedDraftCancelled(): boolean {
+    return isVintedSaleDraftCancelled(this.vintedSource());
+  }
+
   canSaveDraft(): boolean {
     return (
       !!this.workspaceService?.currentWorkspace() &&
@@ -180,22 +192,24 @@ export class SaleCreateModalComponent {
       !this.legacyReconciliation() &&
       !this.isPersisted() &&
       !this.isSaving() &&
-      this.lines.controls.some((line) => !!line.controls.target.value)
+      (!!this.vintedSource() || this.lines.controls.some((line) => !!line.controls.target.value))
     );
   }
 
   draftSnapshot(): SaleDraftSnapshot {
     const raw = this.form.getRawValue();
     const references = this.purchaseReferences();
+    const vintedSource = this.vintedSource();
     return {
       version: 1,
       lines: this.lines.controls
-        .filter((line) => !!line.controls.target.value)
+        .filter((line) => vintedSource || !!line.controls.target.value)
         .map((line) => ({
           target: line.controls.target.value,
           quantity: line.controls.quantity.value,
           unitSalePrice: line.controls.unitSalePrice.value,
           purchaseId: references.get(line) || null,
+          ...(vintedSource && { sourceTitle: this.vintedLineTitles().get(line) ?? null }),
         })),
       platform: raw.platform,
       saleDate: raw.saleDate,
@@ -225,7 +239,7 @@ export class SaleCreateModalComponent {
       const title =
         titles.length > 1
           ? `${titles[0]} und ${titles.length - 1} weitere`
-          : (titles[0] ?? 'Verkaufsentwurf');
+          : (titles[0] ?? this.vintedSource()?.title ?? 'Verkaufsentwurf');
       const id = await this.injector.get(SaleDraftService).save({
         id: this.draftId(),
         workspaceId,
@@ -532,7 +546,8 @@ export class SaleCreateModalComponent {
     return (
       this.form.controls.platform.value === 'vinted' &&
       !this.istBearbeitung() &&
-      !this.externalDraft()
+      !this.externalDraft() &&
+      (!this.vintedSource() || this.form.controls.shippingMode.value === 'platform_prepaid')
     );
   });
   readonly showPlatformFee = computed(() => {
@@ -570,7 +585,7 @@ export class SaleCreateModalComponent {
   readonly totalPrice = computed(() => {
     this.formValue();
     return this.lines.controls.reduce(
-      (sum, line) => sum + line.controls.quantity.value * line.controls.unitSalePrice.value,
+      (sum, line) => sum + line.controls.quantity.value * (line.controls.unitSalePrice.value ?? 0),
       0,
     );
   });
@@ -710,6 +725,7 @@ export class SaleCreateModalComponent {
     return (
       !!this.externalDraft() ||
       !!this.legacyReconciliation() ||
+      (!!this.vintedSource() && this.shopActive()) ||
       this.lines.controls.some((line) => !!line.controls.target.value && !this.isFreeLine(line))
     );
   }
@@ -719,6 +735,7 @@ export class SaleCreateModalComponent {
     return (
       !this.isSubmitting() &&
       !this.isPersisted() &&
+      !this.vintedDraftCancelled() &&
       (!this.workspaceService?.currentWorkspace() || this.shopActive() || !this.requiresStock()) &&
       (!this.requiresStock() || (!this.isLoadingStock() && !this.stockLoadError())) &&
       (!external ||
@@ -848,6 +865,7 @@ export class SaleCreateModalComponent {
       entry?.title ??
       this.targetForLine(line)?.title ??
       this.externalDraft()?.lines[index]?.title ??
+      this.vintedLineTitles?.().get(line) ??
       (index === 0 ? this.saleTarget()?.title : null) ??
       'Artikel auswählen'
     );
@@ -1013,6 +1031,14 @@ export class SaleCreateModalComponent {
     if ((this.externalDraft() || this.workspaceService?.currentWorkspace()) && !this.canSave())
       return;
     if (this.workspaceService?.currentWorkspace()) this.validateSaleTargets();
+    if (
+      this.vintedSource() &&
+      this.shopActive() &&
+      this.lines.controls.some((line) => this.isFreeLine(line))
+    ) {
+      this.errorMessage.set('Wähle für jede Vinted-Position einen Bestandsartikel.');
+      return;
+    }
     if (this.form.invalid) {
       this.validationAttempted.set(true);
       this.form.markAllAsTouched();
@@ -1059,7 +1085,8 @@ export class SaleCreateModalComponent {
           : await this.salesService.recordSale(input);
       if (result.error) throw result.error;
       this.isPersisted.set(true);
-      await this.removeBookedDraft();
+      if (this.vintedSource()) this.draftId.set(null);
+      else await this.removeBookedDraft();
       this.toast.success(existing ? 'Verkauf wurde gespeichert.' : 'Verkauf wurde abgeschlossen.');
       this.created.emit();
       this.closed.emit();
@@ -1117,20 +1144,31 @@ export class SaleCreateModalComponent {
     this.draftId.set(draft.id);
     this.lines.clear();
     this.purchaseReferences.set(new Map());
+    const vintedLineTitles = new Map<SaleLineForm, string>();
     for (const source of snapshot.lines.length
       ? snapshot.lines
       : [{ target: '', quantity: 1, unitSalePrice: 0, purchaseId: null }]) {
       const line = this.createLineForm();
+      const isFreeTarget = source.target.startsWith('free:');
+      let target = source.target;
+      if (draft.vintedSource) {
+        const sourceTitle = source.sourceTitle ?? (isFreeTarget ? source.target.slice(5) : '');
+        if (sourceTitle) vintedLineTitles.set(line, sourceTitle);
+        if (this.shopActive() && isFreeTarget) target = '';
+        if (!this.shopActive() && !isFreeTarget) target = 'free:' + sourceTitle;
+      }
       line.setValue({
-        target: source.target,
+        target,
         quantity: source.quantity,
         unitSalePrice: source.unitSalePrice,
       });
       this.lines.push(line);
-      if (source.purchaseId)
-        this.purchaseReferences.update((current) => new Map(current).set(line, source.purchaseId!));
+      const purchaseId = source.purchaseId;
+      if (purchaseId && target === source.target)
+        this.purchaseReferences.update((current) => new Map(current).set(line, purchaseId));
       this.updateQuantityValidator(line);
     }
+    this.vintedLineTitles?.set(vintedLineTitles);
     this.additionalCosts.clear();
     for (const cost of snapshot.additionalCosts)
       this.additionalCosts.push(this.createAdditionalCostForm(cost));
@@ -1146,6 +1184,10 @@ export class SaleCreateModalComponent {
       externalOrderId: snapshot.externalOrderId,
       buyerNotes: snapshot.buyerNotes,
     });
+    if (draft.vintedSource) {
+      this.form.controls.platform.disable({ emitEvent: false });
+      this.form.controls.externalOrderId.disable({ emitEvent: false });
+    }
     this.form.markAsPristine();
   }
 
@@ -1156,8 +1198,7 @@ export class SaleCreateModalComponent {
         nonNullable: true,
         validators: [Validators.required, Validators.min(1)],
       }),
-      unitSalePrice: new FormControl(0, {
-        nonNullable: true,
+      unitSalePrice: new FormControl<number | null>(0, {
         validators: [Validators.required, Validators.min(0.01)],
       }),
     });
@@ -1211,6 +1252,7 @@ export class SaleCreateModalComponent {
     }));
     return {
       bookingKey: this.bookingKey,
+      ...(this.vintedSource() && { vintedDraftId: this.draftId() ?? undefined }),
       correctionSaleId: this.correctionSale?.()?.id,
       correctionReason: this.correctionReason?.().trim() ?? '',
       platform: raw.platform,
@@ -1236,7 +1278,7 @@ export class SaleCreateModalComponent {
             purchaseId: this.purchaseReferences?.().get(line) || null,
             titleSnapshot: this.freeTitle(line).trim(),
             quantity: line.controls.quantity.value,
-            unitSalePrice: line.controls.unitSalePrice.value,
+            unitSalePrice: line.controls.unitSalePrice.value ?? 0,
           };
         const target = this.targetForLine(line);
         if (!target) throw new Error('Bitte wähle für jede Position einen Artikel.');
@@ -1246,13 +1288,13 @@ export class SaleCreateModalComponent {
               catalogProductId: target.catalogProductId,
               titleSnapshot: this.articleLabel(line),
               quantity: value.quantity,
-              unitSalePrice: value.unitSalePrice,
+              unitSalePrice: value.unitSalePrice ?? 0,
             }
           : {
               inventoryItemId: target.inventoryItemId,
               titleSnapshot: this.articleLabel(line),
               quantity: value.quantity,
-              unitSalePrice: value.unitSalePrice,
+              unitSalePrice: value.unitSalePrice ?? 0,
             };
       }),
     };
@@ -1612,7 +1654,7 @@ export class SaleCreateModalComponent {
     };
   }
   private applyShippingDefault(platform: string): void {
-    const isNewManualSale = !this.istBearbeitung() && !this.externalDraft();
+    const isNewManualSale = !this.istBearbeitung() && !this.externalDraft() && !this.vintedSource();
     if (isNewManualSale) {
       if (['ebay', 'stockx'].includes(platform)) {
         this.form.controls.platformFee.enable({ emitEvent: false });

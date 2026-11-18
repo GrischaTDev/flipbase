@@ -115,6 +115,42 @@ test('fordert den druckfertigen Versandschein an und liefert den Vinted-Dateilin
   assert.equal(authorized(), 1);
 });
 
+test('wählt für den vorgegebenen DPD-Dienst den Druckschein vor dem digitalen Schein', async () => {
+  const { adapter, calls } = vinted({
+    options: {
+      carrier: { name: 'DPD Classic' },
+      sender: { phone_number_requirement: 'optional' },
+      drop_offs: [
+        {
+          type: 'point',
+          options: [{ type: 'parcel_shop', label_types: ['digital', 'printable'] }],
+        },
+      ],
+    },
+    labelUrls: [null, labelUrl],
+  });
+  const result = await executeVintedShippingLabel(
+    adapter,
+    '46984021',
+    '500969788562',
+    '24052549356',
+  );
+  assert.equal(result.outcome, 'ready');
+  assert.equal(result.carrierName, 'DPD Classic');
+  assert.equal(result.labelType, 'printable');
+  assert.equal(result.labelUrl, labelUrl);
+  assert.deepEqual(
+    calls.filter((call) => call.method === 'PUT'),
+    [
+      {
+        path: '/api/v2/transactions/24052549356/shipment/order',
+        method: 'PUT',
+        body: { seller_address_id: 777, drop_off_type: null, label_type: 'printable' },
+      },
+    ],
+  );
+});
+
 test('nimmt den digitalen Schein nur, wenn Vinted keinen druckfertigen anbietet', async () => {
   const { adapter, calls } = vinted({
     options: {

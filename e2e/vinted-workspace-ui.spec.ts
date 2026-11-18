@@ -421,12 +421,12 @@ for (const width of [1440, 390, 320]) {
         'Konten',
         'Übersicht',
         'Postfach',
+        'Kleiderschrank',
         'Verkäufe',
         'Versandscheine',
-        'Kleiderschrank',
-        'Statistik',
         'Inserat erstellen',
         'Entwürfe',
+        'Statistik',
         'Verlauf',
         'Profil',
         'Verhandlung',
@@ -770,4 +770,108 @@ for (const width of [1440, 390, 320]) {
       expect(warnings).toEqual([]);
     });
   }
+}
+
+for (const [width, theme, hasTouch] of [
+  [1440, 'light', false],
+  [390, 'dark', true],
+] as const) {
+  test.describe(`Versandscheine bei ${width}px ${theme}`, () => {
+    test.use({ viewport: { width, height: 900 }, hasTouch, colorScheme: theme });
+
+    test('verlinkt aus Chat und Verkäufen zum passenden QR-Code @marketplace-preview', async ({
+      page,
+    }) => {
+      await mockMarketplace(page, false, false, false, false, []);
+      const sale = {
+        id: '25000000-0000-4000-8000-000000000061',
+        title: 'Verkaufter Schal',
+        saleState: 'sold',
+        shipmentId: '201',
+        shippingLabelAction: 'available',
+        shippingDeadline: '24 Nov. 20:18',
+        conversationId,
+      };
+      await page.route('**/rest/v1/rpc/marketplace_read_snapshot', async (route) => {
+        const scope = {
+          workspaceId,
+          connectionId: String(route.request().postDataJSON()['p_connection_id']),
+        };
+        const empty = { items: [], total: 0, nextCursor: null };
+        await route.fulfill({
+          json: {
+            ...scope,
+            profile: null,
+            publications: empty,
+            conversations: {
+              ...empty,
+              total: 1,
+              items: [{ ...scope, id: conversationId, title: 'Verkaufter Schal' }],
+            },
+            sales: { ...empty, total: 1, items: [{ ...scope, ...sale }] },
+            activity: empty,
+          },
+        });
+      });
+      await page.route('**/rest/v1/marketplace_shipping_labels?*', async (route) => {
+        const account = new URL(route.request().url()).searchParams.get('connection_id');
+        await route.fulfill({
+          json:
+            account === 'eq.' + accountIds[0]
+              ? [
+                  {
+                    id: 22,
+                    workspace_id: workspaceId,
+                    connection_id: accountIds[0],
+                    external_transaction_id: '102',
+                    external_shipment_id: '202',
+                    title: 'Andere Bestellung',
+                    carrier_name: 'DPD Classic',
+                    label_type: 'printable',
+                    storage_path: 'other.pdf',
+                    mime_type: 'application/pdf',
+                    fetched_at: '2026-11-18T16:00:00Z',
+                  },
+                  {
+                    id: 21,
+                    workspace_id: workspaceId,
+                    connection_id: accountIds[0],
+                    external_transaction_id: '101',
+                    external_shipment_id: '201',
+                    title: sale.title,
+                    carrier_name: 'DHL',
+                    storage_path: 'shipping.png',
+                    mime_type: 'image/png',
+                    fetched_at: '2026-11-18T15:00:00Z',
+                  },
+                ]
+              : [],
+        });
+      });
+      await page.goto(
+        `/marketplaces/vinted/messages?connectionId=${accountIds[0]}&conversationId=${conversationId}`,
+      );
+      const jump = page.getByRole('link', { name: 'Zum Versandschein' });
+      await expect(jump).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Versandschein abholen' })).toHaveCount(0);
+      await (hasTouch ? jump.tap() : jump.click());
+      await expect(page).toHaveURL(/shipping-labels\?labelId=21$/);
+      const target = page.getByRole('row', { name: /Verkaufter Schal/ });
+      await expect(target).toHaveAttribute('aria-current', 'true');
+      await expect(target).toBeFocused();
+      await expect(target.getByRole('button', { name: 'QR-Code öffnen' })).toBeVisible();
+      await expect(target.getByRole('button', { name: 'QR-Code herunterladen' })).toBeAttached();
+      const other = page.getByRole('row', { name: /Andere Bestellung/ });
+      await expect(other).not.toHaveAttribute('aria-current', 'true');
+      await expect(other.getByRole('button', { name: 'Druck-PDF öffnen' })).toBeVisible();
+      expect(await target.evaluate((row) => getComputedStyle(row).backgroundColor)).not.toBe(
+        await other.evaluate((row) => getComputedStyle(row).backgroundColor),
+      );
+      await checkSurface(page, 'app-vinted-shipping-labels');
+
+      await openVintedSection(page, 'Verkäufe', width);
+      await expect(jump).toHaveAttribute('href', /shipping-labels\?.*labelId=21/);
+      await expect(page.getByRole('button', { name: 'Versandschein abholen' })).toHaveCount(0);
+    });
+  });
 }

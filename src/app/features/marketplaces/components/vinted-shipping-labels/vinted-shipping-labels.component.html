@@ -1,7 +1,4 @@
-<section aria-label="Versandscheine">
-  @if (openError()) {
-    <p role="alert" class="mb-3 text-sm text-fb-text-secondary">{{ openError() }}</p>
-  }
+<div>
   <app-data-table
     ariaLabel="Versandscheine"
     searchPlaceholder="Artikel, Verkauf oder Versanddienst suchen"
@@ -39,7 +36,17 @@
         </thead>
         <tbody>
           @for (label of rows(); track label.id) {
-            <tr class="border-b border-fb-line text-fb-text-primary">
+            @let highlighted = label.id === highlightedLabelId();
+            @let qrCode = typeLabel(label) === 'QR-Code';
+            <tr
+              class="border-b border-fb-line text-fb-text-primary"
+              [attr.aria-current]="highlighted ? 'true' : null"
+              [attr.tabindex]="highlighted ? -1 : null"
+              [class.bg-fb-brand-surface]="highlighted"
+              [class.ring-2]="highlighted"
+              [class.ring-inset]="highlighted"
+              [class.ring-fb-text-primary]="highlighted"
+            >
               <th scope="row" class="max-w-72 px-3 py-3 font-medium">
                 <span class="block truncate" [attr.title]="label.title">{{ label.title }}</span>
               </th>
@@ -55,15 +62,15 @@
                     size="slim"
                     [icon]="openIcon"
                     (clicked)="open(label, false)"
-                    >Öffnen</app-button
+                    >{{ qrCode ? 'QR-Code öffnen' : 'Druck-PDF öffnen' }}</app-button
                   >
                   <app-button
                     variant="secondary"
                     size="slim"
                     [icon]="downloadIcon"
                     [iconOnly]="true"
-                    ariaLabel="Versandschein herunterladen"
-                    title="Versandschein herunterladen"
+                    [ariaLabel]="qrCode ? 'QR-Code herunterladen' : 'Versandschein herunterladen'"
+                    [title]="qrCode ? 'QR-Code herunterladen' : 'Versandschein herunterladen'"
                     (clicked)="open(label, true)"
                   />
                 </div>
@@ -74,4 +81,4 @@
       </table>
     </div>
   </app-data-table>
-</section>
+</div>

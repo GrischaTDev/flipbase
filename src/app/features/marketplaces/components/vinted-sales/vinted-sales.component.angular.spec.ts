@@ -9,6 +9,7 @@ import { BadgeComponent } from '../../../../shared/components/badge/badge.compon
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../../models/marketplace-response';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
@@ -45,8 +46,6 @@ const unavailable = signal(false);
 const loadMore = vi.fn();
 const labelList = signal<readonly VintedShippingLabel[]>([]);
 const requestLabel = vi.fn();
-const openLabel = vi.fn();
-const downloadLabel = vi.fn();
 const loadLabels = vi.fn();
 const selected = signal<{
   workspaceId: string;
@@ -107,7 +106,7 @@ beforeEach(async () => {
   loadMore.mockReset();
   labelList.set([]);
   selected.set(null);
-  for (const mock of [requestLabel, openLabel, downloadLabel, loadLabels]) mock.mockReset();
+  for (const mock of [requestLabel, loadLabels]) mock.mockReset();
   await TestBed.configureTestingModule({
     imports: [VintedSalesComponent],
     providers: [
@@ -127,14 +126,11 @@ beforeEach(async () => {
       {
         provide: VintedShippingLabelStore,
         useValue: {
-          byTransaction: () => new Map(labelList().map((label) => [label.transactionId, label])),
+          findForSale: (sale: MarketplaceEntry) =>
+            labelList().find((label) => label.shipmentId === sale.shipmentId) ?? null,
           requesting: signal(new Set<string>()),
-          notices: signal(new Map<string, string>()),
           load: loadLabels,
-          ensureLoaded: loadLabels,
           request: requestLabel,
-          open: openLabel,
-          download: downloadLabel,
         },
       },
     ],
@@ -298,12 +294,13 @@ it('bietet bei einem frischen Verkauf das Anfordern des Versandscheins mit Frist
   expect(requestLabel).toHaveBeenCalledWith(expect.objectContaining({ id: 'sale-0' }));
 });
 
-it('öffnet und lädt einen gespeicherten Versandschein statt erneut anzufordern', async () => {
+it('verlinkt einen gespeicherten Versandschein anhand der Versandnummer', () => {
   const label: VintedShippingLabel = {
     id: '7',
     workspaceId: scope.workspaceId,
     connectionId: scope.connectionId,
     transactionId: '24052549356',
+    shipmentId: '51458635363',
     conversationId: '500969788562',
     title: 'Carhartt WIP Teddy-Fleecejacke',
     carrierName: 'DPD Shop2Shop',
@@ -316,7 +313,7 @@ it('öffnet und lädt einen gespeicherten Versandschein statt erneut anzufordern
   labelList.set([label]);
   current.set(
     makeSnapshot([
-      { externalId: '24052549356', saleState: 'sold', shippingLabelAction: 'available' },
+      { shipmentId: label.shipmentId, saleState: 'sold', shippingLabelAction: 'available' },
     ]),
   );
   const fixture = TestBed.createComponent(VintedSalesComponent);
@@ -324,17 +321,13 @@ it('öffnet und lädt einen gespeicherten Versandschein statt erneut anzufordern
   const element = fixture.nativeElement as HTMLElement;
   expect(element.textContent).not.toContain('Versandschein anfordern');
   expect(element.textContent).not.toContain('Versandschein abholen');
-  const open = [...element.querySelectorAll('button')].find((button) =>
-    button.textContent?.includes('Versandschein öffnen'),
-  );
-  open?.click();
-  await fixture.whenStable();
-  expect(openLabel).toHaveBeenCalledWith(label);
-  (
-    element.querySelector('button[aria-label="Versandschein herunterladen"]') as HTMLButtonElement
-  )?.click();
-  await fixture.whenStable();
-  expect(downloadLabel).toHaveBeenCalledWith(label);
+  const open = element.querySelector('[data-shipping-label-actions] a');
+  expect(open?.textContent).toContain('Zum Versandschein');
+  const destination = new URL(open!.getAttribute('href')!, 'https://flipbase.test');
+  expect(destination.pathname).toBe('/marketplaces/vinted/shipping-labels');
+  expect(destination.searchParams.get('labelId')).toBe(label.id);
+  expect(destination.searchParams.get('connectionId')).toBe(scope.connectionId);
+  expect(requestLabel).not.toHaveBeenCalled();
 });
 
 it('zeigt für stornierte Verkäufe keine Versandschein-Aktionen', () => {

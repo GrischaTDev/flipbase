@@ -1,6 +1,7 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { AuthService } from '../../../core/services/auth.service';
 import { SupabaseService } from '../../../core/services/supabase.service';
+import { ToastService } from '../../../shared/components/toast/toast.service';
 import type { AccountScope } from '../models/marketplace.models';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
 import {
@@ -19,6 +20,7 @@ export class VintedShippingLabelStore {
   private readonly client = inject(SupabaseService).client;
   private readonly auth = inject(AuthService);
   private readonly api = inject(MarketplaceBrowserTestApiService);
+  private readonly toast = inject(ToastService);
   private readonly scope = signal<AccountScope | null>(null);
   private revision = 0;
 
@@ -27,18 +29,18 @@ export class VintedShippingLabelStore {
   readonly loadError = signal<string | null>(null);
   /** Verkäufe (Eintrags-ID), deren Versandschein gerade angefordert wird. */
   readonly requesting = signal<ReadonlySet<string>>(new Set());
-  /** Letzte Meldung je Verkauf (Eintrags-ID), etwa ein Fehler oder „wird erstellt“. */
-  readonly notices = signal<ReadonlyMap<string, string>>(new Map());
-  readonly byTransaction = computed(
-    () => new Map(this.labels().map((label) => [label.transactionId, label])),
-  );
-
-  /** Lädt nur, wenn noch kein Stand für dieses Konto vorliegt oder gerade geladen wird. */
-  ensureLoaded(scope: AccountScope): void {
-    const current = this.scope();
-    if (current?.workspaceId === scope.workspaceId && current.connectionId === scope.connectionId)
-      return;
-    void this.load(scope);
+  findForSale(sale: MarketplaceEntry): VintedShippingLabel | null {
+    // Die Verkaufsliste liefert die Versandnummer. Einzelabrufe kennen auch die Transaktion.
+    const { shipmentId, externalId: transactionId } = sale;
+    if (!shipmentId && !transactionId) return null;
+    const matches = this.labels().filter(
+      (label) =>
+        label.workspaceId === sale.workspaceId &&
+        label.connectionId === sale.connectionId &&
+        (!transactionId || label.transactionId === transactionId) &&
+        (!shipmentId || label.shipmentId === shipmentId),
+    );
+    return matches.length === 1 ? (matches[0] ?? null) : null;
   }
 
   async load(scope: AccountScope): Promise<void> {
@@ -50,7 +52,7 @@ export class VintedShippingLabelStore {
       const { data, error } = await this.client
         .from('marketplace_shipping_labels')
         .select(
-          'id,workspace_id,connection_id,external_transaction_id,external_conversation_id,title,carrier_name,label_type,storage_path,mime_type,requested_by_flipbase,fetched_at',
+          'id,workspace_id,connection_id,external_transaction_id,external_shipment_id,external_conversation_id,title,carrier_name,label_type,storage_path,mime_type,requested_by_flipbase,fetched_at',
         )
         .eq('workspace_id', scope.workspaceId)
         .eq('connection_id', scope.connectionId)
@@ -79,24 +81,19 @@ export class VintedShippingLabelStore {
     if (this.requesting().has(sale.id)) return;
     const scope = { workspaceId: sale.workspaceId, connectionId: sale.connectionId };
     this.requesting.update((ids) => new Set(ids).add(sale.id));
-    this.setNotice(sale.id, null);
     try {
       const token = this.auth.session()?.access_token;
       if (!token) throw new Error('Bitte melde Dich erneut an.');
       const result = await this.api.requestShippingLabel(scope, sale.id, token);
       if (result.outcome === 'failed')
-        this.setNotice(sale.id, vintedShippingLabelErrorMessage(result.errorCode));
+        this.toast.error(vintedShippingLabelErrorMessage(result.errorCode));
       else if (result.outcome === 'pending')
-        this.setNotice(
-          sale.id,
-          'Vinted erstellt den Versandschein noch. Hol ihn gleich noch einmal ab.',
-        );
+        this.toast.info('Vinted erstellt den Versandschein noch. Hol ihn gleich noch einmal ab.');
       const current = this.scope();
       if (current?.workspaceId === scope.workspaceId && current.connectionId === scope.connectionId)
         await this.load(scope);
     } catch (error) {
-      this.setNotice(
-        sale.id,
+      this.toast.error(
         error instanceof Error && error.message
           ? error.message
           : 'Der Versandschein konnte nicht abgerufen werden.',
@@ -146,14 +143,5 @@ export class VintedShippingLabelStore {
     if (error || !data?.signedUrl)
       throw new Error('Der Versandschein konnte nicht geöffnet werden.');
     return data.signedUrl;
-  }
-
-  private setNotice(saleId: string, message: string | null): void {
-    this.notices.update((notices) => {
-      const next = new Map(notices);
-      if (message) next.set(saleId, message);
-      else next.delete(saleId);
-      return next;
-    });
   }
 }

@@ -4,6 +4,11 @@
       <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
     </app-card>
   }
+  @if (vintedDraftCancelled()) {
+    <app-card padding="md" rounded="xl">
+      <p role="alert" class="text-sm text-fb-critical">Dieser Vinted-Verkauf wurde storniert.</p>
+    </app-card>
+  }
   @if (legacyReconciliation()) {
     <app-card title="Historischen Verkauf nachtragen" padding="md" rounded="xl">
       <p class="text-[13px] text-fb-text-secondary">
@@ -42,7 +47,19 @@
           </p>
         }
 
-        @if (hasSelectedSaleLines() || externalDraft()) {
+        @if (vintedSource(); as source) {
+          @if (source.amount !== null && (source.isBundle || source.currency !== 'EUR')) {
+            <p class="mb-4 text-[13px] text-fb-text-secondary">
+              {{ source.isBundle ? 'Vinted-Paketpreis' : 'Vinted-Kaufpreis' }}
+              @if (source.currency) {
+                {{ source.amount | currency: source.currency : 'symbol' : '1.2-2' : 'de' }}
+              } @else {
+                {{ source.amount | number: '1.2-2' : 'de' }} (Währung unbekannt)
+              }
+            </p>
+          }
+        }
+        @if (hasSelectedSaleLines() || externalDraft() || vintedSource()) {
           <div formArrayName="lines">
             <table
               data-shared-ui-exception="embedded-table"
@@ -68,7 +85,7 @@
               </thead>
               <tbody class="block divide-y divide-fb-line md:table-row-group">
                 @for (line of lines.controls; track line; let index = $index) {
-                  @if (line.controls.target.value || externalDraft()) {
+                  @if (line.controls.target.value || externalDraft() || vintedSource()) {
                     <tr
                       [formGroupName]="index"
                       data-sale-line
@@ -238,10 +255,15 @@
                       </td>
                       <td class="col-span-2 text-right tabular-nums md:px-2 md:py-3">
                         <span class="mr-2 text-xs text-fb-text-muted md:hidden">Gesamt</span>
-                        {{
-                          line.controls.quantity.value * line.controls.unitSalePrice.value
-                            | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
-                        }}
+                        @let unitSalePrice = line.controls.unitSalePrice.value;
+                        @if (unitSalePrice === null) {
+                          –
+                        } @else {
+                          {{
+                            line.controls.quantity.value * unitSalePrice
+                              | currency: 'EUR' : 'symbol' : '1.2-2' : 'de'
+                          }}
+                        }
                       </td>
                       <td class="col-start-3 row-start-1 self-start text-right md:py-3">
                         @if (!externalDraft() && !legacyReconciliation() && !istBearbeitung()) {
@@ -271,15 +293,17 @@
             class="items-center gap-2 border-t border-fb-line pt-3"
             [class]="shopActive() ? 'flex' : 'grid grid-cols-[1fr_auto_1fr]'"
           >
-            <app-button
-              data-add-free-line
-              [class]="shopActive() ? '' : 'col-start-2'"
-              variant="ghost"
-              [icon]="plusIcon"
-              [disabled]="isSubmitting()"
-              (clicked)="addFreeLine()"
-              >Position hinzufügen</app-button
-            >
+            @if (!vintedSource() || !shopActive()) {
+              <app-button
+                data-add-free-line
+                [class]="shopActive() ? '' : 'col-start-2'"
+                variant="ghost"
+                [icon]="plusIcon"
+                [disabled]="isSubmitting()"
+                (clicked)="addFreeLine()"
+                >Position hinzufügen</app-button
+              >
+            }
             @if (shopActive()) {
               <app-button
                 data-add-sale-products

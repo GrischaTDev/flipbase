@@ -71,9 +71,14 @@ select is((select value->>'authorizationKind' from schedule_context where name='
 select is(pg_temp.check_run(true)->>'active','true','Lebenszeichen erneuert die Auftragslease');
 select ok((select (value->>'absoluteExpiresAt')::timestamptz-(value->>'expiresAt')::timestamptz > interval '8 minutes' from schedule_context where name='run'),'Absolute Pilotgrenze ist von kurzer Lease getrennt');
 select throws_ok($$select public.marketplace_apply_vinted_sync_import((select (value->>'operationId')::uuid from schedule_context where name='run'),'31000000-0000-4000-8000-000000000051',1,'31000000-0000-4000-8000-000000000099',pg_temp.snapshot())$$,'42501',null,'Fremde Sitzung kann keine Daten importieren');
-select is(public.marketplace_apply_vinted_sync_import((select (value->>'operationId')::uuid from schedule_context where name='run'),'31000000-0000-4000-8000-000000000051',1,(select (value->>'sessionId')::uuid from schedule_context where name='run'),pg_temp.snapshot())->>'profile','1','Hintergrundimport prüft Rechte und schreibt atomar');
+select is(public.marketplace_apply_vinted_sync_import((select (value->>'operationId')::uuid from schedule_context where name='run'),'31000000-0000-4000-8000-000000000051',1,(select (value->>'sessionId')::uuid from schedule_context where name='run'),
+  jsonb_insert(pg_temp.snapshot(),'{entries,1}','{"kind":"sale","externalId":"31031","sortAt":"2026-10-01T12:00:00Z",
+    "body":{"title":"Hintergrundverkauf","saleState":"sold","sellerId":"310","externalConversationId":"31041","itemIds":["31051"],"itemCount":1}}'))->>'sale',
+  '1','Hintergrundimport prüft Rechte und speichert den bestätigten Verkauf atomar');
 select throws_ok($$select public.marketplace_apply_vinted_sync_import((select (value->>'operationId')::uuid from schedule_context where name='run'),'31000000-0000-4000-8000-000000000052',1,(select (value->>'sessionId')::uuid from schedule_context where name='run'),pg_temp.snapshot())$$,'42501',null,'Alte oder fremde Besitzerkennung verhindert Import');
 reset role;
+select is((select title from public.sale_drafts where workspace_id='31000000-0000-4000-8000-000000000011' and draft->>'externalOrderId'='31031'),
+  'Hintergrundverkauf','Der bestätigte Hintergrundverkauf steht als Verkaufsentwurf bereit');
 delete from public.platform_operators where user_id='31000000-0000-4000-8000-000000000001';
 set local role service_role;
 select is(pg_temp.check_run()->>'active','false','Rechteentzug stoppt weitere Anbieterabrufe');

@@ -7570,6 +7570,7 @@ export type Database = {
           sale_amount: number
           title: string
           updated_at: string
+          vinted_source_id: string | null
           workspace_id: string
         }
         Insert: {
@@ -7580,6 +7581,7 @@ export type Database = {
           sale_amount?: number
           title?: string
           updated_at?: string
+          vinted_source_id?: string | null
           workspace_id: string
         }
         Update: {
@@ -7590,9 +7592,17 @@ export type Database = {
           sale_amount?: number
           title?: string
           updated_at?: string
+          vinted_source_id?: string | null
           workspace_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "sale_drafts_vinted_source_fk"
+            columns: ["workspace_id", "vinted_source_id"]
+            isOneToOne: false
+            referencedRelation: "vinted_sale_draft_sources"
+            referencedColumns: ["workspace_id", "id"]
+          },
           {
             foreignKeyName: "sale_drafts_workspace_id_fkey"
             columns: ["workspace_id"]
@@ -9735,6 +9745,59 @@ export type Database = {
             columns: ["size_group_id"]
             isOneToOne: false
             referencedRelation: "vinted_listing_size_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_sale_draft_sources: {
+        Row: {
+          amount: number | null
+          booked_at: string | null
+          booking_key: string
+          currency: string | null
+          id: string
+          is_bundle: boolean
+          item_count: number | null
+          sale_state: string
+          seller_account_id: string
+          title: string
+          transaction_id: string
+          workspace_id: string
+        }
+        Insert: {
+          amount?: number | null
+          booked_at?: string | null
+          booking_key?: string
+          currency?: string | null
+          id?: string
+          is_bundle: boolean
+          item_count?: number | null
+          sale_state: string
+          seller_account_id: string
+          title: string
+          transaction_id: string
+          workspace_id: string
+        }
+        Update: {
+          amount?: number | null
+          booked_at?: string | null
+          booking_key?: string
+          currency?: string | null
+          id?: string
+          is_bundle?: boolean
+          item_count?: number | null
+          sale_state?: string
+          seller_account_id?: string
+          title?: string
+          transaction_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_sale_draft_sources_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -14341,6 +14404,15 @@ export type Database = {
           p_status: string
         }
         Returns: undefined
+      }
+      record_vinted_sale_draft: {
+        Args: {
+          p_draft_id: string
+          p_lines: Json
+          p_sale: Json
+          p_workspace_id: string
+        }
+        Returns: Json
       }
       refresh_purchase_receiving_status: {
         Args: { p_purchase_id: string; p_workspace_id: string }

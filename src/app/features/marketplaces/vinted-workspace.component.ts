@@ -232,7 +232,7 @@ export class VintedWorkspaceComponent {
       const id = this.queryParams().get('connectionId');
       const connections = this.store.connections();
       if (
-        url !== '/marketplaces/vinted/overview' ||
+        (url !== '/marketplaces/vinted/overview' && !this.showingShippingLabels()) ||
         !id ||
         !connections.some((account) => account.connectionId === id)
       )

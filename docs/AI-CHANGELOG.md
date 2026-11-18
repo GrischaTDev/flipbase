@@ -8,6 +8,24 @@
 
 **Nachweis:** `npm run test:pwa:scripts`: 56 von 57 bestanden. Der eine Fehlschlag, `pwa-build-archive.test.mjs`, ist unverändert und liegt an der Windows-Zeichenkodierung der Python-Ausgabe; mit `PYTHONUTF8=1` sind beide Fälle bestanden. Neue Worker-Fälle prüfen die Übernahme unveränderter Dateien, den Neuabruf beschädigter alter Bytes und das Verwerfen nach einem Fehler beim parallelen Laden. Die Angular-Tests des Update-Dienstes sind bestanden (62), einschließlich eines neuen Falls für die stille Wiederholung beim Ausliefern. Die Caddyfile wurde mit `caddy:2.10.2-alpine` übersetzt und enthält die Wartezeit. Die Wirkung beim nächsten echten Ausliefern ist noch nicht beobachtet.
 
+## 2026-11-18 - Juna - Automatische Vinted-Verkaufsentwürfe
+
+Ein neu importierter bestätigter Vinted-Verkauf erscheint als Entwurf unter Verkäufe. Bei aktivem Shop übernimmt er den eindeutig mit der Veröffentlichung verknüpften und verfügbaren Bestandsartikel. Bei ausgeschaltetem Shop übernimmt er die belegten Daten in eine freie Position. Die Anlage verändert den Bestand nicht. Die Datenbank verbucht den Entwurf erst beim Abschluss und schützt auch bei Wiederholungen vor Doppelbuchungen.
+
+Stornos bleiben bei einer erneuten Kontoverbindung wirksam. Ein später bestätigter Paketpreis wird bei der Buchung geprüft, ohne Änderungen am Entwurf zu überschreiben. Unbelegte Angaben zu Artikel, Betrag, Währung und Kaufdatum bleiben offen.
+
+## 2026-11-18 - Juna - Vinted-Menü sortieren und Layout „Normal“ nennen
+
+Im Vinted-Kontomenü folgt der Kleiderschrank direkt auf das Postfach, die Statistik steht hinter den Entwürfen. Das Benutzermenü nennt die mittlere Layoutbreite auf Deutsch „Normal“.
+
+## 2026-11-18 - Juna - Gespeicherten Vinted-Versandschein aus dem Verkauf finden
+
+**Live-Befund:** Nach der manuellen DHL-Anforderung lag für den Burberry-Schal von 20:18 Uhr ein PNG unter „Versandscheine“. Sowohl der frische Chat als auch die Verkaufskarte zeigten weiterhin „Versandschein abholen“. Die Verkaufsliste liefert die Versandnummer, während der bisherige Abgleich eine dort fehlende externe Transaktionsnummer erwartet. Die Versandnummer des Verkäufers stimmte mit der gespeicherten Datei überein.
+
+**Korrektur:** Chat und Verkäufe erkennen einen vorhandenen Schein anhand der eindeutigen Versandnummer im selben Konto. „Zum Versandschein“ springt in die Liste und markiert dort die passende Zeile samt Tastaturfokus. QR-Code und Druck-PDF haben passende Aktionen. Fehlermeldungen und ausstehende Erstellung erscheinen im vorhandenen Overlay. Wenn Vinted die Versandangaben manuell bestätigen lässt, beschreibt Flipbase diesen Schritt, ohne eine weitere Auswahl des Versanddienstes zu behaupten.
+
+**Prüfung:** Regressionen für gespeicherte QR-Dateien ohne Transaktionsnummer im Verkauf, mehrdeutige Zuordnungen, Direktlinks sowie hellen Desktop und dunkle Touch-Ansicht. Die DPD-Classic-Fixture deckt den bereits vorhandenen Vorrang des Druck-PDFs bei zwei Formatoptionen ab. Produktiv wurde nur gelesen. Dies ist ein neuer Zweig vom abgeglichenen Hauptstand nach PR #693.
+
 ## 2026-11-17 - Juna - Verkaufschat samt Versandstatus speichern
 
 **Live-Nachweis:** In „Maike Vintage“ blieb der Verkauf des Burberry-Schals von 20:18 Uhr auf „Abgeschlossen“. Der Vergleichsabruf eines anderen Chats gelang in 26 Sekunden und mit einem Versuch. Beim Verkaufschat scheiterten die beobachteten Aufträge nach drei Versuchen und 36–48 Sekunden. Die schreibgeschützte Produktionsdiagnose bestätigte den Widerspruch zwischen PR #691 und der aktiven Datenbankfunktion: Der Worker liefert den bestätigten Verkauf mit, während die Datenbank in einem Chatabruf nur Profil, Gespräch und Nachrichten akzeptiert. Die Datenbankprüfung reproduziert den Abbruch mit SQLSTATE `42501`. Eigener Zweig vom abgeglichenen `origin/master` (`203a3844`) in getrennter Arbeitskopie.

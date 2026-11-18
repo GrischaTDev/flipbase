@@ -14,7 +14,17 @@ interface SaleDraftRow {
   sale_amount: number;
   updated_at: string;
   draft: Json;
+  vinted_source: {
+    sale_state: string;
+    title: string;
+    amount: number | null;
+    currency: string | null;
+    is_bundle: boolean;
+  } | null;
 }
+
+const SALE_DRAFT_COLUMNS =
+  'id,workspace_id,title,sale_amount,updated_at,draft,vinted_source:vinted_sale_draft_sources!sale_drafts_vinted_source_fk(sale_state,title,amount,currency,is_bundle)';
 
 /** Verkaufsentwürfe je Workspace; erst „Verkauf abschließen“ bucht den Verkauf. */
 @Injectable({ providedIn: 'root' })
@@ -30,7 +40,7 @@ export class SaleDraftService {
     this.loadError.set(null);
     const { data, error } = await this.supabase.client
       .from('sale_drafts')
-      .select('id,workspace_id,title,sale_amount,updated_at,draft')
+      .select(SALE_DRAFT_COLUMNS)
       .eq('workspace_id', workspaceId)
       .order('updated_at', { ascending: false });
     if (requestId !== this.loadRequestId) return;
@@ -45,7 +55,7 @@ export class SaleDraftService {
   async get(workspaceId: string, id: string): Promise<SaleDraft | null> {
     const { data, error } = await this.supabase.client
       .from('sale_drafts')
-      .select('id,workspace_id,title,sale_amount,updated_at,draft')
+      .select(SALE_DRAFT_COLUMNS)
       .eq('workspace_id', workspaceId)
       .eq('id', id)
       .maybeSingle();
@@ -91,6 +101,7 @@ export class SaleDraftService {
 
 function toSaleDraft(row: SaleDraftRow): SaleDraft | null {
   const snapshot = readSaleDraftSnapshot(row.draft);
+  const source = row.vinted_source;
   return snapshot
     ? {
         id: row.id,
@@ -99,6 +110,15 @@ function toSaleDraft(row: SaleDraftRow): SaleDraft | null {
         saleAmount: Number(row.sale_amount),
         updatedAt: row.updated_at,
         snapshot,
+        vintedSource: source
+          ? {
+              saleState: source.sale_state,
+              title: source.title,
+              amount: source.amount,
+              currency: source.currency,
+              isBundle: source.is_bundle,
+            }
+          : undefined,
       }
     : null;
 }
