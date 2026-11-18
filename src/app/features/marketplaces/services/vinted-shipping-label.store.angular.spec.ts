@@ -35,6 +35,12 @@ const sale = {
 
 describe('Vinted-Versandscheine', () => {
   let rows: unknown[];
+  let labelQuery: {
+    eq: ReturnType<typeof vi.fn>;
+    lt: ReturnType<typeof vi.fn>;
+    limit: ReturnType<typeof vi.fn>;
+  };
+  let saleQuery: { eq: ReturnType<typeof vi.fn>; in: ReturnType<typeof vi.fn> };
   let requestShippingLabel: ReturnType<typeof vi.fn>;
   let createSignedUrl: ReturnType<typeof vi.fn>;
   let toast: ToastService;
@@ -46,10 +52,18 @@ describe('Vinted-Versandscheine', () => {
     createSignedUrl = vi.fn().mockResolvedValue({ data: { signedUrl: 'https://signed.test/x' } });
     const query = {
       select: () => query,
-      eq: () => query,
+      eq: vi.fn(() => query),
       order: () => query,
-      limit: async () => ({ data: rows, error: null }),
+      lt: vi.fn(() => query),
+      limit: vi.fn(async () => ({ data: rows, error: null })),
     };
+    const sales = {
+      select: () => sales,
+      eq: vi.fn(() => sales),
+      in: vi.fn().mockResolvedValue({ data: [], error: null }),
+    };
+    labelQuery = query;
+    saleQuery = sales;
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -57,7 +71,7 @@ describe('Vinted-Versandscheine', () => {
           provide: SupabaseService,
           useValue: {
             client: {
-              from: () => query,
+              from: (table: string) => (table === 'marketplace_shipping_labels' ? query : sales),
               storage: { from: () => ({ createSignedUrl }) },
             },
           },
@@ -85,6 +99,48 @@ describe('Vinted-Versandscheine', () => {
     expect(store.findForSale({ ...sale, externalId: '24052549356', shipmentId: null })?.id).toBe(
       '7',
     );
+  });
+
+  it('liest alle Seiten des Workspace und ordnet Fotos nach Konto und Transaktion zu', async () => {
+    const otherAccount = '46800000-0000-4000-8000-000000000022';
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      ...row,
+      id: 200 - index,
+      external_transaction_id: String(2000 - index),
+    }));
+    firstPage[0].external_transaction_id = row.external_transaction_id;
+    const secondLabel = { ...row, id: 100, connection_id: otherAccount };
+    labelQuery.limit
+      .mockResolvedValueOnce({ data: firstPage, error: null })
+      .mockResolvedValueOnce({ data: [secondLabel], error: null });
+    saleQuery.in.mockResolvedValue({
+      data: [
+        {
+          connection_id: otherAccount,
+          external_id: row.external_transaction_id,
+          image_url: 'https://img.test/b.webp',
+        },
+        {
+          connection_id: scope.connectionId,
+          external_id: row.external_transaction_id,
+          image_url: 'https://img.test/a.webp',
+        },
+      ],
+      error: null,
+    });
+
+    await store.load({ workspaceId: scope.workspaceId });
+
+    expect(labelQuery.lt).toHaveBeenCalledWith('id', 101);
+    expect(labelQuery.eq.mock.calls).toEqual([
+      ['workspace_id', scope.workspaceId],
+      ['workspace_id', scope.workspaceId],
+    ]);
+    expect(saleQuery.eq).toHaveBeenCalledWith('workspace_id', scope.workspaceId);
+    expect(store.labels()).toHaveLength(101);
+    expect(store.labels().find((label) => label.id === '200')?.imageUrl).toContain('/a.webp');
+    expect(store.labels().find((label) => label.id === '100')?.imageUrl).toContain('/b.webp');
+    expect(store.labels().find((label) => label.id === '199')?.imageUrl).toBeUndefined();
   });
 
   it('verknüpft keine Datei, wenn dieselbe Versandnummer mehrere Verkäufe trifft', async () => {

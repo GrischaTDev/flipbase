@@ -287,14 +287,17 @@ it('bietet bei einem frischen Verkauf das Anfordern des Versandscheins mit Frist
   expect(loadLabels).toHaveBeenCalledWith(scope);
   const actions = element.querySelector('[data-shipping-label-actions]');
   expect(actions?.textContent).toContain('Verschicken bis 16 Nov. 10:00');
-  const button = [...(actions?.querySelectorAll('button') ?? [])].find((candidate) =>
-    candidate.textContent?.includes('Versandschein anfordern'),
+  const button = actions?.querySelector<HTMLButtonElement>(
+    'button[aria-label="Versandschein anfordern"]',
   );
+  expect(button?.title).toContain('Verschicken bis 16 Nov. 10:00');
+  expect(button?.closest('[data-sale-footer]')).not.toBeNull();
   button?.click();
   expect(requestLabel).toHaveBeenCalledWith(expect.objectContaining({ id: 'sale-0' }));
 });
 
-it('verlinkt einen gespeicherten Versandschein anhand der Versandnummer', () => {
+it('verlinkt den gespeicherten Versandschein als erste, gelbe Aktion in der Kartenleiste', () => {
+  selected.set({ ...scope, executionMode: 'cloud', status: 'connected' });
   const label: VintedShippingLabel = {
     id: '7',
     workspaceId: scope.workspaceId,
@@ -313,7 +316,13 @@ it('verlinkt einen gespeicherten Versandschein anhand der Versandnummer', () => 
   labelList.set([label]);
   current.set(
     makeSnapshot([
-      { shipmentId: label.shipmentId, saleState: 'sold', shippingLabelAction: 'available' },
+      {
+        title: 'Schal',
+        shipmentId: label.shipmentId,
+        saleState: 'shipped',
+        itemIds: ['123'],
+        conversationId: 'chat',
+      },
     ]),
   );
   const fixture = TestBed.createComponent(VintedSalesComponent);
@@ -322,11 +331,17 @@ it('verlinkt einen gespeicherten Versandschein anhand der Versandnummer', () => 
   expect(element.textContent).not.toContain('Versandschein anfordern');
   expect(element.textContent).not.toContain('Versandschein abholen');
   const open = element.querySelector('[data-shipping-label-actions] a');
-  expect(open?.textContent).toContain('Zum Versandschein');
+  expect(
+    [...element.querySelectorAll('[data-sale-footer] a')].map((link) =>
+      link.getAttribute('aria-label'),
+    ),
+  ).toEqual(['Zum Versandschein', 'Schal neu einstellen', 'Chat zu Schal öffnen']);
+  expect(open?.classList.contains('linear-btn-primary')).toBe(true);
+  expect(open?.textContent?.trim()).toBe('');
   const destination = new URL(open!.getAttribute('href')!, 'https://flipbase.test');
   expect(destination.pathname).toBe('/marketplaces/vinted/shipping-labels');
   expect(destination.searchParams.get('labelId')).toBe(label.id);
-  expect(destination.searchParams.get('connectionId')).toBe(scope.connectionId);
+  expect(destination.searchParams.has('connectionId')).toBe(false);
   expect(requestLabel).not.toHaveBeenCalled();
 });
 

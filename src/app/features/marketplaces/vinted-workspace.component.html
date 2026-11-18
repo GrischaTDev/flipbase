@@ -10,7 +10,10 @@
     }
     @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
       <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
-    } @else if (!showingAccounts() && store.selectedConnection(); as account) {
+    } @else if (
+      !showingAccounts() && !showingShippingLabels() && store.selectedConnection();
+      as account
+    ) {
       <app-vinted-account-controls
         header-actions
         class="w-full sm:w-auto sm:max-w-[min(36rem,60vw)]"
@@ -35,13 +38,13 @@
         (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
         (scheduleStateChanged)="cloudHeaderState.set($event)"
       />
-    } @else if (!showingAccounts()) {
+    } @else if (!showingAccounts() && !showingShippingLabels()) {
       <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
     }
   </app-page-header>
 }
 <div class="space-y-4" [class.mt-4]="!showingDraftWorkspace()">
-  @if (store.loading()) {
+  @if (store.loading() && !showingShippingLabels()) {
     <p role="status" class="text-[13px] text-fb-text-secondary">Vinted-Konten werden geladen …</p>
   }
   @if (store.error(); as error) {
@@ -57,7 +60,8 @@
     showingSetup() ||
     showingLocalConnection() ||
     showingCloudConnection() ||
-    showingDraftWorkspace()
+    showingDraftWorkspace() ||
+    showingShippingLabels()
   ) {
     <router-outlet />
   } @else if (store.selectedConnection(); as account) {

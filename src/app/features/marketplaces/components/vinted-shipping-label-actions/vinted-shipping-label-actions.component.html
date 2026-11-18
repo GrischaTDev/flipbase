@@ -1,8 +1,9 @@
-@if (label() || action() || deadline()) {
+@if (label() || action() || (!iconOnly() && deadline())) {
   <div data-shipping-label-actions class="flex min-w-0 flex-col gap-2">
     @if (deadline()) {
       <p
         class="truncate text-xs text-fb-text-secondary"
+        [class.sr-only]="iconOnly()"
         [attr.title]="'Verschicken bis ' + deadline()"
       >
         Verschicken bis {{ deadline() }}
@@ -12,23 +13,27 @@
       <app-button
         variant="primary"
         size="slim"
-        [fullWidth]="true"
+        [fullWidth]="!iconOnly()"
+        [iconOnly]="iconOnly()"
+        [ariaLabel]="iconOnly() ? actionLabel() : ''"
+        [title]="actionTooltip()"
         [icon]="openIcon"
         link="/marketplaces/vinted/shipping-labels"
-        [queryParams]="{ connectionId: current.connectionId, labelId: current.id }"
-        >Zum Versandschein</app-button
+        [queryParams]="{ labelId: current.id }"
+        >{{ actionLabel() }}</app-button
       >
     } @else if (action()) {
       <app-button
         variant="primary"
         size="slim"
-        [fullWidth]="true"
-        [icon]="requestIcon"
+        [fullWidth]="!iconOnly()"
+        [iconOnly]="iconOnly()"
+        [ariaLabel]="iconOnly() ? actionLabel() : ''"
+        [title]="actionTooltip()"
+        [icon]="iconOnly() ? openIcon : requestIcon"
         [loading]="requesting()"
         (clicked)="request()"
-        >{{
-          action() === 'order' ? 'Versandschein anfordern' : 'Versandschein abholen'
-        }}</app-button
+        >{{ actionLabel() }}</app-button
       >
     }
   </div>

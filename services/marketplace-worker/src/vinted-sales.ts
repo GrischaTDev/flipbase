@@ -4,6 +4,7 @@ import {
 } from './vinted-negotiation-contracts.ts';
 
 type SaleState = 'sold' | 'shipped' | 'completed' | 'cancelled' | 'relisted';
+export const vintedShipmentInTransit = 'Sendung verschickt und auf dem Weg!';
 const record = (value: unknown): Record<string, unknown> =>
   value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -115,6 +116,7 @@ export function readVintedSale(
     if (sold) state = 'sold';
     else if (group === 'cancelation') state = type === 'reuploaded' ? 'relisted' : 'cancelled';
     else if (group === 'completion' && type === 'completed') state = 'completed';
+    else if (group === 'shipment' && type === 'shipped_tracked') state = 'shipped';
     else if (
       group === 'shipment' &&
       type === 'shipment_completed' &&
@@ -137,12 +139,14 @@ export function readVintedSale(
   if (!sellerProven) return null;
   const paymentAt = time(transaction['debit_processed_at'], observedAt);
   const status = text(transaction['status_title']);
+  const shipment = record(transaction['shipment']);
+  const shipmentStatus = text(shipment['status_title']);
   const ordered = id(order['id']) !== null;
   const providerState =
-    status === 'Versendet'
-      ? 'shipped'
-      : status === 'Transaktion erfolgreich beendet.'
-        ? 'completed'
+    status === 'Transaktion erfolgreich beendet.'
+      ? 'completed'
+      : status === 'Versendet' || shipmentStatus === vintedShipmentInTransit
+        ? 'shipped'
         : null;
   if (
     !previouslyConfirmed &&
@@ -152,7 +156,11 @@ export function readVintedSale(
   )
     return null;
   if (previouslyConfirmed && !events.length && !providerState && !paymentAt) return null;
-  const stateAt = time(transaction['status_updated_at'], observedAt);
+  const stateAt =
+    providerState === 'shipped' && shipmentStatus === vintedShipmentInTransit
+      ? (time(shipment['status_updated_at'], observedAt) ??
+        events.find((event) => event.state === 'sold')?.at)
+      : time(transaction['status_updated_at'], observedAt);
   if (providerState && ordered)
     events.push({
       state: providerState,
@@ -242,7 +250,7 @@ export function readVintedSale(
       price: Number.isFinite(amount) && amount >= 0 ? amount : null,
       currency: currency ?? 'EUR',
       currencyConfirmed: currency !== null,
-      shipmentStatus: text(record(transaction['shipment'])['status_title']),
+      shipmentStatus,
       shipmentId: id(relation['shipment_id']),
       ...(() => {
         const label = readVintedShippingLabelState(relation, conversation['messages']);

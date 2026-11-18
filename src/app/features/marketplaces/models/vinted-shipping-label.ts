@@ -7,6 +7,7 @@ export interface VintedShippingLabel {
   readonly shipmentId: string;
   readonly conversationId: string | null;
   readonly title: string;
+  readonly imageUrl?: string;
   readonly carrierName: string | null;
   readonly labelType: 'printable' | 'digital' | null;
   readonly storagePath: string;

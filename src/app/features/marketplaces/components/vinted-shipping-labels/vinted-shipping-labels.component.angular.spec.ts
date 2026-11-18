@@ -6,8 +6,10 @@ import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/route
 import { BehaviorSubject } from 'rxjs';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { VintedShippingLabel } from '../../models/vinted-shipping-label';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
@@ -31,7 +33,11 @@ const label = (overrides: Partial<VintedShippingLabel> = {}): VintedShippingLabe
 });
 const params = new BehaviorSubject(convertToParamMap({}));
 const labels = signal<readonly VintedShippingLabel[]>([]);
-const selected = signal<Record<string, string> | null>(null);
+const accounts = [
+  { ...scope, displayName: 'Konto A' },
+  { ...scope, connectionId: 'connection-2', displayName: 'Konto B' },
+];
+const canManage = signal(true);
 const load = vi.fn();
 const open = vi.fn();
 const download = vi.fn();
@@ -46,6 +52,10 @@ beforeAll(async () => {
       path: 'src/app/shared/components/data-table/data-table.component.ts',
     },
     {
+      type: ProductThumbnailComponent,
+      path: 'src/app/shared/components/product-thumbnail/product-thumbnail.component.ts',
+    },
+    {
       type: VintedShippingLabelsComponent,
       path: 'src/app/features/marketplaces/components/vinted-shipping-labels/vinted-shipping-labels.component.ts',
     },
@@ -56,7 +66,7 @@ beforeEach(async () => {
   TestBed.resetTestingModule();
   labels.set([]);
   params.next(convertToParamMap({}));
-  selected.set({ ...scope, executionMode: 'cloud' });
+  canManage.set(true);
   for (const mock of [load, open, download]) mock.mockReset();
   await TestBed.configureTestingModule({
     imports: [VintedShippingLabelsComponent],
@@ -67,7 +77,14 @@ beforeEach(async () => {
         useValue: { queryParamMap: params, snapshot: { queryParamMap: params.value } },
       },
       { provide: LOCALE_ID, useValue: 'de' },
-      { provide: MarketplaceAccountStore, useValue: { selectedConnection: selected } },
+      {
+        provide: MarketplaceAccountStore,
+        useValue: { connections: signal(accounts), canManage, loading: signal(false) },
+      },
+      {
+        provide: WorkspaceService,
+        useValue: { currentWorkspace: signal({ id: scope.workspaceId }) },
+      },
       {
         provide: VintedShippingLabelStore,
         useValue: {
@@ -83,24 +100,36 @@ beforeEach(async () => {
   }).compileComponents();
 });
 
-it('listet die Versandscheine des Cloud-Kontos mit Versanddienst und Art', () => {
+it('zeigt Scheine aus allen Konten desselben Workspace mit Foto und Kontonamen', () => {
   labels.set([
     label(),
     label({
       id: '8',
       transactionId: '1',
+      connectionId: accounts[1].connectionId,
+      imageUrl: 'https://images.example.test/schal.webp',
       title: 'Schal',
       labelType: 'digital',
       carrierName: 'DHL',
     }),
+    label({ id: '9', workspaceId: 'anderer-workspace', title: 'Fremder Artikel' }),
   ]);
   const fixture = TestBed.createComponent(VintedShippingLabelsComponent);
   fixture.detectChanges();
   const element = fixture.nativeElement as HTMLElement;
-  expect(load).toHaveBeenCalledWith(scope);
+  expect(load).toHaveBeenCalledWith({ workspaceId: scope.workspaceId });
   const rows = [...element.querySelectorAll('tbody tr')];
   expect(rows).toHaveLength(2);
+  expect(rows[0]?.textContent).toContain('Konto A');
   expect(rows[0]?.textContent).toContain('DPD Shop2Shop');
+  expect(rows[1]?.textContent).toContain('Konto B');
+  expect(rows[1]?.querySelector('img')?.getAttribute('src')).toBe(
+    'https://images.example.test/schal.webp',
+  );
+  fixture.componentInstance.search.set('Konto B');
+  fixture.detectChanges();
+  expect(element.querySelectorAll('tbody tr')).toHaveLength(1);
+  expect(element.querySelector('tbody tr')?.textContent).toContain('Schal');
   expect(rows[0]?.textContent).toContain('Druckfertig');
   expect(rows[0]?.textContent).toContain('Druck-PDF öffnen');
   expect(rows[1]?.textContent).toContain('QR-Code öffnen');
@@ -112,6 +141,7 @@ it('markiert bei einem Direktlink genau den gespeicherten Schein und fokussiert 
   const prototype = HTMLElement.prototype;
   const original = Object.getOwnPropertyDescriptor(prototype, 'scrollIntoView');
   Object.defineProperty(prototype, 'scrollIntoView', { configurable: true, value: scroll });
+  vi.useFakeTimers();
   try {
     params.next(convertToParamMap({ labelId: '9' }));
     labels.set([label(), label({ id: '9', title: 'DHL-Schal', labelType: 'digital' })]);
@@ -124,7 +154,13 @@ it('markiert bei einem Direktlink genau den gespeicherten Schein und fokussiert 
     expect(marked[0].textContent).toContain('DHL-Schal');
     expect(document.activeElement).toBe(marked[0]);
     expect(scroll).toHaveBeenCalledOnce();
+    expect(marked[0].classList.contains('ring-2')).toBe(false);
+    vi.advanceTimersByTime(4000);
+    fixture.detectChanges();
+    expect(element.querySelector('tr[aria-current="true"]')).toBeNull();
+    expect(document.activeElement).toBe(marked[0]);
   } finally {
+    vi.useRealTimers();
     if (original) Object.defineProperty(prototype, 'scrollIntoView', original);
     else Reflect.deleteProperty(prototype, 'scrollIntoView');
   }
@@ -146,10 +182,11 @@ it('öffnet und lädt einen Versandschein aus der Liste', async () => {
   expect(download).toHaveBeenCalledWith(labels()[0]);
 });
 
-it('lädt für lokale Konten keine Versandscheine', () => {
-  selected.set({ ...scope, executionMode: 'local' });
+it('lädt ohne Verwaltungszugriff keine Versandscheine', () => {
+  canManage.set(false);
+  labels.set([label()]);
   const fixture = TestBed.createComponent(VintedShippingLabelsComponent);
   fixture.detectChanges();
   expect(load).not.toHaveBeenCalled();
-  expect((fixture.nativeElement as HTMLElement).textContent).toContain('Cloud-Konten');
+  expect((fixture.nativeElement as HTMLElement).querySelector('tbody tr')).toBeNull();
 });

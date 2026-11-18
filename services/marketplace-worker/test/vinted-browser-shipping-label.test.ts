@@ -184,11 +184,24 @@ test('holt einen bereits angeforderten Schein ohne erneute Anforderung', async (
   );
   assert.equal(result.outcome, 'ready');
   assert.equal(result.requested, false);
+  assert.equal(result.carrierName, 'DPD Shop2Shop');
   assert.equal(
     calls.some((call) => call.method === 'PUT'),
     false,
   );
   assert.equal(authorized(), 0);
+});
+
+test('holt den vorhandenen Versandschein auch ohne Antwort zu den Versandangaben', async () => {
+  const { adapter } = vinted({ actions: ['send_shipping_label'] });
+  const read = adapter.read;
+  adapter.read = (path) =>
+    path.endsWith('/label_options')
+      ? Promise.reject(new VintedShippingLabelError('provider_unavailable'))
+      : read(path);
+  const result = await executeVintedShippingLabel(adapter, '1', '500969788562', '24052549356');
+  assert.equal(result.outcome, 'ready');
+  assert.equal(result.carrierName, null);
 });
 
 test('wartet auf die Erstellung und meldet einen noch nicht fertigen Schein als ausstehend', async () => {

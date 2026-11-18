@@ -1,7 +1,10 @@
 import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedCsrfToken } from './vinted-browser-messages.ts';
-import { isVintedShippingLabelUrl } from './vinted-shipping-label-contracts.ts';
+import {
+  isVintedShippingLabelUrl,
+  vintedShippingCarrierName,
+} from './vinted-shipping-label-contracts.ts';
 
 export { isVintedShippingLabelUrl };
 
@@ -104,11 +107,8 @@ export async function executeVintedShippingLabel(
     let carrierName: string | null = null;
     if (actions.has('order_shipping_label')) {
       if (readOnly) return result('pending', { shipmentId });
-      const options = record(
-        record(await adapter.read(`/api/v2/shipments/${shipmentId}/label_options`))[
-          'label_options'
-        ],
-      );
+      const optionsResponse = await adapter.read(`/api/v2/shipments/${shipmentId}/label_options`);
+      const options = record(record(optionsResponse)['label_options']);
       const dropOffs = (Array.isArray(options['drop_offs']) ? options['drop_offs'] : []).flatMap(
         (dropOff) => {
           const choices = record(dropOff)['options'];
@@ -128,7 +128,7 @@ export async function executeVintedShippingLabel(
       const sender = record(options['sender']);
       if (sender['phone_number_requirement'] === 'mandatory' && !text(sender['phone_number']))
         return result('failed', { errorCode: 'phone_required' });
-      carrierName = text(record(options['carrier'])['name']);
+      carrierName = vintedShippingCarrierName(optionsResponse);
       const addresses = record(await adapter.read('/api/v2/user_addresses'))['user_addresses'];
       const list = Array.isArray(addresses) ? addresses.map(record) : [];
       const shipping = list.filter((address) => address['entry_type'] === 2);
@@ -150,8 +150,13 @@ export async function executeVintedShippingLabel(
       const labelUrl = record(await adapter.read(`/api/v2/shipments/${shipmentId}/label_url`))[
         'label_url'
       ];
-      if (isVintedShippingLabelUrl(labelUrl))
+      if (isVintedShippingLabelUrl(labelUrl)) {
+        if (!requested)
+          carrierName = vintedShippingCarrierName(
+            await adapter.read(`/api/v2/shipments/${shipmentId}/label_options`).catch(() => null),
+          );
         return result('ready', { shipmentId, labelType, carrierName, labelUrl, requested });
+      }
       await adapter.wait(1500);
     }
     return result('pending', { shipmentId, labelType, carrierName, requested });

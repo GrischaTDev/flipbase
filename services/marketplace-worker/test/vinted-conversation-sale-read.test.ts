@@ -141,6 +141,8 @@ function importFixture(
                 ...transactionChanges,
               },
             };
+      if (path === '/api/v2/shipments/987/label_options')
+        return { label_options: { carrier: { name: 'DHL' } } };
       if (path.includes('/wardrobe/')) return { items: [], pagination: { total_pages: 1 } };
       if (path.includes('/feedbacks'))
         return { user_feedbacks: [], pagination: { total_pages: 1 } };
@@ -165,6 +167,28 @@ test('a scheduled import refreshes a bound sale from shortened conversation data
     snapshot.entries.find((entry) => entry.kind === 'conversation')?.body['saleTrackingVersion'],
     3,
   );
+});
+
+test('a scoped chat read obtains the carrier for an already shipped sale', async (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(observedAt) });
+  const item = importFixture({ id: 71, shipment_id: 987 }, false, {
+    shipment: { status_title: 'Sendung verschickt und auf dem Weg!' },
+  });
+  const snapshot = await readVintedAccountImport(
+    item.page,
+    async () => undefined,
+    undefined,
+    [item.previous],
+    { externalId: '51', accountId: '123' },
+  );
+  assert.equal(
+    item.paths.filter((path) => path === '/api/v2/shipments/987/label_options').length,
+    1,
+  );
+  const sale = snapshot.entries.find((entry) => entry.kind === 'sale');
+  assert.equal(sale?.body.saleState, 'shipped');
+  assert.equal(sale?.body.shippingCarrierName, 'DHL');
+  assert.equal(sale?.body.shipmentId, '987');
 });
 
 test('uncertain current sale relations do not inherit a fresh confirmation from the old inbox cache', async (t) => {

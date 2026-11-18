@@ -22,7 +22,12 @@ import { parseVintedAccountIdentity, type VintedAccountIdentity } from './vinted
 import { parseVintedInboxEvents } from './vinted-inbox-events.ts';
 import type { MarketplaceInboxEventBatch } from '../../../supabase/functions/_shared/marketplace-inbox-event-contracts.d.ts';
 import type { VintedFavoriteEvent } from './vinted-browser-favorites.ts';
-import { readVintedSale } from './vinted-sales.ts';
+import {
+  readVintedSale,
+  readVintedShippingLabelState,
+  vintedShipmentInTransit,
+} from './vinted-sales.ts';
+import { vintedShippingCarrierName } from './vinted-shipping-label-contracts.ts';
 import {
   isVintedConversationSaleTransaction,
   vintedConversationSaleRead,
@@ -880,6 +885,9 @@ export function parseVintedAccountImport(
         ...sale,
         body: {
           ...sale.body,
+          ...(typeof detail?.['shippingCarrierName'] === 'string'
+            ? { shippingCarrierName: detail['shippingCarrierName'] }
+            : {}),
           brand: publication?.body['brand'] ?? null,
           size: publication?.body['size'] ?? null,
         },
@@ -958,7 +966,7 @@ async function vintedJson(
           credentials: 'include',
           headers: { Accept: requestPath.startsWith('/items/') ? 'text/html' : 'application/json' },
           cache: 'no-store',
-          signal: AbortSignal.timeout(12_000),
+          signal: AbortSignal.timeout(requestPath.startsWith('/api/v2/shipments/') ? 2500 : 12_000),
         });
       } catch (error) {
         return failure(
@@ -1632,9 +1640,31 @@ export async function readVintedAccountImport(
           areas.sales = sourceFailure('transaction', error, true);
         }
     }
+    const conversationTransaction = record(relation?.['transaction']);
+    const shipmentId = identifier(conversationTransaction?.['shipment_id']);
+    const shipment = record(record(record(transaction)?.['transaction'])?.['shipment']);
+    let shippingCarrierName: string | null = null;
+    // Beim gezielten Chatabruf den Versanddienst bereits abgeholter Scheine ergänzen.
+    if (
+      requestedConversation &&
+      transaction &&
+      shipmentId &&
+      canReadDetail() &&
+      (readVintedShippingLabelState(conversationTransaction, relation?.['messages']).action ===
+        'available' ||
+        shipment?.['status_title'] === vintedShipmentInTransit)
+    ) {
+      await atImportStage('transaction', authorize);
+      shippingCarrierName = vintedShippingCarrierName(
+        await vintedJson(page, `/api/v2/shipments/${shipmentId}/label_options`, reads).catch(
+          () => null,
+        ),
+      );
+    }
     details.push({
       ...record(conversation),
       transaction,
+      shippingCarrierName,
       saleTrackingChecked: transactionId
         ? transaction !== null
         : saleRead.canConfirmWithoutTransaction,
