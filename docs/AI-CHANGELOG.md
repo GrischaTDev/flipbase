@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-18 - Juna - Automatische Vinted-Verkaufsentwürfe
+
+Ein neu importierter bestätigter Vinted-Verkauf erscheint als Entwurf unter Verkäufe. Bei aktivem Shop übernimmt er den eindeutig mit der Veröffentlichung verknüpften und verfügbaren Bestandsartikel. Bei ausgeschaltetem Shop übernimmt er die belegten Daten in eine freie Position. Die Anlage verändert den Bestand nicht. Die Datenbank verbucht den Entwurf erst beim Abschluss und schützt auch bei Wiederholungen vor Doppelbuchungen.
+
+Stornos bleiben bei einer erneuten Kontoverbindung wirksam. Ein später bestätigter Paketpreis wird bei der Buchung geprüft, ohne Änderungen am Entwurf zu überschreiben. Unbelegte Angaben zu Artikel, Betrag, Währung und Kaufdatum bleiben offen.
+
 ## 2026-11-18 - Juna - Vinted-Menü sortieren und Layout „Normal“ nennen
 
 Im Vinted-Kontomenü folgt der Kleiderschrank direkt auf das Postfach, die Statistik steht hinter den Entwürfen. Das Benutzermenü nennt die mittlere Layoutbreite auf Deutsch „Normal“.

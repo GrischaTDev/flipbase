@@ -7,8 +7,9 @@ export interface SaleDraftSnapshot {
     /** Gleiche Kennung wie im Formular, z. B. `free:Pullover` oder eine Bestandsauswahl. */
     readonly target: string;
     readonly quantity: number;
-    readonly unitSalePrice: number;
+    readonly unitSalePrice: number | null;
     readonly purchaseId: string | null;
+    readonly sourceTitle?: string | null;
   }[];
   readonly platform: string;
   readonly saleDate: string;
@@ -32,6 +33,19 @@ export interface SaleDraft {
   readonly saleAmount: number;
   readonly updatedAt: string;
   readonly snapshot: SaleDraftSnapshot;
+  readonly vintedSource?: VintedSaleDraftSource;
+}
+
+export interface VintedSaleDraftSource {
+  readonly saleState: string;
+  readonly title: string;
+  readonly amount: number | null;
+  readonly currency: string | null;
+  readonly isBundle: boolean;
+}
+
+export function isVintedSaleDraftCancelled(source: VintedSaleDraftSource | undefined): boolean {
+  return source?.saleState === 'cancelled' || source?.saleState === 'relisted';
 }
 
 export function readSaleDraftSnapshot(value: unknown): SaleDraftSnapshot | null {

@@ -13,7 +13,7 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
-import type { SaleDraft } from '../../models/sale-draft.models';
+import { isVintedSaleDraftCancelled, type SaleDraft } from '../../models/sale-draft.models';
 import { SaleDraftService } from '../../services/sale-draft.service';
 
 /** Offene Verkaufsentwürfe in der Verkaufsübersicht; sie zählen noch nicht als Verkauf. */
@@ -31,6 +31,7 @@ export class SaleDraftListComponent {
   readonly deletingId = signal<string | null>(null);
   readonly editIcon = LucidePencil;
   readonly deleteIcon = LucideTrash2;
+  readonly isVintedSaleDraftCancelled = isVintedSaleDraftCancelled;
 
   constructor() {
     effect(() => {
@@ -42,6 +43,13 @@ export class SaleDraftListComponent {
   visibleDrafts(): readonly SaleDraft[] {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     return this.drafts.loadedWorkspaceId() === workspaceId ? this.drafts.drafts() : [];
+  }
+
+  draftAmount(draft: SaleDraft): number | null {
+    if (draft.vintedSource && draft.snapshot.lines.some((line) => line.unitSalePrice === null)) {
+      return draft.vintedSource.currency === 'EUR' ? draft.vintedSource.amount : null;
+    }
+    return draft.saleAmount;
   }
 
   async remove(draft: SaleDraft): Promise<void> {
