@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-18 - Juna - Vinted-Menü sortieren und Layout „Normal“ nennen
+
+Im Vinted-Kontomenü folgt der Kleiderschrank direkt auf das Postfach, die Statistik steht hinter den Entwürfen. Das Benutzermenü nennt die mittlere Layoutbreite auf Deutsch „Normal“.
+
 ## 2026-11-17 - Juna - Verkaufschat samt Versandstatus speichern
 
 **Live-Nachweis:** In „Maike Vintage“ blieb der Verkauf des Burberry-Schals von 20:18 Uhr auf „Abgeschlossen“. Der Vergleichsabruf eines anderen Chats gelang in 26 Sekunden und mit einem Versuch. Beim Verkaufschat scheiterten die beobachteten Aufträge nach drei Versuchen und 36–48 Sekunden. Die schreibgeschützte Produktionsdiagnose bestätigte den Widerspruch zwischen PR #691 und der aktiven Datenbankfunktion: Der Worker liefert den bestätigten Verkauf mit, während die Datenbank in einem Chatabruf nur Profil, Gespräch und Nachrichten akzeptiert. Die Datenbankprüfung reproduziert den Abbruch mit SQLSTATE `42501`. Eigener Zweig vom abgeglichenen `origin/master` (`203a3844`) in getrennter Arbeitskopie.
