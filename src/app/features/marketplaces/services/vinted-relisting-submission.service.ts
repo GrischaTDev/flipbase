@@ -12,6 +12,7 @@ import {
 } from '../models/flipbase-vinted-listing-form';
 import {
   parseVintedListingPhotoOptions,
+  remapVintedListingPhotoOptions,
   type VintedListingPhotoOptions,
 } from '../models/vinted-listing-photo-options';
 import {
@@ -36,6 +37,7 @@ export interface VintedRelistingSubmission {
   readonly description: string;
   readonly descriptionKnown: boolean;
   readonly photoOptions: VintedListingPhotoOptions;
+  readonly photoKeys?: readonly string[];
   readonly schedule: VintedListingJobIntent['schedule'];
   readonly delaySeconds: number;
   readonly requestId: string;
@@ -62,7 +64,10 @@ export class VintedRelistingSubmissionService {
     const userId = this.auth.currentUser()?.id;
     const target = submission.account;
     this.assertCurrent(userId, submission.entry, target);
-    const options = parseVintedListingPhotoOptions(submission.photoOptions, []);
+    const options = parseVintedListingPhotoOptions(
+      submission.photoOptions,
+      submission.photoKeys ?? [],
+    );
     return this.operations.prepareRelisting(submission.entry, async () => {
       const current = () => this.assertCurrent(userId, submission.entry, target);
       const authorize = async () => {
@@ -221,10 +226,16 @@ export class VintedRelistingSubmissionService {
       draft = await this.images.setOrder(draft, imageIds);
       current();
     }
+    const resolvedOptions = remapVintedListingPhotoOptions(
+      options,
+      submission.photoKeys ?? [],
+      imageIds,
+    );
     if (
-      JSON.stringify(draft.photoOptions ?? { resize: null, crops: {} }) !== JSON.stringify(options)
+      JSON.stringify(draft.photoOptions ?? { resize: null, crops: {} }) !==
+      JSON.stringify(resolvedOptions)
     ) {
-      draft = await this.images.savePhotoOptions(draft, options);
+      draft = await this.images.savePhotoOptions(draft, resolvedOptions);
       current();
     }
     const [brands, permission, runtime, jobs] = await Promise.all([

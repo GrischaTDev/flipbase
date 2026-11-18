@@ -84,7 +84,10 @@ begin
   update public.marketplace_listing_images set state='ready' where id=p_image_id::bigint;
   -- Erst das vollständig hochgeladene Original bestätigen, dann seine Auswahlposition atomar ersetzen.
   update public.marketplace_listing_drafts set image_ids=case when p_replace_image_id is null then array_append(image_ids,p_image_id::bigint) else array_replace(image_ids,p_replace_image_id::bigint,p_image_id::bigint) end,
-    photo_options=jsonb_set(photo_options,'{crops}',(photo_options->'crops')-coalesce(p_replace_image_id,'')),
+    photo_options=case
+      when photo_options ? 'photoAdjustments' then jsonb_set(jsonb_set(photo_options,'{crops}',(photo_options->'crops')-coalesce(p_replace_image_id,'')),'{photoAdjustments}',(photo_options->'photoAdjustments')-coalesce(p_replace_image_id,''))
+      else jsonb_set(photo_options,'{crops}',(photo_options->'crops')-coalesce(p_replace_image_id,''))
+    end,
     revision=revision+1,updated_at=now() where id=p_draft_id::bigint returning * into v_draft;
   return public.marketplace_listing_draft_document(v_draft);
 end;
@@ -98,7 +101,10 @@ begin
   if p_image_ids is null or cardinality(p_image_ids)>100 or exists(select 1 from unnest(p_image_ids) id where id is null or id !~ '^[1-9][0-9]{0,18}$') or (select count(distinct id) from unnest(p_image_ids) id)<>cardinality(p_image_ids) then raise exception 'Ungültige Bildauswahl.' using errcode='22023'; end if;
   if exists(select 1 from unnest(p_image_ids) selected(id) where not exists(select 1 from public.marketplace_listing_images i where i.id=selected.id::bigint and i.draft_id=p_draft_id::bigint and i.state='ready')) then raise exception 'Diese Fotos gehören nicht zum Entwurf.' using errcode='42501'; end if;
   update public.marketplace_listing_drafts set image_ids=p_image_ids::bigint[],
-    photo_options=jsonb_set(photo_options,'{crops}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(photo_options->'crops') where key=any(p_image_ids)),'{}'::jsonb)),
+    photo_options=case
+      when photo_options ? 'photoAdjustments' then jsonb_set(jsonb_set(photo_options,'{crops}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(photo_options->'crops') where key=any(p_image_ids)),'{}'::jsonb)),'{photoAdjustments}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(photo_options->'photoAdjustments') where key=any(p_image_ids)),'{}'::jsonb))
+      else jsonb_set(photo_options,'{crops}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(photo_options->'crops') where key=any(p_image_ids)),'{}'::jsonb))
+    end,
     revision=revision+1,updated_at=now() where id=p_draft_id::bigint returning * into v_draft;
   return public.marketplace_listing_draft_document(v_draft);
 end;

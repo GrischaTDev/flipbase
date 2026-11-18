@@ -90,13 +90,26 @@ export interface VintedListingPhotoCrop {
   readonly height: number;
   readonly rotation: 0 | 90 | 180 | 270;
 }
-export type VintedListingPhotoFilter = 'none' | 'lighter' | 'darker' | 'soft';
+export type VintedListingPhotoFilter =
+  'none' | 'lighter' | 'darker' | 'soft' | 'natural' | 'contrast';
 export type VintedListingPhotoBorder = 'none' | 'small' | 'medium' | 'large';
+export interface VintedListingPhotoAdjustment {
+  readonly exposure: number;
+  readonly contrast: number;
+  readonly warmth: number;
+  readonly saturation: number;
+  readonly sharpness: number;
+  readonly denoise: number;
+  readonly straighten: number;
+  readonly flipX: boolean;
+}
 export interface VintedListingPhotoOptions {
   readonly filter?: VintedListingPhotoFilter;
   readonly border?: VintedListingPhotoBorder;
   readonly resize: number | null;
   readonly crops: Readonly<Record<string, VintedListingPhotoCrop>>;
+  readonly adjustments?: VintedListingPhotoAdjustment;
+  readonly photoAdjustments?: Readonly<Record<string, VintedListingPhotoAdjustment>>;
 }
 export interface MarketplaceListingSnapshot {
   readonly photoOptions?: VintedListingPhotoOptions;

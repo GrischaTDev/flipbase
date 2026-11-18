@@ -1,22 +1,167 @@
-@if (image(); as photo) {
-  <figure class="space-y-2" [attr.aria-busy]="loading() ? 'true' : null">
-    <figcaption class="text-sm font-medium text-fb-text-primary">Vorschau</figcaption>
+@if (activeImage(); as photo) {
+  <figure class="flex flex-col gap-3" [attr.aria-busy]="loading() ? 'true' : null">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <figcaption class="flex items-center gap-2 text-sm font-semibold text-fb-text-primary">
+        <span>Vorschau</span>
+        @if (photoList().length > 1) {
+          <span class="text-xs font-normal text-fb-text-secondary">
+            · Foto {{ safeIndex() + 1 }} von {{ photoList().length }}
+          </span>
+        }
+        @if (hasCustomOverride(photo)) {
+          <span class="text-xs font-medium text-fb-text-secondary">· Einzelfoto angepasst</span>
+        }
+      </figcaption>
+      @if (!compact()) {
+        <div class="flex flex-wrap items-center gap-1.5" role="group" aria-label="Vorschaumodus">
+          <app-button
+            size="slim"
+            [variant]="viewMode() === 'edited' ? 'primary' : 'secondary'"
+            (clicked)="setViewMode('edited')"
+            >Bearbeitet</app-button
+          >
+          <app-button
+            size="slim"
+            [variant]="viewMode() === 'original' ? 'primary' : 'secondary'"
+            (clicked)="setViewMode('original')"
+            >Original</app-button
+          >
+          @if (hasActiveModification()) {
+            <app-button
+              size="slim"
+              [variant]="viewMode() === 'compare' ? 'primary' : 'secondary'"
+              (clicked)="setViewMode('compare')"
+              >Vergleich</app-button
+            >
+          }
+          <app-button
+            size="slim"
+            [variant]="zoom100() ? 'primary' : 'secondary'"
+            (clicked)="toggleZoom()"
+            >{{ zoom100() ? 'Einpassen' : '100 %' }}</app-button
+          >
+        </div>
+      }
+    </div>
+
     <div
-      class="flex items-center justify-center overflow-hidden rounded-lg border border-fb-border-subtle bg-fb-subtle p-3"
+      [class]="
+        compact()
+          ? 'flex items-center justify-center overflow-hidden rounded-lg border border-fb-border-subtle bg-fb-subtle p-3'
+          : zoom100()
+            ? 'relative flex min-h-[280px] max-h-[65dvh] items-start justify-center overflow-auto rounded-xl border border-fb-border-subtle bg-fb-subtle p-4 sm:min-h-[400px] lg:min-h-[480px]'
+            : 'relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-subtle p-4 sm:min-h-[400px] lg:min-h-[480px]'
+      "
     >
       @if (preview(); as url) {
-        <img
-          [src]="url"
-          [alt]="'Vorschau für ' + photo.fileName"
-          [class]="
-            compact() ? 'max-h-28 max-w-full object-contain' : 'max-h-64 max-w-full object-contain'
-          "
-        />
+        @if (viewMode() === 'compare' && !compact() && !zoom100()) {
+          <div class="relative flex w-full items-center justify-center">
+            <div
+              aria-hidden="true"
+              class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat"
+              [style.background-image]="'url(' + originalUrl(photo) + ')'"
+            ></div>
+            <img
+              [src]="url"
+              [alt]="'Vorschau für ' + photo.fileName"
+              class="relative max-h-[56dvh] max-w-full object-contain"
+              [style.clip-path]="'inset(0 ' + (100 - compareSplit()) + '% 0 0)'"
+            />
+          </div>
+        } @else {
+          <img
+            [src]="viewMode() === 'original' ? originalUrl(photo) : url"
+            [alt]="'Vorschau für ' + photo.fileName"
+            [class]="
+              compact()
+                ? 'max-h-28 max-w-full object-contain'
+                : zoom100()
+                  ? 'max-w-none'
+                  : 'max-h-[56dvh] max-w-full object-contain'
+            "
+          />
+        }
       } @else if (loading()) {
         <p role="status" class="text-sm text-fb-text-secondary">Vorschau wird erstellt …</p>
       } @else if (error(); as message) {
         <p role="alert" class="text-sm text-fb-critical">{{ message }}</p>
       }
     </div>
+
+    @if (viewMode() === 'compare' && !compact() && !zoom100() && preview()) {
+      <div class="flex items-center gap-3">
+        <label
+          for="vinted-relist-compare-slider"
+          class="shrink-0 text-xs font-medium text-fb-text-secondary"
+        >
+          Vorher / Nachher
+        </label>
+        <input
+          id="vinted-relist-compare-slider"
+          type="range"
+          min="0"
+          max="100"
+          step="1"
+          [value]="compareSplit()"
+          [attr.aria-valuetext]="compareSplit() + ' % Bearbeitet'"
+          (input)="onCompareSlider($any($event.target).value)"
+          class="h-1.5 flex-1 cursor-pointer accent-fb-primary"
+        />
+        <span class="w-10 text-right text-xs tabular-nums text-fb-text-secondary">
+          {{ compareSplit() }} %
+        </span>
+      </div>
+    }
+
+    @if (photoList().length > 1 && !compact()) {
+      <div class="flex items-center justify-between gap-2">
+        <app-button
+          size="slim"
+          variant="secondary"
+          ariaLabel="Vorheriges Foto"
+          (clicked)="previousPhoto()"
+          >Zurück</app-button
+        >
+        <div
+          class="flex flex-1 items-center gap-2 overflow-x-auto py-1"
+          role="group"
+          aria-label="Fotos der Anzeige"
+        >
+          @for (item of photoList(); track item.key; let idx = $index) {
+            <button
+              type="button"
+              [attr.aria-label]="'Foto ' + (idx + 1) + ' auswählen'"
+              [attr.aria-pressed]="idx === safeIndex()"
+              (click)="selectPhoto(idx)"
+              [class]="
+                idx === safeIndex()
+                  ? 'relative h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border-2 border-fb-brand bg-fb-subtle bg-cover bg-center'
+                  : 'relative h-14 w-14 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-fb-border-subtle bg-fb-subtle bg-cover bg-center opacity-75 hover:opacity-100'
+              "
+              [style.background-image]="'url(' + item.previewUrl + ')'"
+            >
+              <span
+                class="absolute bottom-0.5 left-0.5 rounded bg-fb-surface px-1 text-[11px] font-semibold text-fb-text-primary"
+              >
+                {{ idx + 1 }}
+              </span>
+              @if (hasCustomOverride(item)) {
+                <span
+                  aria-hidden="true"
+                  class="absolute top-1 right-1 h-2 w-2 rounded-full bg-fb-brand"
+                ></span>
+              }
+            </button>
+          }
+        </div>
+        <app-button
+          size="slim"
+          variant="secondary"
+          ariaLabel="Nächstes Foto"
+          (clicked)="nextPhoto()"
+          >Weiter</app-button
+        >
+      </div>
+    }
   </figure>
 }

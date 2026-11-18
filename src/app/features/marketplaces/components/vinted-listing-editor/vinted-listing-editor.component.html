@@ -82,66 +82,145 @@
   } @else if (!loadError()) {
     @if (relisting()) {
       <div
-        class="space-y-4"
+        class="grid gap-6 lg:grid-cols-12 lg:items-start"
         [formGroup]="form"
         [attr.inert]="publication() || (copyingSale() && preparingSource()) ? '' : null"
       >
-        <app-text-field
-          label="Titel"
-          [error]="visibleFieldErrors()['title'] ?? null"
-          [maxLength]="categorySchema()?.titleMaxLength ?? 20000"
-          formControlName="title"
-        />
-        <app-text-field
-          label="Beschreibung"
-          [multiline]="4"
-          [error]="visibleFieldErrors()['description'] ?? null"
-          [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
-          formControlName="description"
-        />
-        <div class="space-y-4">
+        <div class="space-y-4 lg:col-span-5">
+          <app-text-field
+            label="Titel"
+            [error]="visibleFieldErrors()['title'] ?? null"
+            [maxLength]="categorySchema()?.titleMaxLength ?? 20000"
+            formControlName="title"
+          />
+          <app-text-field
+            label="Beschreibung"
+            [multiline]="3"
+            [error]="visibleFieldErrors()['description'] ?? null"
+            [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
+            formControlName="description"
+          />
           <section
             aria-labelledby="vinted-relist-photo-heading"
-            class="space-y-3 border-t border-fb-border-subtle pt-4"
+            class="space-y-4 border-t border-fb-border-subtle pt-4"
           >
-            <h3 id="vinted-relist-photo-heading" class="text-sm font-semibold text-fb-text-primary">
-              Bildbearbeitung
-            </h3>
-            <div class="space-y-4">
-              <div class="grid gap-4 sm:grid-cols-3">
-                <app-custom-select
-                  label="Auflösung"
-                  ariaLabel="Auflösung"
-                  [options]="photoSizeOptions"
-                  [value]="photoSize() ?? 'none'"
-                  (valueChange)="selectPhotoSize($event)"
-                  [disabled]="saving() || preparingPhotos()"
-                />
-                <app-custom-select
-                  label="Filter"
-                  ariaLabel="Filter"
-                  [options]="photoFilterOptions"
-                  [value]="photoFilter()"
-                  (valueChange)="photoFilter.set($event ?? 'none')"
-                  [disabled]="saving() || preparingPhotos()"
-                />
-                <app-custom-select
-                  label="Weißer Rahmen"
-                  ariaLabel="Weißer Rahmen"
-                  [options]="photoBorderOptions"
-                  [value]="photoBorder()"
-                  (valueChange)="photoBorder.set($event ?? 'none')"
-                  [disabled]="saving() || preparingPhotos()"
-                />
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h3
+                id="vinted-relist-photo-heading"
+                class="text-sm font-semibold text-fb-text-primary"
+              >
+                Bildbearbeitung
+              </h3>
+              <div class="flex flex-wrap items-center gap-1.5">
+                @if (images().length > 1) {
+                  <app-button
+                    size="slim"
+                    [variant]="photoEditTarget() === 'all' ? 'primary' : 'secondary'"
+                    [disabled]="saving() || preparingPhotos()"
+                    (clicked)="setPhotoEditTarget('all')"
+                    >Alle Fotos</app-button
+                  >
+                  <app-button
+                    size="slim"
+                    [variant]="photoEditTarget() === 'current' ? 'primary' : 'secondary'"
+                    [disabled]="saving() || preparingPhotos()"
+                    (clicked)="setPhotoEditTarget('current')"
+                    >Nur Foto {{ selectedPhotoIndex() + 1 }}</app-button
+                  >
+                }
+                <app-button
+                  size="slim"
+                  variant="ghost"
+                  [disabled]="saving() || preparingPhotos() || !canResetPhotoEdits()"
+                  (clicked)="resetPhotoEdits()"
+                  >Zurücksetzen</app-button
+                >
               </div>
-              <app-vinted-listing-photo-preview
-                [compact]="true"
-                [photoScope]="photoScope()"
-                [image]="images()[0] ?? null"
-                [options]="photoOptions()"
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-3">
+              <app-custom-select
+                label="Auflösung"
+                ariaLabel="Auflösung"
+                [options]="photoSizeOptions"
+                [value]="photoSize() ?? 'none'"
+                (valueChange)="selectPhotoSize($event)"
+                [disabled]="saving() || preparingPhotos()"
+              />
+              <app-custom-select
+                label="Filter"
+                ariaLabel="Filter"
+                [options]="photoFilterOptions"
+                [value]="photoFilter()"
+                (valueChange)="photoFilter.set($event ?? 'none')"
+                [disabled]="saving() || preparingPhotos()"
+              />
+              <app-custom-select
+                label="Weißer Rahmen"
+                ariaLabel="Weißer Rahmen"
+                [options]="photoBorderOptions"
+                [value]="photoBorder()"
+                (valueChange)="photoBorder.set($event ?? 'none')"
+                [disabled]="saving() || preparingPhotos()"
               />
             </div>
+
+            <div class="grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
+              @for (slider of photoAdjustmentSliders; track slider.key) {
+                <div class="flex items-center gap-2">
+                  <label
+                    [attr.for]="'vinted-relist-slider-' + slider.key"
+                    class="w-28 shrink-0 text-xs font-medium text-fb-text-secondary"
+                  >
+                    {{ slider.label }}
+                  </label>
+                  <input
+                    [id]="'vinted-relist-slider-' + slider.key"
+                    type="range"
+                    [min]="slider.min"
+                    [max]="slider.max"
+                    [step]="slider.step"
+                    [value]="activePhotoAdjustment()[slider.key]"
+                    [attr.aria-valuetext]="formatPhotoSliderValue(slider.key, slider.unit)"
+                    [disabled]="saving() || preparingPhotos()"
+                    (input)="onPhotoSlider(slider.key, $any($event.target).value)"
+                    class="h-1.5 min-w-0 flex-1 cursor-pointer accent-fb-primary disabled:cursor-not-allowed disabled:opacity-40"
+                  />
+                  <span
+                    class="w-11 shrink-0 text-right text-xs tabular-nums text-fb-text-secondary"
+                  >
+                    {{ formatPhotoSliderValue(slider.key, slider.unit) }}
+                  </span>
+                </div>
+              }
+            </div>
+
+            <div class="flex flex-wrap items-center gap-2 pt-1">
+              <app-button
+                size="slim"
+                variant="secondary"
+                [disabled]="saving() || preparingPhotos() || !selectedPhoto()"
+                (clicked)="rotateSelectedPhoto90()"
+                >90° drehen</app-button
+              >
+              <app-button
+                size="slim"
+                [variant]="activePhotoAdjustment().flipX ? 'primary' : 'secondary'"
+                [disabled]="saving() || preparingPhotos() || !selectedPhoto()"
+                (clicked)="togglePhotoFlipX()"
+                >Horizontal spiegeln</app-button
+              >
+              <app-button
+                size="slim"
+                variant="secondary"
+                [disabled]="saving() || preparingPhotos() || loadingCropPhoto() || !selectedPhoto()"
+                [loading]="loadingCropPhoto()"
+                (clicked)="openSelectedPhotoCropper()"
+                >Zuschneiden</app-button
+              >
+            </div>
           </section>
+
           <section
             aria-labelledby="vinted-relist-publication-heading"
             class="space-y-3 border-t border-fb-border-subtle pt-4"
@@ -185,7 +264,28 @@
             </div>
           </section>
         </div>
+
+        <div class="lg:col-span-7 lg:sticky lg:top-0">
+          <app-vinted-listing-photo-preview
+            [compact]="false"
+            [photoScope]="photoScope()"
+            [images]="images()"
+            [image]="selectedPhoto()"
+            [selectedIndex]="selectedPhotoIndex()"
+            (selectedIndexChange)="selectRelistPhoto($event)"
+            [options]="photoOptions()"
+          />
+        </div>
       </div>
+      @if (croppingPhotoFile(); as cropFile) {
+        <app-image-cropper-modal
+          title="Foto zuschneiden"
+          [initialImageFile]="cropFile"
+          [maintainAspectRatio]="false"
+          (imageReady)="applySelectedPhotoCrop($event)"
+          (closed)="closeSelectedPhotoCropper()"
+        />
+      }
     } @else {
       <div
         [formGroup]="form"

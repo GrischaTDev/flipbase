@@ -27,11 +27,19 @@ import {
 import { VintedRelistingSubmissionService } from '../../services/vinted-relisting-submission.service';
 import { VintedListingPhotoSourceService } from '../../services/vinted-listing-photo-source.service';
 import {
+  emptyVintedListingPhotoAdjustment,
   emptyVintedListingPhotoOptions,
+  isNeutralVintedListingPhotoAdjustment,
+  isNeutralVintedListingPhotoOptions,
+  type VintedListingPhotoAdjustment,
   type VintedListingPhotoOptions,
   type VintedListingPhotoFilter,
   type VintedListingPhotoBorder,
 } from '../../models/vinted-listing-photo-options';
+import {
+  ImageCropperModalComponent,
+  type CroppedImageResult,
+} from '../../../../shared/components/image-cropper-modal/image-cropper-modal.component';
 import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
 import { VintedSoldItemCopyService } from '../../services/vinted-sold-item-copy.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -120,6 +128,7 @@ import {
     CardComponent,
     CustomSelectComponent,
     VintedListingPhotoPreviewComponent,
+    ImageCropperModalComponent,
     CustomCheckboxComponent,
     EntryPageLayoutComponent,
     TextFieldComponent,
@@ -189,8 +198,10 @@ export class VintedListingEditorComponent {
   ];
   readonly photoFilterOptions = [
     { value: 'none' as const, label: 'Keine Änderung' },
+    { value: 'natural' as const, label: 'Natürlich' },
     { value: 'lighter' as const, label: 'Heller' },
     { value: 'darker' as const, label: 'Dunkler' },
+    { value: 'contrast' as const, label: 'Kontrast' },
     { value: 'soft' as const, label: 'Weicher' },
   ];
   readonly photoBorderOptions = [
@@ -199,10 +210,216 @@ export class VintedListingEditorComponent {
     { value: 'medium' as const, label: 'Mittel' },
     { value: 'large' as const, label: 'Groß' },
   ];
+  readonly photoAdjustmentSliders = [
+    { key: 'exposure' as const, label: 'Belichtung', min: -50, max: 50, step: 1, unit: '' },
+    { key: 'contrast' as const, label: 'Kontrast', min: -50, max: 50, step: 1, unit: '' },
+    { key: 'warmth' as const, label: 'Farbtemperatur', min: -50, max: 50, step: 1, unit: '' },
+    { key: 'saturation' as const, label: 'Sättigung', min: -50, max: 50, step: 1, unit: '' },
+    { key: 'sharpness' as const, label: 'Schärfe', min: 0, max: 100, step: 1, unit: '' },
+    { key: 'denoise' as const, label: 'Rauschminderung', min: 0, max: 100, step: 1, unit: '' },
+    { key: 'straighten' as const, label: 'Ausrichtung', min: -15, max: 15, step: 0.5, unit: '°' },
+  ] as const;
+  readonly selectedPhotoIndex = signal(0);
+  readonly photoEditTarget = signal<'all' | 'current'>('all');
+  readonly photoAdjustments = signal<VintedListingPhotoAdjustment>(
+    emptyVintedListingPhotoAdjustment(),
+  );
+  readonly perPhotoAdjustments = signal<Readonly<Record<string, VintedListingPhotoAdjustment>>>({});
+  readonly croppingPhotoKey = signal<string | null>(null);
+  readonly croppingPhotoFile = signal<File | null>(null);
+  readonly loadingCropPhoto = signal(false);
+
+  readonly selectedPhoto = computed<ListingImageDraft | null>(() => {
+    const list = this.images();
+    if (!list.length) return null;
+    const idx = Math.min(list.length - 1, Math.max(0, this.selectedPhotoIndex()));
+    return list[idx] ?? null;
+  });
+
+  readonly activePhotoAdjustment = computed<VintedListingPhotoAdjustment>(() => {
+    if (this.photoEditTarget() === 'current') {
+      const current = this.selectedPhoto();
+      if (current && this.perPhotoAdjustments()[current.key]) {
+        return this.perPhotoAdjustments()[current.key]!;
+      }
+    }
+    return this.photoAdjustments();
+  });
+
+  readonly canResetPhotoEdits = computed<boolean>(() => {
+    if (this.photoEditTarget() === 'current') {
+      const current = this.selectedPhoto();
+      if (!current) return false;
+      return (
+        !!current.crop ||
+        !isNeutralVintedListingPhotoAdjustment(this.perPhotoAdjustments()[current.key])
+      );
+    }
+    return !isNeutralVintedListingPhotoOptions(this.photoOptions());
+  });
+
   selectPhotoSize(value: number | string | null): void {
     this.photoSize.set(
       typeof value === 'number' && [1200, 1600, 2400].includes(value) ? value : null,
     );
+  }
+
+  selectRelistPhoto(index: number): void {
+    const list = this.images();
+    if (index < 0 || index >= list.length) return;
+    this.selectedPhotoIndex.set(index);
+  }
+
+  setPhotoEditTarget(target: 'all' | 'current'): void {
+    this.photoEditTarget.set(target);
+  }
+
+  onPhotoSlider(key: Exclude<keyof VintedListingPhotoAdjustment, 'flipX'>, rawValue: string): void {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) return;
+    const spec = this.photoAdjustmentSliders.find((s) => s.key === key);
+    if (!spec) return;
+    const clamped = Math.min(spec.max, Math.max(spec.min, parsed));
+    const value = spec.step === 0.5 ? Math.round(clamped * 2) / 2 : Math.round(clamped);
+    this.updatePhotoAdjustment({ [key]: value === 0 ? 0 : value });
+  }
+
+  formatPhotoSliderValue(
+    key: Exclude<keyof VintedListingPhotoAdjustment, 'flipX'>,
+    unit: string,
+  ): string {
+    const value = this.activePhotoAdjustment()[key];
+    const prefix = value > 0 && key !== 'sharpness' && key !== 'denoise' ? '+' : '';
+    return `${prefix}${value}${unit}`;
+  }
+
+  togglePhotoFlipX(): void {
+    this.updatePhotoAdjustment({ flipX: !this.activePhotoAdjustment().flipX });
+  }
+
+  private updatePhotoAdjustment(patch: Partial<VintedListingPhotoAdjustment>): void {
+    if (this.photoEditTarget() === 'current') {
+      const current = this.selectedPhoto();
+      if (!current) return;
+      const base = this.perPhotoAdjustments()[current.key] ?? this.photoAdjustments();
+      const next: VintedListingPhotoAdjustment = { ...base, ...patch };
+      this.perPhotoAdjustments.update((map) => {
+        const copy = { ...map };
+        if (isNeutralVintedListingPhotoAdjustment(next)) {
+          delete copy[current.key];
+        } else {
+          copy[current.key] = next;
+        }
+        return copy;
+      });
+    } else {
+      this.photoAdjustments.update((current) => ({ ...current, ...patch }));
+    }
+    this.markChanged();
+  }
+
+  rotateSelectedPhoto90(): void {
+    const current = this.selectedPhoto();
+    if (!current) return;
+    const baseCrop = current.crop ?? { x: 0, y: 0, width: 1, height: 1, rotation: 0 as const };
+    const nextRotation = ((baseCrop.rotation + 90) % 360) as 0 | 90 | 180 | 270;
+    const isNeutralCrop =
+      nextRotation === 0 &&
+      baseCrop.x === 0 &&
+      baseCrop.y === 0 &&
+      baseCrop.width === 1 &&
+      baseCrop.height === 1;
+    this.images.update((list) =>
+      list.map((item) =>
+        item.key === current.key
+          ? { ...item, crop: isNeutralCrop ? undefined : { ...baseCrop, rotation: nextRotation } }
+          : item,
+      ),
+    );
+    this.markChanged();
+  }
+
+  async openSelectedPhotoCropper(): Promise<void> {
+    const current = this.selectedPhoto();
+    if (!current || this.loadingCropPhoto() || this.saving() || this.preparingPhotos()) return;
+    const existingFile = current.originalFile ?? current.file;
+    if (existingFile) {
+      this.croppingPhotoKey.set(current.key);
+      this.croppingPhotoFile.set(existingFile);
+      return;
+    }
+    this.loadingCropPhoto.set(true);
+    this.error.set(null);
+    try {
+      const blob = await this.readPhoto(current.originalPreviewUrl ?? current.previewUrl);
+      const file = new File([blob], current.fileName || 'foto.jpg', {
+        type: blob.type || 'image/jpeg',
+      });
+      this.images.update((list) =>
+        list.map((item) => (item.key === current.key ? { ...item, originalFile: file } : item)),
+      );
+      this.croppingPhotoKey.set(current.key);
+      this.croppingPhotoFile.set(file);
+    } catch (error) {
+      this.error.set(
+        error instanceof Error
+          ? error.message
+          : 'Das Foto konnte nicht zum Zuschneiden geladen werden.',
+      );
+    } finally {
+      this.loadingCropPhoto.set(false);
+    }
+  }
+
+  applySelectedPhotoCrop(result: CroppedImageResult): void {
+    const key = this.croppingPhotoKey();
+    if (!key) return;
+    const crop = result.crop;
+    const isNeutral =
+      !crop ||
+      (crop.rotation === 0 &&
+        crop.x === 0 &&
+        crop.y === 0 &&
+        crop.width === 1 &&
+        crop.height === 1);
+    this.images.update((list) =>
+      list.map((item) =>
+        item.key === key ? { ...item, crop: isNeutral ? undefined : crop } : item,
+      ),
+    );
+    this.closeSelectedPhotoCropper();
+    this.markChanged();
+  }
+
+  closeSelectedPhotoCropper(): void {
+    this.croppingPhotoKey.set(null);
+    this.croppingPhotoFile.set(null);
+  }
+
+  resetPhotoEdits(): void {
+    if (this.photoEditTarget() === 'current') {
+      const current = this.selectedPhoto();
+      if (!current) return;
+      this.perPhotoAdjustments.update((map) => {
+        const copy = { ...map };
+        delete copy[current.key];
+        return copy;
+      });
+      this.images.update((list) =>
+        list.map((item) => (item.key === current.key ? { ...item, crop: undefined } : item)),
+      );
+      this.markChanged();
+      return;
+    }
+    this.photoSize.set(null);
+    this.photoFilter.set('none');
+    this.photoBorder.set('none');
+    this.photoAdjustments.set(emptyVintedListingPhotoAdjustment());
+    this.perPhotoAdjustments.set({});
+    this.images.update((list) =>
+      list.map((item) => (item.crop ? { ...item, crop: undefined } : item)),
+    );
+    this.markChanged();
   }
   private readonly photoUrls = new Set<string>();
   readonly store = inject(MarketplaceAccountStore);
@@ -693,6 +910,10 @@ export class VintedListingEditorComponent {
           this.focusFirstIssue();
           return;
         }
+        const currentOptions = this.photoOptions();
+        const hasPerPhotoOptions =
+          Object.keys(currentOptions.crops).length > 0 ||
+          Object.keys(currentOptions.photoAdjustments ?? {}).length > 0;
         const pending = this.relistingSubmission.start({
           entry: source.entry,
           account: this.store
@@ -701,7 +922,8 @@ export class VintedListingEditorComponent {
           title: this.form.controls.title.value,
           description: description.value,
           descriptionKnown,
-          photoOptions: this.photoOptions(),
+          photoOptions: currentOptions,
+          ...(hasPerPhotoOptions ? { photoKeys: this.images().map((image) => image.key) } : {}),
           schedule: this.publicationSchedule(),
           delaySeconds: this.relistTiming() === 'delay' ? this.relistMinutes() * 60 : 0,
           requestId: this.requestId,
@@ -1111,6 +1333,13 @@ export class VintedListingEditorComponent {
     this.photoSize.set(null);
     this.photoFilter.set('none');
     this.photoBorder.set('none');
+    this.photoAdjustments.set(emptyVintedListingPhotoAdjustment());
+    this.perPhotoAdjustments.set({});
+    this.selectedPhotoIndex.set(0);
+    this.photoEditTarget.set('all');
+    this.croppingPhotoKey.set(null);
+    this.croppingPhotoFile.set(null);
+    this.loadingCropPhoto.set(false);
     this.draft.set(null);
     this.images.set([]);
     this.categories.set([]);
@@ -1314,6 +1543,10 @@ export class VintedListingEditorComponent {
         this.photoSize.set(draft.photoOptions?.resize ?? null);
         this.photoFilter.set(draft.photoOptions?.filter ?? 'none');
         this.photoBorder.set(draft.photoOptions?.border ?? 'none');
+        this.photoAdjustments.set(
+          draft.photoOptions?.adjustments ?? emptyVintedListingPhotoAdjustment(),
+        );
+        this.perPhotoAdjustments.set(draft.photoOptions?.photoAdjustments ?? {});
       } else {
         const requestedId = this.route.snapshot.queryParamMap?.get('connectionId');
         const requestedWorkspace = this.route.snapshot.queryParamMap?.get('workspaceId');
@@ -1380,14 +1613,25 @@ export class VintedListingEditorComponent {
         this.categoryLoading.set(false);
     }
   }
-  readonly photoOptions = computed<VintedListingPhotoOptions>(() => ({
-    resize: this.photoSize(),
-    ...(this.photoFilter() !== 'none' ? { filter: this.photoFilter() } : {}),
-    ...(this.photoBorder() !== 'none' ? { border: this.photoBorder() } : {}),
-    crops: Object.fromEntries(
-      this.images().flatMap((image) => (image.crop ? [[image.key, image.crop]] : [])),
-    ),
-  }));
+  readonly photoOptions = computed<VintedListingPhotoOptions>(() => {
+    const globalAdj = this.photoAdjustments();
+    const perPhoto = Object.fromEntries(
+      this.images().flatMap((image) => {
+        const adj = this.perPhotoAdjustments()[image.key];
+        return adj && !isNeutralVintedListingPhotoAdjustment(adj) ? [[image.key, adj]] : [];
+      }),
+    );
+    return {
+      resize: this.photoSize(),
+      ...(this.photoFilter() !== 'none' ? { filter: this.photoFilter() } : {}),
+      ...(this.photoBorder() !== 'none' ? { border: this.photoBorder() } : {}),
+      crops: Object.fromEntries(
+        this.images().flatMap((image) => (image.crop ? [[image.key, image.crop]] : [])),
+      ),
+      ...(!isNeutralVintedListingPhotoAdjustment(globalAdj) ? { adjustments: globalAdj } : {}),
+      ...(Object.keys(perPhoto).length ? { photoAdjustments: perPhoto } : {}),
+    };
+  });
   private async persist(generation: number, change: number): Promise<void> {
     const context = this.loadedContext;
     const workspaceId = this.workspaceId()!;
@@ -1419,6 +1663,7 @@ export class VintedListingEditorComponent {
       }
       const ids: string[] = [];
       const crops: Record<string, NonNullable<ListingImageDraft['crop']>> = {};
+      const photoAdjustments: Record<string, VintedListingPhotoAdjustment> = {};
       let replaceIds = draft.images
         // Beibehaltene Bilder bleiben für ihre eigene Ersetzung reserviert.
         .filter((stored) => !selection.some((image) => image.key === stored.id))
@@ -1460,6 +1705,10 @@ export class VintedListingEditorComponent {
           );
         }
         if (image.crop) crops[id] = image.crop;
+        const perAdj = this.perPhotoAdjustments()[image.key];
+        if (perAdj && !isNeutralVintedListingPhotoAdjustment(perAdj)) {
+          photoAdjustments[id] = perAdj;
+        }
         ids.push(id);
       }
       if (
@@ -1472,11 +1721,14 @@ export class VintedListingEditorComponent {
         if (!this.current(generation, context)) return;
         this.draft.set(draft);
       }
+      const globalAdj = this.photoAdjustments();
       const options: VintedListingPhotoOptions = {
         resize: this.photoSize(),
         ...(this.photoFilter() !== 'none' ? { filter: this.photoFilter() } : {}),
         ...(this.photoBorder() !== 'none' ? { border: this.photoBorder() } : {}),
         crops,
+        ...(!isNeutralVintedListingPhotoAdjustment(globalAdj) ? { adjustments: globalAdj } : {}),
+        ...(Object.keys(photoAdjustments).length ? { photoAdjustments } : {}),
       };
       if (!same(options, draft.photoOptions ?? emptyVintedListingPhotoOptions())) {
         draft = await this.imageApi.savePhotoOptions(draft, options);

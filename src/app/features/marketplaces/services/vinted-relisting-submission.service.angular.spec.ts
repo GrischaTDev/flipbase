@@ -451,4 +451,69 @@ describe('Appweiter Relist-Auftrag', () => {
       expect(f.operations.entries()[0].state).toBe('error');
     },
   );
+  it('ordnet fotoindividuelle Zuschnitte und Regler aus dem Relist-Modal den neu hochgeladenen Originalfoto-IDs zu', async () => {
+    const f = setup();
+    await f.service.start({
+      ...f.input,
+      photoKeys: ['temp-photo-1'],
+      photoOptions: {
+        resize: 1600,
+        filter: 'natural',
+        crops: {
+          'temp-photo-1': { x: 0.1, y: 0.1, width: 0.8, height: 0.8, rotation: 90 },
+        },
+        adjustments: {
+          exposure: 10,
+          contrast: 5,
+          warmth: 0,
+          saturation: 0,
+          sharpness: 15,
+          denoise: 0,
+          straighten: 0,
+          flipX: false,
+        },
+        photoAdjustments: {
+          'temp-photo-1': {
+            exposure: 20,
+            contrast: 10,
+            warmth: 8,
+            saturation: 4,
+            sharpness: 30,
+            denoise: 10,
+            straighten: -1.5,
+            flipX: true,
+          },
+        },
+      },
+    });
+    expect(f.saveOptions).toHaveBeenCalledWith(expect.anything(), {
+      resize: 1600,
+      filter: 'natural',
+      crops: {
+        '2': { x: 0.1, y: 0.1, width: 0.8, height: 0.8, rotation: 90 },
+      },
+      adjustments: {
+        exposure: 10,
+        contrast: 5,
+        warmth: 0,
+        saturation: 0,
+        sharpness: 15,
+        denoise: 0,
+        straighten: 0,
+        flipX: false,
+      },
+      photoAdjustments: {
+        '2': {
+          exposure: 20,
+          contrast: 10,
+          warmth: 8,
+          saturation: 4,
+          sharpness: 30,
+          denoise: 10,
+          straighten: -1.5,
+          flipX: true,
+        },
+      },
+    });
+  });
 });
