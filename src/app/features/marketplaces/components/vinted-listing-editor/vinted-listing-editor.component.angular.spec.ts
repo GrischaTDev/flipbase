@@ -1465,6 +1465,80 @@ describe('Vinted-Inserateditor', () => {
       expect(component.dirty()).toBe(false);
     },
   );
+  it('kopiert einen veröffentlichten Entwurf mit Eingaben und Originalfoto in einen neuen Entwurf', async () => {
+    const { component, create, save, imageApi } = setup();
+    await settle();
+    const stored = {
+      id: '2',
+      storagePath: 'workspace-a/1/2.jpg',
+      fileName: 'schal.jpg',
+      mimeType: 'image/jpeg' as const,
+      byteSize: 3,
+    };
+    component.draft.set({ ...draft, images: [stored] });
+    component.images.set([
+      {
+        key: '2',
+        file: null,
+        storagePath: stored.storagePath,
+        fileName: 'schal.jpg',
+        previewUrl: '',
+      },
+    ]);
+    component.form.patchValue({ title: 'Burberry Schal grau', connectionId: 'account-a' });
+    const original = new File(['abc'], 'schal.jpg', { type: 'image/jpeg' });
+    const renamedFile = vi.fn().mockResolvedValue(original);
+    const upload = vi.fn().mockImplementation(async (current: VintedListingDraft, file: File) => ({
+      ...current,
+      revision: current.revision + 1,
+      images: [
+        ...current.images,
+        { ...stored, id: '9', storagePath: 'workspace-a/77/9.jpg', fileName: file.name },
+      ],
+    }));
+    Object.assign(imageApi, { upload, renamedFile });
+    create.mockImplementationOnce(async (_workspace, content, connectionId) => ({
+      ...draft,
+      id: '77',
+      content,
+      connectionId,
+      images: [],
+    }));
+    save.mockClear();
+    await component.copyAsNewDraft();
+    expect(renamedFile).toHaveBeenCalledWith(
+      expect.objectContaining({ id: '1' }),
+      '2',
+      'schal.jpg',
+    );
+    expect(create).toHaveBeenCalledWith(
+      'workspace-a',
+      expect.objectContaining({ title: 'Burberry Schal grau' }),
+      'account-a',
+      expect.any(String),
+    );
+    expect(save.mock.calls.every(([current]) => current.id === '77')).toBe(true);
+    expect(upload).toHaveBeenCalledWith(expect.objectContaining({ id: '77' }), original, undefined);
+    expect(component.error()).toBeNull();
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith([
+      '/marketplaces/vinted/listing-drafts',
+      '77',
+    ]);
+  });
+  it('behält die Kategorienliste beim Kontowechsel, bis die neue Liste geladen ist', async () => {
+    const { component } = setup();
+    await settle();
+    component.form.patchValue({ connectionId: 'account-a', categoryId: '1223' });
+    await settle();
+    const categories = component.categories();
+    expect(categories.length).toBeGreaterThan(0);
+    const read = vi.mocked(TestBed.inject(VintedListingCategoryService).readSnapshot);
+    read.mockRejectedValueOnce(new Error('nicht erreichbar'));
+    component.form.patchValue({ connectionId: null });
+    await settle();
+    expect(component.categories()).toBe(categories);
+    expect(component.form.controls.categoryId.value).toBe('1223');
+  });
   it('keeps typing during saving and queues the new revision', async () => {
     const { component, create } = setup();
     await settle();

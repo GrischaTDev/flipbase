@@ -8,7 +8,11 @@ import { CustomSelectComponent } from '../../../../shared/components/custom-sele
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { emptyVintedListingContent } from '../../models/vinted-listing-content';
+import {
+  emptyVintedListingContent,
+  type VintedListingContent,
+} from '../../models/vinted-listing-content';
+import { applyVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { VintedListingFieldsDialogComponent } from './vinted-listing-fields-dialog.component';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
@@ -167,6 +171,37 @@ describe('Vinted category field dialog', () => {
     expect(f.component.form.controls.sizeId.value).toBeNull();
     expect(f.component.colorIds()).toEqual([]);
     expect(f.selected).not.toHaveBeenCalled();
+  });
+  it('gibt Farben und Materialien frei, wenn eigene Angaben nach einem begonnenen Abruf eintreffen', async () => {
+    const f = setup();
+    f.fixture.componentRef.setInput('inline', true);
+    f.fixture.componentRef.setInput('section', 'details');
+    f.read.mockReturnValue(new Promise(() => undefined));
+    let content: VintedListingContent = {
+      ...emptyVintedListingContent(),
+      categoryId: 1223,
+      colorIds: [2],
+      colorLabels: ['Blau'],
+    };
+    f.fixture.componentRef.setInput('content', content);
+    await settle(f);
+    expect(f.component.loading()).toBe(true);
+    f.selected.mockImplementation((selection) => {
+      content = applyVintedListingFieldSelection(content, selection);
+      f.fixture.componentRef.setInput('content', content);
+    });
+    f.fixture.componentRef.setInput('fieldSchema', listingCategoryFixture());
+    await settle(f);
+    expect(f.component.loading()).toBe(false);
+    expect(f.component.colorLabels.enabled).toBe(true);
+    f.component.colorLabels.setValue('');
+    await settle(f);
+    f.component.colorLabels.setValue('Weiß');
+    f.component.materialLabels.setValue('Baumwolle');
+    await settle(f);
+    expect(content.colorLabels).toEqual(['Weiß']);
+    expect(content.materialLabels).toEqual(['Baumwolle']);
+    expect(f.component.colorLabels.value).toBe('Weiß');
   });
   it('übernimmt im direkten Feld nur die geänderte Angabe und öffnet keinen Dialog', async () => {
     const f = setup();

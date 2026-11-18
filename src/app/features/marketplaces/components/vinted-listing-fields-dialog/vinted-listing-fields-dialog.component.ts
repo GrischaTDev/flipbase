@@ -172,6 +172,14 @@ export class VintedListingFieldsDialogComponent {
       const categoryId = this.categoryId();
       if (inherited || schema) {
         this.schema.set(schema?.categoryId === categoryId ? schema : null);
+        // Eigene Angaben kommen beim Öffnen eines Entwurfs oft erst nach dem Start eines
+        // Anbieterabrufs; ein noch laufender Abruf darf die Felder dann nicht weiter sperren.
+        if (schema)
+          untracked(() => {
+            if (!this.loading()) return;
+            this.generation++;
+            this.loading.set(false);
+          });
       }
     });
     this.destroyRef.onDestroy(() => this.generation++);

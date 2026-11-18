@@ -505,6 +505,8 @@
       [disabled]="!canPreparePublication()"
       (accepted)="publicationAccepted($event)"
       (closed)="returnToEditor()"
+      [canCopy]="!source() && !plannedJob()"
+      (copyRequested)="copyAsNewDraft()"
     />
   }
 </ng-template>

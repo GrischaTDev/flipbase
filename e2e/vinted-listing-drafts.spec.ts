@@ -2106,3 +2106,51 @@ test('selects current scarf categories and an explicit target group in the listi
     accessory_department_label: 'Herren',
   });
 });
+
+test('bietet bei einem bereits veröffentlichten Entwurf eine Kopie statt erneuter Veröffentlichung an @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page);
+  state.jobs.push({
+    id: '7',
+    workspaceId,
+    connectionId: accountIds[0],
+    draftId: state.draft().id,
+    draftRevision: 1,
+    executionMode: 'cloud',
+    externalAccountId: '100',
+    action: 'publish',
+    state: 'confirmed',
+    version: 3,
+    scheduledAt: null,
+    timeZone: null,
+    latePolicy: 'pause_after_30_minutes',
+    errorCode: null,
+    externalId: '46609',
+    providerState: 'active',
+    verifiedAt: '2026-10-10T00:00:00Z',
+    createdAt: state.draft().createdAt,
+    updatedAt: state.draft().updatedAt,
+    replacesJobId: null,
+  } as unknown as (typeof state.jobs)[number]);
+  await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
+  const editor = page.locator('app-vinted-listing-editor');
+  await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toHaveValue(
+    'Meine Jako-Jacke',
+  );
+  await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+  const review = page.locator('[data-publication-review]');
+  await expect(review).toContainText(
+    'Für diesen Entwurf besteht bereits ein Auftrag: Veröffentlicht.',
+  );
+  await expect(review).not.toContainText('Laufende Aktionen');
+  expect(state.enqueues).toEqual([]);
+  await review.getByRole('button', { name: 'Als neuen Entwurf kopieren', exact: true }).click();
+  await expect.poll(() => state.creates.length).toBe(1);
+  expect(state.creates[0]).toMatchObject({
+    p_workspace_id: workspaceId,
+    p_content: expect.objectContaining({ title: 'Meine Jako-Jacke' }),
+  });
+  await expect.poll(() => state.uploads()).toBe(1);
+  expect(state.enqueues).toEqual([]);
+});

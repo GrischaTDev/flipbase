@@ -630,8 +630,9 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
     complete.selected.filter(([file]) => coreFiles.has(file)).length,
     coreBrowserTests.length,
   );
-  // Archivkopien, importierte Verkäufe und der Sprung zum gespeicherten Versandschein bleiben enthalten.
-  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 71);
+  // Archivkopien, importierte Verkäufe, der Sprung zum gespeicherten Versandschein und die Kopie
+  // eines bereits veröffentlichten Entwurfs bleiben enthalten.
+  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 72);
   for (const layout of ['1440px light', '390px dark'])
     assert.equal(
       complete.selected.filter(
