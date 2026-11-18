@@ -49,13 +49,13 @@
         compact()
           ? 'flex items-center justify-center overflow-hidden rounded-lg border border-fb-border-subtle bg-fb-subtle p-3'
           : zoom100()
-            ? 'relative flex min-h-[280px] max-h-[65dvh] items-start justify-center overflow-auto rounded-xl border border-fb-border-subtle bg-fb-subtle p-4 sm:min-h-[400px] lg:min-h-[480px]'
-            : 'relative flex min-h-[280px] items-center justify-center overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-subtle p-4 sm:min-h-[400px] lg:min-h-[480px]'
+            ? 'relative flex h-[300px] sm:h-[400px] lg:h-[min(64dvh,640px)] w-full items-start justify-center overflow-auto rounded-xl border border-fb-border-subtle bg-fb-subtle p-4'
+            : 'relative flex h-[300px] sm:h-[400px] lg:h-[min(64dvh,640px)] w-full items-center justify-center overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-subtle p-4'
       "
     >
       @if (preview(); as url) {
         @if (viewMode() === 'compare' && !compact() && !zoom100()) {
-          <div class="relative flex w-full items-center justify-center">
+          <div class="relative flex max-w-full items-center justify-center">
             <div
               aria-hidden="true"
               class="pointer-events-none absolute inset-0 bg-contain bg-center bg-no-repeat"
@@ -64,7 +64,7 @@
             <img
               [src]="url"
               [alt]="'Vorschau für ' + photo.fileName"
-              class="relative max-h-[56dvh] max-w-full object-contain"
+              class="relative block max-h-[268px] max-w-full object-contain sm:max-h-[368px] lg:max-h-[calc(min(64dvh,640px)-2rem)]"
               [style.clip-path]="'inset(0 ' + (100 - compareSplit()) + '% 0 0)'"
             />
           </div>
@@ -77,9 +77,16 @@
                 ? 'max-h-28 max-w-full object-contain'
                 : zoom100()
                   ? 'max-w-none'
-                  : 'max-h-[56dvh] max-w-full object-contain'
+                  : 'max-h-full max-w-full object-contain'
             "
           />
+        }
+        @if (loadingIndicator() && !compact()) {
+          <span
+            role="status"
+            class="pointer-events-none absolute top-3 right-3 rounded-md border border-fb-border-subtle bg-fb-surface/90 px-2 py-0.5 text-[11px] font-medium text-fb-text-secondary shadow-sm"
+            >Aktualisiere …</span
+          >
         }
       } @else if (loading()) {
         <p role="status" class="text-sm text-fb-text-secondary">Vorschau wird erstellt …</p>
@@ -89,7 +96,7 @@
     </div>
 
     @if (viewMode() === 'compare' && !compact() && !zoom100() && preview()) {
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3" (wheel)="onCompareSliderWheel($event)">
         <label
           for="vinted-relist-compare-slider"
           class="shrink-0 text-xs font-medium text-fb-text-secondary"
@@ -105,7 +112,7 @@
           [value]="compareSplit()"
           [attr.aria-valuetext]="compareSplit() + ' % Bearbeitet'"
           (input)="onCompareSlider($any($event.target).value)"
-          class="h-1.5 flex-1 cursor-pointer accent-fb-primary"
+          class="h-5 flex-1 cursor-pointer accent-fb-primary"
         />
         <span class="w-10 text-right text-xs tabular-nums text-fb-text-secondary">
           {{ compareSplit() }} %
