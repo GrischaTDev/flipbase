@@ -40,7 +40,7 @@ export function catalogPage(extraItems: Pick<CatalogPageItem, 'id' | 'title'>[] 
         ...extraItems.map((item) => ({
           ...firstItem,
           ...item,
-          url: `/items/${item.id}`,
+          url: `/items/${item.id}-test-item`,
           itemBox: { ...firstItem.itemBox, itemId: String(item.id) },
         })),
       ].map((item) => ({ id: item.id, productItem: item, catalogTracking: {} })),

@@ -33,12 +33,17 @@ describe('bounded shared search scheduling', () => {
               { id: 1003, title: 'Carhartt ohne Kategorie' },
             ]),
           );
-        case '/items/1001':
+        case '/items/1001-nike-air-max':
           return itemCategoryPage(1001, 1858);
-        case '/items/1002':
+        case '/items/1002-test-item':
           return itemCategoryPage(1002, 2535);
-        case '/items/1003':
+        case '/items/1003-test-item':
           return itemCategoryPage(1003, null);
+        case '/items/1001':
+          return new Response(null, {
+            status: 307,
+            headers: { location: '/items/1001-nike-air-max' },
+          });
         default:
           throw new Error(`Unexpected URL ${String(input)}`);
       }
@@ -72,10 +77,10 @@ describe('bounded shared search scheduling', () => {
     expect(completeRun.mock.calls[1]?.[0].map((listing) => listing.externalId)).toEqual(['1001']);
     expect(fetch.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual([
       '/catalog',
-      '/items/1001',
-      '/items/1002',
+      '/items/1001-nike-air-max',
+      '/items/1002-test-item',
       '/catalog',
-      '/items/1003',
+      '/items/1003-test-item',
     ]);
   });
 
