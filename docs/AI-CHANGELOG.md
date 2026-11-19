@@ -8,6 +8,10 @@
 
 **Prüfung:** `vinted-browser-shipping-label.test.ts` mit der gemessenen DHL-Antwortform, 12 Tests bestanden. Ob Vinted die Anforderung für DHL mit `null` annimmt, zeigt erst der echte Abruf nach der Auslieferung.
 
+## 2026-11-19 - Juna - Persönliche Suchfilter im Vinted-Feed erweitert
+
+Suchfilter speichern Zielgruppe und mehrere Kleidergrößen. Kategoriebaum und Markensuche verwenden gespeicherte Flipbase-Daten. Eine Sammelzuordnung reicht für den bekannten Kategorieast, konkrete Unterkategorien erfordern eine bestätigte Artikelkategorie.
+
 ## 2026-11-19 - Juna - Trefferzählung im Vinted-Bot beschleunigt
 
 Die Trefferzählung prüft die Kataloggrenze nur für zurückgesetzte Filter. Damit braucht die Adminansicht bei den großen Sammelfiltern weniger Datenbankarbeit und läuft seltener in eine Zeitüberschreitung.

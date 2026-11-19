@@ -101,6 +101,28 @@
             <h3 class="text-base font-semibold text-fb-text-primary">{{ row.title }}</h3>
 
             <dl class="space-y-1.5 text-xs text-fb-text-secondary">
+              @if (row.audience) {
+                <div class="flex justify-between gap-2">
+                  <dt class="text-fb-text-muted">Zielgruppe</dt>
+                  <dd class="text-right font-medium text-fb-text-primary">
+                    {{ audienceLabels.get(row.audience) }}
+                  </dd>
+                </div>
+              }
+              @if (row.catalog_id !== null && categoryPaths().get(row.catalog_id); as path) {
+                <div class="flex justify-between gap-2">
+                  <dt class="text-fb-text-muted">Kategorie</dt>
+                  <dd class="text-right font-medium text-fb-text-primary">{{ path }}</dd>
+                </div>
+              }
+              @if (row.sizes.length) {
+                <div class="flex justify-between gap-2">
+                  <dt class="text-fb-text-muted">Größen</dt>
+                  <dd class="text-right font-medium text-fb-text-primary">
+                    {{ formatSizes(row.sizes) }}
+                  </dd>
+                </div>
+              }
               <div class="flex justify-between">
                 <dt class="text-fb-text-muted">Marke:</dt>
                 <dd class="font-medium text-fb-text-primary">{{ row.brand || 'Alle Marken' }}</dd>
@@ -168,7 +190,7 @@
   }
 </div>
 
-@if (editorOpen()) {
+@if (editorOpen() && workspace(); as currentWorkspace) {
   <app-modal-shell
     [title]="editing() ? 'Suchfilter bearbeiten' : 'Neuer Suchfilter'"
     size="lg"
@@ -178,6 +200,7 @@
     <app-watchlist-editor
       [watchlist]="editing()"
       [categories]="categories()"
+      [workspaceId]="currentWorkspace.id"
       [saving]="saving()"
       (saved)="save($event)"
       (cancelled)="cancelEditor()"

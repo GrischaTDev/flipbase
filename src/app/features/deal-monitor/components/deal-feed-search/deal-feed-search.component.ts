@@ -25,7 +25,7 @@ import { DealFeedState } from '../../services/deal-feed-state';
 import { DealFeedUpdatesService } from '../../services/deal-feed-updates.service';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
-import { FeedItem, Watchlist } from '../../models/deal-monitor.model';
+import { FEED_CLOTHING_SIZES, FeedItem, Watchlist } from '../../models/deal-monitor.model';
 import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { VintedAiSearchModalComponent } from '../vinted-ai-search-modal/vinted-ai-search-modal.component';
 
@@ -87,13 +87,7 @@ export class DealFeedSearchComponent {
   readonly operator = inject(PlatformOperatorService);
   readonly sizeOptions = [
     { value: null as string | null, label: 'Alle Größen' },
-    { value: 'xs', label: 'XS' },
-    { value: 's', label: 'S' },
-    { value: 'm', label: 'M' },
-    { value: 'l', label: 'L' },
-    { value: 'xl', label: 'XL' },
-    { value: 'xxl', label: 'XXL' },
-    { value: '3xl', label: '3XL+' },
+    ...FEED_CLOTHING_SIZES,
   ];
   readonly error = signal<string | null>(null);
   readonly brandError = signal<string | null>(null);

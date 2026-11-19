@@ -5,6 +5,7 @@ import {
   ElementRef,
   Injector,
   afterNextRender,
+  computed,
   effect,
   inject,
   signal,
@@ -29,7 +30,13 @@ import { WatchlistEditorComponent } from '../../components/watchlist-editor/watc
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { UnsavedEntryPage } from '../../../../shared/guards/unsaved-entry.guard';
-import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monitor.model';
+import { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
+import {
+  WATCHLIST_AUDIENCES,
+  Watchlist,
+  WatchlistDraft,
+  watchlistSizeLabels,
+} from '../../models/deal-monitor.model';
 
 @Component({
   selector: 'app-deal-filters',
@@ -56,7 +63,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
 
   readonly watchlists = signal<Watchlist[]>([]);
   readonly watchlistsLoading = signal(false);
-  readonly categories = signal<FeedCategory[]>([]);
+  readonly categories = signal<VintedCategory[]>([]);
   readonly editing = signal<Watchlist | null>(null);
   readonly editorOpen = signal(false);
   readonly deleting = signal<Watchlist | null>(null);
@@ -65,6 +72,13 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   readonly error = signal<string | null>(null);
   readonly message = signal('');
   readonly categoryError = signal<string | null>(null);
+  readonly categoryPaths = computed(
+    () => new Map(this.categories().map((category) => [category.id, category.path])),
+  );
+  readonly audienceLabels = new Map(
+    WATCHLIST_AUDIENCES.map((audience) => [audience.value, audience.label]),
+  );
+  readonly formatSizes = watchlistSizeLabels;
 
   private listGeneration = 0;
 
@@ -180,9 +194,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
       await this.api.save(workspace, draft);
       if (workspace !== this.workspace()?.id || this.destroyRef.destroyed) return;
       if (this.editorOpen()) this.closeEditor();
-      this.message.set(
-        'Suchfilter gespeichert. Neue Suchkriterien gelten für künftig entdeckte Deals.',
-      );
+      this.message.set('Suchfilter gespeichert.');
       await this.loadWatchlists(workspace);
     } catch (error) {
       if (workspace === this.workspace()?.id) {
