@@ -16,6 +16,51 @@ const NOW = new Date('2026-10-29T10:00:00Z');
 const log = { info: vi.fn(), error: vi.fn() };
 
 describe('bounded shared search scheduling', () => {
+  it('captures a reset baseline without detail requests and verifies only newer listings', async () => {
+    let filter = searchFilter({
+      catalogId: 1858,
+      titleKeywords: [],
+      seededRequests: [],
+      resultsResetAt: NOW.toISOString(),
+      resetBaselineExternalId: null,
+    });
+    const existing = [catalogListing('9007199254740994'), catalogListing('9007199254740993')];
+    const newerFleece = catalogListing('9007199254740995');
+    const newerWrongCategory = catalogListing('9007199254740996');
+    let catalog = existing;
+    const verifyCategory = vi.fn(async (_query, listings: ReturnType<typeof catalogListing>[]) => ({
+      listings: listings.filter((listing) => listing !== newerWrongCategory),
+      hasPendingChecks: false,
+    }));
+    const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => ({
+      accepted: true,
+      created: 0,
+      seeded: !filter.seededRequests?.length,
+    }));
+    const scheduler = new QueryScheduler({
+      queries: { dueQueries: async () => [filter], markSeeded: async () => undefined },
+      collector: { collect: vi.fn(), collectSource: async () => catalog, verifyCategory },
+      listings: { saveNew: vi.fn(), completeRun },
+      budget: new RequestBudget(24),
+      log,
+      now: () => NOW,
+    });
+
+    await scheduler.runOnce(NOW);
+    expect(verifyCategory).not.toHaveBeenCalled();
+    expect(completeRun.mock.calls[0]?.[0]).toEqual([]);
+    expect(completeRun.mock.calls[0]?.[2]).toMatchObject({
+      coverage: 'initial',
+      baseline_external_id: '9007199254740994',
+    });
+
+    filter = { ...filter, seededRequests: [0], resetBaselineExternalId: '9007199254740994' };
+    catalog = [newerWrongCategory, newerFleece, ...existing];
+    await scheduler.runOnce(NOW);
+    expect(verifyCategory.mock.calls[0]?.[1]).toEqual([newerWrongCategory, newerFleece]);
+    expect(completeRun.mock.calls[1]?.[0]).toEqual([newerFleece]);
+  });
+
   it('writes only verified leaf-category matches and rechecks pending items in the next run', async () => {
     const filter = searchFilter({
       catalogId: 1858,

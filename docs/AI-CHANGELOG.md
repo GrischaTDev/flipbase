@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Gezielter Neustart für Vinted-Suchfilter
+
+Ein aktiver Suchfilter mit konkreter Kategorie kann ab einem neuen Katalogstand starten. Der erste Abruf merkt sich nur die Artikelgrenze. Jüngere Funde gelangen nach der Prüfung der Artikelseite in den Filter. Frühere Zuordnungen bleiben gespeichert und erscheinen nicht mehr im zurückgesetzten Kategoriefilter.
+
 ## 2026-11-19 - Juna - Vinted-Bot prüft konkrete Artikelkategorien
 
 Vinted lieferte im Carhartt-Fleecejackenfilter auch eine Utility-Jacke. Der Bot gleicht die Kategorie für Filter auf eine konkrete Unterkategorie mit der Artikelseite ab, bevor er Treffer zuordnet. Die Sammelfilter für Damen- und Herrenkleidung verwenden weiterhin den Katalogabruf.

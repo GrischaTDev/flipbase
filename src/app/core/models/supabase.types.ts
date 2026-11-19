@@ -8365,6 +8365,8 @@ export type Database = {
           price_to: number | null
           query_key: string
           request_cursor: number
+          reset_baseline_external_id: string | null
+          results_reset_at: string | null
           run_state: string
           search_text: string | null
           seeded_requests: number[]
@@ -8408,6 +8410,8 @@ export type Database = {
           price_to?: number | null
           query_key: string
           request_cursor?: number
+          reset_baseline_external_id?: string | null
+          results_reset_at?: string | null
           run_state?: string
           search_text?: string | null
           seeded_requests?: number[]
@@ -8451,6 +8455,8 @@ export type Database = {
           price_to?: number | null
           query_key?: string
           request_cursor?: number
+          reset_baseline_external_id?: string | null
+          results_reset_at?: string | null
           run_state?: string
           search_text?: string | null
           seeded_requests?: number[]
@@ -14589,6 +14595,10 @@ export type Database = {
         }
         Returns: Json
       }
+      reset_sniper_search_filter_results: {
+        Args: { p_expected_revision: number; p_query_id: string }
+        Returns: number
+      }
       resolve_legacy_sold_item: {
         Args: {
           p_action: string
@@ -15021,6 +15031,15 @@ export type Database = {
           p_workspace_id: string
         }
         Returns: Json
+      }
+      sniper_listing_after_reset: {
+        Args: {
+          p_baseline_external_id: string
+          p_external_id: string
+          p_first_seen_at: string
+          p_reset_at: string
+        }
+        Returns: boolean
       }
       sniper_normalize_favorite_item: { Args: { p_item: Json }; Returns: Json }
       sniper_notify_feed_updates: { Args: never; Returns: undefined }

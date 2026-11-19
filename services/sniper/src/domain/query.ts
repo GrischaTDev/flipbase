@@ -40,6 +40,8 @@ export interface SniperQuery {
   filterFormatVersion?: number;
   requestCursor?: number;
   seededRequests?: number[];
+  resultsResetAt?: string | null;
+  resetBaselineExternalId?: string | null;
 }
 
 const ABSENT = '-';

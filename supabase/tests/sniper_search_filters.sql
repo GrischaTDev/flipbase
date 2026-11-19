@@ -107,5 +107,56 @@ set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='TEST rotating'),2,5,'[]')->>'accepted')::boolean,false,'Gelöschter Filter übernimmt keine verspätete Antwort');
 reset role;
 
+insert into public.sniper_queries (id, query_key, title, catalog_id, filter_format_version)
+values ('e1000000-0000-4000-8000-000000000003', 'test-reset-filter', 'TEST reset', 9100002, 1);
+insert into public.sniper_listings (id, external_id, title, url, item_price, total_price, currency,
+    catalog_id, catalog_source_query_id, first_seen_at)
+values ('e1000000-0000-4000-8000-000000000004', '9007199254740993', 'Bisherige Jacke',
+    'https://www.vinted.de/items/9007199254740993', 10, 12, 'EUR', 9100002,
+    'e1000000-0000-4000-8000-000000000003', now() - interval '1 hour');
+insert into public.sniper_query_matches (query_id, listing_id, filter_revision, is_seed, first_matched_at)
+values ('e1000000-0000-4000-8000-000000000003', 'e1000000-0000-4000-8000-000000000004',
+    1, false, now() - interval '1 hour');
+
+set local role authenticated;
+select throws_ok($$select public.reset_sniper_search_filter_results('e1000000-0000-4000-8000-000000000003', 1)$$,
+    '42501', null, 'Der Neustart ist dem Betriebsdienst vorbehalten');
+reset role;
+set local role service_role;
+select throws_ok($$select public.reset_sniper_search_filter_results('e1000000-0000-4000-8000-000000000003', 0)$$,
+    '40001', null, 'Ein veralteter Reset wird verworfen');
+select is(public.reset_sniper_search_filter_results('e1000000-0000-4000-8000-000000000003', 1),
+    2, 'Der Reset invalidiert laufende Abrufe');
+select ok(not public.sniper_watchlist_matches(
+    jsonb_populate_record(null::public.sniper_watchlists,'{"catalog_id":9100002}'), listing),
+    'Die bisherige Zuordnung erscheint ab dem Reset nicht mehr im Kategoriefilter')
+from public.sniper_listings listing where id='e1000000-0000-4000-8000-000000000004';
+select ok(public.sniper_watchlist_matches(
+    jsonb_populate_record(null::public.sniper_watchlists,'{}'), listing),
+    'Der Reset blendet den gemeinsamen Artikel in Filtern ohne Kategorie nicht aus')
+from public.sniper_listings listing where id='e1000000-0000-4000-8000-000000000004';
+select is(public.complete_sniper_search_filter_run('e1000000-0000-4000-8000-000000000003',1,0,'[]')->>'accepted',
+    'false', 'Eine Antwort aus der vorherigen Revision kann nicht gespeichert werden');
+select is(public.complete_sniper_search_filter_run('e1000000-0000-4000-8000-000000000003',2,0,'[]')->>'accepted',
+    'false', 'Der Ausgangsstand ist vor dem ersten Lauf erforderlich');
+select is(public.complete_sniper_search_filter_run('e1000000-0000-4000-8000-000000000003',2,0,
+    '[]','{"baseline_external_id":"9007199254740994","coverage":"initial"}')->>'seeded',
+    'true', 'Der erste Lauf speichert nur die Kataloggrenze');
+select is((select reset_baseline_external_id from public.sniper_queries
+    where id='e1000000-0000-4000-8000-000000000003'),
+    '9007199254740994', 'Die Kataloggrenze behält ihre exakte Artikelnummer');
+select is(public.complete_sniper_search_filter_run('e1000000-0000-4000-8000-000000000003',2,1,
+    '[{"external_id":"9007199254740994","title":"Startbestand","url":"https://www.vinted.de/items/9007199254740994","item_price":10,"total_price":12,"currency":"EUR"},
+      {"external_id":"9007199254740995","title":"Neue Jacke","url":"https://www.vinted.de/items/9007199254740995","item_price":10,"total_price":12,"currency":"EUR"}]')->>'created',
+    '1', 'Der Schreibweg speichert nur Artikel oberhalb der Kataloggrenze');
+select is((select count(*) from public.sniper_query_matches where query_id='e1000000-0000-4000-8000-000000000003'),
+    2::bigint, 'Historische Zuordnung und neuer Treffer bleiben gespeichert');
+reset role;
+set local role authenticated;
+select is((select listing_count from public.sniper_query_listing_counts()
+    where query_id='e1000000-0000-4000-8000-000000000003'), 1::bigint,
+    'Die Funde des zentralen Filters zählen ab dem Neustart');
+reset role;
+
 select * from finish();
 rollback;
