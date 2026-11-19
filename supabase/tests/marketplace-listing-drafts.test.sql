@@ -192,6 +192,25 @@ select is((select count(*) from jsonb_array_elements(public.marketplace_list_lis
  'Entwürfe mit offenem, fehlgeschlagenem oder abgebrochenem Auftrag bleiben sichtbar');
 select is(public.marketplace_read_listing_draft((select draft_id::text from draft_delete_job_context where state='confirmed'))->'content'->>'title','confirmed',
  'Der ausgeblendete Entwurf bleibt direkt lesbar');
+select is((select string_agg((item->'content'->>'title')||'='||(item->'publication'->>'state'),',' order by item->'content'->>'title')
+ from jsonb_array_elements(public.marketplace_list_listing_drafts('46000000-0000-4000-8000-000000000011',p_limit=>100)->'items') item
+ where item->'content'->>'title' in ('claimed','failed','queued')),'claimed=claimed,failed=failed,queued=queued',
+ 'Die Übersicht liefert je Entwurf den Stand seines Veröffentlichungsauftrags');
+select ok(exists(select 1 from jsonb_array_elements(public.marketplace_list_listing_drafts('46000000-0000-4000-8000-000000000011',p_limit=>100)->'items') item
+ where item->'publication'='null'::jsonb and item->'content'->>'title' not in ('queued','paused','claimed','writing','outcome_unknown','failed','cancelled')),
+ 'Ein Entwurf ohne Auftrag hat keinen Veröffentlichungsstand');
+reset role;
+insert into public.marketplace_listing_jobs(workspace_id,draft_id,requested_by,request_id,request_hash,draft_revision,authorization_version,
+ external_account_id,execution_mode,action,snapshot,state)
+select '46000000-0000-4000-8000-000000000011',draft_id,'46000000-0000-4000-8000-000000000001',gen_random_uuid(),repeat('b',64),1,1,'46001','cloud','publish','{}','claimed'
+from draft_delete_job_context where state='failed';
+set local role authenticated;
+select is((select item->'publication'->>'state' from jsonb_array_elements(public.marketplace_list_listing_drafts('46000000-0000-4000-8000-000000000011',p_limit=>100)->'items') item
+ where item->'content'->>'title'='failed'),'claimed','Ein erneuter Versuch ersetzt den alten Fehlerstand in der Übersicht');
+reset role;
+update public.marketplace_listing_jobs set state='cancelled'
+where draft_id=(select draft_id from draft_delete_job_context where state='failed') and state='claimed';
+set local role authenticated;
 select throws_ok(format('select public.marketplace_delete_listing_draft(%L,%L,1)','46000000-0000-4000-8000-000000000011',draft_id::text),
  '55000',null,'Löschen schützt den Auftrag im Zustand '||state)
 from draft_delete_job_context where state in ('queued','paused','claimed','writing','outcome_unknown') order by state;

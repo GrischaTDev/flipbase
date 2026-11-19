@@ -9,13 +9,18 @@ import {
   VintedListingStorageError,
   type VintedListingDraft,
 } from '../models/vinted-listing-draft';
+import { parseVintedListingJob, type VintedListingJob } from '../models/vinted-listing-job';
 
 export interface VintedListingDraftCursor {
   readonly id: string;
   readonly createdAt: string;
 }
+/** Entwurf in der Übersicht mit seinem jüngsten Veröffentlichungsauftrag. */
+export interface VintedListingDraftOverview extends VintedListingDraft {
+  readonly publication: VintedListingJob | null;
+}
 export interface VintedListingDraftPage {
-  readonly items: readonly VintedListingDraft[];
+  readonly items: readonly VintedListingDraftOverview[];
   readonly nextCursor: VintedListingDraftCursor | null;
 }
 
@@ -55,7 +60,15 @@ export class VintedListingDraftService {
       nextCursor = { id: listingIdentifier(value['id']), createdAt };
     }
     return {
-      items: page['items'].map((value) => parseVintedListingDraft(value, workspaceId)),
+      items: page['items'].map((value) => {
+        const draft = parseVintedListingDraft(value, workspaceId);
+        const publication = (value as Record<string, unknown>)['publication'];
+        return {
+          ...draft,
+          publication:
+            publication == null ? null : parseVintedListingJob(publication, workspaceId, draft.id),
+        };
+      }),
       nextCursor,
     };
   }

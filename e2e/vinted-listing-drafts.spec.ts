@@ -367,9 +367,13 @@ async function mockDrafts(
       return route.fulfill({ json: template });
     } else if (name === 'marketplace_list_listing_drafts') {
       draftLists.push(body);
-      return route.fulfill({
-        json: { items: overviewDrafts ?? (created ? [draft] : []), nextCursor: null },
-      });
+      // Wie der Server: jeder Entwurf trägt seinen jüngsten Veröffentlichungsauftrag.
+      const items = (overviewDrafts ?? (created ? [draft] : [])).map((entry) => ({
+        ...entry,
+        publication:
+          jobs.find((job) => job.draftId === entry.id && job.action === 'publish') ?? null,
+      }));
+      return route.fulfill({ json: { items, nextCursor: null } });
     } else if (name === 'marketplace_delete_listing_draft') {
       draftDeletes.push(body);
       const selected = (overviewDrafts ?? (created ? [draft] : [])).find(
@@ -605,7 +609,9 @@ for (const width of [390, 1440]) {
             /marketplace_(create_relisting_draft|enqueue_relisting|bind_relisting_entry)/.test(
               request.url(),
             ) ||
-            (request.url().includes('/marketplace_account_entries?') && request.method() !== 'GET')
+            // Lesen und Zählen (HEAD) der Übersicht sind erlaubt; nur Schreibzugriffe zählen.
+            (request.url().includes('/marketplace_account_entries?') &&
+              !['GET', 'HEAD'].includes(request.method()))
           )
             unexpectedWrites.push(request.url());
         });
@@ -693,7 +699,10 @@ for (const width of [390, 1440]) {
           fullPage: true,
         });
         await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
-        await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+        await expect(page).toHaveURL(/\/marketplaces\/vinted\/listing-drafts$/);
+        await expect(page.locator('[data-draft-publication]').first()).toContainText(
+          'Veröffentlichung beauftragt',
+        );
         expect(state.enqueues).toHaveLength(1);
         expect(state.enqueues[0]).toMatchObject({
           p_action: 'publish',
@@ -970,9 +979,12 @@ for (const width of [1440, 390])
       await planner.getByRole('button', { name: 'Termin übernehmen', exact: true }).click();
       await expect(planner).not.toBeVisible();
       await expect.poll(() => state.enqueues.length).toBe(1);
-      await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
-      await expect(editor.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
-      await expect(editor.locator('app-vinted-listing-job-panel')).toHaveCount(0);
+      // Nach der Beauftragung schließt der Editor; die Übersicht zeigt den geplanten Auftrag.
+      await expect(page).toHaveURL(/\/marketplaces\/vinted\/listing-drafts$/);
+      await expect(page.locator('[data-draft-publication]').first()).toContainText(
+        'Veröffentlichung beauftragt',
+      );
+      await expect(page.locator('app-vinted-listing-editor')).toHaveCount(0);
       await page.screenshot({
         path: testInfo.outputPath(`publication-${width}-${dark ? 'dark' : 'light'}.png`),
         fullPage: false,
@@ -1628,6 +1640,8 @@ for (const width of [1440, 390]) {
       }, testInfo) => {
         await page.setViewportSize({ width, height: 1000 });
         const state = await mockDrafts(page, true);
+        // Diese Übersicht prüft Entwürfe ohne Veröffentlichungsauftrag.
+        state.jobs.splice(0);
         if (dark) await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
         const newestTitle =
           'Neue Lieblingsjacke mit besonders langem Titel für die Entwurfsübersicht';
@@ -1989,8 +2003,11 @@ for (const width of [1440, 390]) {
         await expect.poll(() => state.draft().content.packageSizeId).toBe(2);
         expect(state.draft().content.brandId).toBe(53);
         await expect.poll(() => state.enqueues.length).toBe(1);
-        await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
-        await checkListingSurface(page, 'app-vinted-listing-editor');
+        await expect(page).toHaveURL(/\/marketplaces\/vinted\/listing-drafts$/);
+        await expect(page.locator('[data-draft-publication]').first()).toContainText(
+          'Veröffentlichung beauftragt',
+        );
+        await checkListingSurface(page, 'app-vinted-listing-drafts');
         await page.screenshot({
           path: testInfo.outputPath(`shoes-direct-${width}-${theme}.png`),
           fullPage: true,
@@ -2153,4 +2170,43 @@ test('bietet bei einem bereits veröffentlichten Entwurf eine Kopie statt erneut
   });
   await expect.poll(() => state.uploads()).toBe(1);
   expect(state.enqueues).toEqual([]);
+});
+
+test('zeigt eine laufende Veröffentlichung in der Entwurfsübersicht bis zur Bestätigung @marketplace-preview', async ({
+  page,
+}) => {
+  const state = await mockPublication(page);
+  state.jobs.push({
+    id: '8',
+    workspaceId,
+    connectionId: accountIds[0],
+    draftId: state.draft().id,
+    draftRevision: state.draft().revision,
+    executionMode: 'cloud',
+    externalAccountId: '100',
+    action: 'publish',
+    state: 'claimed',
+    version: 2,
+    scheduledAt: null,
+    timeZone: null,
+    latePolicy: 'pause_after_30_minutes',
+    errorCode: null,
+    externalId: null,
+    providerState: null,
+    verifiedAt: null,
+    createdAt: state.draft().createdAt,
+    updatedAt: state.draft().updatedAt,
+    replacesJobId: null,
+  } as unknown as (typeof state.jobs)[number]);
+  await page.goto('/marketplaces/vinted/listing-drafts');
+  const overview = page.locator('app-vinted-listing-drafts');
+  const card = overview.locator(`[data-draft-id="${state.draft().id}"]`);
+  const status = card.locator('[data-draft-publication="claimed"]');
+  await expect(status).toContainText('Wird vorbereitet');
+  await expect(status.locator('app-loading-indicator')).toBeVisible();
+  await expect(card.getByRole('button', { name: /löschen$/ })).toBeDisabled();
+  await checkListingSurface(page, 'app-vinted-listing-drafts');
+  // Der Server blendet den Entwurf nach der Bestätigung aus; die Übersicht folgt ohne Neuladen.
+  state.setOverviewDrafts([]);
+  await expect(card).toHaveCount(0, { timeout: 15_000 });
 });
