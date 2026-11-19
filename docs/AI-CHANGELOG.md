@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Trefferzählung im Vinted-Bot beschleunigt
+
+Die Trefferzählung prüft die Kataloggrenze nur für zurückgesetzte Filter. Damit braucht die Adminansicht bei den großen Sammelfiltern weniger Datenbankarbeit und läuft seltener in eine Zeitüberschreitung.
+
 ## 2026-11-19 - Juna - Gezielter Neustart für Vinted-Suchfilter
 
 Ein aktiver Suchfilter mit konkreter Kategorie kann ab einem neuen Katalogstand starten. Der erste Abruf merkt sich nur die Artikelgrenze. Jüngere Funde gelangen nach der Prüfung der Artikelseite in den Filter. Frühere Zuordnungen bleiben gespeichert und erscheinen nicht mehr im zurückgesetzten Kategoriefilter.
