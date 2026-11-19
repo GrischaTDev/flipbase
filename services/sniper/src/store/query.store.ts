@@ -33,10 +33,12 @@ interface QueryRow {
   filter_format_version: number;
   request_cursor: number;
   seeded_requests: number[];
+  results_reset_at: string | null;
+  reset_baseline_external_id: string | null;
 }
 
 const COLUMNS =
-  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, excluded_title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests';
+  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, excluded_title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests, results_reset_at, reset_baseline_external_id';
 
 function toQuery(row: QueryRow): SniperQuery {
   return {
@@ -71,6 +73,8 @@ function toQuery(row: QueryRow): SniperQuery {
     filterFormatVersion: row.filter_format_version ?? 0,
     requestCursor: row.request_cursor ?? 0,
     seededRequests: row.seeded_requests ?? [],
+    resultsResetAt: row.results_reset_at ?? null,
+    resetBaselineExternalId: row.reset_baseline_external_id ?? null,
   };
 }
 

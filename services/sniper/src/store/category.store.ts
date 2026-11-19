@@ -27,6 +27,16 @@ import type { VintedCategory } from '../vinted/categories.js';
 export class CategoryStore {
   constructor(private readonly client: SupabaseClient) {}
 
+  async isLeaf(catalogId: number): Promise<boolean> {
+    const { data, error } = await this.client
+      .from('vinted_categories')
+      .select('is_leaf')
+      .eq('id', catalogId)
+      .maybeSingle();
+    if (error) throw new Error(`loading listing category failed: ${error.message}`);
+    return data?.['is_leaf'] === true;
+  }
+
   async readSyncState(): Promise<CategorySyncState> {
     const { data, error } = await this.client
       .from('vinted_category_syncs')

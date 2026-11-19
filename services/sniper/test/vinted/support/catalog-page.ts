@@ -15,8 +15,8 @@ interface CatalogPageItem {
   };
 }
 
-export function catalogPage(): string {
-  const item: CatalogPageItem = {
+export function catalogPage(extraItems: Pick<CatalogPageItem, 'id' | 'title'>[] = []): string {
+  const firstItem: CatalogPageItem = {
     id: 1001,
     title: 'Nike Air Max',
     url: '/items/1001-nike-air-max',
@@ -35,10 +35,23 @@ export function catalogPage(): string {
 
   const state = {
     items: {
-      items: [{ id: item.id, productItem: item, catalogTracking: {} }],
+      items: [
+        firstItem,
+        ...extraItems.map((item) => ({
+          ...firstItem,
+          ...item,
+          url: `/items/${item.id}-test-item`,
+          itemBox: { ...firstItem.itemBox, itemId: String(item.id) },
+        })),
+      ].map((item) => ({ id: item.id, productItem: item, catalogTracking: {} })),
       pagination: { currentPage: 1, totalPages: 1, perPage: 96 },
     },
   };
 
   return `<html><body><script>self.__next_f.push([1,${JSON.stringify(JSON.stringify(state))}])</script></body></html>`;
+}
+
+export function itemCategoryPage(id: number, catalogId: number | null): Response {
+  const flight = `1:${JSON.stringify([{ id, catalog_id: catalogId }])}\n`;
+  return new Response(`<script>self.__next_f.push(${JSON.stringify([1, flight])});</script>`);
 }

@@ -1,10 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Gezielter Neustart für Vinted-Suchfilter
+
+Ein aktiver Suchfilter mit konkreter Kategorie kann ab einem neuen Katalogstand starten. Der erste Abruf merkt sich nur die Artikelgrenze. Jüngere Funde gelangen nach der Prüfung der Artikelseite in den Filter. Frühere Zuordnungen bleiben gespeichert und erscheinen nicht mehr im zurückgesetzten Kategoriefilter.
+
+## 2026-11-19 - Juna - Vinted-Bot prüft konkrete Artikelkategorien
+
+Vinted lieferte im Carhartt-Fleecejackenfilter auch eine Utility-Jacke. Der Bot gleicht die Kategorie für Filter auf eine konkrete Unterkategorie mit der Artikelseite ab, bevor er Treffer zuordnet. Die Sammelfilter für Damen- und Herrenkleidung verwenden weiterhin den Katalogabruf.
+
+Der Bot öffnet die vollständige Artikeladresse aus dem Katalog. Damit funktioniert die Kategorieprüfung auch im Produktionsbrowser, der Weiterleitungen von Adressen mit bloßer Artikelnummer sperrt.
+
 ## 2026-11-19 - Juna - Veröffentlichungsstand in der Entwurfsübersicht
 
 **Anlass:** Nach „Jetzt veröffentlichen“ blieb der Editor offen, und die Entwurfsübersicht zeigte nicht, ob ein Entwurf gerade veröffentlicht wird oder ob es fehlgeschlagen ist. Eine echte Veröffentlichung (Auftrag 69) scheiterte in der Vorprüfung im Schritt `values` ohne Schreibzugriff bei Vinted; das Worker-Protokoll nennt das betroffene Feld nicht, ein lesender Datenbankzugriff wurde nicht freigegeben.
 
-**Änderungen:** `marketplace_list_listing_drafts` liefert je Entwurf den jüngsten Veröffentlichungsauftrag (Migration `20261119090000_vinted_draft_publication_status`, Teilindex je Entwurf). Die Übersicht zeigt den Stand mit den vorhandenen Auftragstexten, bei laufenden Aufträgen mit Ladeanzeige und gesperrtem Löschen, fragt dann alle 5 Sekunden nach und entfernt den Entwurf erst nach Vinteds Bestätigung. Fehlgeschlagene Aufträge bleiben sichtbar markiert. Nach erfolgreicher Beauftragung öffnet der Editor die Übersicht; Relisten und Planbearbeitung schließen wie bisher ihr Modal.
+**Änderungen:** `marketplace_list_listing_drafts` liefert je Entwurf den jüngsten Veröffentlichungsauftrag (Migration `20261119160000_vinted_draft_publication_status`, Teilindex je Entwurf). Die Übersicht zeigt den Stand mit den vorhandenen Auftragstexten, bei laufenden Aufträgen mit Ladeanzeige und gesperrtem Löschen, fragt dann alle 5 Sekunden nach und entfernt den Entwurf erst nach Vinteds Bestätigung. Fehlgeschlagene Aufträge bleiben sichtbar markiert. Nach erfolgreicher Beauftragung öffnet der Editor die Übersicht; Relisten und Planbearbeitung schließen wie bisher ihr Modal.
 
 **Prüfung:** Vollständige lokale SQL-Suite auf eigener isolierter Datenbank: 157 Dateien, 5900 Fälle erfolgreich. Neue Komponenten-, Service- und Browsertests; drei bestehende Browsergruppen auf das Schließen des Editors umgestellt (Zählabfragen per `HEAD` gelten dort als Lesen). Weitere Nachweise im PR.
 
