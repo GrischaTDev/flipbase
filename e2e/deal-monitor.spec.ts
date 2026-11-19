@@ -651,8 +651,14 @@ async function fixture(
     if (name === 'vinted_categories')
       json =
         Number(url.searchParams.get('offset') ?? 0) === 0
-          ? [{ id: 1049, path: 'Herren > Schuhe > Sneaker' }]
+          ? [
+              { id: 5, parent_id: null, title: 'Herren', path: 'Herren' },
+              { id: 69, parent_id: 5, title: 'Schuhe', path: 'Herren > Schuhe' },
+              { id: 1049, parent_id: 69, title: 'Sneaker', path: 'Herren > Schuhe > Sneaker' },
+            ]
           : [];
+    if (name === 'vinted_category_syncs')
+      json = { refreshed_at: '2026-11-19T12:00:00Z', category_count: 3 };
     if (name === 'sniper_watchlists') {
       const firstWorkspace = url.searchParams.get('workspace_id') === `eq.${workspace}`;
       if (firstWorkspace && watchlistGate) {
@@ -662,6 +668,7 @@ async function fixture(
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];
     }
     if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
+    if (name === 'sniper_search_feed_brands') json = [{ brand: 'Nike' }];
     if (name === 'sniper_feed_search') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       calls.push({ name, body });
@@ -744,6 +751,8 @@ async function fixture(
         price_to: body['p_price_to'],
         condition: body['p_condition'],
         legacy_brand_id: null,
+        audience: body['p_audience'],
+        sizes: body['p_sizes'],
       };
       if (watchlists.length) watchlists[0] = row;
       else watchlists.push(row);
@@ -911,7 +920,16 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
     await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
-    await page.getByLabel('Marke', { exact: true }).fill('Nike');
+    await page.getByRole('button', { name: /Kategorie Alle gesammelten Kategorien/ }).click();
+    await page.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Sneak');
+    await page.getByRole('option', { name: /^Sneaker/ }).click();
+    await page.getByRole('combobox', { name: 'Zielgruppe' }).click();
+    await page.getByRole('option', { name: 'Herren', exact: true }).click();
+    await page.getByLabel('Größen', { exact: true }).click();
+    await page.getByRole('option', { name: 'S', exact: true }).click();
+    await page.getByRole('option', { name: 'M', exact: true }).click();
+    await page.getByLabel('Marke', { exact: true }).fill('Nik');
+    await page.getByRole('option', { name: 'Nike', exact: true }).click();
     await checkAxe(page);
     mock.failSave(true);
     await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
@@ -925,7 +943,20 @@ for (const theme of ['light', 'dark'] as const) {
       page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
     ).toHaveCount(0);
     await expect(page.getByRole('heading', { name: 'Meine Sneaker', exact: true })).toBeVisible();
+    expect(mock.calls).toContainEqual({
+      name: 'save_sniper_watchlist',
+      body: expect.objectContaining({
+        p_workspace_id: workspace,
+        p_catalog_id: 1049,
+        p_audience: 'men',
+        p_sizes: ['s', 'm'],
+        p_brand: 'Nike',
+      }),
+    });
     await page.getByRole('button', { name: 'Suchfilter bearbeiten', exact: true }).click();
+    await expect(page.getByRole('combobox', { name: 'Zielgruppe' })).toContainText('Herren');
+    await expect(page.getByLabel('Marke', { exact: true })).toHaveValue('Nike');
+    await expect(page.getByRole('button', { name: /Kategorie Herren.*Sneaker/ })).toBeVisible();
     await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');
     await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Änderungen verwerfen?' })).toBeVisible();

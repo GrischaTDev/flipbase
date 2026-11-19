@@ -1,16 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
-import {
-  FeedCategory,
-  FeedPage,
-  FeedRequest,
-  Watchlist,
-  WatchlistDraft,
-} from '../models/deal-monitor.model';
+import { VintedCategoryService } from '../../platform-admin/services/vinted-category.service';
+import { FeedPage, FeedRequest, Watchlist, WatchlistDraft } from '../models/deal-monitor.model';
 
 @Injectable({ providedIn: 'root' })
 export class DealMonitorService {
   private readonly client = inject(SupabaseService).client;
+  private readonly vintedCategories = inject(VintedCategoryService);
 
   async watchlists(workspace: string): Promise<Watchlist[]> {
     const rows: Watchlist[] = [];
@@ -28,20 +24,17 @@ export class DealMonitorService {
     }
   }
 
-  async categories(): Promise<FeedCategory[]> {
-    const rows: FeedCategory[] = [];
-    for (;;) {
-      const { data, error } = await this.client
-        .from('vinted_categories')
-        .select('id,path')
-        .eq('is_leaf', true)
-        .order('path')
-        .order('id')
-        .range(rows.length, rows.length + 999);
-      if (error) throw new Error('Kategorien konnten nicht geladen werden.');
-      if (!data?.length) return rows;
-      rows.push(...data);
-    }
+  async categories() {
+    return (await this.vintedCategories.readSnapshot()).categories;
+  }
+
+  async searchBrands(workspace: string, term: string): Promise<string[]> {
+    const { data, error } = await this.client.rpc('sniper_search_feed_brands', {
+      p_workspace_id: workspace,
+      p_term: term,
+    });
+    if (error || !data) throw new Error('Marken konnten nicht geladen werden.');
+    return data.map(({ brand }) => brand);
   }
 
   async supportedBrands(workspace: string): Promise<string[]> {
@@ -88,6 +81,8 @@ export class DealMonitorService {
       p_price_from: draft.price_from!,
       p_price_to: draft.price_to!,
       p_condition: draft.condition!,
+      p_audience: draft.audience!,
+      p_sizes: draft.sizes,
     });
     if (error)
       throw new Error(

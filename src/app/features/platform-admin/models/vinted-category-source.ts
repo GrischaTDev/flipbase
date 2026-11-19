@@ -1,6 +1,7 @@
 import {
   categorySelectionAllowed,
   categoryNavigationIds,
+  type CategorySelectionRules,
 } from '../../../core/models/category-selection-scope';
 import { VINTED_CATEGORY_RULES } from './vinted-category-selection';
 import type { CategoryPickerSource } from '../../../core/models/category-picker-source';
@@ -12,14 +13,16 @@ import {
 } from './vinted-category-tree';
 
 /** Adapter für den geladenen Vinted-Snapshot; löst keine zusätzlichen Serverabfragen aus. */
-export function vintedCategorySource(rows: readonly VintedCategoryNode[]): CategoryPickerSource {
+export function vintedCategorySource(
+  rows: readonly VintedCategoryNode[],
+  rules: CategorySelectionRules = VINTED_CATEGORY_RULES,
+): CategoryPickerSource {
   const tree = buildVintedCategoryTree(rows);
   const path = (entry: VintedCategoryEntry) => [...entry.ancestorIds, entry.id].map(String);
-  const allowed = (entry: VintedCategoryEntry) =>
-    categorySelectionAllowed(path(entry), VINTED_CATEGORY_RULES);
+  const allowed = (entry: VintedCategoryEntry) => categorySelectionAllowed(path(entry), rules);
   const visible = categoryNavigationIds(
     rows.map((row) => path(tree.get(row.id)!)),
-    VINTED_CATEGORY_RULES,
+    rules,
   );
   const map = (entry: VintedCategoryEntry): ProductCategory => ({
     id: String(entry.id),

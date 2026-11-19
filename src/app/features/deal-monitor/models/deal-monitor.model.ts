@@ -9,6 +9,8 @@ export interface Watchlist {
   price_to: number | null;
   condition: string | null;
   legacy_brand_id: number | null;
+  audience: string | null;
+  sizes: string[];
 }
 
 export type WatchlistDraft = Omit<Watchlist, 'id' | 'workspace_id' | 'legacy_brand_id'> & {
@@ -45,9 +47,27 @@ export interface FeedRequest {
   titleQuery?: string;
   cursor?: { time: string; id: string };
 }
-export interface FeedCategory {
-  id: number;
-  path: string;
+export const FEED_CLOTHING_SIZES = [
+  { value: 'xs', label: 'XS' },
+  { value: 's', label: 'S' },
+  { value: 'm', label: 'M' },
+  { value: 'l', label: 'L' },
+  { value: 'xl', label: 'XL' },
+  { value: 'xxl', label: 'XXL' },
+  { value: '3xl', label: '3XL+' },
+];
+
+export const WATCHLIST_AUDIENCES = [
+  { value: null, label: 'Alle Zielgruppen' },
+  { value: 'women', label: 'Damen' },
+  { value: 'men', label: 'Herren' },
+  { value: 'both', label: 'Damen und Herren' },
+];
+
+export function watchlistSizeLabels(sizes: readonly string[]): string {
+  return sizes
+    .flatMap((size) => FEED_CLOTHING_SIZES.find((option) => option.value === size)?.label ?? [])
+    .join(' · ');
 }
 
 export function safeVintedLink(value: string): string | null {

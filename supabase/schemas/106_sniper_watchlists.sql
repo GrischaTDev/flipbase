@@ -11,6 +11,11 @@ create table public.sniper_watchlists (
     condition text,
     created_at timestamptz not null default now(),
     legacy_brand_id integer,
+    audience text check (audience in ('women', 'men', 'both')),
+    sizes text[] not null default '{}' check (
+        cardinality(sizes) <= 7
+        and sizes <@ array['xs', 's', 'm', 'l', 'xl', 'xxl', '3xl']
+    ),
     constraint sniper_watchlists_price_range check (
         (price_from is null or (price_from >= 0 and price_from < 'Infinity'::numeric))
         and (price_to is null or (price_to >= 0 and price_to < 'Infinity'::numeric))

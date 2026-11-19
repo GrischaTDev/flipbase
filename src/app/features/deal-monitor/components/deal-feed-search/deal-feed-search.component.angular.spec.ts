@@ -104,6 +104,14 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/number-input/number-input.component.html',
   './number-input.component.scss':
     'src/app/shared/components/number-input/number-input.component.scss',
+  './category-picker.component.html':
+    'src/app/shared/components/category-picker/category-picker.component.html',
+  './category-picker.component.scss':
+    'src/app/shared/components/category-picker/category-picker.component.scss',
+  './attribute-picker.component.html':
+    'src/app/shared/components/attribute-picker/attribute-picker.component.html',
+  './attribute-picker.component.scss':
+    'src/app/shared/components/attribute-picker/attribute-picker.component.scss',
 };
 
 const mockFeedItem = (id: string, size: string | null = null): FeedItem => ({
@@ -245,6 +253,8 @@ describe('DealFeedSearchComponent', () => {
         price_to: 50,
         condition: null,
         legacy_brand_id: null,
+        audience: null,
+        sizes: [],
       },
     ]),
     categories: vi.fn().mockResolvedValue([]),

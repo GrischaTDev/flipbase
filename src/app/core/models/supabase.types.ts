@@ -8550,6 +8550,7 @@ export type Database = {
       }
       sniper_watchlists: {
         Row: {
+          audience: string | null
           brand: string | null
           catalog_id: number | null
           condition: string | null
@@ -8559,10 +8560,12 @@ export type Database = {
           price_from: number | null
           price_to: number | null
           search_text: string | null
+          sizes: string[]
           title: string
           workspace_id: string
         }
         Insert: {
+          audience?: string | null
           brand?: string | null
           catalog_id?: number | null
           condition?: string | null
@@ -8572,10 +8575,12 @@ export type Database = {
           price_from?: number | null
           price_to?: number | null
           search_text?: string | null
+          sizes?: string[]
           title: string
           workspace_id: string
         }
         Update: {
+          audience?: string | null
           brand?: string | null
           catalog_id?: number | null
           condition?: string | null
@@ -8585,6 +8590,7 @@ export type Database = {
           price_from?: number | null
           price_to?: number | null
           search_text?: string | null
+          sizes?: string[]
           title?: string
           workspace_id?: string
         }
@@ -14759,20 +14765,37 @@ export type Database = {
         }
         Returns: string
       }
-      save_sniper_watchlist: {
-        Args: {
-          p_brand: string
-          p_catalog_id: number
-          p_condition: string
-          p_id: string
-          p_price_from: number
-          p_price_to: number
-          p_search_text: string
-          p_title: string
-          p_workspace_id: string
-        }
-        Returns: string
-      }
+      save_sniper_watchlist:
+        | {
+            Args: {
+              p_brand: string
+              p_catalog_id: number
+              p_condition: string
+              p_id: string
+              p_price_from: number
+              p_price_to: number
+              p_search_text: string
+              p_title: string
+              p_workspace_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_audience: string
+              p_brand: string
+              p_catalog_id: number
+              p_condition: string
+              p_id: string
+              p_price_from: number
+              p_price_to: number
+              p_search_text: string
+              p_sizes: string[]
+              p_title: string
+              p_workspace_id: string
+            }
+            Returns: string
+          }
       seed_default_expense_categories: {
         Args: { p_workspace_id: string }
         Returns: undefined
@@ -15041,6 +15064,14 @@ export type Database = {
         }
         Returns: boolean
       }
+      sniper_listing_has_source: {
+        Args: {
+          p_discovered_by: string
+          p_listing_id: string
+          p_source_ids: string[]
+        }
+        Returns: boolean
+      }
       sniper_normalize_favorite_item: { Args: { p_item: Json }; Returns: Json }
       sniper_notify_feed_updates: { Args: never; Returns: undefined }
       sniper_purge_expired_listings: {
@@ -15052,6 +15083,12 @@ export type Database = {
         Returns: {
           listing_count: number
           query_id: string
+        }[]
+      }
+      sniper_search_feed_brands: {
+        Args: { p_term: string; p_workspace_id: string }
+        Returns: {
+          brand: string
         }[]
       }
       sniper_search_filter_matches_title: {
@@ -15072,6 +15109,13 @@ export type Database = {
         Returns: boolean
       }
       sniper_watchlist_matches: {
+        Args: {
+          p_listing: Database["public"]["Tables"]["sniper_listings"]["Row"]
+          p_watchlist: Database["public"]["Tables"]["sniper_watchlists"]["Row"]
+        }
+        Returns: boolean
+      }
+      sniper_watchlist_matches_criteria: {
         Args: {
           p_listing: Database["public"]["Tables"]["sniper_listings"]["Row"]
           p_watchlist: Database["public"]["Tables"]["sniper_watchlists"]["Row"]
