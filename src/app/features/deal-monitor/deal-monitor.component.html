@@ -7,6 +7,12 @@
   @if (!workspace()) {
     <p role="status">Bitte einen Arbeitsbereich auswählen.</p>
   }
+  @if (categoryError()) {
+    <p role="alert">
+      Kategorien konnten nicht geladen werden.
+      <app-button (clicked)="loadCategories()">Erneut laden</app-button>
+    </p>
+  }
 
   <!-- Im Widescreen-Modus teilen sich mehrere Suchen die Breite zu gleichen Teilen. -->
   <div
@@ -16,6 +22,7 @@
   >
     @for (searchNumber of searches(); track searchNumber; let last = $last) {
       <app-deal-feed-search
+        [categorySource]="categorySource()"
         [searchNumber]="searchNumber"
         [widescreen]="widescreen()"
         [canAddSearch]="last && canAddSearch()"

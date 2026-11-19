@@ -12,10 +12,15 @@ import {
   untracked,
 } from '@angular/core';
 import { LucidePlus, LucideRefreshCcw, LucideX } from '@lucide/angular';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { CategoryPickerSource } from '../../../../core/models/category-picker-source';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { DealCardComponent } from '../deal-card/deal-card.component';
@@ -25,7 +30,14 @@ import { DealFeedState } from '../../services/deal-feed-state';
 import { DealFeedUpdatesService } from '../../services/deal-feed-updates.service';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
-import { FEED_CLOTHING_SIZES, FeedItem, Watchlist } from '../../models/deal-monitor.model';
+import {
+  FEED_CLOTHING_SIZES,
+  WATCHLIST_AUDIENCES,
+  FeedItem,
+  Watchlist,
+  feedSizeValues,
+} from '../../models/deal-monitor.model';
+import { vintedCategorySource } from '../../../platform-admin/models/vinted-category-source';
 import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
 import { VintedAiSearchModalComponent } from '../vinted-ai-search-modal/vinted-ai-search-modal.component';
 
@@ -37,6 +49,9 @@ const SLOW_MODE_STORAGE_KEY = 'flipbase:vinted-feed:slow-mode';
     ButtonComponent,
     CardComponent,
     CustomSelectComponent,
+    CategoryPickerComponent,
+    AttributePickerComponent,
+    ReactiveFormsModule,
     CustomCheckboxComponent,
     NumberInputComponent,
     CustomSearchInputComponent,
@@ -57,6 +72,7 @@ export class DealFeedSearchComponent {
   readonly widescreen = input(false);
   readonly canAddSearch = input(false);
   readonly removable = input(false);
+  readonly categorySource = input<CategoryPickerSource>(vintedCategorySource([]));
   readonly addSearch = output<void>();
   readonly remove = output<void>();
   readonly idSuffix = computed(() => (this.searchNumber() === 1 ? '' : `-${this.searchNumber()}`));
@@ -78,17 +94,22 @@ export class DealFeedSearchComponent {
   readonly watchlists = signal<Watchlist[]>([]);
   readonly brands = signal<string[]>([]);
   readonly selected = signal<string | null>(null);
-  readonly selectedBrand = signal<string | null>(null);
-  readonly selectedSize = signal<string | null>(null);
+  readonly audience = signal<string | null>(null);
+  readonly category = new FormControl<string | null>(null);
+  readonly brand = new FormControl('', { nonNullable: true });
+  readonly sizes = new FormControl('', { nonNullable: true });
+  private readonly selectedCategory = toSignal(this.category.valueChanges, { initialValue: null });
+  private readonly selectedBrand = toSignal(this.brand.valueChanges, { initialValue: '' });
+  private readonly selectedSizes = toSignal(this.sizes.valueChanges, { initialValue: '' });
+  private brandQuery = '';
+  private brandTimer?: ReturnType<typeof setTimeout>;
   readonly minPrice = signal<number | null>(null);
   readonly maxPrice = signal<number | null>(null);
   readonly selectedDeal = signal<FeedItem | null>(null);
   readonly selectedAnalysis = signal<FeedItem | null>(null);
   readonly operator = inject(PlatformOperatorService);
-  readonly sizeOptions = [
-    { value: null as string | null, label: 'Alle Größen' },
-    ...FEED_CLOTHING_SIZES,
-  ];
+  readonly sizeOptions = FEED_CLOTHING_SIZES.map((option) => option.label);
+  readonly audienceOptions = WATCHLIST_AUDIENCES;
   readonly error = signal<string | null>(null);
   readonly brandError = signal<string | null>(null);
   readonly now = signal(Date.now());
@@ -98,10 +119,6 @@ export class DealFeedSearchComponent {
   readonly options = computed(() => [
     { value: null as string | null, label: 'Alle Suchfilter' },
     ...this.watchlists().map((row) => ({ value: row.id, label: row.title })),
-  ]);
-  readonly brandOptions = computed(() => [
-    { value: null as string | null, label: 'Alle Marken' },
-    ...this.brands().map((brand) => ({ value: brand, label: brand })),
   ]);
   readonly selectedWatchlist = computed(() =>
     this.watchlists().find((row) => row.id === this.selected()),
@@ -117,8 +134,9 @@ export class DealFeedSearchComponent {
   readonly filtersActive = computed(
     () =>
       this.selected() !== null ||
-      this.selectedBrand() !== null ||
-      this.selectedSize() !== null ||
+      Boolean(
+        this.selectedBrand() || this.selectedSizes() || this.selectedCategory() || this.audience(),
+      ) ||
       this.minPrice() !== null ||
       this.maxPrice() !== null ||
       this.searchEntry().trim().length > 0,
@@ -154,8 +172,7 @@ export class DealFeedSearchComponent {
       const workspace = this.workspace()?.id ?? null;
       untracked(() => {
         this.selected.set(null);
-        this.selectedBrand.set(null);
-        this.selectedSize.set(null);
+        this.resetDirectFilters();
         this.minPrice.set(null);
         this.maxPrice.set(null);
         clearTimeout(this.searchTimer);
@@ -176,8 +193,11 @@ export class DealFeedSearchComponent {
     effect(() => {
       const workspace = this.workspace()?.id;
       const watchlist = this.selected();
-      const brand = this.selectedBrand();
-      const size = this.selectedSize();
+      const brand = this.selectedBrand() || null;
+      const category = this.selectedCategory();
+      const categoryId = category === null ? null : Number(category);
+      const audience = this.audience();
+      const sizes = feedSizeValues(this.selectedSizes());
       const minPrice = this.minPrice();
       const maxPrice = this.maxPrice();
       const priceError = this.priceError();
@@ -185,7 +205,20 @@ export class DealFeedSearchComponent {
       if (priceError) return;
       untracked(() =>
         this.state.setContext(
-          workspace ? { workspace, watchlist, brand, size, minPrice, maxPrice, titleQuery } : null,
+          workspace
+            ? {
+                workspace,
+                watchlist,
+                brand,
+                size: null,
+                sizes,
+                categoryId,
+                audience,
+                minPrice,
+                maxPrice,
+                titleQuery,
+              }
+            : null,
         ),
       );
     });
@@ -215,6 +248,7 @@ export class DealFeedSearchComponent {
     this.destroyRef.onDestroy(() => {
       clearTimeout(this.timer);
       clearTimeout(this.searchTimer);
+      clearTimeout(this.brandTimer);
       this.listGeneration++;
       this.brandGeneration++;
       this.state.destroy();
@@ -240,7 +274,9 @@ export class DealFeedSearchComponent {
     if (!workspace) return;
     const generation = ++this.brandGeneration;
     try {
-      const brands = await this.api.supportedBrands(workspace);
+      const brands = this.brandQuery
+        ? await this.api.searchBrands(workspace, this.brandQuery)
+        : await this.api.supportedBrands(workspace);
       if (generation !== this.brandGeneration || this.destroyRef.destroyed) return;
       this.brands.set(brands);
       this.brandError.set(null);
@@ -251,6 +287,14 @@ export class DealFeedSearchComponent {
         );
       }
     }
+  }
+
+  searchBrand(term: string): void {
+    this.brandQuery = term.trim();
+    this.brandGeneration++;
+    clearTimeout(this.brandTimer);
+    if (this.brandQuery.length <= 100)
+      this.brandTimer = setTimeout(() => void this.loadBrands(), 250);
   }
 
   searchChanged(value: string): void {
@@ -285,9 +329,18 @@ export class DealFeedSearchComponent {
     this.searchEntry.set('');
     this.titleQuery.set('');
     this.selected.set(null);
-    this.selectedBrand.set(null);
-    this.selectedSize.set(null);
+    this.resetDirectFilters();
+    void this.loadBrands();
     this.minPrice.set(null);
     this.maxPrice.set(null);
+  }
+
+  private resetDirectFilters(): void {
+    this.audience.set(null);
+    this.category.reset();
+    this.brand.reset();
+    this.sizes.reset();
+    this.brandQuery = '';
+    clearTimeout(this.brandTimer);
   }
 }

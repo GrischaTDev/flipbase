@@ -51,25 +51,43 @@
             />
           </div>
           <div class="min-w-0">
-            <label [attr.for]="'feed-brand' + idSuffix()" class="mb-1 block text-sm">Marke</label>
-            <app-custom-select
-              [triggerId]="'feed-brand' + idSuffix()"
-              variant="toolbar"
+            <app-attribute-picker
+              [id]="'feed-brand' + idSuffix()"
+              label="Marke"
               placeholder="Alle Marken"
-              ariaLabel="Nach Marke filtern"
-              [options]="brandOptions()"
-              [(value)]="selectedBrand"
+              [options]="brands()"
+              [formControl]="brand"
+              (queryChange)="searchBrand($event)"
             />
           </div>
           <div class="min-w-0">
-            <label [attr.for]="'feed-size' + idSuffix()" class="mb-1 block text-sm">Größe</label
-            ><app-custom-select
-              [triggerId]="'feed-size' + idSuffix()"
-              variant="toolbar"
+            <app-attribute-picker
+              [id]="'feed-size' + idSuffix()"
+              label="Größen"
               placeholder="Alle Größen"
-              ariaLabel="Größe filtern"
+              [multiple]="true"
+              [allowCustom]="false"
               [options]="sizeOptions"
-              [(value)]="selectedSize"
+              [formControl]="sizes"
+            />
+          </div>
+          <div class="min-w-0">
+            <app-custom-select
+              [triggerId]="'feed-audience' + idSuffix()"
+              label="Zielgruppe"
+              variant="toolbar"
+              ariaLabel="Zielgruppe"
+              [options]="audienceOptions"
+              [(value)]="audience"
+            />
+          </div>
+          <div class="min-w-0">
+            <app-category-picker
+              [id]="'feed-category' + idSuffix()"
+              label="Kategorie"
+              placeholder="Alle Kategorien"
+              [source]="categorySource()"
+              [formControl]="category"
             />
           </div>
           <div class="min-w-0">

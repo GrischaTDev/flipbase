@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Zielgruppe, Größen und Kategorie direkt im Vinted-Feed
+
+Jede Feed-Suche kann Zielgruppe, Größen, Marke und Kategorie direkt auf dem gespeicherten Artikelbestand kombinieren. Pflichtfeldfehler beim Bearbeiten eines Suchfilters erscheinen erst nach einem Speicherversuch.
+
 ## 2026-11-19 - Juna - Versandschein bei DHL anfordern
 
 **Anlass:** „Versandschein abrufen“ für einen DHL-Verkauf von Wiehen Store scheiterte (Aufträge 73 und 93, `label_choice_required`). Vinteds `label_options` lieferte einen Abgabeweg `point` mit drei Abgabeorten (Packstation, Paketshop, Postfiliale), alle nur `digital`. Flipbase zählte die Abgabeorte als Auswahl und brach ab. Im Seitencode von Vinted ist zu sehen, dass die Anforderung nur den Typ des Abgabewegs (`point`/`home` oder `null`) sendet, keinen Abgabeort.

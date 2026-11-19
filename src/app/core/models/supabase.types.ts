@@ -15040,21 +15040,40 @@ export type Database = {
         Args: { p_filter_size: string; p_listing_size: string }
         Returns: boolean
       }
-      sniper_feed_search: {
-        Args: {
-          p_before_id: string
-          p_before_time: string
-          p_brand: string
-          p_limit: number
-          p_max_price: number
-          p_min_price: number
-          p_size: string
-          p_title_query?: string
-          p_watchlist_id: string
-          p_workspace_id: string
-        }
-        Returns: Json
-      }
+      sniper_feed_search:
+        | {
+            Args: {
+              p_before_id: string
+              p_before_time: string
+              p_brand: string
+              p_limit: number
+              p_max_price: number
+              p_min_price: number
+              p_size: string
+              p_title_query?: string
+              p_watchlist_id: string
+              p_workspace_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_audience: string
+              p_before_id: string
+              p_before_time: string
+              p_brand: string
+              p_catalog_id: number
+              p_limit: number
+              p_max_price: number
+              p_min_price: number
+              p_size: string
+              p_sizes: string[]
+              p_title_query: string
+              p_watchlist_id: string
+              p_workspace_id: string
+            }
+            Returns: Json
+          }
       sniper_listing_after_reset: {
         Args: {
           p_baseline_external_id: string

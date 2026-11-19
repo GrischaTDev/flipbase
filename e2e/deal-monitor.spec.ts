@@ -668,7 +668,12 @@ async function fixture(
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];
     }
     if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
-    if (name === 'sniper_search_feed_brands') json = [{ brand: 'Nike' }];
+    if (name === 'sniper_search_feed_brands') {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      json = [
+        { brand: String(body['p_term']).toLowerCase().startsWith('carh') ? 'Carhartt' : 'Nike' },
+      ];
+    }
     if (name === 'sniper_feed_search') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       calls.push({ name, body });
@@ -914,11 +919,42 @@ for (const theme of ['light', 'dark'] as const) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `test-results/deal-monitor-${theme}.png`, fullPage: true });
 
+    await page.getByLabel('Marke', { exact: true }).fill('Carh');
+    await page.getByRole('option', { name: 'Carhartt', exact: true }).click();
+    await page.getByRole('button', { name: /Kategorie Alle Kategorien/ }).click();
+    await page.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Sneak');
+    await page.getByRole('option', { name: /^Sneaker/ }).click();
+    await page.getByRole('combobox', { name: 'Zielgruppe', exact: true }).click();
+    await page.getByRole('option', { name: 'Herren', exact: true }).click();
+    await page.getByLabel('Größen', { exact: true }).click();
+    await page.getByRole('option', { name: 'M', exact: true }).click();
+    await expect
+      .poll(() => mock.calls.at(-1))
+      .toMatchObject({
+        name: 'sniper_feed_search',
+        body: {
+          p_watchlist_id: null,
+          p_brand: 'Carhartt',
+          p_catalog_id: 1049,
+          p_audience: 'men',
+          p_sizes: ['m'],
+        },
+      });
+
     await page.goto('/vinted-bot/filters');
     await page.locator('app-page-header').waitFor({ state: 'visible', timeout: 30_000 });
     await expect(page.getByRole('heading', { name: 'Suchfilter', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
+    await page.getByLabel('Name des Suchfilters').blur();
+    await expect(
+      page.getByText('Bitte einen Namen mit höchstens 100 Zeichen eingeben.'),
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
+    await expect(
+      page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
+    ).toHaveCount(0);
+    await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
     await page.getByRole('button', { name: /Kategorie Alle gesammelten Kategorien/ }).click();
     await page.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Sneak');
@@ -1067,10 +1103,8 @@ for (const theme of ['light', 'dark'] as const) {
         // Per Tastatur öffnen: ein Mausklick ließe den Zeiger für die spätere
         // AXE-Prüfung im Hover-Zustand über dem Feld stehen.
         await page.locator('#feed-brand').focus();
-        await page.keyboard.press('Enter');
         await expect(page.getByRole('listbox')).toBeVisible();
-        // Marken kommen nur aus den Bot-Filtern; eine Freitextsuche gibt es dort nicht.
-        await expect(page.locator('[data-feed-filters] input[role="combobox"]')).toHaveCount(0);
+        await expect(page.locator('input#feed-brand[role="combobox"]')).toBeVisible();
         await page.keyboard.press('Escape');
         await expect(page.getByRole('listbox')).toHaveCount(0);
         await expect(page.getByRole('button', { name: 'Kompakt', exact: true })).toHaveCount(0);

@@ -14,7 +14,7 @@
         formControlName="title"
         placeholder="Zum Beispiel Nike-Sneaker"
         [error]="
-          form.controls.title.touched && form.controls.title.invalid
+          submitAttempted() && form.controls.title.invalid
             ? 'Bitte einen Namen mit höchstens 100 Zeichen eingeben.'
             : null
         "
@@ -95,7 +95,7 @@
           ersetzt diese Kennung.
         </p>
       }
-      @if (form.invalid && form.touched) {
+      @if (form.invalid && submitAttempted()) {
         <p role="alert" class="text-sm">
           Bitte alle Angaben prüfen. Der Höchstpreis darf nicht unter dem Mindestpreis liegen.
         </p>

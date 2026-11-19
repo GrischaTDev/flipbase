@@ -34,6 +34,7 @@ import { vintedCategorySource } from '../../../platform-admin/models/vinted-cate
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import {
   FEED_CLOTHING_SIZES,
+  feedSizeValues,
   WATCHLIST_AUDIENCES,
   Watchlist,
   WatchlistDraft,
@@ -65,6 +66,7 @@ export class WatchlistEditorComponent {
   readonly saved = output<WatchlistDraft>();
   readonly cancelled = output<void>();
   readonly brandSearchError = signal<string | null>(null);
+  readonly submitAttempted = signal(false);
   readonly audienceOptions = WATCHLIST_AUDIENCES;
   readonly sizeOptions = FEED_CLOTHING_SIZES.map((size) => size.label);
   readonly form = new FormGroup({
@@ -119,6 +121,7 @@ export class WatchlistEditorComponent {
   constructor() {
     effect(() => {
       const row = this.watchlist();
+      this.submitAttempted.set(false);
       this.form.reset({
         title: row?.title ?? '',
         catalog_id: row?.catalog_id == null ? null : String(row.catalog_id),
@@ -137,9 +140,11 @@ export class WatchlistEditorComponent {
   }
 
   submit(): void {
+    if (this.saving()) return;
+    this.submitAttempted.set(true);
     this.form.markAllAsTouched();
     const value = this.form.getRawValue();
-    if (this.saving() || this.form.invalid || !value.title.trim()) return;
+    if (this.form.invalid || !value.title.trim()) return;
     if (value.price_from !== null && value.price_to !== null && value.price_from > value.price_to) {
       this.form.setErrors({ priceRange: true });
       return;
@@ -148,11 +153,7 @@ export class WatchlistEditorComponent {
       ...value,
       id: this.watchlist()?.id ?? null,
       catalog_id: value.catalog_id === null ? null : Number(value.catalog_id),
-      sizes: value.sizes
-        .split(' · ')
-        .flatMap(
-          (label) => FEED_CLOTHING_SIZES.find((option) => option.label === label)?.value ?? [],
-        ),
+      sizes: feedSizeValues(value.sizes),
     });
   }
 }

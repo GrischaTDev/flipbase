@@ -135,6 +135,14 @@ select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-
     '22023',null,'Unbekannte Größe abgelehnt');
 select is((select count(*) from public.sniper_search_feed_brands('91000000-0000-4000-8000-000000000003','marke')),1::bigint,
     'Markensuche dedupliziert Namen aus gesammelten Artikeln ohne eigenen Markenauftrag');
+select results_eq($$
+    select item->>'title' from jsonb_array_elements(public.sniper_feed_search(
+        '91000000-0000-4000-8000-000000000003',null,'Testmarke',null,null,null,null,null,60,'',2010000004,'men',array['s','m'])->'items') item
+$$, $$values ('Testjacke'::text)$$, 'Direkte Marken-, Kategorie-, Zielgruppen- und Größenauswahl greift ohne Merkzettel');
+select is(jsonb_array_length(public.sniper_feed_search(
+    '91000000-0000-4000-8000-000000000003',(select id from public.sniper_watchlists where title='Nur Testjacken'),
+    null,null,null,null,null,null,60,'',null,'women','{}')->'items'),0,
+    'Direkte Zielgruppe und gespeicherter Suchfilter gelten gemeinsam');
 select throws_ok($$select public.sniper_search_feed_brands('91000000-0000-4000-8000-000000000004','marke')$$,
     '42501',null,'Markensuche ist nur im eigenen Arbeitsbereich verfügbar');
 reset role;
