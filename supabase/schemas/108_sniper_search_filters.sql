@@ -546,10 +546,11 @@ $$;
 revoke all on function public.record_sniper_listing_category(uuid,text[]) from public, anon, authenticated;
 grant execute on function public.record_sniper_listing_category(uuid,text[]) to service_role;
 
-create or replace function public.sniper_watchlist_matches(p_watchlist public.sniper_watchlists, p_listing public.sniper_listings)
+create or replace function public.sniper_watchlist_matches_criteria(
+    p_watchlist public.sniper_watchlists, p_listing public.sniper_listings
+)
 returns boolean language sql stable security invoker set search_path = '' as $$
-    select (p_watchlist.catalog_id is null or p_watchlist.catalog_id = p_listing.catalog_id)
-       and (p_watchlist.catalog_id is null or not exists (
+    select (p_watchlist.catalog_id is null or not exists (
            select 1 from public.sniper_queries source
            where source.id = p_listing.catalog_source_query_id and source.results_reset_at is not null
              and not public.sniper_listing_after_reset(p_listing.external_id, p_listing.first_seen_at,
@@ -565,9 +566,20 @@ returns boolean language sql stable security invoker set search_path = '' as $$
                    and lower(btrim(selected_brand.name)) = lower(btrim(p_listing.brand))))))
        and (p_watchlist.search_text is null or strpos(lower(p_listing.title || ' ' || coalesce(p_listing.description, '')), lower(p_watchlist.search_text)) > 0)
        and (p_watchlist.condition is null or p_watchlist.condition = p_listing.condition)
+       and (coalesce(cardinality(p_watchlist.sizes), 0) = 0 or exists (
+           select 1 from unnest(p_watchlist.sizes) as size
+           where public.sniper_feed_matches_size(p_listing.size, size)))
        and (p_watchlist.price_from is null or p_listing.item_price >= p_watchlist.price_from)
        and (p_watchlist.price_to is null or p_listing.item_price <= p_watchlist.price_to)
        and p_listing.currency = 'EUR';
+$$;
+revoke all on function public.sniper_watchlist_matches_criteria(public.sniper_watchlists,public.sniper_listings) from public, anon, authenticated;
+grant execute on function public.sniper_watchlist_matches_criteria(public.sniper_watchlists,public.sniper_listings) to service_role;
+
+create or replace function public.sniper_watchlist_matches(p_watchlist public.sniper_watchlists, p_listing public.sniper_listings)
+returns boolean language sql stable security invoker set search_path = '' as $$
+    select (p_watchlist.catalog_id is null or p_watchlist.catalog_id = p_listing.catalog_id)
+       and public.sniper_watchlist_matches_criteria(p_watchlist, p_listing);
 $$;
 revoke all on function public.sniper_watchlist_matches(public.sniper_watchlists,public.sniper_listings) from public, anon, authenticated;
 grant execute on function public.sniper_watchlist_matches(public.sniper_watchlists,public.sniper_listings) to service_role;

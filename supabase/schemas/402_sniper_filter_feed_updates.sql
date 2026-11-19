@@ -43,6 +43,40 @@ comment on function public.sniper_supported_brands(uuid) is
 revoke all on function public.sniper_supported_brands(uuid) from public, anon;
 grant execute on function public.sniper_supported_brands(uuid) to authenticated;
 
+create or replace function public.sniper_search_feed_brands(p_workspace_id uuid, p_term text)
+returns table (brand text) language plpgsql stable security definer set search_path = '' as $$
+declare
+    v_term text := lower(btrim(coalesce(p_term, '')));
+begin
+    if not public.can_access_workspace(p_workspace_id) then
+        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
+    end if;
+    if length(v_term) > 100 then
+        raise exception 'Der Markenname ist zu lang.' using errcode = '22023';
+    end if;
+
+    -- Ein begrenzter Ausschnitt hält Vorschläge aus Sammelabrufen günstig.
+    -- Ein bekannter Markenname kann auch ohne Vorschlag eingegeben werden.
+    return query
+        with recent as (
+            select btrim(listing.brand) as name
+            from public.sniper_listings as listing
+            where listing.marketplace = 'vinted' and not listing.is_initial_stock
+              and listing.first_seen_at >= now() - interval '3 days'
+            order by listing.first_seen_at desc, listing.id desc
+            limit 20000
+        )
+        select min(recent.name)
+        from recent
+        where length(recent.name) between 1 and 100 and strpos(lower(recent.name), v_term) > 0
+        group by lower(recent.name)
+        order by (strpos(lower(recent.name), v_term) = 1) desc, count(*) desc, min(recent.name)
+        limit 25;
+end;
+$$;
+revoke all on function public.sniper_search_feed_brands(uuid,text) from public, anon;
+grant execute on function public.sniper_search_feed_brands(uuid,text) to authenticated;
+
 -- Ein Hinweis je Arbeitsbereich und Planungsschritt. Kein Artikelinhalt und kein Zeilentrigger.
 create or replace function public.sniper_notify_feed_updates()
 returns void language plpgsql volatile security invoker set search_path = '' as $$

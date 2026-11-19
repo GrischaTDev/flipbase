@@ -19,28 +19,38 @@
             : null
         "
       />
-      <app-text-field
-        label="Kategorie suchen"
-        type="search"
-        [formControl]="categorySearch"
-        placeholder="Zum Beispiel Herren Schuhe"
+      <app-category-picker
+        label="Kategorie"
+        placeholder="Alle gesammelten Kategorien"
+        [source]="categorySource()"
+        formControlName="catalog_id"
       />
-      <div>
-        <label for="watchlist-category" class="mb-1 block text-sm">Kategorie</label>
+      <div class="grid gap-4 sm:grid-cols-2">
         <app-custom-select
-          triggerId="watchlist-category"
-          placeholder="Alle gesammelten Kategorien"
-          ariaLabel="Kategorie"
-          [options]="categoryOptions()"
-          formControlName="catalog_id"
+          triggerId="watchlist-audience"
+          label="Zielgruppe"
+          ariaLabel="Zielgruppe"
+          placeholder="Alle Zielgruppen"
+          [options]="audienceOptions"
+          formControlName="audience"
+        />
+        <app-attribute-picker
+          label="Größen"
+          placeholder="Alle Größen"
+          [multiple]="true"
+          [allowCustom]="false"
+          [options]="sizeOptions"
+          formControlName="sizes"
         />
       </div>
       <div class="grid gap-4 sm:grid-cols-2">
-        <app-text-field
+        <app-attribute-picker
           label="Marke"
+          placeholder="Marke suchen"
+          [options]="brandOptions()"
+          [liveText]="true"
+          [error]="brandSearchError()"
           formControlName="brand"
-          placeholder="Zum Beispiel Nike"
-          helpText="Vollständiger Markenname wie im Artikel. Großschreibung spielt keine Rolle."
         />
         <app-text-field
           label="Suchbegriff"

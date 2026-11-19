@@ -64,6 +64,14 @@ const componentResources: Readonly<Record<string, string>> = {
     'src/app/shared/components/number-input/number-input.component.html',
   './number-input.component.scss':
     'src/app/shared/components/number-input/number-input.component.scss',
+  './category-picker.component.html':
+    'src/app/shared/components/category-picker/category-picker.component.html',
+  './category-picker.component.scss':
+    'src/app/shared/components/category-picker/category-picker.component.scss',
+  './attribute-picker.component.html':
+    'src/app/shared/components/attribute-picker/attribute-picker.component.html',
+  './attribute-picker.component.scss':
+    'src/app/shared/components/attribute-picker/attribute-picker.component.scss',
 };
 
 describe('DealFiltersComponent', () => {
@@ -103,7 +111,12 @@ describe('DealFiltersComponent', () => {
       'triggerId',
       'ariaLabel',
     ]);
-    registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
+    registerSignalInputs(WatchlistEditorComponent, [
+      'watchlist',
+      'categories',
+      'workspaceId',
+      'saving',
+    ]);
   });
 
   let comp: DealFiltersComponent;
@@ -122,9 +135,12 @@ describe('DealFiltersComponent', () => {
         price_to: 45,
         condition: null,
         legacy_brand_id: null,
+        audience: 'men',
+        sizes: ['s', 'm'],
       },
     ]),
     categories: vi.fn().mockResolvedValue([]),
+    searchBrands: vi.fn().mockResolvedValue([]),
     save: vi.fn().mockResolvedValue({ id: 'wl-1' }),
     delete: vi.fn().mockResolvedValue(undefined),
   };
@@ -202,6 +218,8 @@ describe('DealFiltersComponent', () => {
     const root = fixture.nativeElement as HTMLElement;
     expect(root.textContent).toContain('Suchfilter');
     expect(root.textContent).toContain('Vintage Sweatshirts');
+    expect(root.textContent).toContain('Herren');
+    expect(root.textContent).toContain('S · M');
   });
 
   it('renders a loading state instead of the empty state', () => {

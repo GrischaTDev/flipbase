@@ -87,6 +87,58 @@ select is(public.sniper_purge_expired_listings(),2,'Aufbewahrung loescht abgelau
 select ok(to_regclass('public.sniper_watchlist_hits') is null and to_regclass('public.sniper_hits') is null and to_regclass('public.sniper_query_subscriptions') is null,'Tabellen der verworfenen Deal-Erkennung bestehen nicht mehr');
 select ok(not exists(select 1 from pg_proc where pronamespace='public'::regnamespace and proname in ('sniper_evaluate_hits','sniper_evaluate_watchlist_hits','sniper_evaluate_pending_watchlist_hits','sniper_reference_price','create_sniper_subscription','sniper_feed','sniper_feed_by_brand','sniper_feed_filtered')),'Funktionen der verworfenen Deal-Erkennung bestehen nicht mehr');
 select ok(not exists(select 1 from information_schema.columns where table_schema='public' and ((table_name='sniper_listings' and column_name in ('evaluated_at','watchlist_evaluated_at')) or (table_name='sniper_watchlists' and column_name in ('discount_threshold_percent','starts_at','is_active')))),'Bewertungsspalten bestehen nicht mehr');
+
+insert into public.vinted_categories(id,title,slug,path) values
+    (5,'Herren','herren','Herren'), (1904,'Damen','damen','Damen')
+on conflict (id) do nothing;
+insert into public.vinted_categories(id,parent_id,title,slug,path,is_leaf) values
+    (2010000002,5,'Testkleidung','testkleidung','Herren > Testkleidung',false),
+    (2010000003,1904,'Testkleidung','testkleidung','Damen > Testkleidung',false),
+    (2010000004,2010000002,'Testjacken','testjacken','Herren > Testkleidung > Testjacken',true);
+insert into public.sniper_queries(id,query_key,catalog_id) values
+    ('91000000-0000-4000-8000-000000000010','feed-menswear',2010000002),
+    ('91000000-0000-4000-8000-000000000011','feed-womenswear',2010000003);
+insert into public.sniper_listings(external_id,title,url,item_price,total_price,brand,size,catalog_id,discovered_by_query_id) values
+    ('test-men','Herrenfund','https://www.vinted.de/items/4',10,12,'Testmarke','38 / M',null,'91000000-0000-4000-8000-000000000007'),
+    ('test-women','Damenfund','https://www.vinted.de/items/5',10,12,'TESTMARKE','L',null,'91000000-0000-4000-8000-000000000011'),
+    ('test-category','Testjacke','https://www.vinted.de/items/6',10,12,'Testmarke','S',2010000004,'91000000-0000-4000-8000-000000000007'),
+    ('test-unknown','Unbekannte Herkunft','https://www.vinted.de/items/7',10,12,'Testmarke','M',null,'91000000-0000-4000-8000-000000000007');
+insert into public.sniper_query_matches(query_id,listing_id,filter_revision,is_seed)
+select '91000000-0000-4000-8000-000000000010', id, 1, false from public.sniper_listings where external_id='test-men';
+
+set local role authenticated;
+select lives_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Herren und Größe',2010000002,'Testmarke',null,null,null,null,'men',array['m','s'])$$,
+    'Zielgruppe, Elternkategorie und Größen lassen sich zusammen speichern');
+select is((select sizes from public.sniper_watchlists where title='Herren und Größe'),array['m','s'],'Größen für späteres Bearbeiten gespeichert');
+select results_eq($$
+    select item->>'title' from jsonb_array_elements(public.sniper_feed_search(
+        '91000000-0000-4000-8000-000000000003',(select id from public.sniper_watchlists where title='Herren und Größe'),
+        null,null,null,null,null,null,60)->'items') item order by 1
+$$, $$values ('Herrenfund'::text),('Testjacke')$$,
+    'Elternkategorie erfasst bekannte Sammelherkunft und bestätigte Unterkategorie');
+select lives_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Damen und Herren',null,'Testmarke',null,null,null,null,'both',array['l','m'])$$,
+    'Beide Zielgruppen können gespeichert werden');
+select results_eq($$
+    select item->>'title' from jsonb_array_elements(public.sniper_feed_search(
+        '91000000-0000-4000-8000-000000000003',(select id from public.sniper_watchlists where title='Damen und Herren'),
+        null,null,null,null,null,null,60)->'items') item order by 1
+$$, $$values ('Damenfund'::text),('Herrenfund')$$,
+    'Beide Zielgruppen berücksichtigen die gewählten Größen und bekannte Herkunft');
+select lives_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Nur Testjacken',2010000004,'Testmarke',null,null,null,null,'men','{}')$$,
+    'Konkrete Unterkategorie kann gespeichert werden');
+select results_eq($$
+    select item->>'title' from jsonb_array_elements(public.sniper_feed_search(
+        '91000000-0000-4000-8000-000000000003',(select id from public.sniper_watchlists where title='Nur Testjacken'),
+        null,null,null,null,null,null,60)->'items') item
+$$, $$values ('Testjacke'::text)$$, 'Die Sammelherkunft ersetzt keine bestätigte Unterkategorie');
+select throws_ok($$select public.save_sniper_watchlist('91000000-0000-4000-8000-000000000003',null,'Ungültig',null,null,null,null,null,null,'men',array['xyz'])$$,
+    '22023',null,'Unbekannte Größe abgelehnt');
+select is((select count(*) from public.sniper_search_feed_brands('91000000-0000-4000-8000-000000000003','marke')),1::bigint,
+    'Markensuche dedupliziert Namen aus gesammelten Artikeln ohne eigenen Markenauftrag');
+select throws_ok($$select public.sniper_search_feed_brands('91000000-0000-4000-8000-000000000004','marke')$$,
+    '42501',null,'Markensuche ist nur im eigenen Arbeitsbereich verfügbar');
+reset role;
+
 set local role anon;
 select throws_ok($$select public.sniper_feed_search('91000000-0000-4000-8000-000000000003',null,null,null,null,null,null,null,60)$$,'42501',null,'Anonymer Feedzugriff gesperrt');
 select throws_ok('select * from public.sniper_watchlists','42501',null,'Anonyme Merkzettel gesperrt');

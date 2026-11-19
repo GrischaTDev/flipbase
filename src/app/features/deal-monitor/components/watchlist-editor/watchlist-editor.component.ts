@@ -8,15 +8,37 @@ import {
   inject,
   input,
   output,
+  signal,
 } from '@angular/core';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
+import {
+  catchError,
+  debounceTime,
+  distinctUntilChanged,
+  from,
+  map,
+  of,
+  startWith,
+  switchMap,
+} from 'rxjs';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monitor.model';
+import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
+import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
+import { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
+import { vintedCategorySource } from '../../../platform-admin/models/vinted-category-source';
+import { DealMonitorService } from '../../services/deal-monitor.service';
+import {
+  FEED_CLOTHING_SIZES,
+  WATCHLIST_AUDIENCES,
+  Watchlist,
+  WatchlistDraft,
+  watchlistSizeLabels,
+} from '../../models/deal-monitor.model';
 
 @Component({
   selector: 'app-watchlist-editor',
@@ -27,25 +49,32 @@ import { FeedCategory, Watchlist, WatchlistDraft } from '../../models/deal-monit
     NumberInputComponent,
     CustomSelectComponent,
     ButtonComponent,
+    CategoryPickerComponent,
+    AttributePickerComponent,
   ],
   templateUrl: './watchlist-editor.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WatchlistEditorComponent {
+  private readonly api = inject(DealMonitorService);
+  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly watchlist = input<Watchlist | null>(null);
-  readonly categories = input<FeedCategory[]>([]);
+  readonly categories = input<readonly VintedCategory[]>([]);
+  readonly workspaceId = input.required<string>();
   readonly saving = input(false);
   readonly saved = output<WatchlistDraft>();
   readonly cancelled = output<void>();
-  readonly categorySearch = new FormControl('', { nonNullable: true });
-  private readonly search = toSignal(this.categorySearch.valueChanges, { initialValue: '' });
-  private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
+  readonly brandSearchError = signal<string | null>(null);
+  readonly audienceOptions = WATCHLIST_AUDIENCES;
+  readonly sizeOptions = FEED_CLOTHING_SIZES.map((size) => size.label);
   readonly form = new FormGroup({
     title: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.pattern(/\S/), Validators.maxLength(100)],
     }),
-    catalog_id: new FormControl<number | null>(null),
+    catalog_id: new FormControl<string | null>(null),
+    audience: new FormControl<string | null>(null),
+    sizes: new FormControl('', { nonNullable: true }),
     brand: new FormControl('', { nonNullable: true, validators: Validators.maxLength(100) }),
     search_text: new FormControl('', { nonNullable: true, validators: Validators.maxLength(200) }),
     condition: new FormControl('', { nonNullable: true, validators: Validators.maxLength(100) }),
@@ -58,21 +87,28 @@ export class WatchlistEditorComponent {
       Validators.max(9999999999.99),
     ]),
   });
-  private readonly selectedCategory = toSignal(this.form.controls.catalog_id.valueChanges, {
-    initialValue: null,
-  });
-  readonly categoryOptions = computed(() => {
-    const term = this.search().toLocaleLowerCase('de');
-    const matches = this.categories()
-      .filter((c) => c.path.toLocaleLowerCase('de').includes(term))
-      .slice(0, 30);
-    const selected = this.categories().find((c) => c.id === this.selectedCategory());
-    if (selected && !matches.some((c) => c.id === selected.id)) matches.unshift(selected);
-    return [
-      { value: null as number | null, label: 'Alle gesammelten Kategorien' },
-      ...matches.map((c) => ({ value: c.id, label: c.path })),
-    ];
-  });
+  readonly categorySource = computed(() =>
+    vintedCategorySource(this.categories(), { included: [], excluded: [] }),
+  );
+  readonly brandOptions = toSignal(
+    this.form.controls.brand.valueChanges.pipe(
+      startWith(''),
+      map((brand) => brand.trim()),
+      debounceTime(250),
+      distinctUntilChanged(),
+      switchMap((brand) => {
+        this.brandSearchError.set(null);
+        if (brand.length > 100) return of([]);
+        return from(this.api.searchBrands(this.workspaceId(), brand)).pipe(
+          catchError(() => {
+            this.brandSearchError.set('Markenvorschläge konnten nicht geladen werden.');
+            return of([]);
+          }),
+        );
+      }),
+    ),
+    { initialValue: [] },
+  );
   readonly conditionOptions = [
     { value: '', label: 'Alle Zustände' },
     ...['Neu mit Etikett', 'Neu ohne Etikett', 'Sehr gut', 'Gut', 'Zufriedenstellend'].map(
@@ -85,7 +121,9 @@ export class WatchlistEditorComponent {
       const row = this.watchlist();
       this.form.reset({
         title: row?.title ?? '',
-        catalog_id: row?.catalog_id ?? null,
+        catalog_id: row?.catalog_id == null ? null : String(row.catalog_id),
+        audience: row?.audience ?? null,
+        sizes: watchlistSizeLabels(row?.sizes ?? []),
         brand: row?.brand ?? '',
         search_text: row?.search_text ?? '',
         condition: row?.condition ?? '',
@@ -109,6 +147,12 @@ export class WatchlistEditorComponent {
     this.saved.emit({
       ...value,
       id: this.watchlist()?.id ?? null,
+      catalog_id: value.catalog_id === null ? null : Number(value.catalog_id),
+      sizes: value.sizes
+        .split(' · ')
+        .flatMap(
+          (label) => FEED_CLOTHING_SIZES.find((option) => option.label === label)?.value ?? [],
+        ),
     });
   }
 }

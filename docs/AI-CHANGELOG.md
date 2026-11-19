@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Persönliche Suchfilter im Vinted-Feed erweitert
+
+Suchfilter speichern Zielgruppe und mehrere Kleidergrößen. Kategoriebaum und Markensuche verwenden gespeicherte Flipbase-Daten. Eine Sammelzuordnung reicht für den bekannten Kategorieast, konkrete Unterkategorien erfordern eine bestätigte Artikelkategorie.
+
 ## 2026-11-19 - Juna - Trefferzählung im Vinted-Bot beschleunigt
 
 Die Trefferzählung prüft die Kataloggrenze nur für zurückgesetzte Filter. Damit braucht die Adminansicht bei den großen Sammelfiltern weniger Datenbankarbeit und läuft seltener in eine Zeitüberschreitung.
