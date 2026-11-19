@@ -83,6 +83,7 @@ create unique index marketplace_listing_jobs_one_relisting on public.marketplace
 create index marketplace_listing_jobs_workspace on public.marketplace_listing_jobs(workspace_id,created_at desc,id desc);
 create index marketplace_listing_jobs_connection on public.marketplace_listing_jobs(connection_id);
 create index marketplace_listing_jobs_confirmed_draft on public.marketplace_listing_jobs(draft_id) where state='confirmed';
+create index marketplace_listing_jobs_latest_publication on public.marketplace_listing_jobs(draft_id,id desc) where action='publish';
 create index marketplace_listing_jobs_relist_entry on public.marketplace_listing_jobs(relist_entry_id) where relist_entry_id is not null;
 create index marketplace_listing_jobs_permission on public.marketplace_listing_jobs(permission_id);
 create index marketplace_listing_jobs_user on public.marketplace_listing_jobs(requested_by);

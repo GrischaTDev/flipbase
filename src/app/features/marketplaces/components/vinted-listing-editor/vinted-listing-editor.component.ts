@@ -1071,10 +1071,11 @@ export class VintedListingEditorComponent {
     if (this.source() || this.plannedJob()) {
       this.waitingPlan.set(null);
       this.closed.emit();
+      return;
     }
-    setTimeout(() =>
-      this.host?.nativeElement.querySelector<HTMLElement>('[data-review-opener] button')?.focus(),
-    );
+    // Der Entwurf bleibt in der Übersicht sichtbar und zeigt dort den Stand, bis Vinted bestätigt.
+    this.publicationBusy.set(false);
+    void this.router.navigate(['/marketplaces/vinted/listing-drafts']);
   }
   openBrandSelection(): void {
     if (this.canSelectBrand()) this.brandSelectionContext.set(this.context());

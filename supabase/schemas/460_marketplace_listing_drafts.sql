@@ -225,7 +225,10 @@ begin
       if not found then raise exception 'Ungültiger Seitenzeiger.' using errcode='22023'; end if;
     end if;
   end if;
-  select coalesce(jsonb_agg(public.marketplace_listing_draft_document(d) order by d.created_at desc,d.id desc),'[]'::jsonb) into v_rows from (
+  -- Der jüngste Veröffentlichungsauftrag zeigt in der Übersicht, ob ein Entwurf gerade veröffentlicht wird.
+  select coalesce(jsonb_agg(public.marketplace_listing_draft_document(d)||jsonb_build_object('publication',(
+    select public.marketplace_listing_job_document(j) from public.marketplace_listing_jobs j
+    where j.draft_id=d.id and j.action='publish' order by j.id desc limit 1)) order by d.created_at desc,d.id desc),'[]'::jsonb) into v_rows from (
     select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id and deleted_at is null and relist_external_id is null
       -- Ein bei Vinted bestätigter Entwurf ist verbraucht; er bleibt für Aufträge und Verlauf gespeichert.
       and not exists (select 1 from public.marketplace_listing_jobs j where j.draft_id=marketplace_listing_drafts.id and j.state='confirmed')

@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Veröffentlichungsstand in der Entwurfsübersicht
+
+**Anlass:** Nach „Jetzt veröffentlichen“ blieb der Editor offen, und die Entwurfsübersicht zeigte nicht, ob ein Entwurf gerade veröffentlicht wird oder ob es fehlgeschlagen ist. Eine echte Veröffentlichung (Auftrag 69) scheiterte in der Vorprüfung im Schritt `values` ohne Schreibzugriff bei Vinted; das Worker-Protokoll nennt das betroffene Feld nicht, ein lesender Datenbankzugriff wurde nicht freigegeben.
+
+**Änderungen:** `marketplace_list_listing_drafts` liefert je Entwurf den jüngsten Veröffentlichungsauftrag (Migration `20261119090000_vinted_draft_publication_status`, Teilindex je Entwurf). Die Übersicht zeigt den Stand mit den vorhandenen Auftragstexten, bei laufenden Aufträgen mit Ladeanzeige und gesperrtem Löschen, fragt dann alle 5 Sekunden nach und entfernt den Entwurf erst nach Vinteds Bestätigung. Fehlgeschlagene Aufträge bleiben sichtbar markiert. Nach erfolgreicher Beauftragung öffnet der Editor die Übersicht; Relisten und Planbearbeitung schließen wie bisher ihr Modal.
+
+**Prüfung:** Vollständige lokale SQL-Suite auf eigener isolierter Datenbank: 157 Dateien, 5900 Fälle erfolgreich. Neue Komponenten-, Service- und Browsertests; drei bestehende Browsergruppen auf das Schließen des Editors umgestellt (Zählabfragen per `HEAD` gelten dort als Lesen). Weitere Nachweise im PR.
+
 ## 2026-11-18 - Juna - Stabile Vorschau, entspanntere Controls und Mausrad-Steuerung im Vinted-Relisting-Editor
 
 **Auftrag und Grundlage:** Nutzer-Rückmeldung zum neu eingeführten zweispaltigen Vinted-Relisting-Modal auf eigenem Zweig `juna/vinted-relisting-editor-ux-stability` vom aktuellen `origin/master` (`2942c80c`): Beim Bewegen der Bildregler fiel die rechte Vorschau durch `preview.set(null)` auf `"Vorschau wird erstellt …"` zurück und veränderte die Modalhöhe/-breite sprunghaft; zudem war die Beschreibung mit 3 Zeilen im Verhältnis zu viel Leerraum unterhalb der Veröffentlichung zu klein, die 2-spaltigen Schieberegler wirkten gedrängt und es fehlte eine Mausrad-Bedienung auf den Reglern.

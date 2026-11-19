@@ -45,6 +45,54 @@ describe('Vinted-Entwurfservice', () => {
       p_cursor: nextCursor,
     });
   });
+  it('übernimmt den jüngsten Veröffentlichungsauftrag nur für den eigenen Entwurf', async () => {
+    const job = {
+      id: '30',
+      workspaceId: 'workspace-a',
+      connectionId: '25000000-0000-4000-8000-000000000021',
+      draftId: body.id,
+      draftRevision: 1,
+      externalAccountId: '123',
+      executionMode: 'cloud',
+      action: 'publish',
+      state: 'failed',
+      version: 2,
+      scheduledAt: null,
+      timeZone: null,
+      latePolicy: 'pause_after_30_minutes',
+      errorCode: 'provider_unavailable',
+      externalId: null,
+      providerState: null,
+      verifiedAt: null,
+      replacesJobId: null,
+      createdAt: body.createdAt,
+      updatedAt: body.updatedAt,
+    };
+    const rpc = vi
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          items: [
+            { ...body, publication: job },
+            { ...body, id: '7', publication: null },
+          ],
+          nextCursor: null,
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({
+        data: { items: [{ ...body, id: '7', publication: job }], nextCursor: null },
+        error: null,
+      });
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { rpc } } }],
+    });
+    const api = TestBed.inject(VintedListingDraftService);
+    const page = await api.list('workspace-a');
+    expect(page.items[0].publication).toMatchObject({ id: '30', state: 'failed' });
+    expect(page.items[1].publication).toBeNull();
+    await expect(api.list('workspace-a')).rejects.toThrow();
+  });
   it.each([
     { id: body.id, updatedAt: body.updatedAt },
     { id: body.id, createdAt: 'not-a-date' },

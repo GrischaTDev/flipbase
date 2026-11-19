@@ -1080,10 +1080,16 @@ describe('Vinted-Inserateditor', () => {
     expect(component.publication()).toBeNull();
     expect(component.publicationAnnouncement()).toContain('beauftragt');
     expect(component.jobRefresh()).toBe(1);
+    // Der Editor schließt; der Entwurf zeigt den Stand in der Übersicht.
+    expect(TestBed.inject(Router).navigate).toHaveBeenCalledWith([
+      '/marketplaces/vinted/listing-drafts',
+    ]);
+    vi.mocked(TestBed.inject(Router).navigate).mockClear();
     component.openPublication();
     connections.set([{ ...account, externalAccountId: '456' }]);
     component.publicationAccepted(accepted);
     expect(component.jobRefresh()).toBe(1);
+    expect(TestBed.inject(Router).navigate).not.toHaveBeenCalled();
     await settle();
     expect(component.publication()).toBeNull();
   });

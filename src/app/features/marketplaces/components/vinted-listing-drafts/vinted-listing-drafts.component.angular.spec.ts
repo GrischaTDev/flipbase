@@ -9,6 +9,7 @@ import { VintedListingDraftService } from '../../services/vinted-listing-draft.s
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import type { VintedListingJob } from '../../models/vinted-listing-job';
 import { VintedListingDraftsComponent } from './vinted-listing-drafts.component';
 const row: VintedListingDraft = {
   id: '1',
@@ -58,7 +59,67 @@ afterEach(() => {
   vi.useRealTimers();
   TestBed.resetTestingModule();
 });
+const publication = (state: VintedListingJob['state']) =>
+  ({
+    id: '9',
+    workspaceId: 'workspace-a',
+    draftId: row.id,
+    connectionId: 'account-a',
+    draftRevision: row.revision,
+    action: 'publish',
+    state,
+    executionMode: 'cloud',
+    externalAccountId: '123',
+    version: 1,
+    scheduledAt: null,
+    timeZone: null,
+    errorCode: state === 'failed' ? 'provider_unavailable' : null,
+    externalId: null,
+    providerState: null,
+    relistExternalId: null,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }) as unknown as VintedListingJob;
 describe('Vinted-Entwurfsübersicht', () => {
+  it('zeigt eine laufende Veröffentlichung und entfernt den Entwurf erst nach der Bestätigung', async () => {
+    vi.useFakeTimers();
+    const { component, list } = setup();
+    const publishing = { ...row, publication: publication('claimed') };
+    list.mockResolvedValueOnce({ items: [publishing, olderRow], nextCursor: null });
+    await settle();
+    expect(component.publicationStatus(publishing)).toEqual({
+      label: 'Wird vorbereitet',
+      tone: 'info',
+      busy: true,
+    });
+    list.mockResolvedValueOnce({ items: [publishing, olderRow], nextCursor: null });
+    await vi.advanceTimersByTimeAsync(5000);
+    await settle();
+    expect(component.drafts().map((draft) => draft.id)).toEqual(['1', '2']);
+    list.mockResolvedValueOnce({ items: [olderRow], nextCursor: null });
+    await vi.advanceTimersByTimeAsync(5000);
+    await settle();
+    expect(component.drafts().map((draft) => draft.id)).toEqual(['2']);
+    expect(component.announcement()).toBe('Ein Entwurf wurde veröffentlicht.');
+    const calls = list.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(list).toHaveBeenCalledTimes(calls);
+  });
+  it('lässt einen fehlgeschlagenen Entwurf stehen und fragt nicht weiter nach', async () => {
+    vi.useFakeTimers();
+    const { component, list } = setup();
+    const failed = { ...row, publication: publication('failed') };
+    list.mockResolvedValueOnce({ items: [failed], nextCursor: null });
+    await settle();
+    expect(component.publicationStatus(failed)).toEqual({
+      label: 'Vorbereitung bei Vinted fehlgeschlagen',
+      tone: 'critical',
+      busy: false,
+    });
+    await vi.advanceTimersByTimeAsync(15000);
+    expect(list).toHaveBeenCalledTimes(1);
+    expect(component.drafts()).toEqual([failed]);
+  });
   it('loads workspace drafts without a selected account', async () => {
     const { component, list } = setup();
     await settle();

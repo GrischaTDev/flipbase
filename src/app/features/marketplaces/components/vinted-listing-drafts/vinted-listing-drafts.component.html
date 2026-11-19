@@ -90,6 +90,7 @@
           @for (draft of drafts(); track draft.id) {
             @let title = draft.content.title || 'Unbenannter Entwurf';
             @let details = (draft.content.brandLabel + ' ' + draft.content.sizeLabel).trim();
+            @let status = publicationStatus(draft);
             <article class="min-w-0" [attr.data-draft-id]="draft.id">
               <app-card padding="none" contentLayout="fill" class="h-full min-w-0 overflow-hidden">
                 <div
@@ -123,9 +124,16 @@
                           size="listing"
                           [flush]="true"
                         />
-                        <app-badge class="absolute bottom-2 left-2" tone="neutral"
-                          >Entwurf</app-badge
+                        <app-badge
+                          class="absolute bottom-2 left-2"
+                          [tone]="status?.tone ?? 'neutral'"
+                          [attr.data-draft-publication]="status ? draft.publication?.state : null"
                         >
+                          @if (status?.busy) {
+                            <app-loading-indicator class="mr-1" />
+                          }
+                          {{ status?.label ?? 'Entwurf' }}
+                        </app-badge>
                       </div>
                       <div class="p-3">
                         <h2
@@ -200,7 +208,15 @@
                           </p>
                         }
                         <div class="mt-1 flex min-w-0 flex-wrap items-center gap-2">
-                          <app-badge tone="neutral">Entwurf</app-badge>
+                          <app-badge
+                            [tone]="status?.tone ?? 'neutral'"
+                            [attr.data-draft-publication]="status ? draft.publication?.state : null"
+                          >
+                            @if (status?.busy) {
+                              <app-loading-indicator class="mr-1" />
+                            }
+                            {{ status?.label ?? 'Entwurf' }}
+                          </app-badge>
                           @if (draft.content.conditionLabel) {
                             <p class="min-w-0 truncate text-xs text-fb-text-secondary">
                               {{ draft.content.conditionLabel }}
@@ -253,7 +269,7 @@
                       [ariaLabel]="title + ' löschen'"
                       title="Entwurf löschen"
                       [loading]="deletingId() === draft.id"
-                      [disabled]="deletingId() !== null"
+                      [disabled]="deletingId() !== null || !!status?.busy"
                       (clicked)="deleteDraft(draft, $event)"
                     />
                   </div>

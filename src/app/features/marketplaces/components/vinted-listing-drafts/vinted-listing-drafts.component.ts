@@ -27,12 +27,28 @@ import { CustomSearchInputComponent } from '../../../../shared/components/custom
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
+import type { BadgeTone } from '../../../../shared/components/badge/badge.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import {
   VintedListingDraftService,
   type VintedListingDraftCursor,
+  type VintedListingDraftOverview,
 } from '../../services/vinted-listing-draft.service';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import {
+  isVintedListingConfirmationPending,
+  vintedListingJobLabel,
+} from '../../models/vinted-listing-job';
+
+/** Stand des jüngsten Veröffentlichungsauftrags auf der Entwurfskarte. */
+export interface VintedDraftPublicationStatus {
+  readonly label: string;
+  readonly tone: BadgeTone;
+  readonly busy: boolean;
+}
+/** Solange Vinted einen Auftrag bearbeitet, fragt die Übersicht in diesem Abstand neu ab. */
+const publicationRefreshMs = 5000;
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 
 @Component({
@@ -50,6 +66,7 @@ import { VintedListingImageService } from '../../services/vinted-listing-image.s
     ProductThumbnailComponent,
     PageHeaderComponent,
     NoticeBannerComponent,
+    LoadingIndicatorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block min-w-0' },
@@ -84,7 +101,7 @@ export class VintedListingDraftsComponent {
     return scope ? JSON.stringify([scope, this.query()]) : null;
   });
   private readonly loaded = signal<string | null>(null);
-  private readonly rows = signal<readonly VintedListingDraft[]>([]);
+  private readonly rows = signal<readonly VintedListingDraftOverview[]>([]);
   private readonly cursor = signal<VintedListingDraftCursor | null>(null);
   private readonly fetching = signal(false);
   private readonly failure = signal<string | null>(null);
@@ -105,15 +122,50 @@ export class VintedListingDraftsComponent {
   private loadedScope: string | null = null;
   private generation = 0;
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  private refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  private readonly refreshRound = signal(0);
+  /** Ob mindestens ein sichtbarer Entwurf gerade bei Vinted veröffentlicht wird. */
+  private readonly publishing = computed(() =>
+    this.drafts().some((draft) => this.publicationStatus(draft)?.busy),
+  );
   constructor() {
     effect(() => {
       const context = this.context();
       untracked(() => void this.load(context));
     });
+    effect(() => {
+      this.refreshRound();
+      const publishing = this.publishing() && !this.fetching();
+      untracked(() => {
+        if (this.refreshTimer) clearTimeout(this.refreshTimer);
+        this.refreshTimer = publishing
+          ? setTimeout(() => void this.refreshPublications(), publicationRefreshMs)
+          : null;
+      });
+    });
     this.destroyRef.onDestroy(() => {
       this.generation++;
       if (this.searchTimer) clearTimeout(this.searchTimer);
+      if (this.refreshTimer) clearTimeout(this.refreshTimer);
     });
+  }
+  publicationStatus(draft: VintedListingDraftOverview): VintedDraftPublicationStatus | null {
+    const job = draft.publication;
+    if (!job || job.state === 'cancelled') return null;
+    const label = vintedListingJobLabel(job);
+    if (job.state === 'failed') return { label, tone: 'critical', busy: false };
+    if (job.state === 'outcome_unknown')
+      return isVintedListingConfirmationPending(job)
+        ? { label, tone: 'info', busy: true }
+        : { label, tone: 'caution', busy: false };
+    const scheduled =
+      job.state === 'paused' ||
+      (job.state === 'queued' && !!job.scheduledAt && Date.parse(job.scheduledAt) > Date.now());
+    return {
+      label,
+      tone: 'info',
+      busy: !scheduled && ['queued', 'claimed', 'writing'].includes(job.state),
+    };
   }
   setSearch(value: string): void {
     this.search.set(value.slice(0, 160));
@@ -229,6 +281,48 @@ export class VintedListingDraftsComponent {
         );
     } finally {
       if (this.current(generation, context)) this.loadingMore.set(false);
+    }
+  }
+  /**
+   * Aktualisiert den Veröffentlichungsstand ohne Ladeanzeige. Ein Entwurf verschwindet erst,
+   * wenn Vinted die Veröffentlichung bestätigt hat und die erste Seite ihn nicht mehr enthält.
+   */
+  private async refreshPublications(): Promise<void> {
+    this.refreshTimer = null;
+    const context = this.context(),
+      generation = this.generation,
+      workspace = this.workspace.currentWorkspace();
+    if (!context || !workspace || this.loading() || this.loadingMore()) {
+      this.refreshRound.update((round) => round + 1);
+      return;
+    }
+    try {
+      const page = await this.api.list(workspace.id, this.query());
+      if (!this.current(generation, context)) return;
+      const fresh = new Map(page.items.map((row) => [row.id, row]));
+      const oldest = page.items.at(-1)?.createdAt ?? '';
+      const covered = (row: VintedListingDraftOverview) =>
+        page.nextCursor === null || row.createdAt >= oldest;
+      let published = 0;
+      this.rows.update((rows) =>
+        rows.flatMap((row) => {
+          const next = fresh.get(row.id);
+          if (next) return [next];
+          if (this.publicationStatus(row)?.busy && covered(row)) {
+            published++;
+            return [];
+          }
+          return [row];
+        }),
+      );
+      if (published)
+        this.announcement.set(
+          published === 1 ? 'Ein Entwurf wurde veröffentlicht.' : 'Entwürfe wurden veröffentlicht.',
+        );
+    } catch {
+      // Ein einzelner fehlgeschlagener Abruf ändert nichts; der nächste Durchlauf versucht es erneut.
+    } finally {
+      if (this.current(generation, context)) this.refreshRound.update((round) => round + 1);
     }
   }
   private current(generation: number, context: string): boolean {
