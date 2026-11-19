@@ -16,6 +16,7 @@ export interface SearchFilterRunDiagnostics {
   duration_ms: number;
   source_pages: number;
   shared_filter_count: number;
+  baseline_external_id?: string;
 }
 
 export class ListingStore {

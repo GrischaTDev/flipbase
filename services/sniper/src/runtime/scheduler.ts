@@ -111,6 +111,20 @@ export interface ListingStoreLike {
   ): Promise<MarketplaceListing[]>;
 }
 
+function readExternalId(externalId: string): bigint | null {
+  return /^[1-9]\d{0,17}$/.test(externalId) ? BigInt(externalId) : null;
+}
+
+function readCatalogBaseline(externalIds: Iterable<string>): string {
+  let highest = 0n;
+  for (const externalId of externalIds) {
+    const id = readExternalId(externalId);
+    if (id === null) throw new Error('Invalid Vinted listing ID in filter baseline');
+    if (id > highest) highest = id;
+  }
+  return String(highest);
+}
+
 export interface CycleReport {
   polled: number;
   skippedForBudget: number;
@@ -489,6 +503,7 @@ export class QueryScheduler {
     }
     let page = 0;
     const titleMatchesByQuery = new Map<SniperQuery, MarketplaceListing[]>();
+    const resetBaselines = new Map<SniperQuery, string>();
     let pendingCategoryChecks = false;
     let categoryMatchIds: Set<string> | undefined;
     try {
@@ -514,6 +529,12 @@ export class QueryScheduler {
         }
       }
       for (const [query, window] of windows) {
+        if (query.resultsResetAt && query.resetBaselineExternalId == null) {
+          resetBaselines.set(query, readCatalogBaseline(window.received.keys()));
+          continue;
+        }
+        const baseline = query.resetBaselineExternalId ?? null;
+        const minimumExclusive = baseline === null ? null : BigInt(baseline);
         const matches = createTitleKeywordMatcher(
           query.titleKeywords ?? [],
           query.keywordMode ?? 'all',
@@ -521,7 +542,12 @@ export class QueryScheduler {
         );
         titleMatchesByQuery.set(
           query,
-          [...window.received.values()].filter((listing) => matches(listing.title)),
+          [...window.received.values()].filter((listing) => {
+            if (!matches(listing.title)) return false;
+            if (minimumExclusive === null) return true;
+            const externalId = readExternalId(listing.externalId);
+            return externalId !== null && externalId > minimumExclusive;
+          }),
         );
       }
       if (this.deps.collector.verifyCategory && plan.sourceQuery.catalogId !== null) {
@@ -529,11 +555,13 @@ export class QueryScheduler {
         for (const listings of titleMatchesByQuery.values()) {
           for (const listing of listings) candidates.set(listing.externalId, listing);
         }
-        const verified = await this.deps.collector.verifyCategory(plan.sourceQuery, [
-          ...candidates.values(),
-        ]);
-        categoryMatchIds = new Set(verified.listings.map((listing) => listing.externalId));
-        pendingCategoryChecks = verified.hasPendingChecks;
+        if (candidates.size > 0) {
+          const verified = await this.deps.collector.verifyCategory(plan.sourceQuery, [
+            ...candidates.values(),
+          ]);
+          categoryMatchIds = new Set(verified.listings.map((listing) => listing.externalId));
+          pendingCategoryChecks = verified.hasPendingChecks;
+        }
       }
     } catch (error) {
       if (error instanceof RequestBudgetUnavailableError || error instanceof RequestPausedError) {
@@ -567,16 +595,23 @@ export class QueryScheduler {
     const consumers = [...plan.consumers].sort((a, b) => Number(isSeed(a)) - Number(isSeed(b)));
     for (const query of consumers) {
       try {
-        if (pendingCategoryChecks && isSeed(query)) {
+        const resetBaseline = resetBaselines.get(query);
+        if (pendingCategoryChecks && isSeed(query) && resetBaseline === undefined) {
           report.skippedForBudget += 1;
           continue;
         }
         const window = windows.get(query)!;
         const diagnostics: SearchFilterRunDiagnostics = {
-          coverage: pendingCategoryChecks ? 'limited' : window.coverage,
+          coverage:
+            resetBaseline !== undefined
+              ? 'initial'
+              : pendingCategoryChecks
+                ? 'limited'
+                : window.coverage,
           source_pages: window.pages,
           shared_filter_count: plan.consumers.length,
           duration_ms: Math.min(86_400_000, Math.max(0, this.currentTime().getTime() - started)),
+          ...(resetBaseline === undefined ? {} : { baseline_external_id: resetBaseline }),
         };
         const titleMatches = titleMatchesByQuery.get(query) ?? [];
         const completed = await completeRun.call(
@@ -594,7 +629,7 @@ export class QueryScheduler {
           else report.newListings += completed.created;
           // Jede Revision und Teilabfrage behält ihren eigenen bestätigten Stand.
           // Ein schneller anderer Filter kann diesen Ausschnitt nicht vorziehen.
-          if (pendingCategoryChecks) continue;
+          if (pendingCategoryChecks && resetBaseline === undefined) continue;
           this.previousConsumerSourceIds.delete(window.checkpointKey);
           this.previousConsumerSourceIds.set(window.checkpointKey, new Set(window.received.keys()));
           if (this.previousConsumerSourceIds.size > MAX_CONSUMER_SOURCE_WINDOWS)
