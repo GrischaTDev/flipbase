@@ -3,6 +3,7 @@ import type { SniperQuery } from '../domain/query.js';
 import { searchFilterRequest } from '../domain/search-filter-request.js';
 import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
 import { parseVintedCatalogPage } from './catalog-page.js';
+import { comparisonItemUrl } from './comparison-catalog-page.js';
 import { parseVintedComparisonItemPage } from './comparison-item-page.js';
 import { readVintedPage } from './response-body.js';
 import {
@@ -89,7 +90,9 @@ export class VintedCollector {
     const expectedCategory = String(query.catalogId);
     for (const listing of listings) {
       const id = listing.externalId;
-      if (!/^[1-9]\d{0,19}$/.test(id)) continue;
+      // The canonical catalog URL avoids the browser's blocked ID-only redirect.
+      const url = comparisonItemUrl(listing.url, this.options.baseUrl, id);
+      if (!url) continue;
 
       let observation = this.categoryObservations.get(id);
       if (!observation || observation.expiresAt <= Date.now()) {
@@ -98,7 +101,7 @@ export class VintedCollector {
           continue;
         }
         checks += 1;
-        const catalogId = await this.readItemCategory(id, query.id);
+        const catalogId = await this.readItemCategory(url, id, query.id);
         observation = {
           catalogId,
           expiresAt:
@@ -152,8 +155,11 @@ export class VintedCollector {
     }
   }
 
-  private async readItemCategory(externalId: string, queryId: string): Promise<string | null> {
-    const url = new URL(`/items/${externalId}`, this.options.baseUrl);
+  private async readItemCategory(
+    url: URL,
+    externalId: string,
+    queryId: string,
+  ): Promise<string | null> {
     try {
       const response = await this.request(url, queryId, false);
       const body = await readVintedPage(response);

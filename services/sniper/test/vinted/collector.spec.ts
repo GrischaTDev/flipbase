@@ -55,7 +55,14 @@ describe('VintedCollector', () => {
       undefined,
       { isLeaf: async (id: number) => id === 1858, hasCapacity: () => true },
     );
-    const listings = [catalogListing('1001'), catalogListing('1002')];
+    const listings = [
+      {
+        ...catalogListing('1001'),
+        url: 'https://www.vinted.de/items/1001-carhartt-fleece?ref=feed',
+      },
+      { ...catalogListing('1002'), url: 'https://www.vinted.de/items/1002-carhartt-active-jacket' },
+      { ...catalogListing('1003'), url: 'https://other.invalid/items/1003-carhartt' },
+    ];
     const fleece = { ...query, catalogId: 1858, priceTo: null };
     const clothing = { ...query, catalogId: 2050, priceTo: null };
 
@@ -63,9 +70,9 @@ describe('VintedCollector', () => {
     expect(fetchFn).not.toHaveBeenCalled();
     expect((await collector.verifyCategory(fleece, listings)).listings).toEqual([listings[0]]);
     expect((await collector.verifyCategory(fleece, listings)).listings).toEqual([listings[0]]);
-    expect(fetchFn.mock.calls.map(([url]) => (url as URL).pathname)).toEqual([
-      '/items/1001',
-      '/items/1002',
+    expect(fetchFn.mock.calls.map(([url]) => String(url))).toEqual([
+      'https://www.vinted.de/items/1001-carhartt-fleece',
+      'https://www.vinted.de/items/1002-carhartt-active-jacket',
     ]);
   });
 
