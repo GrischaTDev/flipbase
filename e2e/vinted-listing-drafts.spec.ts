@@ -1170,7 +1170,9 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
   expect(state.enqueues[0]['p_scheduled_at']).toBeUndefined();
   expect(state.approvals).toHaveLength(1);
   expect(state.jobs).toHaveLength(1);
-  await expect(page.locator('[data-publication-result]')).toContainText('beauftragt');
+  await expect(page).toHaveURL(/\/marketplaces\/vinted\/listing-drafts$/);
+  const draft = page.getByRole('link', { name: /Meine Jako-Jacke/ });
+  await expect(draft.locator('[data-draft-publication]')).toHaveText('Veröffentlichung beauftragt');
   await expect(page.locator('app-vinted-listing-job-panel')).toHaveCount(0);
 });
 
