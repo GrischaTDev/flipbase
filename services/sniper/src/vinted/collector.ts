@@ -3,6 +3,7 @@ import type { SniperQuery } from '../domain/query.js';
 import { searchFilterRequest } from '../domain/search-filter-request.js';
 import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
 import { parseVintedCatalogPage } from './catalog-page.js';
+import { parseVintedComparisonItemPage } from './comparison-item-page.js';
 import { readVintedPage } from './response-body.js';
 import {
   ForbiddenError,
@@ -16,18 +17,39 @@ import {
 } from './errors.js';
 import { normalizeVintedItem } from './normalizer.js';
 import type { VintedConnectionState } from '../runtime/vinted-connection-state.js';
+import { RequestBudgetUnavailableError } from '../runtime/budget.js';
 import { sleep, type FetchLike, type SessionOptions, type Sleep } from './session.js';
 
 const CATALOG_PATH = '/catalog';
 const PER_PAGE = '96';
 const RETRY_DELAYS_MS = [500, 1000] as const;
+const MAX_DETAIL_CHECKS_PER_RUN = 2;
+const MAX_CATEGORY_OBSERVATIONS = 2_000;
+const CATEGORY_OBSERVATION_MS = 60 * 60_000;
+const MISSING_CATEGORY_OBSERVATION_MS = 60_000;
+
+interface CategoryVerification {
+  isLeaf(catalogId: number): Promise<boolean>;
+  hasCapacity(): boolean;
+}
+
+export interface CategoryVerificationResult {
+  listings: MarketplaceListing[];
+  hasPendingChecks: boolean;
+}
 
 export class VintedCollector {
+  private readonly categoryObservations = new Map<
+    string,
+    { catalogId: string | null; expiresAt: number }
+  >();
+
   constructor(
     private readonly options: SessionOptions,
     private readonly fetchFn: FetchLike,
     private readonly sleepFn: Sleep = sleep,
     private readonly connectionState?: VintedConnectionState,
+    private readonly categoryVerification?: CategoryVerification,
   ) {}
 
   async collect(
@@ -39,9 +61,60 @@ export class VintedCollector {
       query.keywordMode ?? 'all',
       query.excludedTitleKeywords ?? [],
     );
-    return (await this.collectSource(query, options)).filter((listing) =>
+    const titleMatchesListings = (await this.collectSource(query, options)).filter((listing) =>
       titleMatches(listing.title),
     );
+    const verified = await this.verifyCategory(query, titleMatchesListings);
+    if (verified.hasPendingChecks && !query.isSeeded) throw new RequestBudgetUnavailableError();
+    return verified.listings;
+  }
+
+  async verifyCategory(
+    query: SniperQuery,
+    listings: MarketplaceListing[],
+  ): Promise<CategoryVerificationResult> {
+    const verification = this.categoryVerification;
+    if (
+      !verification ||
+      query.catalogId === null ||
+      listings.length === 0 ||
+      !(await verification.isLeaf(query.catalogId))
+    ) {
+      return { listings, hasPendingChecks: false };
+    }
+
+    const verifiedListings: MarketplaceListing[] = [];
+    let checks = 0;
+    let hasPendingChecks = false;
+    const expectedCategory = String(query.catalogId);
+    for (const listing of listings) {
+      const id = listing.externalId;
+      if (!/^[1-9]\d{0,19}$/.test(id)) continue;
+
+      let observation = this.categoryObservations.get(id);
+      if (!observation || observation.expiresAt <= Date.now()) {
+        if (checks >= MAX_DETAIL_CHECKS_PER_RUN || !verification.hasCapacity()) {
+          hasPendingChecks = true;
+          continue;
+        }
+        checks += 1;
+        const catalogId = await this.readItemCategory(id, query.id);
+        observation = {
+          catalogId,
+          expiresAt:
+            Date.now() +
+            (catalogId === null ? MISSING_CATEGORY_OBSERVATION_MS : CATEGORY_OBSERVATION_MS),
+        };
+        this.categoryObservations.delete(id);
+        this.categoryObservations.set(id, observation);
+        if (this.categoryObservations.size > MAX_CATEGORY_OBSERVATIONS) {
+          const oldestId = this.categoryObservations.keys().next().value;
+          if (oldestId !== undefined) this.categoryObservations.delete(oldestId);
+        }
+      }
+      if (observation.catalogId === expectedCategory) verifiedListings.push(listing);
+    }
+    return { listings: verifiedListings, hasPendingChecks };
   }
 
   /** Ungefilterte Quellantwort; jeder fachliche Empfänger prüft seine Titelregeln selbst. */
@@ -55,20 +128,7 @@ export class VintedCollector {
       const response = await this.request(url, query.id, options.allowRetries ?? true);
       const body = await readVintedPage(response);
 
-      // Challenge-Erkennung: Cloudflare oder Datadome kann bei HTTP 200 eine Challenge-Seite ausliefern
-      if (
-        response.headers.get('cf-mitigated') === 'challenge' ||
-        body.includes('challenge-running') ||
-        body.includes('<title>Just a moment...</title>')
-      ) {
-        throw new ForbiddenError('Vinted access challenge detected', {
-          status: response.status,
-          phase: 'body',
-          queryId: query.id,
-          challengeDetected: true,
-          retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
-        });
-      }
+      assertNoVintedChallenge(response, body, query.id);
 
       let listings: MarketplaceListing[];
       try {
@@ -88,6 +148,22 @@ export class VintedCollector {
       return listings;
     } catch (error) {
       this.connectionState?.recordFailure();
+      throw error;
+    }
+  }
+
+  private async readItemCategory(externalId: string, queryId: string): Promise<string | null> {
+    const url = new URL(`/items/${externalId}`, this.options.baseUrl);
+    try {
+      const response = await this.request(url, queryId, false);
+      const body = await readVintedPage(response);
+      assertNoVintedChallenge(response, body, queryId);
+      return parseVintedComparisonItemPage(body, externalId, new Date()).categoryId;
+    } catch (error) {
+      // A removed item can still appear in the catalog briefly.
+      if (error instanceof VintedHttpError && (error.status === 404 || error.status === 410)) {
+        return null;
+      }
       throw error;
     }
   }
@@ -150,6 +226,22 @@ export class VintedCollector {
 
       return response;
     }
+  }
+}
+
+function assertNoVintedChallenge(response: Response, body: string, queryId: string): void {
+  if (
+    response.headers.get('cf-mitigated') === 'challenge' ||
+    body.includes('challenge-running') ||
+    body.includes('<title>Just a moment...</title>')
+  ) {
+    throw new ForbiddenError('Vinted access challenge detected', {
+      status: response.status,
+      phase: 'body',
+      queryId,
+      challengeDetected: true,
+      retryAfterSeconds: parseRetryAfter(response.headers.get('retry-after')),
+    });
   }
 }
 
