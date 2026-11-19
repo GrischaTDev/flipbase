@@ -6,6 +6,8 @@ Jede Feed-Suche kann Zielgruppe, Größen, Marke und Kategorie direkt auf dem ge
 
 Der Browser-Test für den erneut geprüften Vinted-Inseratauftrag erwartet die Bestätigung in der Entwurfsübersicht, die sich nach der Beauftragung öffnet.
 
+Der PWA-Pflichtjob erhält mehr Zeit für die Runner-Einrichtung. Der Download der Ubuntu-Pakete beanspruchte in zwei Läufen fast die gesamte Job-Laufzeit. Die PWA-Prüfung behält eine eigene Grenze von 15 Minuten.
+
 ## 2026-11-19 - Juna - Versandschein bei DHL anfordern
 
 **Anlass:** „Versandschein abrufen“ für einen DHL-Verkauf von Wiehen Store scheiterte (Aufträge 73 und 93, `label_choice_required`). Vinteds `label_options` lieferte einen Abgabeweg `point` mit drei Abgabeorten (Packstation, Paketshop, Postfiliale), alle nur `digital`. Flipbase zählte die Abgabeorte als Auswahl und brach ab. Im Seitencode von Vinted ist zu sehen, dass die Anforderung nur den Typ des Abgabewegs (`point`/`home` oder `null`) sendet, keinen Abgabeort.
