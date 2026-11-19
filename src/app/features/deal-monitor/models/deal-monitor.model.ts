@@ -44,6 +44,9 @@ export interface FeedRequest {
   size: string | null;
   minPrice: number | null;
   maxPrice: number | null;
+  sizes?: string[];
+  categoryId?: number | null;
+  audience?: string | null;
   titleQuery?: string;
   cursor?: { time: string; id: string };
 }
@@ -68,6 +71,12 @@ export function watchlistSizeLabels(sizes: readonly string[]): string {
   return sizes
     .flatMap((size) => FEED_CLOTHING_SIZES.find((option) => option.value === size)?.label ?? [])
     .join(' · ');
+}
+
+export function feedSizeValues(selection: string): string[] {
+  return selection
+    .split(' · ')
+    .flatMap((label) => FEED_CLOTHING_SIZES.find((option) => option.label === label)?.value ?? []);
 }
 
 export function safeVintedLink(value: string): string | null {

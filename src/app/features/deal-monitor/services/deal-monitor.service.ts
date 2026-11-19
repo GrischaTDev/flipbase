@@ -63,6 +63,9 @@ export class DealMonitorService {
       p_before_id: (request.cursor?.id ?? null)!,
       p_limit: 60,
       p_title_query: request.titleQuery ?? '',
+      p_catalog_id: (request.categoryId ?? null)!,
+      p_audience: (request.audience ?? null)!,
+      p_sizes: request.sizes ?? [],
     });
     if (error) throw new Error('Artikel konnten nicht geladen werden. Bitte erneut versuchen.');
     if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data['items']))

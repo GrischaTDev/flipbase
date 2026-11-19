@@ -61,7 +61,11 @@ $$;
 revoke all on function public.sniper_listing_has_source(uuid,uuid,uuid[]) from public, anon, authenticated;
 grant execute on function public.sniper_listing_has_source(uuid,uuid,uuid[]) to service_role;
 
-create or replace function public.sniper_feed_search(p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric, p_max_price numeric, p_before_time timestamp with time zone, p_before_id uuid, p_limit integer, p_title_query text default '')
+create or replace function public.sniper_feed_search(
+    p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric,
+    p_max_price numeric, p_before_time timestamptz, p_before_id uuid, p_limit integer,
+    p_title_query text, p_catalog_id integer, p_audience text, p_sizes text[]
+)
 returns jsonb language plpgsql stable security definer set search_path = '' as $function$
 declare
     v_watchlist public.sniper_watchlists;
@@ -69,6 +73,7 @@ declare
     v_covered boolean;
     v_reported_at timestamptz;
     v_audience_roots integer[];
+    v_saved_audience_roots integer[];
     v_category_ids integer[];
     v_audience_ids integer[];
     v_category_sources uuid[];
@@ -90,6 +95,13 @@ begin
     if p_size is not null and p_size not in ('xs', 's', 'm', 'l', 'xl', 'xxl', '3xl') then
         raise exception 'Ungueltige Groesse.' using errcode = '22023';
     end if;
+    if p_sizes is null or cardinality(p_sizes) > 7
+       or not p_sizes <@ array['xs', 's', 'm', 'l', 'xl', 'xxl', '3xl'] then
+        raise exception 'Ungültige Größe.' using errcode = '22023';
+    end if;
+    if p_audience not in ('women', 'men', 'both') then
+        raise exception 'Ungültige Zielgruppe.' using errcode = '22023';
+    end if;
     if p_min_price::text in ('NaN', 'Infinity', '-Infinity')
         or p_max_price::text in ('NaN', 'Infinity', '-Infinity')
         or p_min_price < 0 or p_max_price < 0 or p_min_price > p_max_price then
@@ -100,22 +112,36 @@ begin
         where id = p_watchlist_id and workspace_id = p_workspace_id;
         if not found then raise exception 'Merkzettel nicht gefunden.' using errcode = '42501'; end if;
     end if;
-    if v_watchlist.catalog_id is not null or v_watchlist.audience is not null then
+    if v_watchlist.catalog_id is not null or v_watchlist.audience is not null
+        or p_catalog_id is not null or p_audience is not null then
         -- Die Vinted-Wurzelkennungen gehören zur Taxonomie, unabhängig von der Anzeigesprache.
-        v_audience_roots := case v_watchlist.audience
+        v_audience_roots := case p_audience
+            when 'women' then array[1904] when 'men' then array[5] when 'both' then array[1904, 5]
+        end;
+        v_saved_audience_roots := case v_watchlist.audience
             when 'women' then array[1904] when 'men' then array[5] when 'both' then array[1904, 5]
         end;
         with recursive branches(root_id, id) as (
             select root.id, root.id
-            from unnest(array_append(coalesce(v_audience_roots, '{}'), v_watchlist.catalog_id)) as root(id)
+            from unnest(array[p_catalog_id, v_watchlist.catalog_id]
+                || v_audience_roots || v_saved_audience_roots) as root(id)
             where root.id is not null
             union
             select branch.root_id, child.id
             from branches as branch join public.vinted_categories as child on child.parent_id = branch.id
         )
-        select array_agg(id) filter (where root_id = v_watchlist.catalog_id),
-            array_agg(distinct id) filter (where root_id = any(v_audience_roots))
-        into v_category_ids, v_audience_ids from branches;
+        select
+            case when p_catalog_id is not null or v_watchlist.catalog_id is not null then array(
+                select id from branches group by id
+                having (p_catalog_id is null or bool_or(root_id = p_catalog_id))
+                    and (v_watchlist.catalog_id is null or bool_or(root_id = v_watchlist.catalog_id))
+            ) end,
+            case when v_audience_roots is not null or v_saved_audience_roots is not null then array(
+                select id from branches group by id
+                having (v_audience_roots is null or bool_or(root_id = any(v_audience_roots)))
+                    and (v_saved_audience_roots is null or bool_or(root_id = any(v_saved_audience_roots)))
+            ) end
+        into v_category_ids, v_audience_ids;
 
         -- Eine Sammelzuordnung belegt den abgefragten Zweig. Eine Blattkategorie
         -- darf nur aus der bestätigten Artikelkategorie stammen.
@@ -139,6 +165,9 @@ begin
             and (nullif(btrim(p_title_query), '') is null or to_tsvector('simple', coalesce(listing.title,'')) @@ plainto_tsquery('simple', p_title_query))
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
             and (p_size is null or public.sniper_feed_matches_size(listing.size, p_size))
+            and (cardinality(p_sizes) = 0 or exists (
+                select 1 from unnest(p_sizes) as size
+                where public.sniper_feed_matches_size(listing.size, size)))
             and (p_min_price is null or listing.item_price >= p_min_price)
             and (p_max_price is null or listing.item_price <= p_max_price)
             and ((p_min_price is null and p_max_price is null) or listing.currency = 'EUR')
@@ -149,6 +178,11 @@ begin
                 or (listing.catalog_id is null and cardinality(v_audience_sources) > 0
                     and public.sniper_listing_has_source(listing.id, listing.discovered_by_query_id, v_audience_sources)))
             and (p_watchlist_id is null or public.sniper_watchlist_matches_criteria(v_watchlist, listing))
+            and (p_catalog_id is null or v_watchlist.catalog_id is not null or not exists (
+                select 1 from public.sniper_queries source
+                where source.id = listing.catalog_source_query_id and source.results_reset_at is not null
+                  and not public.sniper_listing_after_reset(listing.external_id, listing.first_seen_at,
+                      source.results_reset_at, source.reset_baseline_external_id)))
         order by listing.first_seen_at desc, listing.id desc limit p_limit
     ) as page;
     select exists(select 1 from public.sniper_queries as query where query.is_active
@@ -158,6 +192,14 @@ begin
     select reported_at into v_reported_at from public.sniper_runtime_status where id = 1;
     return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
 end;
+$function$;
+revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[]) from public, anon;
+grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[]) to authenticated;
+
+create or replace function public.sniper_feed_search(p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric, p_max_price numeric, p_before_time timestamptz, p_before_id uuid, p_limit integer, p_title_query text default '')
+returns jsonb language sql stable security definer set search_path = '' as $function$
+    select public.sniper_feed_search(p_workspace_id, p_watchlist_id, p_brand, p_size, p_min_price,
+        p_max_price, p_before_time, p_before_id, p_limit, p_title_query, null, null, '{}'::text[]);
 $function$;
 revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text) from public, anon;
 grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text) to authenticated;

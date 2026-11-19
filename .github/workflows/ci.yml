@@ -622,7 +622,8 @@ jobs:
     needs: changes
     if: ${{ needs.changes.outputs.pwa_required == 'true' && needs.changes.outputs.tests_reused != 'true' }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    # Langsame Ubuntu-Paketdownloads sollen die PWA-Tests nicht vorzeitig abbrechen.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -653,6 +654,7 @@ jobs:
       - run: npm ci
       - run: npx playwright install --with-deps chromium webkit
       - name: Test production PWA and offline drafts
+        timeout-minutes: 15
         run: node scripts/ci-checks.mjs pwa
       - name: Retain PWA failure diagnostics
         if: ${{ failure() || cancelled() }}
