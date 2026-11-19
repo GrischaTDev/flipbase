@@ -1,4 +1,5 @@
 import type { MarketplaceListing } from '../domain/listing.js';
+import type { CategoryVerificationResult } from '../vinted/collector.js';
 import type { QueryStatus, SniperQuery } from '../domain/query.js';
 import type { Logger } from '../log.js';
 import type { OriginState } from '../store/origin-state.store.js';
@@ -92,6 +93,10 @@ class InMemoryOriginStateStore implements OriginStateStoreLike {
 export interface CollectorLike {
   collect(query: SniperQuery): Promise<MarketplaceListing[]>;
   collectSource?(query: SniperQuery, options?: { page?: number }): Promise<MarketplaceListing[]>;
+  verifyCategory?(
+    query: SniperQuery,
+    listings: MarketplaceListing[],
+  ): Promise<CategoryVerificationResult>;
 }
 
 export interface ListingStoreLike {
@@ -483,6 +488,9 @@ export class QueryScheduler {
       });
     }
     let page = 0;
+    const titleMatchesByQuery = new Map<SniperQuery, MarketplaceListing[]>();
+    let pendingCategoryChecks = false;
+    let categoryMatchIds: Set<string> | undefined;
     try {
       if (plan.validationError) throw plan.validationError;
       let more = true;
@@ -504,6 +512,28 @@ export class QueryScheduler {
         if (needsCatchup && !more) {
           for (const window of windows.values()) if (window.needsMore) window.coverage = 'limited';
         }
+      }
+      for (const [query, window] of windows) {
+        const matches = createTitleKeywordMatcher(
+          query.titleKeywords ?? [],
+          query.keywordMode ?? 'all',
+          query.excludedTitleKeywords ?? [],
+        );
+        titleMatchesByQuery.set(
+          query,
+          [...window.received.values()].filter((listing) => matches(listing.title)),
+        );
+      }
+      if (this.deps.collector.verifyCategory && plan.sourceQuery.catalogId !== null) {
+        const candidates = new Map<string, MarketplaceListing>();
+        for (const listings of titleMatchesByQuery.values()) {
+          for (const listing of listings) candidates.set(listing.externalId, listing);
+        }
+        const verified = await this.deps.collector.verifyCategory(plan.sourceQuery, [
+          ...candidates.values(),
+        ]);
+        categoryMatchIds = new Set(verified.listings.map((listing) => listing.externalId));
+        pendingCategoryChecks = verified.hasPendingChecks;
       }
     } catch (error) {
       if (error instanceof RequestBudgetUnavailableError || error instanceof RequestPausedError) {
@@ -537,21 +567,23 @@ export class QueryScheduler {
     const consumers = [...plan.consumers].sort((a, b) => Number(isSeed(a)) - Number(isSeed(b)));
     for (const query of consumers) {
       try {
+        if (pendingCategoryChecks && isSeed(query)) {
+          report.skippedForBudget += 1;
+          continue;
+        }
         const window = windows.get(query)!;
         const diagnostics: SearchFilterRunDiagnostics = {
-          coverage: window.coverage,
+          coverage: pendingCategoryChecks ? 'limited' : window.coverage,
           source_pages: window.pages,
           shared_filter_count: plan.consumers.length,
           duration_ms: Math.min(86_400_000, Math.max(0, this.currentTime().getTime() - started)),
         };
-        const matches = createTitleKeywordMatcher(
-          query.titleKeywords ?? [],
-          query.keywordMode ?? 'all',
-          query.excludedTitleKeywords ?? [],
-        );
+        const titleMatches = titleMatchesByQuery.get(query) ?? [];
         const completed = await completeRun.call(
           this.deps.listings,
-          [...window.received.values()].filter((listing) => matches(listing.title)),
+          categoryMatchIds
+            ? titleMatches.filter((listing) => categoryMatchIds.has(listing.externalId))
+            : titleMatches,
           query,
           diagnostics,
         );
@@ -562,6 +594,7 @@ export class QueryScheduler {
           else report.newListings += completed.created;
           // Jede Revision und Teilabfrage behält ihren eigenen bestätigten Stand.
           // Ein schneller anderer Filter kann diesen Ausschnitt nicht vorziehen.
+          if (pendingCategoryChecks) continue;
           this.previousConsumerSourceIds.delete(window.checkpointKey);
           this.previousConsumerSourceIds.set(window.checkpointKey, new Set(window.received.keys()));
           if (this.previousConsumerSourceIds.size > MAX_CONSUMER_SOURCE_WINDOWS)

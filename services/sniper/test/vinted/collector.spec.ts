@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { VintedCollector } from '../../src/vinted/collector.js';
 import { ForbiddenError, RateLimitedError } from '../../src/vinted/errors.js';
 import type { SniperQuery } from '../../src/domain/query.js';
-import { catalogPage } from './support/catalog-page.js';
+import { catalogPage, itemCategoryPage } from './support/catalog-page.js';
+import { catalogListing } from '../support/search-filter.js';
 
 const query: SniperQuery = {
   id: 'q1',
@@ -42,6 +43,32 @@ function build(fetchFn: ReturnType<typeof vi.fn>) {
 }
 
 describe('VintedCollector', () => {
+  it('verifies a leaf category against the item itself and reuses recent observations', async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce(itemCategoryPage(1001, 1858))
+      .mockResolvedValueOnce(itemCategoryPage(1002, 2535));
+    const collector = new VintedCollector(
+      { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent' },
+      fetchFn,
+      undefined,
+      undefined,
+      { isLeaf: async (id: number) => id === 1858, hasCapacity: () => true },
+    );
+    const listings = [catalogListing('1001'), catalogListing('1002')];
+    const fleece = { ...query, catalogId: 1858, priceTo: null };
+    const clothing = { ...query, catalogId: 2050, priceTo: null };
+
+    expect((await collector.verifyCategory(clothing, listings)).listings).toEqual(listings);
+    expect(fetchFn).not.toHaveBeenCalled();
+    expect((await collector.verifyCategory(fleece, listings)).listings).toEqual([listings[0]]);
+    expect((await collector.verifyCategory(fleece, listings)).listings).toEqual([listings[0]]);
+    expect(fetchFn.mock.calls.map(([url]) => (url as URL).pathname)).toEqual([
+      '/items/1001',
+      '/items/1002',
+    ]);
+  });
+
   it('returns the raw source before applying each filter’s exclusions', async () => {
     const fetchFn = vi.fn().mockImplementation(async () => catalog());
     const filter = { ...query, titleKeywords: ['Nike'], excludedTitleKeywords: ['Air Max'] };

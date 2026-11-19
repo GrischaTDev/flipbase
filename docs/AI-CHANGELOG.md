@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-19 - Juna - Vinted-Bot prüft konkrete Artikelkategorien
+
+Vinted lieferte im Carhartt-Fleecejackenfilter auch eine Utility-Jacke. Der Bot gleicht die Kategorie für Filter auf eine konkrete Unterkategorie mit der Artikelseite ab, bevor er Treffer zuordnet. Die Sammelfilter für Damen- und Herrenkleidung verwenden weiterhin den Katalogabruf.
+
 ## 2026-11-18 - Juna - Stabile Vorschau, entspanntere Controls und Mausrad-Steuerung im Vinted-Relisting-Editor
 
 **Auftrag und Grundlage:** Nutzer-Rückmeldung zum neu eingeführten zweispaltigen Vinted-Relisting-Modal auf eigenem Zweig `juna/vinted-relisting-editor-ux-stability` vom aktuellen `origin/master` (`2942c80c`): Beim Bewegen der Bildregler fiel die rechte Vorschau durch `preview.set(null)` auf `"Vorschau wird erstellt …"` zurück und veränderte die Modalhöhe/-breite sprunghaft; zudem war die Beschreibung mit 3 Zeilen im Verhältnis zu viel Leerraum unterhalb der Veröffentlichung zu klein, die 2-spaltigen Schieberegler wirkten gedrängt und es fehlte eine Mausrad-Bedienung auf den Reglern.
