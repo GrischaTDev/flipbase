@@ -172,6 +172,62 @@ test('nimmt den digitalen Schein nur, wenn Vinted keinen druckfertigen anbietet'
   );
 });
 
+// Gemessene Antwortform eines DHL-Verkaufs vom 19.11.2026: ein Abgabeweg mit drei Abgabeorten.
+test('fordert bei DHL den QR-Schein an, obwohl Vinted mehrere Abgabeorte nennt', async () => {
+  const place = (type: string, name: string) => ({
+    type,
+    name,
+    label_types: ['digital'],
+    printer_requirement: 'printer_not_required',
+  });
+  const { adapter, calls } = vinted({
+    options: {
+      carrier: { name: 'DHL DE' },
+      sender: { phone_number: '+49000000000', phone_number_requirement: 'optional' },
+      drop_offs: [
+        {
+          type: 'point',
+          provides_nearby_drop_off_points: true,
+          options: [
+            place('locker', 'Packstation and Paketbox'),
+            place('parcel_shop', 'DHL Paketshop'),
+            place('post_office', 'Postfiliale'),
+          ],
+        },
+      ],
+    },
+  });
+  const result = await executeVintedShippingLabel(
+    adapter,
+    '46984021',
+    '500969788562',
+    '24052549356',
+  );
+  assert.equal(result.outcome, 'ready');
+  assert.equal(result.labelType, 'digital');
+  assert.equal(result.carrierName, 'DHL DE');
+  assert.deepEqual(
+    calls.filter((call) => call.method === 'PUT').map((call) => call.body),
+    [{ seller_address_id: 777, drop_off_type: null, label_type: 'digital' }],
+  );
+});
+
+test('wählt den Druckschein, wenn ihn mindestens ein Abgabeort anbietet', async () => {
+  const { adapter } = vinted({
+    options: {
+      sender: { phone_number_requirement: 'optional' },
+      drop_offs: [
+        {
+          type: 'point',
+          options: [{ label_types: ['digital'] }, { label_types: ['digital', 'printable'] }],
+        },
+      ],
+    },
+  });
+  const result = await executeVintedShippingLabel(adapter, '1', '500969788562', '24052549356');
+  assert.equal(result.labelType, 'printable');
+});
+
 test('holt einen bereits angeforderten Schein ohne erneute Anforderung', async () => {
   const { adapter, calls, authorized } = vinted({
     actions: ['send_shipping_label', 'track_shipment'],
@@ -227,7 +283,8 @@ test('fordert nichts an, wenn Auswahl, Adresse oder Telefonnummer unklar sind', 
       {
         options: {
           drop_offs: [
-            { options: [{ label_types: ['printable'] }, { label_types: ['printable'] }] },
+            { type: 'point', options: [{ label_types: ['printable'] }] },
+            { type: 'home', options: [{ label_types: ['printable'] }] },
           ],
         },
       },
