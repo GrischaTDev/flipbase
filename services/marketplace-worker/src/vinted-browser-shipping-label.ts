@@ -109,15 +109,18 @@ export async function executeVintedShippingLabel(
       if (readOnly) return result('pending', { shipmentId });
       const optionsResponse = await adapter.read(`/api/v2/shipments/${shipmentId}/label_options`);
       const options = record(record(optionsResponse)['label_options']);
-      const dropOffs = (Array.isArray(options['drop_offs']) ? options['drop_offs'] : []).flatMap(
-        (dropOff) => {
-          const choices = record(dropOff)['options'];
-          return Array.isArray(choices) ? choices.map(record) : [];
-        },
-      );
-      // Mehrere Abgabewege brauchen eine Auswahl, die Flipbase noch nicht abfragt.
+      const dropOffs = Array.isArray(options['drop_offs']) ? options['drop_offs'].map(record) : [];
+      // Mehrere Abgabewege (z. B. Abgabestelle und Abholung zu Hause) brauchen eine Auswahl,
+      // die Flipbase noch nicht abfragt. Die Optionen innerhalb eines Abgabewegs (bei DHL
+      // Packstation, Paketshop, Postfiliale; gemessen am 19.11.2026) sind nur Abgabeorte:
+      // Vinteds eigene Seite sendet sie nicht mit, sondern höchstens den Typ des Abgabewegs.
       if (dropOffs.length !== 1) return result('failed', { errorCode: 'label_choice_required' });
-      const types = Array.isArray(dropOffs[0]!['label_types']) ? dropOffs[0]!['label_types'] : [];
+      const choices = Array.isArray(dropOffs[0]!['options'])
+        ? (dropOffs[0]!['options'] as unknown[]).map(record)
+        : [];
+      const types = choices.flatMap((choice) =>
+        Array.isArray(choice['label_types']) ? (choice['label_types'] as unknown[]) : [],
+      );
       // Gewünscht: wann immer möglich den druckfertigen Schein, sonst den digitalen QR-Code.
       labelType = types.includes('printable')
         ? 'printable'
