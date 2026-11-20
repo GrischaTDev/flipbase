@@ -15036,6 +15036,12 @@ export type Database = {
         }
         Returns: Json
       }
+      sniper_feed_categories: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          catalog_id: number
+        }[]
+      }
       sniper_feed_matches_size: {
         Args: { p_filter_size: string; p_listing_size: string }
         Returns: boolean

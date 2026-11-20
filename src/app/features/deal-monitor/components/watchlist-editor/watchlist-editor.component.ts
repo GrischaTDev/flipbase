@@ -30,7 +30,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
-import { vintedCategorySource } from '../../../platform-admin/models/vinted-category-source';
+import { collectedCategorySource } from '../../models/collected-category-source';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import {
   FEED_CLOTHING_SIZES,
@@ -61,6 +61,7 @@ export class WatchlistEditorComponent {
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef);
   readonly watchlist = input<Watchlist | null>(null);
   readonly categories = input<readonly VintedCategory[]>([]);
+  readonly collectedCategoryIds = input<readonly number[]>([]);
   readonly workspaceId = input.required<string>();
   readonly saving = input(false);
   readonly saved = output<WatchlistDraft>();
@@ -90,7 +91,7 @@ export class WatchlistEditorComponent {
     ]),
   });
   readonly categorySource = computed(() =>
-    vintedCategorySource(this.categories(), { included: [], excluded: [] }),
+    collectedCategorySource(this.categories(), this.collectedCategoryIds()),
   );
   readonly brandOptions = toSignal(
     this.form.controls.brand.valueChanges.pipe(

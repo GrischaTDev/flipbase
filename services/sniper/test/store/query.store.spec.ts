@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it, vi } from 'vitest';
 import type { SniperQuery } from '../../src/domain/query.js';
-import { isDue, QueryStore } from '../../src/store/query.store.js';
+import { compareDueQueries, isDue, QueryStore } from '../../src/store/query.store.js';
 
 function query(overrides: Partial<SniperQuery> = {}): SniperQuery {
   return {
@@ -243,7 +243,7 @@ describe('QueryStore.dueQueries', () => {
     expect(due.map((query) => query.id)).toEqual(['q-ralph']);
   });
 
-  it('orders due queries by overdue ratio and maps newest_external_id', async () => {
+  it('serves the longest overdue filter first so category bots keep their pace', async () => {
     const now = new Date('2026-10-29T10:01:20.000Z');
     const client = createClient('https://unit.example.test', 'unit-service-role', {
       auth: { persistSession: false, autoRefreshToken: false },
@@ -307,10 +307,40 @@ describe('QueryStore.dueQueries', () => {
 
     const due = await new QueryStore(client).dueQueries(now);
 
-    expect(due.map((query) => query.id)).toEqual(['fast-broad', 'slow-leaf']);
+    // Der Minuten-Bot war seit 10:01:00 fällig, der 5-Sekunden-Sammler erst seit 10:01:05.
+    expect(due.map((query) => query.id)).toEqual(['slow-leaf', 'fast-broad']);
     expect(due.map((query) => query.newestExternalId)).toEqual([
-      '9007199254740999',
       '9007199254740991',
+      '9007199254740999',
+    ]);
+  });
+
+  it('keeps a slow category bot near its interval while fast collectors are saturated', () => {
+    // Der Sammler hätte um 10:01:47 drankommen sollen und läuft seinem 5-Sekunden-Takt hinterher.
+    const collector = query({
+      id: 'collector',
+      pollIntervalMs: 5_000,
+      lastPolledAt: '2026-10-29T10:01:42.000Z',
+    });
+    // Der Kategorie-Bot (120 s) wird erst um 10:01:50 fällig und wartet hinter dem Sammler.
+    const categoryBot = query({
+      id: 'category',
+      pollIntervalMs: 120_000,
+      lastPolledAt: '2026-10-29T09:59:50.000Z',
+    });
+    expect([collector, categoryBot].sort(compareDueQueries).map(({ id }) => id)).toEqual([
+      'collector',
+      'category',
+    ]);
+    // Seit 10:01:40 fällig: Er kommt vor dem Sammler dran, statt ein Vielfaches seines Takts zu warten.
+    const lateCategoryBot = query({
+      id: 'category',
+      pollIntervalMs: 120_000,
+      lastPolledAt: '2026-10-29T09:59:40.000Z',
+    });
+    expect([collector, lateCategoryBot].sort(compareDueQueries).map(({ id }) => id)).toEqual([
+      'category',
+      'collector',
     ]);
   });
 });

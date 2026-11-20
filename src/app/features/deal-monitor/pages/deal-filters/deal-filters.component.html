@@ -200,6 +200,7 @@
     <app-watchlist-editor
       [watchlist]="editing()"
       [categories]="categories()"
+      [collectedCategoryIds]="collectedCategoryIds()"
       [workspaceId]="currentWorkspace.id"
       [saving]="saving()"
       (saved)="save($event)"

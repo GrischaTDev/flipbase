@@ -1,5 +1,15 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-20 - Juna - Vinted-Feed bietet nur Kategorien mit eigenem Kategorie-Bot an
+
+**Anlass:** Mit Marke Carhartt und Kategorie „Fleecejacken Herren“ zeigte der Feed „Für diesen Bereich sammelt der Monitor noch nicht“, obwohl der Herren-Sammler alle Herrenkleidung abruft.
+
+**Ursache:** Vinteds Katalogliste nennt je Artikel Marke, Größe, Zustand und Preis, aber keine Kategorie (an einer echten Seite geprüft). Von rund 225.000 Artikeln der letzten 24 Stunden hatten 42 eine Kategorie. Eine Unterkategorie lässt sich deshalb nur über einen eigenen Kategorie-Bot belegen; dieser trägt die Kategorie auch bei schon gespeicherten Artikeln nach (`record_sniper_listing_category`). Zusätzlich hätte die Reihenfolge des Bots solche Bots ausgebremst: Sie sortierte nach dem Verhältnis zum eigenen Takt, und die ausgelasteten 5-Sekunden-Sammler lagen damit ständig vorn; ein Bot mit 2 Minuten Takt wäre erst nach etwa 7 Minuten drangekommen.
+
+**Änderung:** Neue Funktion `sniper_feed_categories` liefert die Kategorien aktiver reiner Kategorie-Bots (ohne Marken-, Text-, Titel- oder Preisfilter). Feed und Suchfilter bieten nur diese Kategorien zur Auswahl an; übergeordnete Kategorien bleiben als Weg sichtbar, gespeicherte Auswahlen behalten ihren Namen. Der Bot nimmt jetzt den Filter zuerst, dessen Termin am längsten zurückliegt, sodass bei Auslastung alle Filter gleich lange über ihren Takt hinaus warten. Damen- und Herren-Sammler sowie Marken-, Größen-, Preis- und Titelfilter bleiben unverändert. Gemessene Grundlage: Hauptsammler ca. 900 neue Artikel/min bei 17–20 von 24 Abrufen/min; typische Kategorien 2,5–48 neue Artikel/min, also eine Seite je Abruf. Etwa 10–15 Kategorie-Bots mit 2–5 Minuten Takt passen ins Budget.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-20 - Juna - Normale Vinted-Veröffentlichungen per Aktiv-Import bestätigen, Marken-Popup absichern und blockierte Nachprüfung direkt anbieten
 
 **Anlass und lesende Produktionsdiagnose:** Eine Vinted-Preisänderung für einen Schuh (`listing:10846449422`, Auftrag 97) hing dauerhaft im Zustand „Preisänderung wartet · Vorherige Änderung muss geprüft werden“ (`dependency_unresolved`), obwohl unter „Laufend“ keine andere Aktion sichtbar war. Gleichzeitig scheiterte ein Relisting-Test (Auftrag 74) mit „Vorbereitung bei Vinted fehlgeschlagen“. Mit ausdrücklicher Freigabe wurden die Worker-Logs und die Datenbank in schreibgeschützten Transaktionen geprüft:

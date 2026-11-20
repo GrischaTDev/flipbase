@@ -114,3 +114,36 @@ create policy "Berechtigte empfangen Sniper Feed Hinweise" on realtime.messages
     for select to authenticated using (
         extension = 'broadcast' and private and topic = (select realtime.topic())
         and public.sniper_can_access_feed_topic(topic));
+
+create or replace function public.sniper_feed_categories(p_workspace_id uuid)
+returns table (catalog_id integer) language plpgsql stable security definer set search_path = '' as $$
+begin
+    if not public.can_access_workspace(p_workspace_id) then
+        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
+    end if;
+
+    -- Vinteds Katalogliste nennt keine Artikelkategorie. Vollständig belegt ist eine Kategorie
+    -- nur durch einen reinen Kategorie-Bot; Marken-, Text- oder Preisfilter liefern nur einen
+    -- Ausschnitt und schalten die Auswahl deshalb nicht frei.
+    return query
+        select distinct query.catalog_id
+        from public.sniper_queries as query
+        where query.marketplace = 'vinted'
+            and query.is_active
+            and query.deleted_at is null
+            and query.run_state <> 'invalid'
+            and query.catalog_id is not null
+            and nullif(btrim(query.search_text), '') is null
+            and query.brand_id is null
+            and cardinality(query.brand_ids) = 0
+            and cardinality(query.title_keywords) = 0
+            and cardinality(query.excluded_title_keywords) = 0
+            and query.price_from is null
+            and query.price_to is null
+        order by 1;
+end;
+$$;
+comment on function public.sniper_feed_categories(uuid) is
+    'Gibt die Vinted-Kategorien aktiver reiner Kategorie-Bots fuer die Feed-Auswahl zurueck.';
+revoke all on function public.sniper_feed_categories(uuid) from public, anon;
+grant execute on function public.sniper_feed_categories(uuid) to authenticated;
