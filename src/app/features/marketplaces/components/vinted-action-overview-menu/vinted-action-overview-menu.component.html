@@ -191,13 +191,29 @@
             }}</time
           >
           @if (entry.action.state === 'queued') {
-            <app-button
-              variant="ghost"
-              size="slim"
-              [disabled]="accountActions.busy() !== null"
-              (clicked)="accountActions.cancel(entry.action)"
-              >Abbrechen</app-button
-            >
+            @let blocker = blockedByEntry(entry.action);
+            <div class="mt-1.5 flex flex-wrap items-center gap-2">
+              @if (blocker) {
+                <app-button
+                  variant="secondary"
+                  size="slim"
+                  [disabled]="
+                    accountActions.busy() !== null ||
+                    blocker.reconciliation?.state === 'queued' ||
+                    blocker.reconciliation?.state === 'running'
+                  "
+                  (clicked)="accountActions.reconcile(blocker.action)"
+                  >Vorherige Änderung nachprüfen</app-button
+                >
+              }
+              <app-button
+                variant="ghost"
+                size="slim"
+                [disabled]="accountActions.busy() !== null"
+                (clicked)="accountActions.cancel(entry.action)"
+                >Abbrechen</app-button
+              >
+            </div>
           } @else if (entry.action.state === 'outcome_unknown') {
             <app-button
               variant="secondary"

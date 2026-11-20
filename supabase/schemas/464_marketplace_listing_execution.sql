@@ -185,7 +185,8 @@ revoke all on function public.marketplace_relink_relisting_entry(public.marketpl
 grant execute on function public.marketplace_relink_relisting_entry(public.marketplace_listing_jobs) to service_role;
 
 -- Erst eine akzeptierte echte Anbieterlesekopie beendet den Schutz der neuen Kennung.
--- Das repariert auch bestätigte ältere Aufträge ohne gespeicherte UUID zur Laufzeit.
+-- Bestätigt sowohl Relistings als auch normale Neuveröffentlichungen mit Erstellungsbeleg,
+-- sobald der Kontoabgleich das Inserat aktiv auf demselben Konto beobachtet.
 create or replace function public.marketplace_accept_relisting_import(p_workspace_id uuid,p_connection_id uuid,p_external_id text,p_observed_at timestamptz)
 returns void language plpgsql volatile security invoker set search_path='' as $$
 declare v_job public.marketplace_listing_jobs; v_entry public.marketplace_account_entries; v_entry_id uuid;
@@ -196,13 +197,16 @@ begin
   for v_job in select job.* from public.marketplace_listing_jobs job
     join public.marketplace_connections account on account.workspace_id=job.workspace_id and account.id=job.connection_id and account.external_account_id=job.external_account_id
     where job.workspace_id=p_workspace_id and job.connection_id=p_connection_id and job.external_id=p_external_id
-      and job.state in ('confirmed','outcome_unknown') and job.snapshot ? 'relistExternalId' and job.relist_imported_at is null and p_observed_at>job.finished_at
-      and public.marketplace_relisting_job_is_latest(job) for update of job loop
+      and p_observed_at>job.finished_at
+      and (
+        (job.state in ('confirmed','outcome_unknown') and job.snapshot ? 'relistExternalId' and job.relist_imported_at is null and public.marketplace_relisting_job_is_latest(job))
+        or (job.state='outcome_unknown' and job.action='publish' and not (job.snapshot ? 'relistExternalId'))
+      ) for update of job loop
     if v_job.state='outcome_unknown' then
       if v_job.provider_result->>'externalId' is distinct from p_external_id
         or v_job.provider_result->>'externalAccountId' is distinct from v_job.external_account_id
-        or not exists(select 1 from public.marketplace_listing_drafts draft where draft.id=v_job.draft_id and draft.workspace_id=v_job.workspace_id
-          and draft.relist_deleted_at is not null and draft.relist_deleted_account_id=v_job.external_account_id) then continue; end if;
+        or ((v_job.snapshot ? 'relistExternalId') and not exists(select 1 from public.marketplace_listing_drafts draft where draft.id=v_job.draft_id and draft.workspace_id=v_job.workspace_id
+          and draft.relist_deleted_at is not null and draft.relist_deleted_account_id=v_job.external_account_id)) then continue; end if;
       -- Die neue Kennung stammt aus der echten Erstellungsantwort, der Aktivbeleg aus dem eigenen Konto.
       -- Inhalts- oder Fotowidersprüche bleiben ungeklärt; sie erzeugen trotzdem keine zweite Karte.
       if v_entry.body->>'publicationState'='active' and v_job.error_code in (
@@ -213,9 +217,11 @@ begin
         select * into v_job from public.marketplace_listing_jobs where id=v_job.id;
       end if;
     end if;
-    v_entry_id:=public.marketplace_relink_relisting_entry(v_job);
-    if v_entry_id is not null and (v_job.state='confirmed' or v_entry.body->>'publicationState'='active') then
-      update public.marketplace_listing_jobs set relist_imported_at=p_observed_at where id=v_job.id;
+    if v_job.snapshot ? 'relistExternalId' then
+      v_entry_id:=public.marketplace_relink_relisting_entry(v_job);
+      if v_entry_id is not null and (v_job.state='confirmed' or v_entry.body->>'publicationState'='active') then
+        update public.marketplace_listing_jobs set relist_imported_at=p_observed_at where id=v_job.id;
+      end if;
     end if;
   end loop;
 end;

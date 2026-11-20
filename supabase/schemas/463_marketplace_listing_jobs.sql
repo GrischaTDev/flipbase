@@ -513,9 +513,12 @@ begin
   if p_job.state not in ('confirmed','outcome_unknown') or p_job.external_id is null
     or (p_job.state='outcome_unknown' and (p_job.provider_result->>'externalId' is distinct from p_job.external_id
       or p_job.provider_result->>'externalAccountId' is distinct from p_job.external_account_id))
-    or p_job.action<>'publish' or p_job.execution_mode<>'cloud' or not (p_job.snapshot ? 'relistExternalId')
-    or not public.marketplace_relisting_job_is_latest(p_job)
-    or p_job.relist_imported_at is not null or not public.marketplace_workspace_authorization_valid(p_job.workspace_id,p_job.requested_by)
+    or p_job.action<>'publish' or p_job.execution_mode<>'cloud'
+    or (not (p_job.snapshot ? 'relistExternalId') and (p_job.state<>'outcome_unknown' or coalesce(p_job.error_code,'') not in (
+      'provider_unconfirmed_save_navigation','provider_unconfirmed_saved_navigation','provider_unconfirmed_saved_form',
+      'provider_unconfirmed_active_navigation','provider_unconfirmed_active_filter','provider_unconfirmed_active_loading','provider_unconfirmed_active_evidence')))
+    or ((p_job.snapshot ? 'relistExternalId') and (not public.marketplace_relisting_job_is_latest(p_job) or p_job.relist_imported_at is not null))
+    or not public.marketplace_workspace_authorization_valid(p_job.workspace_id,p_job.requested_by)
     or not exists(select 1 from public.marketplace_connections where id=p_job.connection_id and workspace_id=p_job.workspace_id
       and external_account_id=p_job.external_account_id and execution_mode='cloud' and status='connected') then return; end if;
   if exists(select 1 from public.marketplace_operations where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id

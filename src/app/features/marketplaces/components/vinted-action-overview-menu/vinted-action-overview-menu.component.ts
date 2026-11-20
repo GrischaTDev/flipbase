@@ -31,11 +31,15 @@ import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-ov
 import { KleinanzeigenExtensionBridge } from '../../services/kleinanzeigen-extension-bridge';
 import { KleinanzeigenActionStore } from '../../services/kleinanzeigen-action.store';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
-import { VintedAccountActionStore } from '../../services/vinted-account-action.store';
+import {
+  VintedAccountActionStore,
+  type VintedAccountActionEntry,
+} from '../../services/vinted-account-action.store';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import {
   vintedAccountActionStatus,
   vintedAccountActionTitle,
+  type VintedAccountAction,
 } from '../../models/vinted-account-action';
 import { VintedActionOverviewComponent } from '../vinted-action-overview/vinted-action-overview.component';
 import { VintedListingActionOverviewComponent } from '../vinted-listing-action-overview/vinted-listing-action-overview.component';
@@ -185,5 +189,21 @@ export class VintedActionOverviewMenuComponent {
 
   selectTab(value: string): void {
     this.tab.set(value === 'past' ? 'past' : 'running');
+  }
+
+  blockedByEntry(action: VintedAccountAction): VintedAccountActionEntry | undefined {
+    if (
+      action.state !== 'queued' ||
+      action.waitReason !== 'dependency_unresolved' ||
+      !action.blockedByActionId
+    )
+      return undefined;
+    return this.accountActions
+      .entries()
+      .find(
+        (candidate) =>
+          candidate.action.id === action.blockedByActionId &&
+          candidate.action.state === 'outcome_unknown',
+      );
   }
 }
