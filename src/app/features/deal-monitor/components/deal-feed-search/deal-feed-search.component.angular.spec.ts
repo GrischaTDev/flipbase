@@ -267,6 +267,7 @@ describe('DealFeedSearchComponent', () => {
       },
     ]),
     categories: vi.fn().mockResolvedValue([]),
+    collectedCategoryIds: vi.fn().mockResolvedValue([]),
     feed: vi.fn().mockResolvedValue({
       items: [
         mockFeedItem('1', 'XL'),

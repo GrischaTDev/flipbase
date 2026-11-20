@@ -118,26 +118,21 @@ export function isDue(query: SniperQuery, now: Date): boolean {
 }
 
 /**
- * Anteil der verstrichenen eigenen Abruftakte. Schnelle Sammelfilter bleiben
- * dadurch vor langsamen Einzelfiltern reaktionsfaehig, ohne diese verhungern zu lassen.
+ * Termin des nächsten Abrufs. Wer am längsten über seinem Termin liegt, kommt zuerst dran;
+ * ist der Bot ausgelastet, warten dadurch alle Filter gleich lange über ihren Takt hinaus.
+ * Ein Vergleich im Verhältnis zum eigenen Takt ließ Kategorie-Bots mit Minutentakt ein
+ * Vielfaches davon warten, weil die ausgelasteten 5-Sekunden-Sammler stets weiter vorn lagen.
  */
-function dueUrgency(query: SniperQuery, nowMs: number): number {
-  if (query.nextAttemptAt != null) {
-    const overdueMs = Math.max(0, nowMs - new Date(query.nextAttemptAt).getTime());
-    return 1 + overdueMs / Math.max(1, query.pollIntervalMs);
-  }
-  if (query.lastPolledAt == null) {
-    return Number.POSITIVE_INFINITY;
-  }
-  const elapsedMs = Math.max(0, nowMs - new Date(query.lastPolledAt).getTime());
-  return elapsedMs / Math.max(1, effectivePollIntervalMs(query));
+function dueAtMs(query: SniperQuery): number {
+  if (query.nextAttemptAt != null) return new Date(query.nextAttemptAt).getTime();
+  if (query.lastPolledAt == null) return Number.NEGATIVE_INFINITY;
+  return new Date(query.lastPolledAt).getTime() + effectivePollIntervalMs(query);
 }
 
-export function compareDueQueries(left: SniperQuery, right: SniperQuery, now: Date): number {
-  const nowMs = now.getTime();
-  const leftUrgency = dueUrgency(left, nowMs);
-  const rightUrgency = dueUrgency(right, nowMs);
-  if (leftUrgency !== rightUrgency) return leftUrgency < rightUrgency ? 1 : -1;
+export function compareDueQueries(left: SniperQuery, right: SniperQuery): number {
+  const leftDueAt = dueAtMs(left);
+  const rightDueAt = dueAtMs(right);
+  if (leftDueAt !== rightDueAt) return leftDueAt < rightDueAt ? -1 : 1;
 
   const leftPolled =
     left.lastPolledAt == null ? Number.NEGATIVE_INFINITY : new Date(left.lastPolledAt).getTime();
@@ -154,7 +149,7 @@ export class QueryStore {
   async dueQueries(now: Date): Promise<SniperQuery[]> {
     return (await this.activeQueries())
       .filter((query) => isDue(query, now))
-      .sort((left, right) => compareDueQueries(left, right, now));
+      .sort(compareDueQueries);
   }
 
   async activeQueries(): Promise<SniperQuery[]> {

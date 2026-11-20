@@ -28,6 +28,15 @@ export class DealMonitorService {
     return (await this.vintedCategories.readSnapshot()).categories;
   }
 
+  /** Kategorien, die ein aktiver Kategorie-Bot vollständig sammelt. */
+  async collectedCategoryIds(workspace: string): Promise<number[]> {
+    const { data, error } = await this.client.rpc('sniper_feed_categories', {
+      p_workspace_id: workspace,
+    });
+    if (error || !data) throw new Error('Kategorien konnten nicht geladen werden.');
+    return data.map(({ catalog_id }) => catalog_id);
+  }
+
   async searchBrands(workspace: string, term: string): Promise<string[]> {
     const { data, error } = await this.client.rpc('sniper_search_feed_brands', {
       p_workspace_id: workspace,

@@ -668,6 +668,7 @@ async function fixture(
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];
     }
     if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
+    if (name === 'sniper_feed_categories') json = [{ catalog_id: 1049 }];
     if (name === 'sniper_search_feed_brands') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       json = [

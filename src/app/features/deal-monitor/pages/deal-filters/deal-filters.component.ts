@@ -64,6 +64,7 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   readonly watchlists = signal<Watchlist[]>([]);
   readonly watchlistsLoading = signal(false);
   readonly categories = signal<VintedCategory[]>([]);
+  readonly collectedCategoryIds = signal<number[]>([]);
   readonly editing = signal<Watchlist | null>(null);
   readonly editorOpen = signal(false);
   readonly deleting = signal<Watchlist | null>(null);
@@ -102,11 +103,13 @@ export class DealFiltersComponent implements UnsavedEntryPage {
         this.message.set('');
         this.listGeneration++;
         this.watchlistsLoading.set(Boolean(workspace));
-        if (workspace) void this.loadWatchlists(workspace);
+        this.collectedCategoryIds.set([]);
+        if (workspace) {
+          void this.loadWatchlists(workspace);
+          void this.loadCategories();
+        }
       });
     });
-
-    void this.loadCategories();
 
     this.destroyRef.onDestroy(() => {
       this.listGeneration++;
@@ -145,10 +148,16 @@ export class DealFiltersComponent implements UnsavedEntryPage {
   }
 
   async loadCategories(): Promise<void> {
+    const workspace = this.workspace()?.id;
+    if (!workspace) return;
     try {
-      const rows = await this.api.categories();
-      if (!this.destroyRef.destroyed) {
+      const [rows, collected] = await Promise.all([
+        this.api.categories(),
+        this.api.collectedCategoryIds(workspace),
+      ]);
+      if (!this.destroyRef.destroyed && this.workspace()?.id === workspace) {
         this.categories.set(rows);
+        this.collectedCategoryIds.set(collected);
         this.categoryError.set(null);
       }
     } catch {

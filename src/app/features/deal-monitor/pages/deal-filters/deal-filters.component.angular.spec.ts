@@ -114,6 +114,7 @@ describe('DealFiltersComponent', () => {
     registerSignalInputs(WatchlistEditorComponent, [
       'watchlist',
       'categories',
+      'collectedCategoryIds',
       'workspaceId',
       'saving',
     ]);
@@ -140,6 +141,7 @@ describe('DealFiltersComponent', () => {
       },
     ]),
     categories: vi.fn().mockResolvedValue([]),
+    collectedCategoryIds: vi.fn().mockResolvedValue([]),
     searchBrands: vi.fn().mockResolvedValue([]),
     save: vi.fn().mockResolvedValue({ id: 'wl-1' }),
     delete: vi.fn().mockResolvedValue(undefined),

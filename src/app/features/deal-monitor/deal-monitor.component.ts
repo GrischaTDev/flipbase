@@ -15,7 +15,7 @@ import { PageHeaderComponent } from '../../shared/components/page-header/page-he
 import { DealFeedSearchComponent } from './components/deal-feed-search/deal-feed-search.component';
 import { DealMonitorService } from './services/deal-monitor.service';
 import { VintedCategory } from '../platform-admin/models/vinted-category.model';
-import { vintedCategorySource } from '../platform-admin/models/vinted-category-source';
+import { collectedCategorySource } from './models/collected-category-source';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 
 /** Mehr Suchen nebeneinander machen selbst auf 49 Zoll die Spalten zu schmal. */
@@ -32,9 +32,10 @@ export class DealMonitorComponent {
   private readonly destroyRef = inject(DestroyRef);
   readonly workspace = inject(WorkspaceService).currentWorkspace;
   private readonly categories = signal<VintedCategory[]>([]);
+  private readonly collectedCategoryIds = signal<number[]>([]);
   readonly categoryError = signal(false);
   readonly categorySource = computed(() =>
-    vintedCategorySource(this.categories(), { included: [], excluded: [] }),
+    collectedCategorySource(this.categories(), this.collectedCategoryIds()),
   );
   readonly widescreen = inject(PageLayoutService).widescreen;
   readonly pageIcon = LucideBot;
@@ -57,10 +58,17 @@ export class DealMonitorComponent {
   }
 
   async loadCategories(): Promise<void> {
+    const workspace = this.workspace()?.id;
+    if (!workspace) return;
     this.categoryError.set(false);
     try {
-      const categories = await this.api.categories();
-      if (!this.destroyRef.destroyed) this.categories.set(categories);
+      const [categories, collected] = await Promise.all([
+        this.api.categories(),
+        this.api.collectedCategoryIds(workspace),
+      ]);
+      if (this.destroyRef.destroyed || this.workspace()?.id !== workspace) return;
+      this.categories.set(categories);
+      this.collectedCategoryIds.set(collected);
     } catch {
       if (!this.destroyRef.destroyed) this.categoryError.set(true);
     }
