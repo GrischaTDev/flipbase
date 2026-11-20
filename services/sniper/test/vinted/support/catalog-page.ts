@@ -50,8 +50,3 @@ export function catalogPage(extraItems: Pick<CatalogPageItem, 'id' | 'title'>[] 
 
   return `<html><body><script>self.__next_f.push([1,${JSON.stringify(JSON.stringify(state))}])</script></body></html>`;
 }
-
-export function itemCategoryPage(id: number, catalogId: number | null): Response {
-  const flight = `1:${JSON.stringify([{ id, catalog_id: catalogId }])}\n`;
-  return new Response(`<script>self.__next_f.push(${JSON.stringify([1, flight])});</script>`);
-}

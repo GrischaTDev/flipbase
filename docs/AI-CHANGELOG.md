@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-20 - Juna - Detailseiten-Kategorieprüfung im Vinted-Bot entfernt und Taktung beschleunigt
+
+**Anlass:** Nach den Updates vom 19.11. (`0716486a`, `d26c611e`, `fcb30a66`) kamen selbst im ungefilterten Standard-Feed neue Artikel teils rund eine Minute verzögert an. Die nachträglich eingebaute Einzelartikel-Kategorieprüfung (`verifyCategory`) öffnete für Blattkategorie-Filter einzelne Vinted-Artikelseiten im Browser, band damit Budget sowie Laufzeit und bremste schnelle Sammelfilter (Damen-/Herrenkleidung) aus. Eine direkte Gegenprüfung gegen Vinted (`catalog_ids=1858&brand_ids=362` und `catalog[]=1858&brand_ids[]=362`) sowie die Prüfung unseres Abruf- und Speicherwegs bestätigten, dass die Katalogabfrage sauber getrennt arbeitet und einzelne Detailseiten-Abrufe dafür unnötig sind.
+
+**Änderungen (`services/sniper/`):**
+
+- Einzelartikel-Kategorieprüfung (`verifyCategory`, `readItemCategory`, Beobachtungscache und `CategoryStore.isLeaf`-Abfrage je Durchlauf) aus `VintedCollector`, `QueryScheduler`, `CategoryStore` und `index.ts` entfernt. Jeder Filter liest wieder ausschließlich mit einem schnellen Katalogabruf.
+- `QueryStore` lädt `newest_external_id` mit und sortiert fällige Filter nach ihrem überfälligen Taktanteil (`elapsed / effectivePollIntervalMs`), sodass schnelle Sammelfilter nicht hinter langsamen Einzelfiltern warten müssen.
+- `QueryScheduler` filtert bei gesäten Filtern veraltete Katalogeinträge unterhalb von `newest_external_id - 5_000_000` bereits vor dem RPC-Aufruf aus; der Reset-Ausgangsstand (`reset_baseline_external_id`) bleibt erhalten.
+- Hauptschleife (`index.ts`) überspringt die zusätzliche 1-Sekunden-Wartepause nach einem erfolgreichen Abruf, wenn der Mindestabstand (`remainingDelay`) bereits abgelaufen ist.
+- Unit-Tests für Katalog-only-Abruf bei Blattkategorien, Aktualitätsfilter und faire Fälligkeitsreihenfolge angepasst bzw. ergänzt.
+
 ## 2026-11-20 - Juna - KI-Vordergrundmasken und Untergrundberuhigung im Vinted-Relisting-Editor (Stufe 3A)
 
 **Auftrag und Grundlage:** Umsetzung von Stufe 3A („Untergrund beruhigen – KI-Vordergrundmaske + 1:1 Originalpixel-Komposition“) gemäß abgestimmtem Plan auf eigenem Zweig `juna/vinted-photo-background-calm` (auf den aktuellen `origin/master`, `728b8f37`, angehoben).

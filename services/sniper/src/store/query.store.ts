@@ -35,10 +35,11 @@ interface QueryRow {
   seeded_requests: number[];
   results_reset_at: string | null;
   reset_baseline_external_id: string | null;
+  newest_external_id: string | number | null;
 }
 
 const COLUMNS =
-  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, excluded_title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests, results_reset_at, reset_baseline_external_id';
+  'id, query_key, marketplace, search_text, catalog_id, brand_id, price_to, price_from, poll_interval_ms, is_seeded, is_active, run_state, next_attempt_at, last_attempt_at, last_success_at, last_error_kind, last_error_at, last_error_message, last_polled_at, last_status, consecutive_failures, brand_ids, title_keywords, excluded_title_keywords, keyword_mode, filter_revision, filter_format_version, request_cursor, seeded_requests, results_reset_at, reset_baseline_external_id, newest_external_id';
 
 function toQuery(row: QueryRow): SniperQuery {
   return {
@@ -75,7 +76,20 @@ function toQuery(row: QueryRow): SniperQuery {
     seededRequests: row.seeded_requests ?? [],
     resultsResetAt: row.results_reset_at ?? null,
     resetBaselineExternalId: row.reset_baseline_external_id ?? null,
+    newestExternalId: row.newest_external_id == null ? null : String(row.newest_external_id),
   };
+}
+
+function effectivePollIntervalMs(query: SniperQuery): number {
+  let minInterval = query.pollIntervalMs;
+
+  if (query.lastStatus === 'rate_limited' || query.lastStatus === 'forbidden') {
+    const backoffExponent = Math.min(Math.max(0, query.consecutiveFailures - 1), 4);
+    const backoffMs = Math.min(120_000 * Math.pow(2, backoffExponent), 600_000);
+    minInterval = Math.max(minInterval, backoffMs);
+  }
+
+  return minInterval;
 }
 
 /**
@@ -100,22 +114,47 @@ export function isDue(query: SniperQuery, now: Date): boolean {
   }
 
   const elapsed = now.getTime() - new Date(query.lastPolledAt).getTime();
-  let minInterval = query.pollIntervalMs;
+  return elapsed >= effectivePollIntervalMs(query);
+}
 
-  if (query.lastStatus === 'rate_limited' || query.lastStatus === 'forbidden') {
-    const backoffExponent = Math.min(Math.max(0, query.consecutiveFailures - 1), 4);
-    const backoffMs = Math.min(120_000 * Math.pow(2, backoffExponent), 600_000);
-    minInterval = Math.max(minInterval, backoffMs);
+/**
+ * Anteil der verstrichenen eigenen Abruftakte. Schnelle Sammelfilter bleiben
+ * dadurch vor langsamen Einzelfiltern reaktionsfaehig, ohne diese verhungern zu lassen.
+ */
+function dueUrgency(query: SniperQuery, nowMs: number): number {
+  if (query.nextAttemptAt != null) {
+    const overdueMs = Math.max(0, nowMs - new Date(query.nextAttemptAt).getTime());
+    return 1 + overdueMs / Math.max(1, query.pollIntervalMs);
   }
+  if (query.lastPolledAt == null) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const elapsedMs = Math.max(0, nowMs - new Date(query.lastPolledAt).getTime());
+  return elapsedMs / Math.max(1, effectivePollIntervalMs(query));
+}
 
-  return elapsed >= minInterval;
+export function compareDueQueries(left: SniperQuery, right: SniperQuery, now: Date): number {
+  const nowMs = now.getTime();
+  const leftUrgency = dueUrgency(left, nowMs);
+  const rightUrgency = dueUrgency(right, nowMs);
+  if (leftUrgency !== rightUrgency) return leftUrgency < rightUrgency ? 1 : -1;
+
+  const leftPolled =
+    left.lastPolledAt == null ? Number.NEGATIVE_INFINITY : new Date(left.lastPolledAt).getTime();
+  const rightPolled =
+    right.lastPolledAt == null ? Number.NEGATIVE_INFINITY : new Date(right.lastPolledAt).getTime();
+  if (leftPolled !== rightPolled) return leftPolled < rightPolled ? -1 : 1;
+
+  return left.id.localeCompare(right.id);
 }
 
 export class QueryStore {
   constructor(private readonly client: SupabaseClient) {}
 
   async dueQueries(now: Date): Promise<SniperQuery[]> {
-    return (await this.activeQueries()).filter((query) => isDue(query, now));
+    return (await this.activeQueries())
+      .filter((query) => isDue(query, now))
+      .sort((left, right) => compareDueQueries(left, right, now));
   }
 
   async activeQueries(): Promise<SniperQuery[]> {
