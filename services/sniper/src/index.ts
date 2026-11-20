@@ -84,10 +84,7 @@ const queries = new QueryStore(client);
 const originState = new OriginStateStore(client, log);
 const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
-const collector = new VintedCollector(sessionOptions, counted, sleep, vintedConnection, {
-  isLeaf: (catalogId) => categories.isLeaf(catalogId),
-  hasCapacity: () => budget.hasCapacity(),
-});
+const collector = new VintedCollector(sessionOptions, counted, sleep, vintedConnection);
 const browserSession = new BrowserSessionController({
   baseUrl: config.vintedBaseUrl,
   minimumIntervalMs: config.requestMinIntervalMs,
@@ -192,6 +189,7 @@ log.info('started', {
 
 while (!controller.signal.aborted) {
   let cycleError: string | null = null;
+  let polledInCycle = false;
   try {
     const now = new Date();
 
@@ -291,6 +289,11 @@ while (!controller.signal.aborted) {
       originPause: { reason: 'interaction_required', until: null },
     };
     health.recordCycle(report, now);
+    polledInCycle =
+      report.polled > 0 &&
+      !report.originPause &&
+      report.failed === 0 &&
+      report.skippedForBudget === 0;
     if (report.newListings > 0 || report.seeded > 0) {
       try {
         await listings.notifyFeedUpdates();
@@ -351,9 +354,13 @@ while (!controller.signal.aborted) {
   // Keine fälligen Aufträge und eine bewusste Vinted-Pause sind ebenfalls Fortschritt.
   health.recordProgress();
   const remainingDelay = counted.remainingDelay();
-  await sleep(
-    remainingDelay > 0 ? Math.min(config.tickIntervalMs, remainingDelay) : config.tickIntervalMs,
-  );
+  const waitMs =
+    remainingDelay > 0
+      ? Math.min(config.tickIntervalMs, remainingDelay)
+      : polledInCycle
+        ? 0
+        : config.tickIntervalMs;
+  if (waitMs > 0) await sleep(waitMs);
 }
 
 stopWatchdog();

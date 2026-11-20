@@ -3,8 +3,6 @@ import type { SniperQuery } from '../domain/query.js';
 import { searchFilterRequest } from '../domain/search-filter-request.js';
 import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
 import { parseVintedCatalogPage } from './catalog-page.js';
-import { comparisonItemUrl } from './comparison-catalog-page.js';
-import { parseVintedComparisonItemPage } from './comparison-item-page.js';
 import { readVintedPage } from './response-body.js';
 import {
   ForbiddenError,
@@ -18,39 +16,18 @@ import {
 } from './errors.js';
 import { normalizeVintedItem } from './normalizer.js';
 import type { VintedConnectionState } from '../runtime/vinted-connection-state.js';
-import { RequestBudgetUnavailableError } from '../runtime/budget.js';
 import { sleep, type FetchLike, type SessionOptions, type Sleep } from './session.js';
 
 const CATALOG_PATH = '/catalog';
 const PER_PAGE = '96';
 const RETRY_DELAYS_MS = [500, 1000] as const;
-const MAX_DETAIL_CHECKS_PER_RUN = 2;
-const MAX_CATEGORY_OBSERVATIONS = 2_000;
-const CATEGORY_OBSERVATION_MS = 60 * 60_000;
-const MISSING_CATEGORY_OBSERVATION_MS = 60_000;
-
-interface CategoryVerification {
-  isLeaf(catalogId: number): Promise<boolean>;
-  hasCapacity(): boolean;
-}
-
-export interface CategoryVerificationResult {
-  listings: MarketplaceListing[];
-  hasPendingChecks: boolean;
-}
 
 export class VintedCollector {
-  private readonly categoryObservations = new Map<
-    string,
-    { catalogId: string | null; expiresAt: number }
-  >();
-
   constructor(
     private readonly options: SessionOptions,
     private readonly fetchFn: FetchLike,
     private readonly sleepFn: Sleep = sleep,
     private readonly connectionState?: VintedConnectionState,
-    private readonly categoryVerification?: CategoryVerification,
   ) {}
 
   async collect(
@@ -62,62 +39,9 @@ export class VintedCollector {
       query.keywordMode ?? 'all',
       query.excludedTitleKeywords ?? [],
     );
-    const titleMatchesListings = (await this.collectSource(query, options)).filter((listing) =>
+    return (await this.collectSource(query, options)).filter((listing) =>
       titleMatches(listing.title),
     );
-    const verified = await this.verifyCategory(query, titleMatchesListings);
-    if (verified.hasPendingChecks && !query.isSeeded) throw new RequestBudgetUnavailableError();
-    return verified.listings;
-  }
-
-  async verifyCategory(
-    query: SniperQuery,
-    listings: MarketplaceListing[],
-  ): Promise<CategoryVerificationResult> {
-    const verification = this.categoryVerification;
-    if (
-      !verification ||
-      query.catalogId === null ||
-      listings.length === 0 ||
-      !(await verification.isLeaf(query.catalogId))
-    ) {
-      return { listings, hasPendingChecks: false };
-    }
-
-    const verifiedListings: MarketplaceListing[] = [];
-    let checks = 0;
-    let hasPendingChecks = false;
-    const expectedCategory = String(query.catalogId);
-    for (const listing of listings) {
-      const id = listing.externalId;
-      // The canonical catalog URL avoids the browser's blocked ID-only redirect.
-      const url = comparisonItemUrl(listing.url, this.options.baseUrl, id);
-      if (!url) continue;
-
-      let observation = this.categoryObservations.get(id);
-      if (!observation || observation.expiresAt <= Date.now()) {
-        if (checks >= MAX_DETAIL_CHECKS_PER_RUN || !verification.hasCapacity()) {
-          hasPendingChecks = true;
-          continue;
-        }
-        checks += 1;
-        const catalogId = await this.readItemCategory(url, id, query.id);
-        observation = {
-          catalogId,
-          expiresAt:
-            Date.now() +
-            (catalogId === null ? MISSING_CATEGORY_OBSERVATION_MS : CATEGORY_OBSERVATION_MS),
-        };
-        this.categoryObservations.delete(id);
-        this.categoryObservations.set(id, observation);
-        if (this.categoryObservations.size > MAX_CATEGORY_OBSERVATIONS) {
-          const oldestId = this.categoryObservations.keys().next().value;
-          if (oldestId !== undefined) this.categoryObservations.delete(oldestId);
-        }
-      }
-      if (observation.catalogId === expectedCategory) verifiedListings.push(listing);
-    }
-    return { listings: verifiedListings, hasPendingChecks };
   }
 
   /** Ungefilterte Quellantwort; jeder fachliche Empfänger prüft seine Titelregeln selbst. */
@@ -151,25 +75,6 @@ export class VintedCollector {
       return listings;
     } catch (error) {
       this.connectionState?.recordFailure();
-      throw error;
-    }
-  }
-
-  private async readItemCategory(
-    url: URL,
-    externalId: string,
-    queryId: string,
-  ): Promise<string | null> {
-    try {
-      const response = await this.request(url, queryId, false);
-      const body = await readVintedPage(response);
-      assertNoVintedChallenge(response, body, queryId);
-      return parseVintedComparisonItemPage(body, externalId, new Date()).categoryId;
-    } catch (error) {
-      // A removed item can still appear in the catalog briefly.
-      if (error instanceof VintedHttpError && (error.status === 404 || error.status === 410)) {
-        return null;
-      }
       throw error;
     }
   }

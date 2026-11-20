@@ -242,4 +242,75 @@ describe('QueryStore.dueQueries', () => {
     expect(params[0]?.getAll('run_state')).toEqual(['neq.invalid']);
     expect(due.map((query) => query.id)).toEqual(['q-ralph']);
   });
+
+  it('orders due queries by overdue ratio and maps newest_external_id', async () => {
+    const now = new Date('2026-10-29T10:01:20.000Z');
+    const client = createClient('https://unit.example.test', 'unit-service-role', {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: async () =>
+          new Response(
+            JSON.stringify([
+              {
+                id: 'slow-leaf',
+                query_key: 'vinted|catalog=1858',
+                marketplace: 'vinted',
+                search_text: null,
+                catalog_id: 1858,
+                brand_id: 362,
+                price_to: null,
+                price_from: null,
+                poll_interval_ms: 60_000,
+                is_seeded: true,
+                is_active: true,
+                run_state: 'ready',
+                next_attempt_at: null,
+                last_attempt_at: '2026-10-29T10:00:00.000Z',
+                last_success_at: '2026-10-29T10:00:00.000Z',
+                last_error_kind: null,
+                last_error_at: null,
+                last_error_message: null,
+                last_polled_at: '2026-10-29T10:00:00.000Z',
+                last_status: 'ok',
+                consecutive_failures: 0,
+                newest_external_id: 9007199254740991,
+              },
+              {
+                id: 'fast-broad',
+                query_key: 'vinted|catalog=1904',
+                marketplace: 'vinted',
+                search_text: null,
+                catalog_id: 1904,
+                brand_id: null,
+                price_to: null,
+                price_from: null,
+                poll_interval_ms: 5_000,
+                is_seeded: true,
+                is_active: true,
+                run_state: 'ready',
+                next_attempt_at: null,
+                last_attempt_at: '2026-10-29T10:01:00.000Z',
+                last_success_at: '2026-10-29T10:01:00.000Z',
+                last_error_kind: null,
+                last_error_at: null,
+                last_error_message: null,
+                last_polled_at: '2026-10-29T10:01:00.000Z',
+                last_status: 'ok',
+                consecutive_failures: 0,
+                newest_external_id: '9007199254740999',
+              },
+            ]),
+            { status: 200, headers: { 'content-type': 'application/json' } },
+          ),
+      },
+    });
+
+    const due = await new QueryStore(client).dueQueries(now);
+
+    expect(due.map((query) => query.id)).toEqual(['fast-broad', 'slow-leaf']);
+    expect(due.map((query) => query.newestExternalId)).toEqual([
+      '9007199254740999',
+      '9007199254740991',
+    ]);
+  });
 });

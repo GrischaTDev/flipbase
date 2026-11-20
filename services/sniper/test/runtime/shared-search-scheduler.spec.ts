@@ -10,13 +10,13 @@ import { catalogListing, searchFilter } from '../support/search-filter.js';
 import { createClient } from '@supabase/supabase-js';
 import { ListingStore } from '../../src/store/listing.store.js';
 import { VintedCollector } from '../../src/vinted/collector.js';
-import { catalogPage, itemCategoryPage } from '../vinted/support/catalog-page.js';
+import { catalogPage } from '../vinted/support/catalog-page.js';
 
 const NOW = new Date('2026-10-29T10:00:00Z');
 const log = { info: vi.fn(), error: vi.fn() };
 
 describe('bounded shared search scheduling', () => {
-  it('captures a reset baseline without detail requests and verifies only newer listings', async () => {
+  it('captures a reset baseline and forwards only newer catalog listings on subsequent runs', async () => {
     let filter = searchFilter({
       catalogId: 1858,
       titleKeywords: [],
@@ -26,12 +26,8 @@ describe('bounded shared search scheduling', () => {
     });
     const existing = [catalogListing('9007199254740994'), catalogListing('9007199254740993')];
     const newerFleece = catalogListing('9007199254740995');
-    const newerWrongCategory = catalogListing('9007199254740996');
+    const newerSecond = catalogListing('9007199254740996');
     let catalog = existing;
-    const verifyCategory = vi.fn(async (_query, listings: ReturnType<typeof catalogListing>[]) => ({
-      listings: listings.filter((listing) => listing !== newerWrongCategory),
-      hasPendingChecks: false,
-    }));
     const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => ({
       accepted: true,
       created: 0,
@@ -39,7 +35,7 @@ describe('bounded shared search scheduling', () => {
     }));
     const scheduler = new QueryScheduler({
       queries: { dueQueries: async () => [filter], markSeeded: async () => undefined },
-      collector: { collect: vi.fn(), collectSource: async () => catalog, verifyCategory },
+      collector: { collect: vi.fn(), collectSource: async () => catalog },
       listings: { saveNew: vi.fn(), completeRun },
       budget: new RequestBudget(24),
       log,
@@ -47,7 +43,6 @@ describe('bounded shared search scheduling', () => {
     });
 
     await scheduler.runOnce(NOW);
-    expect(verifyCategory).not.toHaveBeenCalled();
     expect(completeRun.mock.calls[0]?.[0]).toEqual([]);
     expect(completeRun.mock.calls[0]?.[2]).toMatchObject({
       coverage: 'initial',
@@ -55,13 +50,46 @@ describe('bounded shared search scheduling', () => {
     });
 
     filter = { ...filter, seededRequests: [0], resetBaselineExternalId: '9007199254740994' };
-    catalog = [newerWrongCategory, newerFleece, ...existing];
+    catalog = [newerSecond, newerFleece, ...existing];
     await scheduler.runOnce(NOW);
-    expect(verifyCategory.mock.calls[0]?.[1]).toEqual([newerWrongCategory, newerFleece]);
-    expect(completeRun.mock.calls[1]?.[0]).toEqual([newerFleece]);
+    expect(completeRun.mock.calls[1]?.[0]).toEqual([newerSecond, newerFleece]);
   });
 
-  it('writes only verified leaf-category matches and rechecks pending items in the next run', async () => {
+  it('skips stale catalog entries below the newestExternalId freshness window before saving', async () => {
+    const filter = searchFilter({
+      catalogId: 1858,
+      titleKeywords: [],
+      seededRequests: [0],
+      newestExternalId: '9000000000',
+    });
+    const fresh = catalogListing('9000000100');
+    const boundary = catalogListing('8995000000');
+    const stale = catalogListing('8994999999');
+    const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => ({
+      accepted: true,
+      created: 1,
+      seeded: false,
+    }));
+    const scheduler = new QueryScheduler({
+      queries: { dueQueries: async () => [filter], markSeeded: async () => undefined },
+      collector: {
+        collect: vi.fn(),
+        collectSource: async () => [fresh, boundary, stale],
+      },
+      listings: { saveNew: vi.fn(), completeRun },
+      budget: new RequestBudget(24),
+      log,
+      now: () => NOW,
+    });
+
+    await scheduler.runOnce(NOW);
+    expect(completeRun.mock.calls[0]?.[0].map((listing) => listing.externalId)).toEqual([
+      '9000000100',
+      '8995000000',
+    ]);
+  });
+
+  it('polls a leaf-category filter with one catalog request and never opens individual item pages', async () => {
     const filter = searchFilter({
       catalogId: 1858,
       brandId: 362,
@@ -70,32 +98,20 @@ describe('bounded shared search scheduling', () => {
       seededRequests: [0],
     });
     const fetch = vi.fn(async (input: string | URL | Request) => {
-      switch (new URL(String(input)).pathname) {
-        case '/catalog':
-          return new Response(
-            catalogPage([
-              { id: 1002, title: 'Carhartt Active Jacket' },
-              { id: 1003, title: 'Carhartt ohne Kategorie' },
-            ]),
-          );
-        case '/items/1001-nike-air-max':
-          return itemCategoryPage(1001, 1858);
-        case '/items/1002-test-item':
-          return itemCategoryPage(1002, 2535);
-        case '/items/1003-test-item':
-          return itemCategoryPage(1003, null);
-        case '/items/1001':
-          return new Response(null, {
-            status: 307,
-            headers: { location: '/items/1001-nike-air-max' },
-          });
-        default:
-          throw new Error(`Unexpected URL ${String(input)}`);
+      const url = new URL(String(input));
+      if (url.pathname === '/catalog') {
+        return new Response(
+          catalogPage([
+            { id: 1002, title: 'Carhartt Fleecejacke' },
+            { id: 1003, title: 'Carhartt Polaire' },
+          ]),
+        );
       }
+      throw new Error(`Unexpected detail request ${url.pathname}`);
     });
     const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => ({
       accepted: true,
-      created: 1,
+      created: 3,
       seeded: false,
     }));
     const scheduler = new QueryScheduler({
@@ -103,9 +119,6 @@ describe('bounded shared search scheduling', () => {
       collector: new VintedCollector(
         { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent' },
         fetch,
-        undefined,
-        undefined,
-        { isLeaf: async () => true, hasCapacity: () => true },
       ),
       listings: { saveNew: vi.fn(), completeRun },
       budget: new RequestBudget(24),
@@ -114,19 +127,13 @@ describe('bounded shared search scheduling', () => {
     });
 
     await scheduler.runOnce(NOW);
-    expect(completeRun.mock.calls[0]?.[0].map((listing) => listing.externalId)).toEqual(['1001']);
-    expect(completeRun.mock.calls[0]?.[2]?.coverage).toBe('limited');
-    expect(fetch).toHaveBeenCalledTimes(3);
-
-    await scheduler.runOnce(NOW);
-    expect(completeRun.mock.calls[1]?.[0].map((listing) => listing.externalId)).toEqual(['1001']);
-    expect(fetch.mock.calls.map(([input]) => new URL(String(input)).pathname)).toEqual([
-      '/catalog',
-      '/items/1001-nike-air-max',
-      '/items/1002-test-item',
-      '/catalog',
-      '/items/1003-test-item',
+    expect(completeRun.mock.calls[0]?.[0].map((listing) => listing.externalId)).toEqual([
+      '1001',
+      '1002',
+      '1003',
     ]);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(new URL(String(fetch.mock.calls[0]?.[0])).pathname).toBe('/catalog');
   });
 
   it('reports an unknown window for an already seeded lane after losing its in-memory checkpoint', async () => {

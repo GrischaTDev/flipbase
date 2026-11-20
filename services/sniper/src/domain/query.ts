@@ -42,6 +42,7 @@ export interface SniperQuery {
   seededRequests?: number[];
   resultsResetAt?: string | null;
   resetBaselineExternalId?: string | null;
+  newestExternalId?: string | null;
 }
 
 const ABSENT = '-';

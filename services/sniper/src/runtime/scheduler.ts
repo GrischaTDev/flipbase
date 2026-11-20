@@ -1,5 +1,4 @@
 import type { MarketplaceListing } from '../domain/listing.js';
-import type { CategoryVerificationResult } from '../vinted/collector.js';
 import type { QueryStatus, SniperQuery } from '../domain/query.js';
 import type { Logger } from '../log.js';
 import type { OriginState } from '../store/origin-state.store.js';
@@ -93,10 +92,6 @@ class InMemoryOriginStateStore implements OriginStateStoreLike {
 export interface CollectorLike {
   collect(query: SniperQuery): Promise<MarketplaceListing[]>;
   collectSource?(query: SniperQuery, options?: { page?: number }): Promise<MarketplaceListing[]>;
-  verifyCategory?(
-    query: SniperQuery,
-    listings: MarketplaceListing[],
-  ): Promise<CategoryVerificationResult>;
 }
 
 export interface ListingStoreLike {
@@ -157,6 +152,8 @@ interface ConsumerSourceWindow {
 }
 
 const MAX_CONSUMER_SOURCE_WINDOWS = 2048;
+/** Gleiches Aktualitätsfenster wie in complete_sniper_search_filter_run. */
+const FRESH_LISTING_ID_WINDOW = 5_000_000n;
 
 export class QueryScheduler {
   private readonly origin: string;
@@ -501,11 +498,11 @@ export class QueryScheduler {
         needsMore: true,
       });
     }
+    const isSeed = (query: SniperQuery) =>
+      !(query.seededRequests ?? []).includes(searchFilterRequest(query).index);
     let page = 0;
     const titleMatchesByQuery = new Map<SniperQuery, MarketplaceListing[]>();
     const resetBaselines = new Map<SniperQuery, string>();
-    let pendingCategoryChecks = false;
-    let categoryMatchIds: Set<string> | undefined;
     try {
       if (plan.validationError) throw plan.validationError;
       let more = true;
@@ -535,6 +532,12 @@ export class QueryScheduler {
         }
         const baseline = query.resetBaselineExternalId ?? null;
         const minimumExclusive = baseline === null ? null : BigInt(baseline);
+        const newestExternalId =
+          !isSeed(query) && query.newestExternalId != null
+            ? readExternalId(query.newestExternalId)
+            : null;
+        const minimumFreshInclusive =
+          newestExternalId === null ? null : newestExternalId - FRESH_LISTING_ID_WINDOW;
         const matches = createTitleKeywordMatcher(
           query.titleKeywords ?? [],
           query.keywordMode ?? 'all',
@@ -544,24 +547,21 @@ export class QueryScheduler {
           query,
           [...window.received.values()].filter((listing) => {
             if (!matches(listing.title)) return false;
-            if (minimumExclusive === null) return true;
             const externalId = readExternalId(listing.externalId);
-            return externalId !== null && externalId > minimumExclusive;
+            if (
+              minimumExclusive !== null &&
+              (externalId === null || externalId <= minimumExclusive)
+            )
+              return false;
+            if (
+              minimumFreshInclusive !== null &&
+              externalId !== null &&
+              externalId < minimumFreshInclusive
+            )
+              return false;
+            return true;
           }),
         );
-      }
-      if (this.deps.collector.verifyCategory && plan.sourceQuery.catalogId !== null) {
-        const candidates = new Map<string, MarketplaceListing>();
-        for (const listings of titleMatchesByQuery.values()) {
-          for (const listing of listings) candidates.set(listing.externalId, listing);
-        }
-        if (candidates.size > 0) {
-          const verified = await this.deps.collector.verifyCategory(plan.sourceQuery, [
-            ...candidates.values(),
-          ]);
-          categoryMatchIds = new Set(verified.listings.map((listing) => listing.externalId));
-          pendingCategoryChecks = verified.hasPendingChecks;
-        }
       }
     } catch (error) {
       if (error instanceof RequestBudgetUnavailableError || error instanceof RequestPausedError) {
@@ -590,24 +590,13 @@ export class QueryScheduler {
     let accepted = false;
     // Bereits laufende Teilabfragen erhalten neue Funde vor dem stillen
     // Ersteinlesen weiterer Filter derselben Rohantwort.
-    const isSeed = (query: SniperQuery) =>
-      !(query.seededRequests ?? []).includes(searchFilterRequest(query).index);
     const consumers = [...plan.consumers].sort((a, b) => Number(isSeed(a)) - Number(isSeed(b)));
     for (const query of consumers) {
       try {
         const resetBaseline = resetBaselines.get(query);
-        if (pendingCategoryChecks && isSeed(query) && resetBaseline === undefined) {
-          report.skippedForBudget += 1;
-          continue;
-        }
         const window = windows.get(query)!;
         const diagnostics: SearchFilterRunDiagnostics = {
-          coverage:
-            resetBaseline !== undefined
-              ? 'initial'
-              : pendingCategoryChecks
-                ? 'limited'
-                : window.coverage,
+          coverage: resetBaseline !== undefined ? 'initial' : window.coverage,
           source_pages: window.pages,
           shared_filter_count: plan.consumers.length,
           duration_ms: Math.min(86_400_000, Math.max(0, this.currentTime().getTime() - started)),
@@ -616,9 +605,7 @@ export class QueryScheduler {
         const titleMatches = titleMatchesByQuery.get(query) ?? [];
         const completed = await completeRun.call(
           this.deps.listings,
-          categoryMatchIds
-            ? titleMatches.filter((listing) => categoryMatchIds.has(listing.externalId))
-            : titleMatches,
+          titleMatches,
           query,
           diagnostics,
         );
@@ -629,7 +616,6 @@ export class QueryScheduler {
           else report.newListings += completed.created;
           // Jede Revision und Teilabfrage behält ihren eigenen bestätigten Stand.
           // Ein schneller anderer Filter kann diesen Ausschnitt nicht vorziehen.
-          if (pendingCategoryChecks && resetBaseline === undefined) continue;
           this.previousConsumerSourceIds.delete(window.checkpointKey);
           this.previousConsumerSourceIds.set(window.checkpointKey, new Set(window.received.keys()));
           if (this.previousConsumerSourceIds.size > MAX_CONSUMER_SOURCE_WINDOWS)
