@@ -74,7 +74,7 @@ insert into public.sniper_queries (id, query_key, catalog_id, price_to, is_activ
 insert into public.sniper_queries (id, query_key, catalog_id, title_keywords, is_active) values
   ('92000000-0000-4000-8000-000000000015', 'feed-category-keyword', 2551, array['vintage'], true);
 insert into public.sniper_queries (id, query_key, catalog_id, is_active, deleted_at) values
-  ('92000000-0000-4000-8000-000000000016', 'feed-category-deleted', 1223, true, now());
+  ('92000000-0000-4000-8000-000000000016', 'feed-category-deleted', 1223, false, now());
 
 select set_config('request.jwt.claim.sub', '92000000-0000-4000-8000-000000000001', true);
 set local role authenticated;
