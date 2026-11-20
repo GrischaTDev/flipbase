@@ -111,6 +111,12 @@ test('photo output options stay frozen separately from immutable original image 
         flipX: true,
       },
     },
+    backgroundCalm: {
+      [imageId]: {
+        maskId: '55555555-5555-4555-8555-555555555555',
+        strength: 75,
+      },
+    },
   };
   const f = fixture({ snapshot: { ...response.snapshot, photoOptions } });
   const claim = await f.store.claim(binding.workerId, 4, binding.runnerId);
@@ -122,6 +128,8 @@ test('photo output options stay frozen separately from immutable original image 
   assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.adjustments));
   assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.photoAdjustments));
   assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.photoAdjustments?.[imageId]));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.backgroundCalm));
+  assert.ok(Object.isFrozen(claim.snapshot.photoOptions?.backgroundCalm?.[imageId]));
   assert.deepEqual(claim.snapshot.images, response.snapshot.images);
 });
 

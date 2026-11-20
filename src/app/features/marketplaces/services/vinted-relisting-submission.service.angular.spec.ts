@@ -484,6 +484,12 @@ describe('Appweiter Relist-Auftrag', () => {
             flipX: true,
           },
         },
+        backgroundCalm: {
+          'temp-photo-1': {
+            maskId: '88888888-8888-4888-8888-888888888888',
+            strength: 75,
+          },
+        },
       },
     });
     expect(f.saveOptions).toHaveBeenCalledWith(expect.anything(), {
@@ -512,6 +518,12 @@ describe('Appweiter Relist-Auftrag', () => {
           denoise: 10,
           straighten: -1.5,
           flipX: true,
+        },
+      },
+      backgroundCalm: {
+        '2': {
+          maskId: '88888888-8888-4888-8888-888888888888',
+          strength: 75,
         },
       },
     });

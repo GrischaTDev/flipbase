@@ -48,9 +48,9 @@ grant execute on function public.marketplace_listing_content_valid(jsonb) to aut
 -- Bearbeitung beschreibt ausschließlich die Vinted-Ausgabe; gespeicherte Quelldateien bleiben unverändert.
 create or replace function public.marketplace_listing_photo_options_valid(p_options jsonb,p_image_ids bigint[])
 returns boolean language plpgsql immutable security invoker set search_path='' as $$
-declare v_key text; v_crop jsonb; v_adj jsonb;
+declare v_key text; v_crop jsonb; v_adj jsonb; v_calm jsonb;
 begin
-  if p_image_ids is null or p_options is null or octet_length(p_options::text)>20000 or jsonb_typeof(p_options)<>'object' or p_options-array['resize','crops','filter','border','adjustments','photoAdjustments']<>'{}'::jsonb
+  if p_image_ids is null or p_options is null or octet_length(p_options::text)>20000 or jsonb_typeof(p_options)<>'object' or p_options-array['resize','crops','filter','border','adjustments','photoAdjustments','backgroundCalm']<>'{}'::jsonb
     or not (p_options ?& array['resize','crops']) or (p_options->'resize'<>'null'::jsonb and p_options->'resize' not in ('1200'::jsonb,'1600'::jsonb,'2400'::jsonb))
     or (p_options ? 'filter' and p_options->'filter' not in ('"none"'::jsonb,'"lighter"'::jsonb,'"darker"'::jsonb,'"soft"'::jsonb,'"natural"'::jsonb,'"contrast"'::jsonb))
     or (p_options ? 'border' and p_options->'border' not in ('"none"'::jsonb,'"small"'::jsonb,'"medium"'::jsonb,'"large"'::jsonb))
@@ -88,11 +88,70 @@ begin
         or (v_adj->>'straighten')::numeric not between -15 and 15 then return false; end if;
     end loop;
   end if;
+  if p_options ? 'backgroundCalm' then
+    if jsonb_typeof(p_options->'backgroundCalm')<>'object' then return false; end if;
+    for v_key,v_calm in select key,value from jsonb_each(p_options->'backgroundCalm') loop
+      if v_key !~ '^[1-9][0-9]{0,18}$' or not (v_key::bigint=any(p_image_ids))
+        or jsonb_typeof(v_calm)<>'object' or (select count(*) from jsonb_object_keys(v_calm))<>2
+        or not (v_calm ?& array['maskId','strength'])
+        or jsonb_typeof(v_calm->'maskId')<>'string'
+        or (v_calm->>'maskId') !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+        or jsonb_typeof(v_calm->'strength')<>'number'
+        or (v_calm->>'strength')::numeric<>trunc((v_calm->>'strength')::numeric)
+        or (v_calm->>'strength')::numeric not between 1 and 100 then return false; end if;
+    end loop;
+  end if;
   return true;
 end;
 $$;
 revoke all on function public.marketplace_listing_photo_options_valid(jsonb,bigint[]) from public,anon;
 grant execute on function public.marketplace_listing_photo_options_valid(jsonb,bigint[]) to authenticated,service_role;
+
+create or replace function public.marketplace_listing_photo_masks_accessible(p_workspace_id uuid,p_options jsonb)
+returns boolean language sql stable security definer set search_path='' as $$
+  select not (p_options ? 'backgroundCalm') or not exists (
+    select 1 from jsonb_each(p_options->'backgroundCalm') entry
+    where not exists (
+      select 1 from public.vinted_photo_background_masks mask
+      where mask.id=(entry.value->>'maskId')::uuid
+        and mask.workspace_id=p_workspace_id
+        and mask.status='completed'
+    )
+  );
+$$;
+revoke all on function public.marketplace_listing_photo_masks_accessible(uuid,jsonb) from public,anon,authenticated,service_role;
+
+create or replace function public.marketplace_drop_photo_option_image(p_options jsonb,p_image_id text)
+returns jsonb language plpgsql immutable security invoker set search_path='' as $$
+declare v_res jsonb:=jsonb_set(p_options,'{crops}',(p_options->'crops')-coalesce(p_image_id,''));
+begin
+  if v_res ? 'photoAdjustments' then
+    v_res:=jsonb_set(v_res,'{photoAdjustments}',(v_res->'photoAdjustments')-coalesce(p_image_id,''));
+  end if;
+  if v_res ? 'backgroundCalm' then
+    v_res:=jsonb_set(v_res,'{backgroundCalm}',(v_res->'backgroundCalm')-coalesce(p_image_id,''));
+  end if;
+  return v_res;
+end;
+$$;
+revoke all on function public.marketplace_drop_photo_option_image(jsonb,text) from public,anon,authenticated;
+grant execute on function public.marketplace_drop_photo_option_image(jsonb,text) to service_role;
+
+create or replace function public.marketplace_keep_photo_option_images(p_options jsonb,p_image_ids text[])
+returns jsonb language plpgsql immutable security invoker set search_path='' as $$
+declare v_res jsonb:=jsonb_set(p_options,'{crops}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(p_options->'crops') where key=any(p_image_ids)),'{}'::jsonb));
+begin
+  if v_res ? 'photoAdjustments' then
+    v_res:=jsonb_set(v_res,'{photoAdjustments}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(v_res->'photoAdjustments') where key=any(p_image_ids)),'{}'::jsonb));
+  end if;
+  if v_res ? 'backgroundCalm' then
+    v_res:=jsonb_set(v_res,'{backgroundCalm}',coalesce((select jsonb_object_agg(key,value) from jsonb_each(v_res->'backgroundCalm') where key=any(p_image_ids)),'{}'::jsonb));
+  end if;
+  return v_res;
+end;
+$$;
+revoke all on function public.marketplace_keep_photo_option_images(jsonb,text[]) from public,anon,authenticated;
+grant execute on function public.marketplace_keep_photo_option_images(jsonb,text[]) to service_role;
 
 create table public.marketplace_listing_drafts (
   photo_options jsonb not null default '{"resize":null,"crops":{}}'::jsonb,

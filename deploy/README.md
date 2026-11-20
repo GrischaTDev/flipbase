@@ -458,6 +458,14 @@ zusammengehören:
    Die Funktion wird mit den anderen Funktionsordnern im obigen Schritt
    übertragen. Der Schlüssel darf nicht in den Angular-Bau gelangen.
 
+   Für `vinted-photo-background-mask` („Untergrund beruhigen“ im Relisting-Editor)
+   wird zusätzlich `FAL_KEY` (empfohlen, `fal-ai/birefnet`) oder
+   `REPLICATE_API_TOKEN` in `/opt/supabase/.env` hinterlegt und über
+   `deploy/docker-compose.vinted-photo-mask.yml` in `COMPOSE_FILE` an den
+   Funktionsdienst durchgereicht. Vor der Nutzung die Migration für
+   `vinted_photo_background_masks` und den Bucket `marketplace-listing-masks`
+   ausrollen.
+
    **Mehrfoto-Suche:** Die App-Version ab 25.09.2026 sendet zusätzlich zur alten
    `imageDataUrl` eine Liste `additionalImageDataUrls`. Die alte Serverfunktion verwendet
    davon nur das erste Foto; die App kennzeichnet solche Ergebnisse. Damit alle

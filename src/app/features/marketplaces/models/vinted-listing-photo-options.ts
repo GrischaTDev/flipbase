@@ -1,10 +1,16 @@
 import type { ImageCrop } from '../../../core/models/image-crop';
 import type {
   VintedListingPhotoAdjustment,
+  VintedListingPhotoBackgroundCalm,
   VintedListingPhotoFilter,
   VintedListingPhotoBorder,
 } from '../../../../../supabase/functions/_shared/marketplace-listing-contracts';
-export type { VintedListingPhotoAdjustment, VintedListingPhotoFilter, VintedListingPhotoBorder };
+export type {
+  VintedListingPhotoAdjustment,
+  VintedListingPhotoBackgroundCalm,
+  VintedListingPhotoFilter,
+  VintedListingPhotoBorder,
+};
 
 export interface VintedListingPhotoOptions {
   readonly filter?: VintedListingPhotoFilter;
@@ -13,7 +19,10 @@ export interface VintedListingPhotoOptions {
   readonly crops: Readonly<Record<string, ImageCrop>>;
   readonly adjustments?: VintedListingPhotoAdjustment;
   readonly photoAdjustments?: Readonly<Record<string, VintedListingPhotoAdjustment>>;
+  readonly backgroundCalm?: Readonly<Record<string, VintedListingPhotoBackgroundCalm>>;
 }
+
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const VALID_FILTERS: readonly VintedListingPhotoFilter[] = [
   'none',
@@ -79,10 +88,14 @@ export function isNeutralVintedListingPhotoOptions(
   imageKey?: string | null,
 ): boolean {
   const hasCrop = imageKey ? !!options.crops[imageKey] : Object.keys(options.crops).length > 0;
+  const hasBackgroundCalm = imageKey
+    ? !!options.backgroundCalm?.[imageKey]
+    : !!options.backgroundCalm && Object.keys(options.backgroundCalm).length > 0;
   const adjustment = resolveVintedListingPhotoAdjustment(options, imageKey);
   return (
     options.resize === null &&
     !hasCrop &&
+    !hasBackgroundCalm &&
     (!options.filter || options.filter === 'none') &&
     (!options.border || options.border === 'none') &&
     isNeutralVintedListingPhotoAdjustment(adjustment)
@@ -115,6 +128,15 @@ export function remapVintedListingPhotoOptions(
       }
     }
   }
+  const backgroundCalm: Record<string, VintedListingPhotoBackgroundCalm> = {};
+  if (options.backgroundCalm) {
+    for (const [key, calm] of Object.entries(options.backgroundCalm)) {
+      const mapped = keyMap.get(key) ?? (targetIds.includes(key) ? key : null);
+      if (mapped && calm.strength > 0) {
+        backgroundCalm[mapped] = calm;
+      }
+    }
+  }
   return {
     resize: options.resize,
     crops,
@@ -124,6 +146,7 @@ export function remapVintedListingPhotoOptions(
       ? { adjustments: options.adjustments }
       : {}),
     ...(Object.keys(photoAdjustments).length ? { photoAdjustments } : {}),
+    ...(Object.keys(backgroundCalm).length ? { backgroundCalm } : {}),
   };
 }
 
@@ -184,7 +207,15 @@ export function parseVintedListingPhotoOptions(
   if (
     Object.keys(options).some(
       (key) =>
-        !['resize', 'crops', 'filter', 'border', 'adjustments', 'photoAdjustments'].includes(key),
+        ![
+          'resize',
+          'crops',
+          'filter',
+          'border',
+          'adjustments',
+          'photoAdjustments',
+          'backgroundCalm',
+        ].includes(key),
     ) ||
     !Object.hasOwn(options, 'resize') ||
     (Object.hasOwn(options, 'filter') &&
@@ -235,6 +266,30 @@ export function parseVintedListingPhotoOptions(
       photoAdjustments[id] = parsePhotoAdjustment(raw, fail);
     }
   }
+  let backgroundCalm: Record<string, VintedListingPhotoBackgroundCalm> | undefined;
+  if (Object.hasOwn(options, 'backgroundCalm')) {
+    const rawMap = options['backgroundCalm'];
+    if (!rawMap || typeof rawMap !== 'object' || Array.isArray(rawMap)) return fail();
+    backgroundCalm = {};
+    for (const [id, raw] of Object.entries(rawMap)) {
+      if (!imageIds.includes(id) || !raw || typeof raw !== 'object' || Array.isArray(raw))
+        return fail();
+      const entry = raw as Record<string, unknown>;
+      const maskId = entry['maskId'];
+      const strength = entry['strength'];
+      if (
+        Object.keys(entry).length !== 2 ||
+        typeof maskId !== 'string' ||
+        !UUID_PATTERN.test(maskId) ||
+        typeof strength !== 'number' ||
+        !Number.isSafeInteger(strength) ||
+        strength < 1 ||
+        strength > 100
+      )
+        return fail();
+      backgroundCalm[id] = { maskId, strength };
+    }
+  }
   return {
     resize: options['resize'] as number | null,
     crops,
@@ -246,5 +301,6 @@ export function parseVintedListingPhotoOptions(
       : {}),
     ...(adjustments ? { adjustments } : {}),
     ...(photoAdjustments ? { photoAdjustments } : {}),
+    ...(backgroundCalm ? { backgroundCalm } : {}),
   };
 }

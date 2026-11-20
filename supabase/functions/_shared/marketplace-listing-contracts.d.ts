@@ -103,6 +103,10 @@ export interface VintedListingPhotoAdjustment {
   readonly straighten: number;
   readonly flipX: boolean;
 }
+export interface VintedListingPhotoBackgroundCalm {
+  readonly maskId: string;
+  readonly strength: number;
+}
 export interface VintedListingPhotoOptions {
   readonly filter?: VintedListingPhotoFilter;
   readonly border?: VintedListingPhotoBorder;
@@ -110,6 +114,7 @@ export interface VintedListingPhotoOptions {
   readonly crops: Readonly<Record<string, VintedListingPhotoCrop>>;
   readonly adjustments?: VintedListingPhotoAdjustment;
   readonly photoAdjustments?: Readonly<Record<string, VintedListingPhotoAdjustment>>;
+  readonly backgroundCalm?: Readonly<Record<string, VintedListingPhotoBackgroundCalm>>;
 }
 export interface MarketplaceListingSnapshot {
   readonly photoOptions?: VintedListingPhotoOptions;

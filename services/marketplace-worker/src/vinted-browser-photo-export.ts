@@ -8,6 +8,7 @@ export async function exportVintedListingPhoto(
   photo: MarketplaceListingPhoto,
   options: VintedListingPhotoOptions,
 ): Promise<MarketplaceListingPhoto> {
+  const calm = options.backgroundCalm?.[photo.id];
   const encoded = await page.evaluate(renderVintedListingPhoto, {
     base64: Buffer.from(photo.bytes).toString('base64'),
     mimeType: photo.mimeType,
@@ -16,6 +17,13 @@ export async function exportVintedListingPhoto(
     filter: options.filter,
     border: options.border,
     adjustments: options.photoAdjustments?.[photo.id] ?? options.adjustments,
+    ...(calm && photo.maskBytes
+      ? {
+          maskBase64: Buffer.from(photo.maskBytes).toString('base64'),
+          maskMimeType: photo.maskMimeType ?? 'image/png',
+          backgroundCalm: calm.strength,
+        }
+      : {}),
   });
   return {
     id: photo.id,

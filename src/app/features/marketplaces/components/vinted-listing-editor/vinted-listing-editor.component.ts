@@ -27,11 +27,16 @@ import {
 import { VintedRelistingSubmissionService } from '../../services/vinted-relisting-submission.service';
 import { VintedListingPhotoSourceService } from '../../services/vinted-listing-photo-source.service';
 import {
+  VintedPhotoBackgroundMaskService,
+  type ForegroundPhotoMask,
+} from '../../services/vinted-photo-background-mask.service';
+import {
   emptyVintedListingPhotoAdjustment,
   emptyVintedListingPhotoOptions,
   isNeutralVintedListingPhotoAdjustment,
   isNeutralVintedListingPhotoOptions,
   type VintedListingPhotoAdjustment,
+  type VintedListingPhotoBackgroundCalm,
   type VintedListingPhotoOptions,
   type VintedListingPhotoFilter,
   type VintedListingPhotoBorder,
@@ -225,6 +230,12 @@ export class VintedListingEditorComponent {
     emptyVintedListingPhotoAdjustment(),
   );
   readonly perPhotoAdjustments = signal<Readonly<Record<string, VintedListingPhotoAdjustment>>>({});
+  readonly photoBackgroundCalm = signal<Readonly<Record<string, VintedListingPhotoBackgroundCalm>>>(
+    {},
+  );
+  readonly loadedBackgroundMasks = signal<Readonly<Record<string, ForegroundPhotoMask>>>({});
+  readonly calmingBackground = signal(false);
+  readonly backgroundCalmError = signal<string | null>(null);
   readonly croppingPhotoKey = signal<string | null>(null);
   readonly croppingPhotoFile = signal<File | null>(null);
   readonly loadingCropPhoto = signal(false);
@@ -235,6 +246,18 @@ export class VintedListingEditorComponent {
     if (!list.length) return null;
     const idx = Math.min(list.length - 1, Math.max(0, this.selectedPhotoIndex()));
     return list[idx] ?? null;
+  });
+
+  readonly activePhotoBackgroundCalm = computed<VintedListingPhotoBackgroundCalm | null>(() => {
+    const current = this.selectedPhoto();
+    if (!current) return null;
+    return this.photoBackgroundCalm()[current.key] ?? null;
+  });
+
+  readonly hasUnmaskedRelistPhotos = computed<boolean>(() => {
+    const list = this.images();
+    const calm = this.photoBackgroundCalm();
+    return list.length > 1 && list.some((item) => !calm[item.key]);
   });
 
   readonly activePhotoAdjustment = computed<VintedListingPhotoAdjustment>(() => {
@@ -253,7 +276,8 @@ export class VintedListingEditorComponent {
       if (!current) return false;
       return (
         !!current.crop ||
-        !isNeutralVintedListingPhotoAdjustment(this.perPhotoAdjustments()[current.key])
+        !isNeutralVintedListingPhotoAdjustment(this.perPhotoAdjustments()[current.key]) ||
+        !!this.photoBackgroundCalm()[current.key]
       );
     }
     return !isNeutralVintedListingPhotoOptions(this.photoOptions());
@@ -289,26 +313,134 @@ export class VintedListingEditorComponent {
     key: Exclude<keyof VintedListingPhotoAdjustment, 'flipX'>,
     event: WheelEvent,
   ): void {
-    if (this.saving() || this.preparingPhotos()) return;
-    const rawDelta = event.deltaY !== 0 ? event.deltaY : event.shiftKey ? event.deltaX : 0;
-    if (rawDelta === 0) return;
-    event.preventDefault();
+    const step = this.stepFromWheel(`adj:${key}`, event);
+    if (step === null) return;
     const spec = this.photoAdjustmentSliders.find((s) => s.key === key);
     if (!spec) return;
-    const normalized =
-      event.deltaMode === 1 ? rawDelta * 33 : event.deltaMode === 2 ? rawDelta * 120 : rawDelta;
-    const accumulated = (this.sliderWheelAccumulator.get(key) ?? 0) + normalized;
-    if (Math.abs(accumulated) < 40) {
-      this.sliderWheelAccumulator.set(key, accumulated);
-      return;
-    }
-    this.sliderWheelAccumulator.set(key, 0);
-    const direction = accumulated < 0 ? 1 : -1;
-    const step = spec.step * (event.shiftKey ? 5 : 1);
-    const next = this.activePhotoAdjustment()[key] + direction * step;
+    const next = this.activePhotoAdjustment()[key] + step * spec.step;
     const clamped = Math.min(spec.max, Math.max(spec.min, next));
     const rounded = spec.step === 0.5 ? Math.round(clamped * 2) / 2 : Math.round(clamped);
     this.updatePhotoAdjustment({ [key]: rounded === 0 ? 0 : rounded });
+  }
+
+  private stepFromWheel(accumulatorKey: string, event: WheelEvent): number | null {
+    if (this.saving() || this.preparingPhotos()) return null;
+    const rawDelta = event.deltaY !== 0 ? event.deltaY : event.shiftKey ? event.deltaX : 0;
+    if (rawDelta === 0) return null;
+    event.preventDefault();
+    const normalized =
+      event.deltaMode === 1 ? rawDelta * 33 : event.deltaMode === 2 ? rawDelta * 120 : rawDelta;
+    const accumulated = (this.sliderWheelAccumulator.get(accumulatorKey) ?? 0) + normalized;
+    if (Math.abs(accumulated) < 40) {
+      this.sliderWheelAccumulator.set(accumulatorKey, accumulated);
+      return null;
+    }
+    this.sliderWheelAccumulator.set(accumulatorKey, 0);
+    return (accumulated < 0 ? 1 : -1) * (event.shiftKey ? 5 : 1);
+  }
+
+  async calmSelectedPhotoBackground(applyAll = false): Promise<void> {
+    const workspaceId = this.workspaceId();
+    if (!workspaceId || this.calmingBackground() || this.saving() || this.preparingPhotos()) return;
+    const targets = applyAll
+      ? this.images().filter((item) => !this.photoBackgroundCalm()[item.key])
+      : this.selectedPhoto()
+        ? [this.selectedPhoto()!]
+        : [];
+    if (!targets.length) return;
+    const expectedContext = this.loadedContext;
+    const defaultStrength = this.activePhotoBackgroundCalm()?.strength ?? 70;
+    this.calmingBackground.set(true);
+    this.backgroundCalmError.set(null);
+    let updated = false;
+    try {
+      for (const target of targets) {
+        const result = await this.backgroundMaskApi.createMask(
+          workspaceId,
+          target,
+          this.photoScope(),
+        );
+        if (this.loadedContext !== expectedContext) return;
+        this.loadedBackgroundMasks.update((map) => ({ ...map, [result.maskId]: result.mask }));
+        this.photoBackgroundCalm.update((map) => ({
+          ...map,
+          [target.key]: {
+            maskId: result.maskId,
+            strength: map[target.key]?.strength ?? defaultStrength,
+          },
+        }));
+        updated = true;
+      }
+      if (updated) this.markChanged();
+    } catch (error) {
+      if (this.loadedContext === expectedContext) {
+        this.backgroundCalmError.set(
+          error instanceof Error
+            ? error.message
+            : 'Der Untergrund konnte gerade nicht beruhigt werden.',
+        );
+      }
+    } finally {
+      if (this.loadedContext === expectedContext) {
+        this.calmingBackground.set(false);
+      }
+    }
+  }
+
+  onBackgroundCalmSlider(rawValue: string): void {
+    const parsed = Number(rawValue);
+    if (!Number.isFinite(parsed)) return;
+    this.setActiveBackgroundCalmStrength(Math.min(100, Math.max(1, Math.round(parsed))));
+  }
+
+  onBackgroundCalmWheel(event: WheelEvent): void {
+    const current = this.activePhotoBackgroundCalm();
+    if (!current) return;
+    const step = this.stepFromWheel('backgroundCalm', event);
+    if (step === null) return;
+    this.setActiveBackgroundCalmStrength(Math.min(100, Math.max(1, current.strength + step)));
+  }
+
+  resetBackgroundCalmSlider(): void {
+    if (this.saving() || this.preparingPhotos()) return;
+    this.setActiveBackgroundCalmStrength(70);
+  }
+
+  removeBackgroundCalm(): void {
+    if (this.saving() || this.preparingPhotos()) return;
+    if (this.photoEditTarget() === 'all') {
+      if (!Object.keys(this.photoBackgroundCalm()).length) return;
+      this.photoBackgroundCalm.set({});
+      this.backgroundCalmError.set(null);
+      this.markChanged();
+      return;
+    }
+    const current = this.selectedPhoto();
+    if (!current || !this.photoBackgroundCalm()[current.key]) return;
+    this.photoBackgroundCalm.update((map) => {
+      const copy = { ...map };
+      delete copy[current.key];
+      return copy;
+    });
+    this.backgroundCalmError.set(null);
+    this.markChanged();
+  }
+
+  private setActiveBackgroundCalmStrength(strength: number): void {
+    const current = this.selectedPhoto();
+    if (!current) return;
+    this.photoBackgroundCalm.update((map) => {
+      if (this.photoEditTarget() === 'all') {
+        const copy = { ...map };
+        for (const [key, entry] of Object.entries(copy)) {
+          copy[key] = { ...entry, strength };
+        }
+        return copy;
+      }
+      const existing = map[current.key];
+      return existing ? { ...map, [current.key]: { ...existing, strength } } : map;
+    });
+    this.markChanged();
   }
 
   resetSinglePhotoSlider(key: Exclude<keyof VintedListingPhotoAdjustment, 'flipX'>): void {
@@ -437,6 +569,11 @@ export class VintedListingEditorComponent {
         delete copy[current.key];
         return copy;
       });
+      this.photoBackgroundCalm.update((map) => {
+        const copy = { ...map };
+        delete copy[current.key];
+        return copy;
+      });
       this.images.update((list) =>
         list.map((item) => (item.key === current.key ? { ...item, crop: undefined } : item)),
       );
@@ -448,6 +585,12 @@ export class VintedListingEditorComponent {
     this.photoBorder.set('none');
     this.photoAdjustments.set(emptyVintedListingPhotoAdjustment());
     this.perPhotoAdjustments.set({});
+    this.photoBackgroundCalm.set({});
+    this.loadedBackgroundMasks.set({});
+    this.calmingBackground.set(false);
+    this.backgroundCalmError.set(null);
+    this.photoBackgroundCalm.set({});
+    this.backgroundCalmError.set(null);
     this.images.update((list) =>
       list.map((item) => (item.crop ? { ...item, crop: undefined } : item)),
     );
@@ -463,6 +606,7 @@ export class VintedListingEditorComponent {
   private readonly imageApi = inject(VintedListingImageService);
   private readonly originals = inject(VintedListingOriginalPhotoService);
   private readonly liveCategoryApi = inject(VintedListingCategoryService);
+  private readonly backgroundMaskApi = inject(VintedPhotoBackgroundMaskService);
   private readonly categoryFields = inject(VintedCategoryFieldStore);
   private readonly sellingCategories = new Map<
     number,
@@ -945,7 +1089,8 @@ export class VintedListingEditorComponent {
         const currentOptions = this.photoOptions();
         const hasPerPhotoOptions =
           Object.keys(currentOptions.crops).length > 0 ||
-          Object.keys(currentOptions.photoAdjustments ?? {}).length > 0;
+          Object.keys(currentOptions.photoAdjustments ?? {}).length > 0 ||
+          Object.keys(currentOptions.backgroundCalm ?? {}).length > 0;
         const pending = this.relistingSubmission.start({
           entry: source.entry,
           account: this.store
@@ -1263,13 +1408,15 @@ export class VintedListingEditorComponent {
           originalFile: file,
         });
       }
-      this.perPhotoAdjustments.update((adjustments) =>
+      const remapByPhotoKey = <T>(entries: Readonly<Record<string, T>>): Record<string, T> =>
         Object.fromEntries(
-          Object.entries(adjustments).flatMap(([key, value]) =>
+          Object.entries(entries).flatMap(([key, value]) =>
             keys.has(key) ? [[keys.get(key)!, value]] : [],
           ),
-        ),
-      );
+        );
+      this.perPhotoAdjustments.update(remapByPhotoKey);
+      this.photoBackgroundCalm.update(remapByPhotoKey);
+      this.backgroundCalmError.set(null);
       this.closePublication();
       this.draft.set(null);
       this.requestId = crypto.randomUUID();
@@ -1441,6 +1588,10 @@ export class VintedListingEditorComponent {
     this.photoBorder.set('none');
     this.photoAdjustments.set(emptyVintedListingPhotoAdjustment());
     this.perPhotoAdjustments.set({});
+    this.photoBackgroundCalm.set({});
+    this.loadedBackgroundMasks.set({});
+    this.calmingBackground.set(false);
+    this.backgroundCalmError.set(null);
     this.selectedPhotoIndex.set(0);
     this.photoEditTarget.set('all');
     this.croppingPhotoKey.set(null);
@@ -1653,6 +1804,7 @@ export class VintedListingEditorComponent {
           draft.photoOptions?.adjustments ?? emptyVintedListingPhotoAdjustment(),
         );
         this.perPhotoAdjustments.set(draft.photoOptions?.photoAdjustments ?? {});
+        this.photoBackgroundCalm.set(draft.photoOptions?.backgroundCalm ?? {});
       } else {
         const requestedId = this.route.snapshot.queryParamMap?.get('connectionId');
         const requestedWorkspace = this.route.snapshot.queryParamMap?.get('workspaceId');
@@ -1722,10 +1874,18 @@ export class VintedListingEditorComponent {
   }
   readonly photoOptions = computed<VintedListingPhotoOptions>(() => {
     const globalAdj = this.photoAdjustments();
+    const currentImages = this.images();
+    const calmMap = this.photoBackgroundCalm();
     const perPhoto = Object.fromEntries(
-      this.images().flatMap((image) => {
+      currentImages.flatMap((image) => {
         const adj = this.perPhotoAdjustments()[image.key];
         return adj && !isNeutralVintedListingPhotoAdjustment(adj) ? [[image.key, adj]] : [];
+      }),
+    );
+    const backgroundCalm = Object.fromEntries(
+      currentImages.flatMap((image) => {
+        const calm = calmMap[image.key];
+        return calm && calm.strength > 0 ? [[image.key, calm]] : [];
       }),
     );
     return {
@@ -1733,10 +1893,11 @@ export class VintedListingEditorComponent {
       ...(this.photoFilter() !== 'none' ? { filter: this.photoFilter() } : {}),
       ...(this.photoBorder() !== 'none' ? { border: this.photoBorder() } : {}),
       crops: Object.fromEntries(
-        this.images().flatMap((image) => (image.crop ? [[image.key, image.crop]] : [])),
+        currentImages.flatMap((image) => (image.crop ? [[image.key, image.crop]] : [])),
       ),
       ...(!isNeutralVintedListingPhotoAdjustment(globalAdj) ? { adjustments: globalAdj } : {}),
       ...(Object.keys(perPhoto).length ? { photoAdjustments: perPhoto } : {}),
+      ...(Object.keys(backgroundCalm).length ? { backgroundCalm } : {}),
     };
   });
   private async persist(generation: number, change: number): Promise<void> {
@@ -1771,6 +1932,7 @@ export class VintedListingEditorComponent {
       const ids: string[] = [];
       const crops: Record<string, NonNullable<ListingImageDraft['crop']>> = {};
       const photoAdjustments: Record<string, VintedListingPhotoAdjustment> = {};
+      const backgroundCalm: Record<string, VintedListingPhotoBackgroundCalm> = {};
       let replaceIds = draft.images
         // Beibehaltene Bilder bleiben für ihre eigene Ersetzung reserviert.
         .filter((stored) => !selection.some((image) => image.key === stored.id))
@@ -1816,6 +1978,18 @@ export class VintedListingEditorComponent {
         if (perAdj && !isNeutralVintedListingPhotoAdjustment(perAdj)) {
           photoAdjustments[id] = perAdj;
         }
+        const perCalm = this.photoBackgroundCalm()[image.key];
+        if (perCalm && perCalm.strength > 0) {
+          backgroundCalm[id] = perCalm;
+          if (id !== image.key) {
+            this.photoBackgroundCalm.update((map) => {
+              const copy = { ...map };
+              delete copy[image.key];
+              copy[id] = perCalm;
+              return copy;
+            });
+          }
+        }
         ids.push(id);
       }
       if (
@@ -1836,6 +2010,7 @@ export class VintedListingEditorComponent {
         crops,
         ...(!isNeutralVintedListingPhotoAdjustment(globalAdj) ? { adjustments: globalAdj } : {}),
         ...(Object.keys(photoAdjustments).length ? { photoAdjustments } : {}),
+        ...(Object.keys(backgroundCalm).length ? { backgroundCalm } : {}),
       };
       if (!same(options, draft.photoOptions ?? emptyVintedListingPhotoOptions())) {
         draft = await this.imageApi.savePhotoOptions(draft, options);
