@@ -98,6 +98,7 @@ SNIPER_REQUEST_MIN_INTERVAL_MS=2500
 SNIPER_REQUEST_TIMEOUT_MS=20000
 SNIPER_HEALTH_PORT=8080
 SNIPER_CATEGORY_MAX_AGE_MS=86400000
+SNIPER_FRESH_CATALOG_REQUESTS=true
 ```
 
 Auf dem Server das geprüfte Abbild laden und dessen exakte Kennzeichnung setzen:
@@ -311,6 +312,13 @@ Fehlerpausen beginnen am tatsächlichen Fehlerzeitpunkt. Ein fehlgeschlagenes
 Speichern der gemeinsamen Pause hält weitere Starts auch lokal gesperrt. Die
 Wiederholung der Speicherung oder ein erfolgreicher Probeabruf verwendet den
 bestehenden Herkunftsstatus; eine manuelle Sitzung hebt keine Anbieterfrist auf.
+
+Seit dem 19.11.2026 speichert Vinted anonyme Katalogseiten je Abfrage rund zwei
+Minuten zwischen. Jeder Katalogabruf erhält deshalb eine wechselnde, wirkungslose
+Preisgrenze und wird frisch gelesen (Regeln in `freshVintedCatalogUrl`).
+Lehnt Vinted das ab, stellt `SNIPER_FRESH_CATALOG_REQUESTS=false` in `sniper.env`
+nach dem Neuerstellen des Dienstes die festen Adressen wieder her; der Feed ist
+dann wieder bis zu zwei Minuten alt.
 
 `SNIPER_REQUEST_MIN_INTERVAL_MS` ist zwischen 1.000 und 60.000 Millisekunden
 konfigurierbar. `SNIPER_REQUEST_TIMEOUT_MS` begrenzt einen einzelnen Abruf

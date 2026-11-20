@@ -594,7 +594,12 @@ describe('local search filter capacity measurement', () => {
       );
       const cache = new Map<string, Promise<Response>>();
       const collector = new VintedCollector(
-        { baseUrl: 'https://catalog.invalid', userAgent: 'local-measurement' },
+        // Gemessen wird das Teilen gleicher Abfragen; feste Adressen machen sie vergleichbar.
+        {
+          baseUrl: 'https://catalog.invalid',
+          userAgent: 'local-measurement',
+          freshCatalogRequests: false,
+        },
         async (input, init) => {
           if (!shared) return paced(input, init);
           const key = String(input);

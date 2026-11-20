@@ -517,7 +517,9 @@ export class QueryScheduler {
             window.previousIds !== undefined &&
             listings.some((listing) => window.previousIds!.has(listing.externalId));
           if (overlap) window.coverage = 'caught_up';
-          window.needsMore = window.previousIds !== undefined && !overlap && listings.length === 96;
+          // Vinted liefert auch volle Seiten oft mit nur 83–96 Einträgen (am 20.11.2026 gemessen).
+          // Ohne Überschneidung lädt deshalb jede nicht leere Seite die nächste nach.
+          window.needsMore = window.previousIds !== undefined && !overlap && listings.length > 0;
         }
         const needsCatchup = [...windows.values()].some((window) => window.needsMore);
         more = needsCatchup && page < 3 && this.deps.budget.hasCapacity() && !isProbe;

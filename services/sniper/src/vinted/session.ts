@@ -9,6 +9,8 @@ export const sleep: Sleep = (milliseconds) =>
 export interface SessionOptions {
   baseUrl: string;
   userAgent: string;
+  /** Wechselnde Preisgrenze gegen Vinteds Zwischenspeicher; nur `false` schaltet sie ab. */
+  freshCatalogRequests?: boolean;
 }
 
 /**

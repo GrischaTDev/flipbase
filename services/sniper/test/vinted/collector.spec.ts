@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { VintedCollector } from '../../src/vinted/collector.js';
+import {
+  buildVintedCatalogUrl,
+  freshVintedCatalogUrl,
+  VintedCollector,
+} from '../../src/vinted/collector.js';
 import { ForbiddenError, RateLimitedError } from '../../src/vinted/errors.js';
 import type { SniperQuery } from '../../src/domain/query.js';
 import { catalogPage } from './support/catalog-page.js';
@@ -95,8 +99,10 @@ describe('VintedCollector', () => {
       });
       const url = new URL(String(fetchFn.mock.calls[0]?.[0]));
       expect(url.searchParams.get('brand_ids')).toBe(String(brandId));
-      for (const key of ['search_text', 'catalog_ids', 'price_from', 'price_to'])
+      for (const key of ['search_text', 'catalog_ids', 'price_from'])
         expect(url.searchParams.has(key)).toBe(false);
+      // Nur die wirkungslose Abrufgrenze gegen Vinteds Zwischenspeicher.
+      expect(Number(url.searchParams.get('price_to'))).toBeGreaterThanOrEqual(100_000);
       expect(url.searchParams.get('order')).toBe('newest_first');
     },
   );
@@ -119,9 +125,158 @@ describe('VintedCollector', () => {
     expect(url.searchParams.get('page')).toBe('1');
     expect(url.searchParams.get('per_page')).toBe('96');
     expect(url.searchParams.get('price_to')).toBe('50');
+    expect(Number(url.searchParams.get('price_from'))).toBeLessThan(1);
     const requestInit = fetchFn.mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(requestInit?.headers).get('cookie')).toBeNull();
     expect(new Headers(requestInit?.headers).get('user-agent')).toBeNull();
+  });
+
+  it('sends every catalog request as a new query so Vinted cannot answer from its cache', async () => {
+    const fetchFn = vi.fn().mockImplementation(async () => catalog());
+    const collector = new VintedCollector(
+      { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent' },
+      fetchFn as unknown as typeof fetch,
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      async () => {},
+      undefined,
+      () => 1_763_640_000_000,
+    );
+    const broad = { ...query, searchText: null, catalogId: 4, priceTo: null };
+    await collector.collectSource(broad);
+    await collector.collectSource(broad);
+    await collector.collectSource(broad, { page: 2 });
+    const ceilings = fetchFn.mock.calls.map(
+      (call) => new URL(String(call[0])).searchParams.get('price_to') ?? '',
+    );
+    expect(new Set(ceilings).size).toBe(3);
+    for (const ceiling of ceilings) {
+      expect(ceiling).toMatch(/^\d+$/);
+      expect(Number(ceiling)).toBeGreaterThanOrEqual(100_000);
+      expect(Number(ceiling)).toBeLessThan(1_000_000);
+    }
+  });
+
+  it('keeps the filter’s own price ceiling and varies only a floor below one euro', () => {
+    const limited = buildVintedCatalogUrl(query, 'https://www.vinted.de');
+    const first = freshVintedCatalogUrl(limited, 1_763_640_000);
+    const second = freshVintedCatalogUrl(limited, 1_763_640_001);
+    expect(first.searchParams.get('price_to')).toBe('50');
+    expect(first.searchParams.get('price_from')).toMatch(/^0\.\d{4}$/);
+    expect(Number(first.searchParams.get('price_from'))).toBeGreaterThan(0);
+    // Direkt aufeinanderfolgende Abrufe unterscheiden sich schon vor der vierten Nachkommastelle.
+    expect(
+      Math.abs(
+        Number(first.searchParams.get('price_from')) -
+          Number(second.searchParams.get('price_from')),
+      ),
+    ).toBeGreaterThanOrEqual(0.01);
+    // Der Planungsschlüssel für gemeinsame Filter bleibt unberührt.
+    expect(limited.searchParams.has('price_from')).toBe(false);
+  });
+
+  it('uses every floor and ceiling value of its range without leaving it', () => {
+    const limited = buildVintedCatalogUrl(query, 'https://www.vinted.de');
+    const floors = new Set<number>();
+    for (let key = 0; key < 9_999; key++)
+      floors.add(Number(freshVintedCatalogUrl(limited, key).searchParams.get('price_from')));
+    expect(floors.size).toBe(9_999);
+    expect(Math.min(...floors)).toBe(0.0001);
+    expect(Math.max(...floors)).toBe(0.9999);
+
+    const broad = buildVintedCatalogUrl(
+      { ...query, searchText: null, catalogId: 4, priceTo: null },
+      'https://www.vinted.de',
+    );
+    const ceiling = (key: number) => freshVintedCatalogUrl(broad, key).searchParams.get('price_to');
+    expect(ceiling(0)).toBe('100000');
+    expect(ceiling(899_999)).toBe('999999');
+    expect(ceiling(900_000)).toBe('100000');
+  });
+
+  it('widens both price bounds by less than a cent so no further price matches', () => {
+    const bounded = buildVintedCatalogUrl({ ...query, priceFrom: 10 }, 'https://www.vinted.de');
+    const seen = new Set<string>();
+    for (let key = 0; key < 99 * 99; key++) {
+      const url = freshVintedCatalogUrl(bounded, key);
+      const floor = url.searchParams.get('price_from') ?? '';
+      const ceiling = url.searchParams.get('price_to') ?? '';
+      expect(floor).toMatch(/^9\.99\d\d$/);
+      expect(Number(floor)).toBeGreaterThan(9.99);
+      expect(ceiling).toMatch(/^50\.00\d\d$/);
+      expect(Number(ceiling)).toBeLessThan(50.01);
+      seen.add(`${floor}|${ceiling}`);
+    }
+    expect(seen.size).toBe(99 * 99);
+    expect(bounded.searchParams.get('price_from')).toBe('10');
+  });
+
+  it('treats a zero floor as no floor and leaves nonsensical bounds unchanged', () => {
+    const base = 'https://www.vinted.de';
+    const zeroFloor = freshVintedCatalogUrl(
+      buildVintedCatalogUrl({ ...query, priceFrom: 0 }, base),
+      5,
+    );
+    expect(zeroFloor.searchParams.get('price_to')).toBe('50');
+    expect(zeroFloor.searchParams.getAll('price_from')).toHaveLength(1);
+    expect(Number(zeroFloor.searchParams.get('price_from'))).toBeGreaterThan(0);
+
+    const zeroFloorOnly = freshVintedCatalogUrl(
+      buildVintedCatalogUrl({ ...query, priceFrom: 0, priceTo: null }, base),
+      5,
+    );
+    expect(zeroFloorOnly.searchParams.has('price_from')).toBe(false);
+    expect(Number(zeroFloorOnly.searchParams.get('price_to'))).toBeGreaterThanOrEqual(100_000);
+
+    const floorOnly = freshVintedCatalogUrl(
+      buildVintedCatalogUrl({ ...query, priceFrom: 20, priceTo: null }, base),
+      5,
+    );
+    expect(floorOnly.searchParams.get('price_from')).toBe('20');
+    expect(Number(floorOnly.searchParams.get('price_to'))).toBeGreaterThanOrEqual(100_000);
+
+    for (const unchanged of [
+      { ...query, priceTo: 0 },
+      { ...query, priceTo: 0.5 },
+      { ...query, priceFrom: 150_000, priceTo: null },
+      { ...query, priceFrom: 10.005 },
+    ]) {
+      const url = buildVintedCatalogUrl(unchanged, base);
+      expect(freshVintedCatalogUrl(url, 5).href).toBe(url.href);
+    }
+  });
+
+  it('keeps every request unique when the clock jumps back or fails', async () => {
+    const fetchFn = vi.fn().mockImplementation(async () => catalog());
+    const times = [1_763_640_000_000, 1_763_639_000_000, Number.NaN, 1_763_640_000_500];
+    const collector = new VintedCollector(
+      { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent' },
+      fetchFn as unknown as typeof fetch,
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      async () => {},
+      undefined,
+      () => times.shift() ?? Number.NaN,
+    );
+    const broad = { ...query, searchText: null, catalogId: 4, priceTo: null };
+    for (let request = 0; request < 5; request++) await collector.collectSource(broad);
+    const ceilings = fetchFn.mock.calls.map((call) =>
+      new URL(String(call[0])).searchParams.get('price_to'),
+    );
+    expect(new Set(ceilings).size).toBe(5);
+  });
+
+  it('falls back to the fixed catalog address when switched off', async () => {
+    const fetchFn = vi.fn().mockImplementation(async () => catalog());
+    const collector = new VintedCollector(
+      { baseUrl: 'https://www.vinted.de', userAgent: 'test-agent', freshCatalogRequests: false },
+      fetchFn as unknown as typeof fetch,
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
+      async () => {},
+    );
+    const broad = { ...query, searchText: null, catalogId: 4, priceTo: null };
+    await collector.collectSource(broad);
+    expect(String(fetchFn.mock.calls[0]?.[0])).toBe(
+      buildVintedCatalogUrl(broad, 'https://www.vinted.de').href,
+    );
   });
 
   it('returns normalized listings', async () => {
@@ -202,7 +357,11 @@ describe('VintedCollector', () => {
     await build(fetchFn).collect({ ...query, priceFrom: 10 });
 
     const url = new URL(fetchFn.mock.calls[0]![0] as string);
-    expect(url.searchParams.get('price_from')).toBe('10');
+    // Um Bruchteile eines Cents geweitet: weiterhin ab 10,00 € und bis 50,00 €.
+    expect(Number(url.searchParams.get('price_from'))).toBeGreaterThan(9.99);
+    expect(Number(url.searchParams.get('price_from'))).toBeLessThan(10);
+    expect(Number(url.searchParams.get('price_to'))).toBeGreaterThan(50);
+    expect(Number(url.searchParams.get('price_to'))).toBeLessThan(50.01);
   });
 
   it('leaves cookies and browser identity to the native browser transport', async () => {
