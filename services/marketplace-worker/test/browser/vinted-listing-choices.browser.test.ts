@@ -802,6 +802,46 @@ test('rejects missing, hidden or ambiguous names inside an identified native pac
   }
 });
 
+test('retries opening the brand popup when the first click after a category change is ignored', async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage();
+    await page.setContent(`<main id="content"><input name="title"><textarea name="description"></textarea>
+      <label for="_r_brand_">Marke</label>
+      <button type="button" id="_r_brand_" data-testid="brand-select-dropdown-input">Wähle eine Marke</button>
+      <input name="brand" readonly></main>
+      <div id="brand-popup" hidden>
+        <input id="brand-search-input" name="brand-search-input" data-testid="brand-search--input" placeholder="Marke suchen">
+        <div role="radio" id="brand-535" aria-checked="false">Puma</div>
+      </div>
+      <script>(() => {
+        let clicks = 0;
+        const control = document.getElementById('_r_brand_');
+        const popup = document.querySelector('#brand-popup');
+        control.onclick = () => {
+          clicks += 1;
+          window.__brandClicks = clicks;
+          if (clicks >= 2) popup.hidden = false;
+        };
+      })();</script>`);
+    let authorized = 0;
+    const choices = await openVintedListingChoices(page, 'brand', [], {
+      brand: { brandId: 535, brandLabel: 'Puma' },
+      authorize: async () => {
+        authorized += 1;
+      },
+    });
+    assert.equal(choices.choices.find((choice) => choice.id === 535)?.label, 'Puma');
+    assert.equal(
+      await page.evaluate(() => (window as unknown as { __brandClicks?: number }).__brandClicks),
+      2,
+    );
+    assert.equal(authorized, 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('refuses a different domain or route before interacting with a form', async () => {
   const browser = await chromium.launch({ headless: true });
   try {

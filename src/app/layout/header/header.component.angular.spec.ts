@@ -305,6 +305,90 @@ describe('HeaderComponent', () => {
     fixture.detectChanges();
     expect(element.querySelector('[data-action-overview-error]')).toBeNull();
   });
+
+  it('bietet bei einer blockierten Preisänderung direkt die Nachprüfung der vorherigen Aktion an', async () => {
+    restoreBindings = await prepareMarketplaceRendering([
+      {
+        type: ActionStatusIndicatorComponent,
+        path: 'src/app/shared/components/action-status-indicator/action-status-indicator.component.ts',
+      },
+      {
+        type: ActionStatusThumbnailComponent,
+        path: 'src/app/shared/components/action-status-thumbnail/action-status-thumbnail.component.ts',
+      },
+      {
+        type: SegmentedTabsComponent,
+        path: 'src/app/shared/components/segmented-tabs/segmented-tabs.component.ts',
+      },
+      {
+        type: ModalShellComponent,
+        path: 'src/app/shared/components/modal-shell/modal-shell.component.ts',
+      },
+    ]);
+    const fixture = await renderHeader();
+    const element = fixture.nativeElement as HTMLElement;
+    const accountActions = TestBed.inject(VintedAccountActionStore) as unknown as {
+      entries: ReturnType<typeof signal<unknown[]>>;
+      count: ReturnType<typeof signal<number>>;
+      hasFailure: ReturnType<typeof signal<boolean>>;
+      reconcile: ReturnType<typeof vi.fn>;
+    };
+    const blockerAction = {
+      id: '11111111-1111-4111-8111-111111111111',
+      workspaceId: 'workspace-1',
+      connectionId: '22222222-2222-4222-8222-222222222222',
+      requestId: '33333333-3333-4333-8333-333333333333',
+      entryId: '44444444-4444-4444-8444-444444444444',
+      title: 'Cloudmonster 45',
+      imageUrl: null,
+      kind: 'price_save',
+      state: 'outcome_unknown',
+      version: 2,
+      waitReason: null,
+      errorCode: 'provider_unconfirmed',
+      result: null,
+      blockedByActionId: null,
+      historyPurged: false,
+      resultExpired: false,
+      createdAt: '2026-11-20T10:00:00.000Z',
+      updatedAt: '2026-11-20T10:01:00.000Z',
+      startedAt: '2026-11-20T10:00:05.000Z',
+      finishedAt: '2026-11-20T10:01:00.000Z',
+    };
+    const waitingAction = {
+      ...blockerAction,
+      id: '55555555-5555-4555-8555-555555555555',
+      requestId: '66666666-6666-4666-8666-666666666666',
+      state: 'queued',
+      version: 1,
+      waitReason: 'dependency_unresolved',
+      errorCode: null,
+      blockedByActionId: blockerAction.id,
+      createdAt: '2026-11-20T10:40:00.000Z',
+      updatedAt: '2026-11-20T10:40:00.000Z',
+      startedAt: null,
+      finishedAt: null,
+    };
+    accountActions.entries.set([
+      { action: waitingAction, accountName: 'Hauptkonto' },
+      { action: blockerAction, accountName: 'Hauptkonto' },
+    ]);
+    accountActions.count.set(1);
+    accountActions.hasFailure.set(true);
+    fixture.detectChanges();
+
+    element.querySelector<HTMLButtonElement>('[data-action-overview-trigger] button')!.click();
+    fixture.detectChanges();
+
+    const waitingCard = element.querySelector(`[data-account-action-id="${waitingAction.id}"]`);
+    expect(waitingCard?.textContent).toContain('Vorherige Änderung muss geprüft werden');
+    const reconcileButton = [...(waitingCard?.querySelectorAll('button') ?? [])].find((button) =>
+      button.textContent?.includes('Vorherige Änderung nachprüfen'),
+    );
+    expect(reconcileButton).toBeDefined();
+    reconcileButton!.click();
+    expect(accountActions.reconcile).toHaveBeenCalledWith(blockerAction);
+  });
   it('blendet nur die Workspace-Auswahl aus und schließt ein zuvor geöffnetes Menü', async () => {
     const fixture = await renderHeader();
     const element = fixture.nativeElement as HTMLElement;

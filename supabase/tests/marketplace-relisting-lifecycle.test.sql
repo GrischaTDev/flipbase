@@ -275,5 +275,66 @@ set local role service_role;
 select public.marketplace_request_relisting_import((select listing_job from public.marketplace_listing_jobs listing_job where connection_id='46900000-0000-4000-8000-000000000021' and state='confirmed' and external_id='46911'));
 select is((select count(*) from public.marketplace_operations where connection_id='46900000-0000-4000-8000-000000000021'),(select operation_count from relist_context),'Überholter bestätigter Altjob erzeugt keine zusätzlichen Kontoabrufe');
 select ok(not has_function_privilege('authenticated','public.marketplace_relink_relisting_entry(public.marketplace_listing_jobs)','execute'),'Client darf keine freie Artikelumverknüpfung aufrufen');
+-- Normale Neuveröffentlichung (ohne relistExternalId) mit Erstellungsbeleg und Aktiv-Timeout:
+-- muss beim späteren Aktiv-Import bestätigt werden, damit Preisänderungen nicht dauerhaft warten.
+reset role;
+update public.marketplace_operations set state='failed',finished_at=clock_timestamp()-interval '2 minutes' where connection_id='46900000-0000-4000-8000-000000000021';
+set local role authenticated;
+update relist_context set draft=public.marketplace_create_listing_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021',
+  '{"title":"Cloudmonster Schuh","description":"Neu und ungetragen","priceCents":9890,"currency":"EUR","categoryId":1453,"conditionId":2,"packageSizeId":2,"brandId":331974,"brandLabel":"On Running","sizeId":784,"sizeLabel":"45"}',null,'46900000-0000-4000-8000-000000000091');
+reset role;
+insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
+select '46900000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46900000-0000-4000-8000-000000000011/'||(draft->>'id')||'/46900000-0000-4000-8000-000000000092.jpg','shoe.jpg','image/jpeg',123,'ready','46900000-0000-4000-8000-000000000001' from relist_context;
+update public.marketplace_listing_drafts set image_ids=array(select id from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from relist_context)) where id=(select (draft->>'id')::bigint from relist_context);
+insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',storage_path,'{"size":123,"mimetype":"image/jpeg"}' from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from relist_context);
+set local role authenticated;
+update relist_context set job=public.marketplace_enqueue_listing(draft->>'id',1,'publish','46900000-0000-4000-8000-000000000093',false);
+reset role;
+update public.marketplace_listing_jobs set state='writing',started_at=clock_timestamp() where id=(select (job->>'id')::bigint from relist_context);
+set local role service_role;
+update relist_context set job=public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(relist_context.job->>'id')::bigint),
+  jsonb_build_object('outcome','outcome_unknown','errorCode','provider_unconfirmed_active_evidence','externalId','46999','externalAccountId','46901'));
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Normale Neuveröffentlichung ohne Aktivnachweis bleibt zunächst unklar');
+select ok(exists(select 1 from public.marketplace_operations where connection_id='46900000-0000-4000-8000-000000000021' and state='queued' and authorization_kind='manual_read'),'Normale Neuveröffentlichung mit Erstellungsbeleg fordert einen lesenden Kontoabgleich an');
+select lives_ok($$select pg_temp.relist_import(jsonb_build_array(
+  jsonb_build_object('kind','publication','externalId','46912','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Späterer Anbieterstand','publicationState','active')),
+  jsonb_build_object('kind','publication','externalId','46999','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Cloudmonster Schuh','price',98.9,'publicationState','draft'))))$$,'Entwurfsimport bestätigt die normale Neuveröffentlichung noch nicht');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Anbieterentwurf beendet outcome_unknown einer normalen Neuveröffentlichung nicht');
+set local role authenticated;
+select is(public.marketplace_account_action_enqueue('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','46900000-0000-4000-8000-000000000094','price_save',
+  jsonb_build_object('entryId',(select id from public.marketplace_account_entries where connection_id='46900000-0000-4000-8000-000000000021' and external_id='46999'),'expectedPriceCents',9890,'priceCents',9400))->'action'->>'waitReason','dependency_unresolved','Unbestätigte Neuveröffentlichung blockiert eine spätere Preisänderung desselben Artikels');
+reset role;
+update public.marketplace_operations set state='failed',finished_at=clock_timestamp()-interval '2 minutes' where connection_id='46900000-0000-4000-8000-000000000021';
+update relist_context set operation_count=(select count(*) from public.marketplace_operations where connection_id='46900000-0000-4000-8000-000000000021');
+set local role service_role;
+select lives_ok($$select pg_temp.relist_import(jsonb_build_array(
+  jsonb_build_object('kind','publication','externalId','46912','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Späterer Anbieterstand','publicationState','active')),
+  jsonb_build_object('kind','publication','externalId','46999','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Cloudmonster Schuh','price',98.9,'publicationState','active'))))$$,'Aktiv-Import bestätigt die normale Neuveröffentlichung');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'confirmed','Aktiv-Import auf demselben Konto schließt die normale Neuveröffentlichung als bestätigt ab');
+select is((select provider_state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'active','Bestätigte normale Neuveröffentlichung erhält den Zustand active');
+select is((select count(*) from public.marketplace_operations where connection_id='46900000-0000-4000-8000-000000000021'),(select operation_count from relist_context),'Bestätigte normale Neuveröffentlichung löst keinen zusätzlichen Kontoabruf aus');
+select ok(exists(select 1 from public.marketplace_listing_photo_sources where connection_id='46900000-0000-4000-8000-000000000021' and external_id='46999'),'Bestätigte normale Neuveröffentlichung merkt sich die Originalfotoquelle');
+set local role authenticated;
+select ok((select public.marketplace_account_action_find('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021','46900000-0000-4000-8000-000000000094')->'action'->>'waitReason') is distinct from 'dependency_unresolved','Nach dem bestätigenden Aktiv-Import blockiert die Neuveröffentlichung die Preisänderung nicht mehr');
+-- Negativfall: Ein unklarer Fehler ohne bestätigten Nachprüfcode (z. B. timeout) wird durch Import nicht bestätigt.
+update relist_context set draft=public.marketplace_create_listing_draft('46900000-0000-4000-8000-000000000011','46900000-0000-4000-8000-000000000021',
+  '{"title":"Ungeklärtes Timeout","description":"Beschreibung","priceCents":3500,"currency":"EUR","categoryId":1453,"conditionId":2,"packageSizeId":2,"brandId":331974,"brandLabel":"On Running","sizeId":784,"sizeLabel":"45"}',null,'46900000-0000-4000-8000-000000000095');
+reset role;
+insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
+select '46900000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46900000-0000-4000-8000-000000000011/'||(draft->>'id')||'/46900000-0000-4000-8000-000000000096.jpg','timeout.jpg','image/jpeg',123,'ready','46900000-0000-4000-8000-000000000001' from relist_context;
+update public.marketplace_listing_drafts set image_ids=array(select id from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from relist_context)) where id=(select (draft->>'id')::bigint from relist_context);
+insert into storage.objects(bucket_id,name,metadata) select 'marketplace-listing-media',storage_path,'{"size":123,"mimetype":"image/jpeg"}' from public.marketplace_listing_images where draft_id=(select (draft->>'id')::bigint from relist_context);
+set local role authenticated;
+update relist_context set job=public.marketplace_enqueue_listing(draft->>'id',1,'publish','46900000-0000-4000-8000-000000000097',false);
+reset role;
+update public.marketplace_listing_jobs set state='writing',started_at=clock_timestamp() where id=(select (job->>'id')::bigint from relist_context);
+set local role service_role;
+update relist_context set job=public.marketplace_listing_finish_job((select listing_job from public.marketplace_listing_jobs listing_job where listing_job.id=(relist_context.job->>'id')::bigint),
+  jsonb_build_object('outcome','outcome_unknown','errorCode','provider_unconfirmed','externalId','46998','externalAccountId','46901'));
+select lives_ok($$select pg_temp.relist_import(jsonb_build_array(
+  jsonb_build_object('kind','publication','externalId','46912','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Späterer Anbieterstand','publicationState','active')),
+  jsonb_build_object('kind','publication','externalId','46999','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Cloudmonster Schuh','price',98.9,'publicationState','active')),
+  jsonb_build_object('kind','publication','externalId','46998','sortAt',clock_timestamp(),'body',jsonb_build_object('title','Ungeklärtes Timeout','price',35,'publicationState','active'))))$$,'Aktiv-Import mit allgemeinem provider_unconfirmed bleibt unschädlich');
+select is((select state from public.marketplace_listing_jobs where id=(select (job->>'id')::bigint from relist_context)),'outcome_unknown','Allgemeiner unklarer Fehlercode wird ohne Nachprüfcode nicht automatisch bestätigt');
 select * from finish();
 rollback;

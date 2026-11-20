@@ -132,28 +132,31 @@ export async function openVintedListingChoices(
   let input = page.locator(`#${field}`);
   const openingStartedAt = performance.now();
   const openingTimeout = field === 'brand' ? 15_000 : 5000;
-  try {
-    input = (await vintedListingFormControl(page, field))!.locator;
-    // Verankerte Auswahllisten brauchen unter dem Kontrollfeld Platz im Viewport.
-    await input.evaluate(
-      (element) =>
-        element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
-      undefined,
-      { timeout: Math.max(1, openingTimeout - (performance.now() - openingStartedAt)) },
-    );
-    // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
-    await input.click({
-      timeout: Math.max(1, openingTimeout - (performance.now() - openingStartedAt)),
-    });
-  } catch (error) {
-    if (error instanceof VintedListingControlError) {
-      const step = vintedListingReadSteps.find(
-        (candidate) => candidate === `${field}_open_${error.reason}`,
+  const openTrigger = async (timeoutMs: number): Promise<void> => {
+    try {
+      input = (await vintedListingFormControl(page, field))!.locator;
+      // Verankerte Auswahllisten brauchen unter dem Kontrollfeld Platz im Viewport.
+      await input.evaluate(
+        (element) =>
+          element.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'instant' }),
+        undefined,
+        { timeout: Math.max(1, timeoutMs) },
       );
-      throw step ? new VintedListingReadError(step) : vintedListingChoiceReadError(field, 'open');
+      // Die Markenauswahl wird nach einem Kategorienwechsel sichtbar, bevor ihre Daten geladen sind.
+      await input.click({
+        timeout: Math.max(1, timeoutMs),
+      });
+    } catch (error) {
+      if (error instanceof VintedListingControlError) {
+        const step = vintedListingReadSteps.find(
+          (candidate) => candidate === `${field}_open_${error.reason}`,
+        );
+        throw step ? new VintedListingReadError(step) : vintedListingChoiceReadError(field, 'open');
+      }
+      throw await listingChoiceOpenError(page, input, field, error);
     }
-    throw await listingChoiceOpenError(page, input, field, error);
-  }
+  };
+  await openTrigger(openingTimeout - (performance.now() - openingStartedAt));
   if (field === 'category') {
     for (const parentId of categoryPath) {
       // Kategoriegruppen öffnen; Endkategorien niemals zur bloßen Prüfung auswählen.
@@ -198,14 +201,39 @@ export async function openVintedListingChoices(
             ? '[role="checkbox"][id^="color-"],[role="checkbox"][data-testid^="filter-grid-option-"]:has([data-testid^="color-"])'
             : `[role="${field === 'material' ? 'checkbox' : 'radio'}"][id^="${field}-"]`;
   const optionsDeadline = performance.now() + openingTimeout;
+  const optionsLocator = page.locator(selector).filter({ visible: true }).first();
   try {
-    await page
-      .locator(selector)
-      .filter({ visible: true })
-      .first()
-      // Auch nach dem bedienbaren Markenfeld lädt Vinted die Optionen erst nach.
-      .waitFor({ state: 'visible', timeout: Math.max(1, optionsDeadline - performance.now()) });
+    if (field === 'brand') {
+      // Nach einem Kategorienwechsel kann der erste Klick auf das Markenfeld verpuffen,
+      // bevor Vinted den Popup-Handler neu gebunden hat. Innerhalb des bestehenden Zeitbudgets
+      // erneut öffnen statt 15 Sekunden auf ein geschlossenes Menü zu warten.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const remaining = optionsDeadline - performance.now();
+        const sliceTimeout = attempt < 2 ? Math.min(3500, remaining) : remaining;
+        try {
+          await optionsLocator.waitFor({ state: 'visible', timeout: Math.max(1, sliceTimeout) });
+          break;
+        } catch (error) {
+          const retryBudget = optionsDeadline - performance.now();
+          if (
+            attempt === 2 ||
+            !(error instanceof Error) ||
+            error.name !== 'TimeoutError' ||
+            retryBudget <= 500
+          )
+            throw error;
+          await options.authorize?.();
+          await openTrigger(retryBudget);
+        }
+      }
+    } else {
+      await optionsLocator.waitFor({
+        state: 'visible',
+        timeout: Math.max(1, optionsDeadline - performance.now()),
+      });
+    }
   } catch (error) {
+    if (error instanceof VintedListingReadError) throw error;
     if (field === 'category')
       throw new Error('Die Vinted-Kategorie ist nicht verfügbar.', { cause: error });
     throw vintedListingChoiceReadError(field, 'options');
