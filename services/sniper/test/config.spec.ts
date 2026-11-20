@@ -38,6 +38,14 @@ describe('loadConfig', () => {
     expect(config.tickIntervalMs).toBe(1000);
     expect(config.requestMinIntervalMs).toBe(2500);
     expect(config.categoryMaxAgeMs).toBe(86_400_000);
+    expect(config.freshCatalogRequests).toBe(true);
+  });
+
+  it('switches fresh catalog requests off only on an explicit false', () => {
+    expect(
+      loadConfig({ ...validEnv, SNIPER_FRESH_CATALOG_REQUESTS: 'false' }).freshCatalogRequests,
+    ).toBe(false);
+    expect(() => loadConfig({ ...validEnv, SNIPER_FRESH_CATALOG_REQUESTS: 'nein' })).toThrow();
   });
 
   it('rejects a missing service role key', () => {
