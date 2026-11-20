@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-20 - Juna - Vinted-Feed liest den Katalog wieder frisch
+
+**Anlass:** Im ungefilterten Feed kamen minutenlang keine neuen Artikel. Die gespeicherten Artikel zeigen den Bruch am 19.11.2026 um 12:12 Uhr bei denselben zwei Sammelfiltern: vorher rund 400 Abrufe mit neuen Artikeln pro Stunde (Abstand im Mittel 7 s, etwa 37.000 Artikel/h), danach rund 80 (Abstand 40 bis 100 s, etwa 10.000 Artikel/h). An diesem Tag wurde vor 15:27 Uhr nichts ausgeliefert, und der Bot-Browser wurde nicht neu verbunden.
+
+**Ursache (gemessen am 20.11.2026):** Vinted speichert die Katalogseite für nicht angemeldete Besucher je Abfrage rund zwei Minuten zwischen. Identische Abfragen liefern so lange dieselbe Liste, das gilt mit und ohne Cookies, auch für enge Abfragen und die Textsuche. Angemeldet ist die Seite live. Eine bisher ungenutzte Abfrage liest Vinted auch anonym frisch. Ein Zeitparameter oder `per_page` ändern den Schlüssel nicht. Preisgrenzen rundet Vinted auf etwa vier Nachkommastellen.
+
+**Änderung:** Jeder Katalogabruf des Sammlers bekommt eine wechselnde, wirkungslose Preisgrenze: ohne eigene Obergrenze eine ganze Zahl ab 100.000 €, mit Obergrenze eine gestreute Untergrenze unter 1 €, mit beiden Grenzen eine Weitung um Bruchteile eines Cents (z. B. 9,9901 bis 50,0001 statt 10 bis 50). Unter 1,5 Mio. gespeicherten Artikeln lag keiner unter 1 € oder über 30.000 €. Eine Untergrenze von 0 € zählt als keine Untergrenze; unsinnige Grenzen bleiben unverändert. `SNIPER_FRESH_CATALOG_REQUESTS=false` schaltet das ohne Neubau ab. Zusätzlich lädt ein Lauf ohne Überschneidung zum letzten Lauf jetzt bei jeder nicht leeren Seite nach, statt nur bei genau 96 Einträgen: Vinted liefert auch volle Seiten oft mit 83 bis 95 Einträgen, und bei frischen Daten gingen sonst zu Spitzenzeiten Artikel verloren. Planungsschlüssel und Vergleichsmarkt sind nicht betroffen.
+
+**Gegenprüfung vor dem Merge:** Drei getrennte Prüfungen (Code, Betrieb mit Produktionszahlen, anonyme Live-Messung mit 75 Abrufen). Live bestätigt: Die künstliche Grenze ändert die gelieferten Artikel nicht (kleine Kategorie 95–96 von 96 gleich), jede Variante wird frisch gelesen, 999.999 € und 0,9999 € funktionieren, Vinted vergleicht Preise exakt (9,9901–9,9999 € und 50,0001–50,0099 € liefern 0 Artikel), 25 Abrufe im 4-s-Takt ohne 403/429/Challenge. Produktion: 2 aktive Filter, beide ohne Preisgrenze. Offene Beobachtung: Vinted setzt ein DataDome-Cookie; ob der Schutz bei Dauerbetrieb eingreift, zeigt erst der Betrieb.
+
+**Prüfung:** `npm --prefix services/sniper test` mit Node 24: 496 Tests bestanden, 7 übersprungen.
+
 ## 2026-11-20 - Juna - Detailseiten-Kategorieprüfung im Vinted-Bot entfernt und Taktung beschleunigt
 
 **Anlass:** Nach den Updates vom 19.11. (`0716486a`, `d26c611e`, `fcb30a66`) kamen selbst im ungefilterten Standard-Feed neue Artikel teils rund eine Minute verzögert an. Die nachträglich eingebaute Einzelartikel-Kategorieprüfung (`verifyCategory`) öffnete für Blattkategorie-Filter einzelne Vinted-Artikelseiten im Browser, band damit Budget sowie Laufzeit und bremste schnelle Sammelfilter (Damen-/Herrenkleidung) aus. Eine direkte Gegenprüfung gegen Vinted (`catalog_ids=1858&brand_ids=362` und `catalog[]=1858&brand_ids[]=362`) sowie die Prüfung unseres Abruf- und Speicherwegs bestätigten, dass die Katalogabfrage sauber getrennt arbeitet und einzelne Detailseiten-Abrufe dafür unnötig sind.

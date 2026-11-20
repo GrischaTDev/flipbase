@@ -27,6 +27,8 @@ const EnvSchema = z.object({
     ),
   SNIPER_HEALTH_PORT: z.coerce.number().int().min(1).max(65535).default(8080),
   SNIPER_CATEGORY_MAX_AGE_MS: z.coerce.number().int().min(60_000).default(86_400_000),
+  // Notschalter ohne Neubau, falls Vinted die wechselnde Preisgrenze ablehnt.
+  SNIPER_FRESH_CATALOG_REQUESTS: z.enum(['true', 'false']).default('true'),
 });
 
 export interface SnipeConfig {
@@ -45,6 +47,7 @@ export interface SnipeConfig {
   userAgent: string;
   healthPort: number;
   categoryMaxAgeMs: number;
+  freshCatalogRequests: boolean;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
@@ -66,5 +69,6 @@ export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
     userAgent: parsed.SNIPER_USER_AGENT,
     healthPort: parsed.SNIPER_HEALTH_PORT,
     categoryMaxAgeMs: parsed.SNIPER_CATEGORY_MAX_AGE_MS,
+    freshCatalogRequests: parsed.SNIPER_FRESH_CATALOG_REQUESTS === 'true',
   };
 }

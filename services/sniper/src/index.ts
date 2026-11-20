@@ -34,7 +34,11 @@ preferIpv6();
 const config = loadConfig(process.env);
 const log = createLogger();
 const client = createSupabaseClient(config);
-const sessionOptions = { baseUrl: config.vintedBaseUrl, userAgent: config.userAgent };
+const sessionOptions = {
+  baseUrl: config.vintedBaseUrl,
+  userAgent: config.userAgent,
+  freshCatalogRequests: config.freshCatalogRequests,
+};
 const budget = new RequestBudget(config.requestsPerMinute);
 const requestGuard = new RequestStartGuard(budget);
 const health = createHealthState(

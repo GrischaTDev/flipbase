@@ -634,6 +634,39 @@ describe('bounded shared search scheduling', () => {
     expect(completeRun.mock.calls[1]?.[0]).toHaveLength(288);
     expect(completeRun.mock.calls[1]?.[2]).toMatchObject({ coverage: 'limited', source_pages: 3 });
   });
+  it('catches up after a short page that does not reach the previous run', async () => {
+    let round = 0;
+    const collectSource = vi.fn<NonNullable<CollectorLike['collectSource']>>(
+      async (_query, options) => {
+        if (round === 0) return Array.from({ length: 90 }, (_, i) => catalogListing(`known-${i}`));
+        if ((options?.page ?? 1) === 1)
+          return Array.from({ length: 88 }, (_, i) => catalogListing(`new-${i}`));
+        return [catalogListing('new-88'), catalogListing('known-0')];
+      },
+    );
+    const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => ({
+      accepted: true,
+      created: 0,
+      seeded: false,
+    }));
+    const scheduler = new QueryScheduler({
+      queries: { dueQueries: async () => [searchFilter()], markSeeded: async () => undefined },
+      collector: { collect: vi.fn(), collectSource },
+      listings: { saveNew: vi.fn(), completeRun },
+      budget: new RequestBudget(24),
+      log,
+      now: () => NOW,
+    });
+    await scheduler.runOnce(NOW);
+    round++;
+    await scheduler.runOnce(NOW);
+    expect(collectSource).toHaveBeenCalledTimes(3);
+    expect(completeRun.mock.calls[1]?.[0]).toHaveLength(90);
+    expect(completeRun.mock.calls[1]?.[2]).toMatchObject({
+      coverage: 'caught_up',
+      source_pages: 2,
+    });
+  });
   it('stops bounded catch-up when the prior source page is reached', async () => {
     let round = 0;
     const first = Array.from({ length: 96 }, (_, i) => catalogListing(`known-${i}`));
