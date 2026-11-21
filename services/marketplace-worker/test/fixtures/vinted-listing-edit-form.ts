@@ -61,6 +61,8 @@ export async function createVintedListingEditFormFixture(
     foreign?: boolean;
     missingAiPhoto?: boolean;
     missingBump?: boolean;
+    bumpChecked?: boolean;
+    unknownCheckbox?: boolean;
     ignoreSave?: boolean;
     /** Bestehender Preis wird beim Fokussieren in Vinteds Eingabeformat gebracht. */
     formatPriceOnFocus?: boolean;
@@ -254,7 +256,7 @@ export async function createVintedListingEditFormFixture(
       body: `<main id="content">
       <input name="photos" type="file" accept="image/jpeg,image/png">
       ${contentControls}
-      ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox">'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
+      ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox">'}${options.missingBump ? '' : `<input id="bump" type="checkbox"${options.bumpChecked ? ' checked' : ''}>`}${options.unknownCheckbox ? '<input id="boost" type="checkbox">' : ''}
       ${selectionControls}
       <div id="category-options" hidden>${options.categoryChange ? `<input id="catalog-search-input"><div role="radio" id="catalog-search-2739-result" aria-label="Wanderschuhe" aria-checked="${state.categoryId === 2739}">Wanderschuhe</div>` : ''}<div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span></div><div role="button" id="catalog-1193">Kinder</div></div>
       <div id="brand-options" hidden>${options.brandSearch ? '<input id="brand-search-input" data-testid="brand-search--input">' : ''}${option('brand', 'radio', [state.brand])}</div>

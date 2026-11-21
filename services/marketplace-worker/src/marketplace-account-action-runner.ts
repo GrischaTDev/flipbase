@@ -41,7 +41,7 @@ import {
   VintedLoginRejectedError,
   VintedVerificationRequiredError,
 } from './vinted-browser-reader.ts';
-import { VintedListingReadError } from './vinted-listing-read-error.ts';
+import { BrowserActionFailedError, VintedListingReadError } from './vinted-listing-read-error.ts';
 import {
   VintedImportReadError,
   VintedImportRequestError,
@@ -125,8 +125,10 @@ function accountActionFailureCode(error: unknown): string {
 }
 
 function logAccountActionFailure(kind: string, errorCode: string | null, error: unknown): void {
-  // Nur Fehlerart und Stufe, keine Inhalte oder Kontodaten.
+  // Nur Fehlerart, feste Schrittnamen und geprüfte Kurzbeschreibungen, keine Inhalte oder Kontodaten.
   const stage = error instanceof VintedImportReadError ? error.stage : undefined;
+  const step = error instanceof VintedListingReadError ? error.step : undefined;
+  const detail = error instanceof BrowserActionFailedError ? error.detail : undefined;
   const reason =
     error instanceof VintedImportRequestError
       ? error.reason
@@ -143,6 +145,8 @@ function logAccountActionFailure(kind: string, errorCode: string | null, error: 
         ? { message: error.message.slice(0, 200) }
         : {}),
       ...(stage ? { stage } : {}),
+      ...(step ? { step } : {}),
+      ...(detail ? { detail } : {}),
       ...(reason ? { reason } : {}),
     })}
 `,
@@ -400,6 +404,7 @@ export class MarketplaceAccountActionRunner {
         },
       },
     );
+    let executionError: unknown = undefined;
     try {
       if (claim.actionKind !== 'outcome_reconcile')
         validateAccountActionPayload(claim.actionKind, claim.payload);
@@ -413,6 +418,7 @@ export class MarketplaceAccountActionRunner {
         try {
           return await this.execute(claim, browser, authorize, sessionId!);
         } catch (error) {
+          executionError = error;
           if (
             error instanceof VintedInteractionRequiredError ||
             error instanceof VintedVerificationRequiredError
@@ -462,11 +468,12 @@ export class MarketplaceAccountActionRunner {
     } catch (error) {
       if (error instanceof MarketplaceBrowserSessionEndedError && error.isSessionClosed)
         stopped = true;
-      // Nach erfolgreichem Browserstart ist ein allgemeiner Fehler kein Startproblem: eigener
-      // Code statt „browser_unavailable“, damit Ursache und Wiederholungen stimmen.
+      // Der Broker kapselt Ausführungsfehler nach dem Stopp als Sitzungsabbruch. Für
+      // Fehlercode und Protokoll zählt die tatsächliche Ursache nach dem Browserstart.
+      const loggedError = executionError ?? error;
       if (sessionId && errorCode === 'browser_unavailable')
-        errorCode = accountActionFailureCode(error);
-      logAccountActionFailure(claim.actionKind, errorCode, error);
+        errorCode = accountActionFailureCode(loggedError);
+      logAccountActionFailure(claim.actionKind, errorCode, loggedError);
       state = beginConfirmed ? 'outcome_unknown' : 'failed';
       if (beginAttempted && !['login_required', 'challenge_required'].includes(errorCode ?? ''))
         errorCode = beginConfirmed ? 'provider_unconfirmed' : 'begin_unconfirmed';

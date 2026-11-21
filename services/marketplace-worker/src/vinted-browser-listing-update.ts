@@ -266,7 +266,10 @@ export async function updateVintedListingContent(
   /** Eingabefelder und Fotoraster, ohne eine Auswahlliste zu öffnen. */
   const readFormState = async () => {
     try {
-      const values = await page.evaluate(collectVintedListingFormValues);
+      const values = await page.evaluate(collectVintedListingFormValues, {
+        allowMissingAiPhoto: true,
+        allowMissingBump: true,
+      });
       const grid = await readLoadedVintedListingPhotos(page);
       if (!values || grid.items.some((entry) => entry.url === null)) return null;
       return {

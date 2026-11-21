@@ -19,7 +19,7 @@ interface ListingRuntime {
   collectFormControl(field: VintedListingControlField): VintedListingFormControl;
   collectPhotoState(): VintedListingPhotoState;
   collectFormValues(
-    options?: { allowMissingAiPhoto?: boolean } | void,
+    options?: { allowMissingAiPhoto?: boolean; allowMissingBump?: boolean } | void,
   ): VintedListingFormValues | null;
   formMatches(
     content: VintedListingContent,

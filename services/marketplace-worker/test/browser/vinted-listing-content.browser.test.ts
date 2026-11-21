@@ -19,6 +19,7 @@ async function fixture(
     brandSearch?: boolean;
     missingAiPhoto?: boolean;
     missingBump?: boolean;
+    unknownCheckbox?: boolean;
     mainWithoutId?: boolean;
     invalidMaterialChoice?: boolean;
     hiddenCondition?: boolean;
@@ -62,7 +63,7 @@ async function fixture(
       contentType: 'text/html; charset=utf-8',
       body: `<main${options.mainWithoutId ? '' : ' id="content"'}>
       <input name="photos" type="file" accept="image/jpeg,image/png"><input name="title" value="Meine Schuhe"><textarea name="description">Sehr gut erhalten.</textarea><input name="price" value="20,50 €">
-      ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox" checked>'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}
+      ${options.missingAiPhoto ? '' : '<input id="ai_photo" type="checkbox" checked>'}${options.missingBump ? '' : '<input id="bump" type="checkbox">'}${options.unknownCheckbox ? '<input id="boost" type="checkbox">' : ''}
       ${options.categoryControl === 'non-input' ? '<span id="category">Fußballschuhe</span>' : `<input id="category" readonly value="${options.categoryControl === 'empty' ? '' : options.categoryControl === 'long' ? 'x'.repeat(201) : 'Fußballschuhe'}">`}${options.categoryControl === 'duplicate' ? '<input id="category" readonly value="Fußballschuhe">' : ''}<input id="brand" readonly value="Jako"><input id="size" readonly value="38"><input id="condition" readonly value="Sehr gut"${options.hiddenCondition ? ' hidden' : ''}><input id="color" readonly value="Blau, Gelb"><input id="material" readonly value="Acryl">
       ${options.unknown ? '<input name="warranty_code" id="warranty_code" value="Unbekanntes Merkmal">' : ''}
       <div id="category-options" hidden><div role="radio" id="catalog-suggestion-2738" aria-checked="false"><span class="web_ui__Cell__title">Fußballschuhe</span><span>Kinder > Jungs > Schuhe > Sportschuhe</span></div><div role="button" id="catalog-1904">Damen</div><div role="button" id="catalog-1193">Kinder</div></div>
@@ -156,17 +157,22 @@ test('reads existing listings whose category input also carries the dropdown tes
   }
 });
 
-test('reads existing listings in the current main region without the optional AI control and keeps the push control required', async () => {
+test('reads existing listings in the current main region without optional AI or push controls and still blocks unknown checkboxes', async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    const writes = await fixture(page, { missingAiPhoto: true, mainWithoutId: true });
+    const writes = await fixture(page, {
+      missingAiPhoto: true,
+      missingBump: true,
+      mainWithoutId: true,
+    });
     const result = await readVintedListingCurrentContent(page, '123', '98765', () =>
       Promise.resolve(),
     );
     assert.equal(result.aiPhoto, false);
     assert.equal(result.schema.aiPhoto, null);
     assert.equal(result.bump, false);
+    assert.equal(result.schema.bump, null);
     assert.equal(result.content.title, 'Meine Schuhe');
     assert.equal(result.content.priceCents, 2050);
     assert.equal(result.photoUrls.length, 2);
@@ -174,7 +180,11 @@ test('reads existing listings in the current main region without the optional AI
     assert.equal(writes(), 0);
 
     const incomplete = await browser.newPage();
-    const otherWrites = await fixture(incomplete, { missingAiPhoto: true, missingBump: true });
+    const otherWrites = await fixture(incomplete, {
+      missingAiPhoto: true,
+      missingBump: true,
+      unknownCheckbox: true,
+    });
     await assert.rejects(
       readVintedListingCurrentContent(incomplete, '123', '98765', () => Promise.resolve()),
       (error) => error instanceof VintedListingReadError && error.step === 'values',

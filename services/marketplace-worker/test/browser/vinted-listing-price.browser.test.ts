@@ -256,11 +256,14 @@ test('auch der einfache Bearbeitungs-Fallback fokussiert das Preisfeld vor der E
   }
 });
 
-test('Preisänderung erlaubt fehlende optionale KI-Auswahl, verlangt aber weiterhin die Push-Auswahl', async () => {
+test('Preisänderung erlaubt fehlende KI- und Push-Auswahl bei gepushten Inseraten, blockiert aber aktive oder unbekannte Checkboxen', async () => {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage();
-    const form = await createVintedListingEditFormFixture(page, { missingAiPhoto: true });
+    const form = await createVintedListingEditFormFixture(page, {
+      missingAiPhoto: true,
+      missingBump: true,
+    });
     const result = await updateVintedListingPrice(
       page,
       '98765',
@@ -274,16 +277,19 @@ test('Preisänderung erlaubt fehlende optionale KI-Auswahl, verlangt aber weiter
     assert.equal(form.state().price, '39,90 €');
     assert.equal(form.state().title, 'Meine Schuhe');
     assert.equal(form.listOpens(), 0);
-    const blocked = await browser.newPage();
-    const blockedForm = await createVintedListingEditFormFixture(blocked, {
-      missingAiPhoto: true,
-      missingBump: true,
-    });
-    await assert.rejects(
-      updateVintedListingPrice(blocked, '98765', '123', 2050, 3990, async () => undefined),
-    );
-    assert.equal(blockedForm.saves(), 0);
-    assert.equal(blockedForm.writes(), 0);
+    for (const blockedOptions of [
+      { missingAiPhoto: true, missingBump: true, unknownCheckbox: true },
+      { missingAiPhoto: true, bumpChecked: true },
+    ]) {
+      const blocked = await browser.newPage();
+      const blockedForm = await createVintedListingEditFormFixture(blocked, blockedOptions);
+      await assert.rejects(
+        updateVintedListingPrice(blocked, '98765', '123', 2050, 3990, async () => undefined),
+        /Speichern abgebrochen bei lesen/,
+      );
+      assert.equal(blockedForm.saves(), 0);
+      assert.equal(blockedForm.writes(), 0);
+    }
   } finally {
     await browser.close();
   }
