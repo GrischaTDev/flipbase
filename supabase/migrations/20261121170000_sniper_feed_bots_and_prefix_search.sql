@@ -62,13 +62,10 @@ begin
     end if;
     if v_has_title_query then
         -- Wortanfang-Suche je Suchwort über den bestehenden GIN-Index (z. B. CARH -> Carhartt).
-        select coalesce(
-            string_agg(
+        select string_agg(
                 '''' || replace(replace(lexeme, '\', '\\'), '''', '''''') || ''':*',
                 ' & '
-            )::tsquery,
-            ''::tsquery
-        )
+            )::tsquery
         into v_title_query
         from unnest(tsvector_to_array(to_tsvector('simple', p_title_query))) as lexeme;
     end if;
@@ -134,7 +131,7 @@ begin
         where listing.first_seen_at >= now() - interval '3 days'
             and not listing.is_initial_stock
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
-            and (not v_has_title_query or to_tsvector('simple', coalesce(listing.title,'')) @@ v_title_query)
+            and (not v_has_title_query or (v_title_query is not null and to_tsvector('simple', coalesce(listing.title,'')) @@ v_title_query))
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
             and (p_size is null or public.sniper_feed_matches_size(listing.size, p_size))
             and (cardinality(p_sizes) = 0 or exists (
