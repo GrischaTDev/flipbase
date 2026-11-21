@@ -15,6 +15,7 @@ import { BrowserSessionCommands } from '../src/browser-session-commands.ts';
 import { isolatedBrowserActions, validateBrowserResult } from '../src/isolated-browser-actions.ts';
 import { parseVintedProfileSaveResult } from '../src/vinted-profile-contracts.ts';
 import { MarketplaceBrowserSessionEndedError } from '../src/marketplace-browser-session-broker.ts';
+import { BrowserActionFailedError } from '../src/vinted-listing-read-error.ts';
 import { listingCurrentContentFixture } from './fixtures/vinted-listing-current-content.ts';
 import type { VintedAccountImport, VintedImportEntry } from '../src/vinted-account-import.ts';
 
@@ -896,6 +897,65 @@ test('a provider failure after browser start is retried as provider_failed, not 
   await runner.run(claim);
   const retry = calls.find((call) => call.name === 'marketplace_account_action_retry');
   assert.equal(retry?.body.p_error_code, 'provider_failed');
+});
+
+test('a browser action failure wrapped by broker session cleanup still reports provider_failed and logs its safe detail', async () => {
+  const { claim, store, calls } = fixture('price_save', {
+    entryId,
+    expectedPriceCents: 5999,
+    priceCents: 5699,
+  });
+  let closedTwice = false;
+  const runner = new MarketplaceAccountActionRunner({
+    url: 'https://db.example',
+    serviceRoleKey: 'server',
+    publishableKey: 'public',
+    store,
+    broker: {
+      open: async () => sessionId,
+      run: async (_scope, _id, operation) => {
+        try {
+          return await operation({
+            version: () => '',
+            updateListingPrice: async () => {
+              throw new BrowserActionFailedError('Error: Speichern abgebrochen bei lesen');
+            },
+          });
+        } catch {
+          throw new MarketplaceBrowserSessionEndedError('interrupted', { isSessionClosed: true });
+        }
+      },
+      close: async () => {
+        closedTwice = true;
+      },
+      discardUnstartedAction: async () => undefined,
+    },
+  });
+  const logged: string[] = [];
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    logged.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    await runner.run(claim);
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+  assert.equal(closedTwice, false);
+  const retry = calls.find((call) => call.name === 'marketplace_account_action_retry');
+  assert.equal(retry?.body.p_error_code, 'provider_failed');
+  const event = logged
+    .map((line) => {
+      try {
+        return JSON.parse(line.trim()) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })
+    .find((entry) => entry?.event === 'marketplace_account_action_failed');
+  assert.equal(event?.errorCode, 'provider_failed');
+  assert.equal(event?.detail, 'Error: Speichern abgebrochen bei lesen');
 });
 
 test('sold listing source read uses the item in the sale and never writes its historic entry', async () => {

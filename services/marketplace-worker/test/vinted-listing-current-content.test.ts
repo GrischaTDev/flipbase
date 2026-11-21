@@ -13,16 +13,22 @@ test('accepts a complete current listing bound to the expected account and item'
   assert.deepEqual(parseVintedListingCurrentContent(withoutBrand, '123', '98765'), withoutBrand);
 });
 
-test('accepts unavailable AI only as disabled and retains the missing-control metadata', () => {
+test('accepts unavailable AI and push controls only as disabled and retains the missing-control metadata', () => {
   const fixture = listingCurrentContentFixture();
-  const input = { ...fixture, aiPhoto: false, schema: { ...fixture.schema, aiPhoto: null } };
+  const input = {
+    ...fixture,
+    aiPhoto: false,
+    bump: false,
+    schema: { ...fixture.schema, aiPhoto: null, bump: null },
+  };
   assert.deepEqual(parseVintedListingCurrentContent(input, '123', '98765'), input);
   assert.throws(() =>
     parseVintedListingCurrentContent({ ...input, aiPhoto: true }, '123', '98765'),
   );
+  assert.throws(() => parseVintedListingCurrentContent({ ...input, bump: true }, '123', '98765'));
   assert.throws(() =>
     parseVintedListingCurrentContent(
-      { ...input, schema: { ...input.schema, bump: null } },
+      { ...input, schema: { ...input.schema, bump: true } },
       '123',
       '98765',
     ),

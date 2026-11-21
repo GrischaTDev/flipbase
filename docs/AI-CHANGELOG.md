@@ -1,5 +1,20 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-21 - Juna - Preisänderungen und Bearbeitungen für bereits gepushte Vinted-Inserate zulassen und Fehlerursachen erhalten
+
+**Anlass und lesende Produktionsdiagnose:** In der Nacht vom 21.11.2026 (01:11 und 01:13 Uhr) schlugen zwei Vinted-Preisänderungen (`listing:10368633605`, Auftrag 105 und `listing:10672542627`, Auftrag 107; zuvor bereits Auftrag 83) jeweils nach drei Versuchen mit der irreführenden Meldung „Der Cloud-Browser konnte nicht gestartet werden. Versuche es erneut.“ (`browser_unavailable`) fehl, während die Preisänderung eines nicht gepushten Inserats dazwischen (`listing:10895824493`, Auftrag 104) im ersten Versuch gelang. Die schreibgeschützte Auswertung von Worker-Logs und Datenbank ergab zwei zusammenwirkende Ursachen:
+
+1. **Gepushte Inserate (`promoted = true`):** Alle 16 Preisänderungen auf nicht gepushten Inseraten waren erfolgreich; alle 3 fehlgeschlagenen Preisänderungen (Aufträge 83, 105, 107) betrafen ausnahmslos bereits gepushte Inserate. Auf Vinteds Bearbeitungsseite (`/items/<id>/edit`) fehlt bei bereits gepushten Inseraten die kostenpflichtige Push-Checkbox (`input#bump`). `collectFormValues` in `tools/flipbase-extension/vinted-listing-runtime.js` verlangte `input#bump` aber bislang auch auf Bearbeitungsseiten zwingend und brach die Preisänderung sofort im Schritt `lesen` nach ~6 s ab.
+2. **Verschleierte Fehlerursache in `MarketplaceAccountActionRunner`:** Obwohl der Cloud-Browser in allen Versuchen sauber startete (`phase: "opened"`, `uncleanStop: false`), kapselt `MarketplaceBrowserSessionBroker.run()` jeden Ausführungsfehler nach dem Session-Stopp als `MarketplaceBrowserSessionEndedError('interrupted')`. `MarketplaceAccountActionRunner` verlor dadurch die eigentliche Fehlerursache aus `execute()`, meldete stets `browser_unavailable` („Der Cloud-Browser konnte nicht gestartet werden“) und schrieb nur `"Browsersitzung unterbrochen"` statt Schritt/Detail ins Worker-Log.
+
+**Änderungen:**
+
+- **Extension-Laufzeit & Bearbeitungs-Aufrufer (`tools/flipbase-extension/vinted-listing-runtime.js`, `services/marketplace-worker/src/vinted-listing-contracts.ts`, `vinted-browser-listing-price.ts`, `vinted-browser-listing-content.ts`, `vinted-browser-listing-update.ts`):** `collectFormValues` unterstützt nun das explizite Opt-in `allowMissingBump: true` ausschließlich für bestehende Inserate auf `/items/<id>/edit`, solange keine andere aktive/sichtbare unbekannte Checkbox im Formular vorhanden ist. Eine gesetzte oder doppelte `#bump`-Checkbox sowie unbekannte Checkboxen blockieren das Speichern weiterhin; Neuveröffentlichungen (`/items/new` in `vinted-browser-listing-submit.ts` und `vinted-browser-listing-result.ts`) verlangen `#bump` unverändert strikt. `parseCurrentContent` akzeptiert fehlende Push-Steuerung analog zur optionalen KI-Steuerung nur mit `bump: false`.
+- **Fehlerklassifizierung & Protokollierung (`services/marketplace-worker/src/marketplace-account-action-runner.ts`):** Der Runner merkt sich den eigentlichen Ausführungsfehler vor der Broker-Kapselung, ermittelt daraus den passenden Fehlercode (z. B. `provider_failed` statt `browser_unavailable` nach erfolgreichem Browserstart) und protokolliert zusätzlich feste, validierte Fehlerangaben (`step` bei `VintedListingReadError`, `detail` bei `BrowserActionFailedError`).
+- **Tests (`services/marketplace-worker/test/`):** Browser- und Unit-Tests für gepushte Inserate ohne `#bump`, Blockade aktiver/unbekannter Checkboxen sowie Fehlerklassifizierung und Detail-Logging nach Broker-Kapselung ergänzt bzw. aktualisiert.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-20 - Juna - Vinted-Feed bietet nur Kategorien mit eigenem Kategorie-Bot an
 
 **Anlass:** Mit Marke Carhartt und Kategorie „Fleecejacken Herren“ zeigte der Feed „Für diesen Bereich sammelt der Monitor noch nicht“, obwohl der Herren-Sammler alle Herrenkleidung abruft.

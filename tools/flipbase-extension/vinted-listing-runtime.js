@@ -1285,6 +1285,21 @@
         values[name] = false;
         continue;
       }
+      // Bereits gepushte Inserate zeigen auf der Bearbeitungsseite keine Push-Checkbox.
+      // Jede unbekannte Checkbox im Formular blockiert das Speichern weiterhin.
+      if (
+        name === 'bump' &&
+        nodes.length === 0 &&
+        options?.allowMissingBump === true &&
+        [...root.querySelectorAll('input[type="checkbox"]')].every(
+          (checkbox) =>
+            checkbox.id === 'ai_photo' ||
+            Boolean(checkbox.closest('[hidden],[aria-hidden="true"]')),
+        )
+      ) {
+        values[name] = false;
+        continue;
+      }
       if (nodes.length !== 1) return null;
       values[name] = nodes[0].checked;
     }
@@ -1493,7 +1508,7 @@
     const schema = parseCategoryFields(input.schema, content.categoryId);
     if (
       (schema.aiPhoto !== input.aiPhoto && !(schema.aiPhoto === null && input.aiPhoto === false)) ||
-      schema.bump !== input.bump
+      (schema.bump !== input.bump && !(schema.bump === null && input.bump === false))
     )
       invalid();
     // Kennungen und Namen stammen aus derselben aktuellen Auswahl, nie aus getrennten Quellen.
