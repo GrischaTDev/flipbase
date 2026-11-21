@@ -73,7 +73,7 @@ insert into public.sniper_queries (id, query_key, title, catalog_id, brand_ids, 
   ('92000000-0000-4000-8000-000000000013', 'feed-category-brand', 'Carhartt Fleecejacken', 1086, array[362],
     array['Carhartt'], true);
 insert into public.sniper_queries (id, query_key, title, catalog_id, price_to, is_active) values
-  ('92000000-0000-4000-8000-000000000014', 'feed-category-price', '   ', 2537, 50, true);
+  ('92000000-0000-4000-8000-000000000014', 'feed-category-price', 'Preisfilter', 2537, 50, true);
 insert into public.sniper_queries (id, query_key, title, catalog_id, title_keywords, is_active, run_state) values
   ('92000000-0000-4000-8000-000000000015', 'feed-category-keyword', 'Ungültig', 2551, array['vintage'], true, 'invalid');
 insert into public.sniper_queries (id, query_key, title, catalog_id, is_active, deleted_at) values
@@ -86,8 +86,8 @@ select is((select array_agg(catalog_id order by catalog_id) from public.sniper_f
   'Nur aktive reine Kategorie-Bots erscheinen; Marken-, Preis- und Titelfilter nicht');
 select is((select array_agg(title order by lower(title), id) from public.sniper_feed_bots(
   '92000000-0000-4000-8000-000000000002')),
-  array['Carhartt Fleecejacken', 'Herren Fleecejacken', 'Herren Kleidung', 'Markenfilter', 'Markenfilter'],
-  'Aktive benannte Vinted-Bots erscheinen sortiert im Feed; pausierte, geloeschte, ungueltige und leere Titel nicht');
+  array['Carhartt Fleecejacken', 'Herren Fleecejacken', 'Herren Kleidung', 'Markenfilter', 'Markenfilter', 'Preisfilter'],
+  'Aktive gueltige Vinted-Bots erscheinen sortiert im Feed; pausierte, geloeschte und ungueltige nicht');
 select throws_ok($$select public.sniper_feed_categories(
   '92000000-0000-4000-8000-000000000005')$$,
   '42501', null, 'Kategorien fremder Arbeitsbereiche sind gesperrt');
