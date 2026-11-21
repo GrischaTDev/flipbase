@@ -67,6 +67,10 @@ export class AttributePickerComponent implements ControlValueAccessor {
   /** Externe Suche bekommt den Rohtext; bestehende Auswahlfelder behalten ihre Bedienung. */
   readonly queryChange = output<string>();
   readonly liveText = input(false);
+  /** Ermöglicht im Einzelmodus das Abwählen per X-Button oder Leeren des Felds. */
+  readonly clearable = input(false);
+  /** Optionaler erster Listeneintrag zum Zurücksetzen im Einzelmodus, z. B. „Alle Marken“. */
+  readonly clearOptionLabel = input('');
   readonly error = input<string | null>(null);
   readonly id = input('');
   readonly fieldId = computed(() => this.id() || `attribute-picker-${this.instanceId}`);
@@ -88,6 +92,13 @@ export class AttributePickerComponent implements ControlValueAccessor {
     const query = this.isEditing() ? normalized(this.query()) : '';
     return this.options().filter((option) => (query ? normalized(option).includes(query) : true));
   });
+  readonly hasClearOption = computed(
+    () =>
+      !this.multiple() &&
+      Boolean(this.clearOptionLabel().trim()) &&
+      (!this.isEditing() || !this.query().trim()),
+  );
+  readonly clearOffset = computed(() => (this.hasClearOption() ? 1 : 0));
   readonly limitReached = computed(() => {
     const max = this.maxSelected();
     return this.multiple() && max !== null && this.selected().length >= max;
@@ -98,8 +109,11 @@ export class AttributePickerComponent implements ControlValueAccessor {
     if (!query || (this.multiple() && query.includes(' · '))) return null;
     return this.options().some((option) => normalized(option) === normalized(query)) ? null : query;
   });
+  readonly optionCount = computed(
+    () => this.clearOffset() + this.matches().length + (this.customValue() ? 1 : 0),
+  );
   readonly activeDescendantId = computed(() =>
-    this.isOpen() && this.activeIndex() < this.matches().length + (this.customValue() ? 1 : 0)
+    this.isOpen() && this.activeIndex() < this.optionCount()
       ? `${this.listboxId()}-${this.activeIndex()}`
       : null,
   );
@@ -111,6 +125,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
 
   private onChange: (value: string) => void = () => undefined;
   private onTouched: () => void = () => undefined;
+  private suppressNextFocusOpen = false;
 
   constructor() {
     effect(() => {
@@ -149,6 +164,11 @@ export class AttributePickerComponent implements ControlValueAccessor {
     if (disabled) this.close(false);
   }
 
+  onFocus(): void {
+    if (this.suppressNextFocusOpen) return;
+    this.open();
+  }
+
   open(): void {
     if (this.isDisabled() || this.isOpen()) return;
     this.isEditing.set(false);
@@ -164,14 +184,27 @@ export class AttributePickerComponent implements ControlValueAccessor {
     if (!this.multiple()) this.query.set(this.value());
     else this.query.set('');
     this.isEditing.set(false);
-    if (restoreFocus) queueMicrotask(() => this.field()?.nativeElement.focus());
+    if (restoreFocus) this.restoreFieldFocusWithoutOpening();
+  }
+
+  clear(): void {
+    if (this.isDisabled()) return;
+    this.setValue('');
+    this.query.set('');
+    this.queryChange.emit('');
+    this.isEditing.set(false);
+    if (this.isOpen()) this.close(true);
+    else this.restoreFieldFocusWithoutOpening();
   }
 
   onInput(event: Event): void {
     this.open();
     this.query.set((event.target as HTMLInputElement).value);
     this.queryChange.emit(this.query());
-    if (this.liveText() && !this.multiple()) this.setValue(this.query());
+    if (!this.multiple()) {
+      if (this.liveText()) this.setValue(this.query());
+      else if (this.clearable() && !this.query().trim()) this.setValue('');
+    }
     this.isEditing.set(true);
     this.activeIndex.set(0);
   }
@@ -198,7 +231,8 @@ export class AttributePickerComponent implements ControlValueAccessor {
       this.setValue(value);
       this.query.set(value);
       this.isEditing.set(false);
-      this.field()?.nativeElement.focus();
+      if (this.clearable()) this.close(true);
+      else this.field()?.nativeElement.focus();
     }
   }
 
@@ -213,7 +247,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
   }
 
   onKeydown(event: KeyboardEvent): void {
-    const count = this.matches().length + (this.customValue() ? 1 : 0);
+    const count = this.optionCount();
     if (event.key === 'Escape' && this.isOpen()) {
       event.preventDefault();
       this.close();
@@ -226,7 +260,13 @@ export class AttributePickerComponent implements ControlValueAccessor {
       this.activeIndex.set(Math.max(this.activeIndex() - 1, 0));
     } else if (event.key === 'Enter' && this.isOpen() && count) {
       event.preventDefault();
-      this.choose(this.matches()[this.activeIndex()] ?? this.customValue() ?? '');
+      if (this.hasClearOption() && this.activeIndex() === 0) {
+        this.clear();
+      } else {
+        this.choose(
+          this.matches()[this.activeIndex() - this.clearOffset()] ?? this.customValue() ?? '',
+        );
+      }
     } else if (event.key === 'Tab') {
       this.close(false);
     }
@@ -253,6 +293,16 @@ export class AttributePickerComponent implements ControlValueAccessor {
     this.value.set(value);
     this.onChange(value);
     this.onTouched();
+  }
+
+  private restoreFieldFocusWithoutOpening(): void {
+    queueMicrotask(() => {
+      const input = this.field()?.nativeElement;
+      if (!input) return;
+      this.suppressNextFocusOpen = true;
+      input.focus();
+      this.suppressNextFocusOpen = false;
+    });
   }
 
   private positionPanel(): void {

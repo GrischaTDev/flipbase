@@ -26,13 +26,15 @@
         formControlName="catalog_id"
       />
       <div class="grid gap-4 sm:grid-cols-2">
-        <app-custom-select
-          triggerId="watchlist-audience"
-          label="Zielgruppe"
-          ariaLabel="Zielgruppe"
-          placeholder="Alle Zielgruppen"
-          [options]="audienceOptions"
-          formControlName="audience"
+        <app-attribute-picker
+          label="Marke"
+          placeholder="Marke suchen"
+          [clearable]="true"
+          clearOptionLabel="Alle Marken"
+          [options]="brandOptions()"
+          [liveText]="true"
+          [error]="brandSearchError()"
+          formControlName="brand"
         />
         <app-attribute-picker
           label="Größen"
@@ -41,16 +43,6 @@
           [allowCustom]="false"
           [options]="sizeOptions"
           formControlName="sizes"
-        />
-      </div>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <app-attribute-picker
-          label="Marke"
-          placeholder="Marke suchen"
-          [options]="brandOptions()"
-          [liveText]="true"
-          [error]="brandSearchError()"
-          formControlName="brand"
         />
         <app-text-field
           label="Suchbegriff"

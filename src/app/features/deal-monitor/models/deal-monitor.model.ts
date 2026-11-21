@@ -32,6 +32,10 @@ export interface FeedItem {
   catalog_id: number | null;
   category_path: string | null;
 }
+export interface FeedBot {
+  id: string;
+  title: string;
+}
 export interface FeedPage {
   items: FeedItem[];
   covered: boolean;
@@ -40,6 +44,7 @@ export interface FeedPage {
 export interface FeedRequest {
   workspace: string;
   watchlist: string | null;
+  botId?: string | null;
   brand: string | null;
   size: string | null;
   minPrice: number | null;

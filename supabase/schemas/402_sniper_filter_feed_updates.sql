@@ -147,3 +147,26 @@ comment on function public.sniper_feed_categories(uuid) is
     'Gibt die Vinted-Kategorien aktiver reiner Kategorie-Bots fuer die Feed-Auswahl zurueck.';
 revoke all on function public.sniper_feed_categories(uuid) from public, anon;
 grant execute on function public.sniper_feed_categories(uuid) to authenticated;
+
+create or replace function public.sniper_feed_bots(p_workspace_id uuid)
+returns table (id uuid, title text) language plpgsql stable security definer set search_path = '' as $$
+begin
+    if not public.can_access_workspace(p_workspace_id) then
+        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
+    end if;
+
+    return query
+        select query.id, btrim(query.title) as title
+        from public.sniper_queries as query
+        where query.marketplace = 'vinted'
+            and query.is_active
+            and query.deleted_at is null
+            and query.run_state <> 'invalid'
+            and nullif(btrim(query.title), '') is not null
+        order by lower(btrim(query.title)), query.id;
+end;
+$$;
+comment on function public.sniper_feed_bots(uuid) is
+    'Gibt die aktiven Vinted-Bots aus der Administration fuer die direkte Feed-Auswahl zurueck.';
+revoke all on function public.sniper_feed_bots(uuid) from public, anon;
+grant execute on function public.sniper_feed_bots(uuid) to authenticated;

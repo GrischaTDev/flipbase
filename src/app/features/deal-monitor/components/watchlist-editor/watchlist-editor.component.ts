@@ -35,7 +35,6 @@ import { DealMonitorService } from '../../services/deal-monitor.service';
 import {
   FEED_CLOTHING_SIZES,
   feedSizeValues,
-  WATCHLIST_AUDIENCES,
   Watchlist,
   WatchlistDraft,
   watchlistSizeLabels,
@@ -68,7 +67,6 @@ export class WatchlistEditorComponent {
   readonly cancelled = output<void>();
   readonly brandSearchError = signal<string | null>(null);
   readonly submitAttempted = signal(false);
-  readonly audienceOptions = WATCHLIST_AUDIENCES;
   readonly sizeOptions = FEED_CLOTHING_SIZES.map((size) => size.label);
   readonly form = new FormGroup({
     title: new FormControl('', {
@@ -76,7 +74,6 @@ export class WatchlistEditorComponent {
       validators: [Validators.required, Validators.pattern(/\S/), Validators.maxLength(100)],
     }),
     catalog_id: new FormControl<string | null>(null),
-    audience: new FormControl<string | null>(null),
     sizes: new FormControl('', { nonNullable: true }),
     brand: new FormControl('', { nonNullable: true, validators: Validators.maxLength(100) }),
     search_text: new FormControl('', { nonNullable: true, validators: Validators.maxLength(200) }),
@@ -126,7 +123,6 @@ export class WatchlistEditorComponent {
       this.form.reset({
         title: row?.title ?? '',
         catalog_id: row?.catalog_id == null ? null : String(row.catalog_id),
-        audience: row?.audience ?? null,
         sizes: watchlistSizeLabels(row?.sizes ?? []),
         brand: row?.brand ?? '',
         search_text: row?.search_text ?? '',
@@ -154,6 +150,7 @@ export class WatchlistEditorComponent {
       ...value,
       id: this.watchlist()?.id ?? null,
       catalog_id: value.catalog_id === null ? null : Number(value.catalog_id),
+      audience: null,
       sizes: feedSizeValues(value.sizes),
     });
   }

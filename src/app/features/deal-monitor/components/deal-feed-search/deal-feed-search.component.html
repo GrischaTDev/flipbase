@@ -51,10 +51,23 @@
             />
           </div>
           <div class="min-w-0">
+            <app-custom-select
+              [triggerId]="'feed-bot' + idSuffix()"
+              label="Vinted-Bot"
+              variant="toolbar"
+              placeholder="Alle Vinted-Bots"
+              ariaLabel="Vinted-Bot"
+              [options]="botOptions()"
+              [(value)]="selectedBot"
+            />
+          </div>
+          <div class="min-w-0">
             <app-attribute-picker
               [id]="'feed-brand' + idSuffix()"
               label="Marke"
               placeholder="Alle Marken"
+              [clearable]="true"
+              clearOptionLabel="Alle Marken"
               [options]="brands()"
               [formControl]="brand"
               (queryChange)="searchBrand($event)"
@@ -69,16 +82,6 @@
               [allowCustom]="false"
               [options]="sizeOptions"
               [formControl]="sizes"
-            />
-          </div>
-          <div class="min-w-0">
-            <app-custom-select
-              [triggerId]="'feed-audience' + idSuffix()"
-              label="Zielgruppe"
-              variant="toolbar"
-              ariaLabel="Zielgruppe"
-              [options]="audienceOptions"
-              [(value)]="audience"
             />
           </div>
           <div class="min-w-0">
@@ -159,6 +162,9 @@
       <p [id]="'feed-price-error' + idSuffix()" role="alert" class="text-sm text-fb-critical">
         {{ text }}
       </p>
+    }
+    @if (botError(); as text) {
+      <p role="alert">{{ text }} <app-button (clicked)="loadBots()">Erneut laden</app-button></p>
     }
     @if (brandError(); as text) {
       <p role="alert">{{ text }} <app-button (clicked)="loadBrands()">Erneut laden</app-button></p>

@@ -172,7 +172,16 @@ describe('DealFeedSearchComponent', () => {
     registerSignalInputs(BadgeComponent, ['tone']);
     registerSignalInputs(
       CustomSelectComponent,
-      ['options', 'placeholder', 'triggerId', 'ariaLabel', 'searchable', 'variant', 'value'],
+      [
+        'options',
+        'label',
+        'placeholder',
+        'triggerId',
+        'ariaLabel',
+        'searchable',
+        'variant',
+        'value',
+      ],
       ['valueChange'],
     );
     registerSignalInputs(
@@ -212,7 +221,16 @@ describe('DealFeedSearchComponent', () => {
     registerSignalInputs(CategoryPickerComponent, ['id', 'label', 'source', 'placeholder']);
     registerSignalInputs(
       AttributePickerComponent,
-      ['id', 'label', 'placeholder', 'multiple', 'allowCustom', 'options'],
+      [
+        'id',
+        'label',
+        'placeholder',
+        'multiple',
+        'allowCustom',
+        'clearable',
+        'clearOptionLabel',
+        'options',
+      ],
       ['queryChange'],
     );
     registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
@@ -248,8 +266,14 @@ describe('DealFeedSearchComponent', () => {
   };
 
   const mockApi = {
-    searchBrands: vi.fn().mockResolvedValue(['Carhartt']),
+    searchBrands: vi.fn((_workspace: string, term: string) =>
+      Promise.resolve(term.toLowerCase().startsWith('carh') ? ['Carhartt'] : ['Nike', 'Adidas']),
+    ),
     supportedBrands: vi.fn().mockResolvedValue(['Nike', 'Adidas']),
+    feedBots: vi.fn().mockResolvedValue([
+      { id: 'bot-1', title: 'Carhartt Fleecejacken' },
+      { id: 'bot-2', title: 'Herren Kleidung' },
+    ]),
     watchlists: vi.fn().mockResolvedValue([
       {
         id: 'wl-1',
@@ -409,20 +433,21 @@ describe('DealFeedSearchComponent', () => {
     expect(comp.sizeOptions).toEqual(expect.arrayContaining(['XL', 'XXL']));
   });
 
-  it('requests the selected size from the full saved feed', async () => {
+  it('requests the selected size, category and Vinted bot from the full saved feed', async () => {
     TestBed.flushEffects();
     await comp.state.refresh();
     expect(comp.feedItems().length).toBe(5);
     comp.sizes.setValue('XXL · M');
     comp.category.setValue('1858');
-    comp.audience.set('men');
+    comp.selectedBot.set('bot-1');
     TestBed.flushEffects();
     expect(mockApi.feed).toHaveBeenLastCalledWith(
       expect.objectContaining({
         workspace: 'ws-1',
+        botId: 'bot-1',
         sizes: ['xxl', 'm'],
         categoryId: 1858,
-        audience: 'men',
+        audience: null,
       }),
     );
   });
@@ -528,13 +553,15 @@ describe('DealFeedSearchComponent', () => {
 
     const feed = fixture.componentInstance;
     feed.selected.set('wl-1');
+    feed.selectedBot.set('bot-1');
     feed.brand.setValue('Nike');
     feed.sizes.setValue('XXL · M');
     feed.category.setValue('1858');
-    feed.audience.set('men');
     feed.minPrice.set(30);
     feed.maxPrice.set(20);
     fixture.detectChanges();
+    expect(host.querySelector('#feed-audience')).toBeNull();
+    expect(host.querySelector('#feed-bot')).not.toBeNull();
     expect(feed.filtersActive()).toBe(true);
     expect(feed.priceError()).toContain('Mindestpreis');
 
@@ -547,11 +574,11 @@ describe('DealFeedSearchComponent', () => {
 
     expect([
       feed.selected(),
+      feed.selectedBot(),
       feed.brand.value,
       feed.sizes.value,
       feed.category.value,
-      feed.audience(),
-    ]).toEqual([null, '', '', null, null]);
+    ]).toEqual([null, null, '', '', null]);
     expect([feed.minPrice(), feed.maxPrice()]).toEqual([null, null]);
     expect(feed.priceError()).toBeNull();
     expect(feed.filtersActive()).toBe(false);
@@ -559,6 +586,7 @@ describe('DealFeedSearchComponent', () => {
     expect(mockApi.feed).toHaveBeenLastCalledWith(
       expect.objectContaining({
         watchlist: null,
+        botId: null,
         brand: null,
         size: null,
         minPrice: null,
@@ -569,21 +597,40 @@ describe('DealFeedSearchComponent', () => {
     fixture.destroy();
   });
 
-  it('offers the brands supported by the feed', async () => {
-    TestBed.flushEffects();
-    await comp.loadBrands('ws-1');
-    await comp.state.refresh();
+  it('offers feed brands and active Vinted bots and clears a selected brand via X button', async () => {
+    const fixture = TestBed.createComponent(DealFeedSearchComponent);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const feed = fixture.componentInstance;
+    const host = fixture.nativeElement as HTMLElement;
 
-    expect(comp.brands()).toEqual(['Nike', 'Adidas']);
-    comp.searchBrand('Carh');
+    expect(feed.brands()).toEqual(['Nike', 'Adidas']);
+    expect(feed.bots()).toEqual([
+      { id: 'bot-1', title: 'Carhartt Fleecejacken' },
+      { id: 'bot-2', title: 'Herren Kleidung' },
+    ]);
+    feed.searchBrand('Carh');
     await new Promise((resolve) => setTimeout(resolve, 280));
     expect(mockApi.searchBrands).toHaveBeenCalledWith('ws-1', 'Carh');
-    expect(comp.brands()).toEqual(['Carhartt']);
-    comp.brand.setValue('Nike');
+    expect(feed.brands()).toEqual(['Carhartt']);
+
+    feed.brand.setValue('Carhartt');
     TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', brand: 'Nike' }),
+    fixture.detectChanges();
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ workspace: 'ws-1', brand: 'Carhartt' }),
     );
+    const clearBrand = host.querySelector<HTMLButtonElement>('[aria-label="Marke entfernen"]');
+    expect(clearBrand).not.toBeNull();
+    clearBrand!.click();
+    TestBed.flushEffects();
+    fixture.detectChanges();
+    expect(feed.brand.value).toBe('');
+    expect(mockApi.feed).toHaveBeenLastCalledWith(
+      expect.objectContaining({ workspace: 'ws-1', brand: null }),
+    );
+    fixture.destroy();
   });
 
   it('füllt im Widescreen-Modus die Breite und trennt die IDs weiterer Suchen', async () => {

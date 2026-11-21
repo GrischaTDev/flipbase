@@ -1,7 +1,13 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { VintedCategoryService } from '../../platform-admin/services/vinted-category.service';
-import { FeedPage, FeedRequest, Watchlist, WatchlistDraft } from '../models/deal-monitor.model';
+import {
+  FeedBot,
+  FeedPage,
+  FeedRequest,
+  Watchlist,
+  WatchlistDraft,
+} from '../models/deal-monitor.model';
 
 @Injectable({ providedIn: 'root' })
 export class DealMonitorService {
@@ -35,6 +41,15 @@ export class DealMonitorService {
     });
     if (error || !data) throw new Error('Kategorien konnten nicht geladen werden.');
     return data.map(({ catalog_id }) => catalog_id);
+  }
+
+  /** Aktive Vinted-Bots aus der Administration für die direkte Feed-Filterung. */
+  async feedBots(workspace: string): Promise<FeedBot[]> {
+    const { data, error } = await this.client.rpc('sniper_feed_bots', {
+      p_workspace_id: workspace,
+    });
+    if (error || !data) throw new Error('Vinted-Bots konnten nicht geladen werden.');
+    return data.map(({ id, title }) => ({ id, title }));
   }
 
   async searchBrands(workspace: string, term: string): Promise<string[]> {
@@ -75,6 +90,7 @@ export class DealMonitorService {
       p_catalog_id: (request.categoryId ?? null)!,
       p_audience: (request.audience ?? null)!,
       p_sizes: request.sizes ?? [],
+      p_query_id: (request.botId ?? null)!,
     });
     if (error) throw new Error('Artikel konnten nicht geladen werden. Bitte erneut versuchen.');
     if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data['items']))

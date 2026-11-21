@@ -64,11 +64,15 @@ grant execute on function public.sniper_listing_has_source(uuid,uuid,uuid[]) to 
 create or replace function public.sniper_feed_search(
     p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric,
     p_max_price numeric, p_before_time timestamptz, p_before_id uuid, p_limit integer,
-    p_title_query text, p_catalog_id integer, p_audience text, p_sizes text[]
+    p_title_query text, p_catalog_id integer, p_audience text, p_sizes text[],
+    p_query_id uuid default null
 )
 returns jsonb language plpgsql stable security definer set search_path = '' as $function$
 declare
     v_watchlist public.sniper_watchlists;
+    v_query public.sniper_queries;
+    v_has_title_query boolean := nullif(btrim(p_title_query), '') is not null;
+    v_title_query tsquery;
     v_rows jsonb;
     v_covered boolean;
     v_reported_at timestamptz;
@@ -106,6 +110,25 @@ begin
         or p_max_price::text in ('NaN', 'Infinity', '-Infinity')
         or p_min_price < 0 or p_max_price < 0 or p_min_price > p_max_price then
         raise exception 'Ungueltige Preisgrenzen.' using errcode = '22023';
+    end if;
+    if v_has_title_query then
+        -- Wortanfang-Suche je Suchwort über den bestehenden GIN-Index (z. B. CARH -> Carhartt).
+        select coalesce(
+            string_agg(
+                '''' || replace(replace(lexeme, '\', '\\'), '''', '''''') || ''':*',
+                ' & '
+            )::tsquery,
+            ''::tsquery
+        )
+        into v_title_query
+        from unnest(tsvector_to_array(to_tsvector('simple', p_title_query))) as lexeme;
+    end if;
+    if p_query_id is not null then
+        select * into v_query from public.sniper_queries
+        where id = p_query_id and marketplace = 'vinted' and deleted_at is null;
+        if not found then
+            raise exception 'Vinted-Bot nicht gefunden.' using errcode = '22023';
+        end if;
     end if;
     if p_watchlist_id is not null then
         select * into v_watchlist from public.sniper_watchlists
@@ -162,7 +185,7 @@ begin
         where listing.first_seen_at >= now() - interval '3 days'
             and not listing.is_initial_stock
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
-            and (nullif(btrim(p_title_query), '') is null or to_tsvector('simple', coalesce(listing.title,'')) @@ plainto_tsquery('simple', p_title_query))
+            and (not v_has_title_query or to_tsvector('simple', coalesce(listing.title,'')) @@ v_title_query)
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
             and (p_size is null or public.sniper_feed_matches_size(listing.size, p_size))
             and (cardinality(p_sizes) = 0 or exists (
@@ -171,6 +194,27 @@ begin
             and (p_min_price is null or listing.item_price >= p_min_price)
             and (p_max_price is null or listing.item_price <= p_max_price)
             and ((p_min_price is null and p_max_price is null) or listing.currency = 'EUR')
+            and (p_query_id is null or (
+                listing.id in (
+                    select matched.listing_id
+                    from public.sniper_query_matches as matched
+                    where matched.query_id = p_query_id
+                      and matched.first_matched_at >= now() - interval '4 days'
+                      and (v_query.results_reset_at is null or matched.first_matched_at >= v_query.results_reset_at)
+                    union
+                    select discovered.id
+                    from public.sniper_listings as discovered
+                    where discovered.discovered_by_query_id = p_query_id
+                      and discovered.first_seen_at >= now() - interval '3 days'
+                )
+                and (
+                    v_query.results_reset_at is null
+                    or public.sniper_listing_after_reset(
+                        listing.external_id, listing.first_seen_at,
+                        v_query.results_reset_at, v_query.reset_baseline_external_id
+                    )
+                )
+            ))
             and (v_category_ids is null or listing.catalog_id = any(v_category_ids)
                 or (listing.catalog_id is null and cardinality(v_category_sources) > 0
                     and public.sniper_listing_has_source(listing.id, listing.discovered_by_query_id, v_category_sources)))
@@ -186,6 +230,9 @@ begin
         order by listing.first_seen_at desc, listing.id desc limit p_limit
     ) as page;
     select exists(select 1 from public.sniper_queries as query where query.is_active
+        and query.deleted_at is null
+        and query.run_state <> 'invalid'
+        and (p_query_id is null or query.id = p_query_id)
         and (v_category_ids is null or query.catalog_id is null or query.catalog_id = any(v_category_ids))
         and (v_audience_ids is null or query.catalog_id is null or query.catalog_id = any(v_audience_ids)))
     into v_covered;
@@ -193,13 +240,13 @@ begin
     return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
 end;
 $function$;
-revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[]) from public, anon;
-grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[]) to authenticated;
+revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid) from public, anon;
+grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid) to authenticated;
 
 create or replace function public.sniper_feed_search(p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric, p_max_price numeric, p_before_time timestamptz, p_before_id uuid, p_limit integer, p_title_query text default '')
 returns jsonb language sql stable security definer set search_path = '' as $function$
     select public.sniper_feed_search(p_workspace_id, p_watchlist_id, p_brand, p_size, p_min_price,
-        p_max_price, p_before_time, p_before_id, p_limit, p_title_query, null, null, '{}'::text[]);
+        p_max_price, p_before_time, p_before_id, p_limit, p_title_query, null, null, '{}'::text[], null);
 $function$;
 revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text) from public, anon;
 grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text) to authenticated;
