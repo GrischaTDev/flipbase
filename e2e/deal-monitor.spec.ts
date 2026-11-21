@@ -669,11 +669,19 @@ async function fixture(
     }
     if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
     if (name === 'sniper_feed_categories') json = [{ catalog_id: 1049 }];
+    if (name === 'sniper_feed_bots')
+      json = [
+        { id: '92000000-0000-4000-8000-000000000050', title: 'Carhartt Fleecejacken' },
+        { id: '92000000-0000-4000-8000-000000000051', title: 'Herren Kleidung' },
+      ];
     if (name === 'sniper_search_feed_brands') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
-      json = [
-        { brand: String(body['p_term']).toLowerCase().startsWith('carh') ? 'Carhartt' : 'Nike' },
-      ];
+      const term = String(body['p_term'] ?? '').toLowerCase();
+      json = term.startsWith('carh')
+        ? [{ brand: 'Carhartt' }]
+        : term
+          ? [{ brand: 'Nike' }]
+          : [{ brand: 'Nike' }, { brand: 'Carhartt' }];
     }
     if (name === 'sniper_feed_search') {
       const body = route.request().postDataJSON() as Record<string, unknown>;
@@ -920,13 +928,22 @@ for (const theme of ['light', 'dark'] as const) {
     await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({ path: `test-results/deal-monitor-${theme}.png`, fullPage: true });
 
+    await expect(page.getByRole('combobox', { name: 'Zielgruppe', exact: true })).toHaveCount(0);
     await page.getByLabel('Marke', { exact: true }).fill('Carh');
     await page.getByRole('option', { name: 'Carhartt', exact: true }).click();
+    await expect(page.getByRole('button', { name: 'Marke entfernen', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Marke entfernen', exact: true }).click();
+    await expect(page.getByLabel('Marke', { exact: true })).toHaveValue('');
+    await expect
+      .poll(() => mock.calls.at(-1))
+      .toMatchObject({ name: 'sniper_feed_search', body: { p_brand: null } });
+    await page.getByLabel('Marke', { exact: true }).fill('Carh');
+    await page.getByRole('option', { name: 'Carhartt', exact: true }).click();
+    await page.getByRole('combobox', { name: 'Vinted-Bot', exact: true }).click();
+    await page.getByRole('option', { name: 'Carhartt Fleecejacken', exact: true }).click();
     await page.getByRole('button', { name: /Kategorie Alle Kategorien/ }).click();
     await page.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Sneak');
     await page.getByRole('option', { name: /^Sneaker/ }).click();
-    await page.getByRole('combobox', { name: 'Zielgruppe', exact: true }).click();
-    await page.getByRole('option', { name: 'Herren', exact: true }).click();
     await page.getByLabel('Größen', { exact: true }).click();
     await page.getByRole('option', { name: 'M', exact: true }).click();
     await expect
@@ -935,9 +952,10 @@ for (const theme of ['light', 'dark'] as const) {
         name: 'sniper_feed_search',
         body: {
           p_watchlist_id: null,
+          p_query_id: '92000000-0000-4000-8000-000000000050',
           p_brand: 'Carhartt',
           p_catalog_id: 1049,
-          p_audience: 'men',
+          p_audience: null,
           p_sizes: ['m'],
         },
       });
@@ -956,12 +974,11 @@ for (const theme of ['light', 'dark'] as const) {
       page.getByRole('form', { name: 'Suchfilter bearbeiten', exact: true }),
     ).toHaveCount(0);
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
+    await expect(page.getByRole('combobox', { name: 'Zielgruppe', exact: true })).toHaveCount(0);
     await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
     await page.getByRole('button', { name: /Kategorie Alle gesammelten Kategorien/ }).click();
     await page.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Sneak');
     await page.getByRole('option', { name: /^Sneaker/ }).click();
-    await page.getByRole('combobox', { name: 'Zielgruppe' }).click();
-    await page.getByRole('option', { name: 'Herren', exact: true }).click();
     await page.getByLabel('Größen', { exact: true }).click();
     await page.getByRole('option', { name: 'S', exact: true }).click();
     await page.getByRole('option', { name: 'M', exact: true }).click();
@@ -985,13 +1002,12 @@ for (const theme of ['light', 'dark'] as const) {
       body: expect.objectContaining({
         p_workspace_id: workspace,
         p_catalog_id: 1049,
-        p_audience: 'men',
+        p_audience: null,
         p_sizes: ['s', 'm'],
         p_brand: 'Nike',
       }),
     });
     await page.getByRole('button', { name: 'Suchfilter bearbeiten', exact: true }).click();
-    await expect(page.getByRole('combobox', { name: 'Zielgruppe' })).toContainText('Herren');
     await expect(page.getByLabel('Marke', { exact: true })).toHaveValue('Nike');
     await expect(page.getByRole('button', { name: /Kategorie Herren.*Sneaker/ })).toBeVisible();
     await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');

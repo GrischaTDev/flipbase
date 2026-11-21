@@ -29,6 +29,8 @@ beforeEach(() => {
     'allowCustom',
     'maxSelected',
     'liveText',
+    'clearable',
+    'clearOptionLabel',
     'error',
   ]) {
     metadata.inputs[name] = [name, 1, null];
@@ -210,5 +212,63 @@ describe('AttributePickerComponent', () => {
     fixture.detectChanges();
     const result = await axe.run(fixture.nativeElement as HTMLElement);
     expect(result.violations).toEqual([]);
+  });
+
+  it('lässt eine Einzelauswahl über X-Button, Alle-Option und Leeren wieder abwählen', async () => {
+    const { fixture, values } = create();
+    fixture.componentRef.setInput('label', 'Marke');
+    fixture.componentRef.setInput('options', ['Carhartt', 'Nike']);
+    fixture.componentRef.setInput('clearable', true);
+    fixture.componentRef.setInput('clearOptionLabel', 'Alle Marken');
+    const queries: string[] = [];
+    fixture.componentInstance.queryChange.subscribe((value) => queries.push(value));
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const field = host.querySelector('input') as HTMLInputElement;
+    expect(host.querySelector('[aria-label="Marke entfernen"]')).toBeNull();
+
+    // Auswahl schließt im Clearable-Modus und blendet den X-Button ein.
+    fixture.componentInstance.open();
+    fixture.componentInstance.choose('Carhartt');
+    fixture.detectChanges();
+    expect(values.at(-1)).toBe('Carhartt');
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+    const clearButton = host.querySelector<HTMLButtonElement>('[aria-label="Marke entfernen"]');
+    expect(clearButton).not.toBeNull();
+    expect((await axe.run(host)).violations).toEqual([]);
+
+    // X-Button leert Wert und Suchtext, ohne die Liste wieder aufzuklappen.
+    clearButton!.click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(values.at(-1)).toBe('');
+    expect(field.value).toBe('');
+    expect(queries.at(-1)).toBe('');
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+
+    // „Alle Marken“ steht als erster Listeneintrag bereit und setzt per Klick zurück.
+    fixture.componentInstance.choose('Nike');
+    fixture.componentInstance.open();
+    fixture.detectChanges();
+    const options = [...host.querySelectorAll<HTMLButtonElement>('[role="option"]')];
+    expect(options[0].textContent?.trim()).toBe('Alle Marken');
+    expect((await axe.run(host)).violations).toEqual([]);
+    options[0].click();
+    await Promise.resolve();
+    fixture.detectChanges();
+    expect(values.at(-1)).toBe('');
+    expect(fixture.componentInstance.isOpen()).toBe(false);
+
+    // Leeren per Eingabe löscht sofort und stellt beim Schließen keinen alten Wert wieder her.
+    fixture.componentInstance.choose('Carhartt');
+    fixture.detectChanges();
+    field.value = '';
+    field.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    fixture.componentInstance.close(false);
+    fixture.detectChanges();
+    expect(values.at(-1)).toBe('');
+    expect(field.value).toBe('');
   });
 });

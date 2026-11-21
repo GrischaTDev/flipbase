@@ -1,5 +1,18 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-21 - Juna - Vinted-Feed: Wortanfang-Suche, Vinted-Bot-Filter, abwählbare Marke und Zielgruppe entfernt
+
+**Anlass:** Im Vinted-Feed fand die Titelsuche bei Teilwörtern wie `CARH` keine Artikel (erst beim ausgeschriebenen Wort `Carhartt`). Zudem konnte eine gewählte Marke nicht mehr einzeln abgewählt werden, zeigte alle Artikel dieser Marke statt eines speziellen Admin-Bots (z. B. Carhartt Fleecejacken), und das zusätzliche Feld „Zielgruppe“ (Damen/Herren/Damen und Herren) doppelte sich verwirrend mit dem Kategorie-Feld.
+
+**Änderung:**
+
+- **Titelsuche (`supabase/schemas/401_sniper_feed_search.sql`, Migration `20261121170000_sniper_feed_bots_and_prefix_search.sql`):** `sniper_feed_search` wandelt Suchbegriffe je Wort in Prefix-Terme (`:*`) um und nutzt damit weiter den bestehenden GIN-Index. `CARH` oder `CARH Flee` finden passende Titel sofort; Sonderzeichen ohne Wortbestandteile bleiben weiterhin ohne Treffer.
+- **Vinted-Bot-Filter (`supabase/schemas/402_sniper_filter_feed_updates.sql`, `401_sniper_feed_search.sql`, `DealMonitorService`, `DealFeedSearchComponent`):** Neue RPC `sniper_feed_bots` liefert alle aktiven, benannten Vinted-Bots aus der Administration. Über den neuen optionalen Parameter `p_query_id` filtert `sniper_feed_search` direkt auf die zugeordneten Funde eines Bots (`sniper_query_matches` und `discovered_by_query_id`, inkl. Reset-Grenzen und `covered`-Prüfung). Das Markenfeld lädt ohne Eingabe nun allgemeine Feed-Marken statt nur Bot-Marken.
+- **Marke abwählen (`AttributePickerComponent`, `DealFeedSearchComponent`, `WatchlistEditorComponent`):** Einzelauswahlen unterstützen `[clearable]` (X-Button, sofortiges Leeren beim Entfernen des Texts, automatisches Schließen nach Auswahl) sowie `[clearOptionLabel]` („Alle Marken“ als erster Listeneintrag).
+- **Zielgruppe entfernt (`DealFeedSearchComponent`, `WatchlistEditorComponent`):** Das doppelte Feld „Zielgruppe“ entfällt im Feed und im Suchfilter-Editor; die Auswahl von Damen, Herren und Unterkategorien läuft einheitlich über „Kategorie“. Bestehende Datenbankspalten und gespeicherte Alt-Suchfilter bleiben abwärtskompatibel.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-21 - Juna - Preisänderungen und Bearbeitungen für bereits gepushte Vinted-Inserate zulassen und Fehlerursachen erhalten
 
 **Anlass und lesende Produktionsdiagnose:** In der Nacht vom 21.11.2026 (01:11 und 01:13 Uhr) schlugen zwei Vinted-Preisänderungen (`listing:10368633605`, Auftrag 105 und `listing:10672542627`, Auftrag 107; zuvor bereits Auftrag 83) jeweils nach drei Versuchen mit der irreführenden Meldung „Der Cloud-Browser konnte nicht gestartet werden. Versuche es erneut.“ (`browser_unavailable`) fehl, während die Preisänderung eines nicht gepushten Inserats dazwischen (`listing:10895824493`, Auftrag 104) im ersten Versuch gelang. Die schreibgeschützte Auswertung von Worker-Logs und Datenbank ergab zwei zusammenwirkende Ursachen:

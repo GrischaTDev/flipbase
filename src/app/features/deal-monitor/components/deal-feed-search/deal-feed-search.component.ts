@@ -32,7 +32,7 @@ import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
 import {
   FEED_CLOTHING_SIZES,
-  WATCHLIST_AUDIENCES,
+  FeedBot,
   FeedItem,
   Watchlist,
   feedSizeValues,
@@ -92,9 +92,10 @@ export class DealFeedSearchComponent {
   private readonly document = inject(DOCUMENT);
   readonly state = new DealFeedState((request) => this.api.feed(request));
   readonly watchlists = signal<Watchlist[]>([]);
+  readonly bots = signal<FeedBot[]>([]);
   readonly brands = signal<string[]>([]);
   readonly selected = signal<string | null>(null);
-  readonly audience = signal<string | null>(null);
+  readonly selectedBot = signal<string | null>(null);
   readonly category = new FormControl<string | null>(null);
   readonly brand = new FormControl('', { nonNullable: true });
   readonly sizes = new FormControl('', { nonNullable: true });
@@ -109,8 +110,8 @@ export class DealFeedSearchComponent {
   readonly selectedAnalysis = signal<FeedItem | null>(null);
   readonly operator = inject(PlatformOperatorService);
   readonly sizeOptions = FEED_CLOTHING_SIZES.map((option) => option.label);
-  readonly audienceOptions = WATCHLIST_AUDIENCES;
   readonly error = signal<string | null>(null);
+  readonly botError = signal<string | null>(null);
   readonly brandError = signal<string | null>(null);
   readonly now = signal(Date.now());
   readonly resetIcon = LucideRefreshCcw;
@@ -119,6 +120,10 @@ export class DealFeedSearchComponent {
   readonly options = computed(() => [
     { value: null as string | null, label: 'Alle Suchfilter' },
     ...this.watchlists().map((row) => ({ value: row.id, label: row.title })),
+  ]);
+  readonly botOptions = computed(() => [
+    { value: null as string | null, label: 'Alle Vinted-Bots' },
+    ...this.bots().map((bot) => ({ value: bot.id, label: bot.title })),
   ]);
   readonly selectedWatchlist = computed(() =>
     this.watchlists().find((row) => row.id === this.selected()),
@@ -134,9 +139,8 @@ export class DealFeedSearchComponent {
   readonly filtersActive = computed(
     () =>
       this.selected() !== null ||
-      Boolean(
-        this.selectedBrand() || this.selectedSizes() || this.selectedCategory() || this.audience(),
-      ) ||
+      this.selectedBot() !== null ||
+      Boolean(this.selectedBrand() || this.selectedSizes() || this.selectedCategory()) ||
       this.minPrice() !== null ||
       this.maxPrice() !== null ||
       this.searchEntry().trim().length > 0,
@@ -157,6 +161,7 @@ export class DealFeedSearchComponent {
     () => !this.state.reportedAt() || this.now() - Date.parse(this.state.reportedAt()!) > 120_000,
   );
   private listGeneration = 0;
+  private botGeneration = 0;
   private brandGeneration = 0;
   private timer?: ReturnType<typeof setTimeout>;
 
@@ -172,6 +177,7 @@ export class DealFeedSearchComponent {
       const workspace = this.workspace()?.id ?? null;
       untracked(() => {
         this.selected.set(null);
+        this.selectedBot.set(null);
         this.resetDirectFilters();
         this.minPrice.set(null);
         this.maxPrice.set(null);
@@ -179,13 +185,17 @@ export class DealFeedSearchComponent {
         this.searchEntry.set('');
         this.titleQuery.set('');
         this.watchlists.set([]);
+        this.bots.set([]);
         this.brands.set([]);
         this.error.set(null);
+        this.botError.set(null);
         this.brandError.set(null);
         this.listGeneration++;
+        this.botGeneration++;
         this.brandGeneration++;
         if (workspace) {
           void this.loadWatchlists(workspace);
+          void this.loadBots(workspace);
           void this.loadBrands(workspace);
         }
       });
@@ -193,10 +203,10 @@ export class DealFeedSearchComponent {
     effect(() => {
       const workspace = this.workspace()?.id;
       const watchlist = this.selected();
+      const botId = this.selectedBot();
       const brand = this.selectedBrand() || null;
       const category = this.selectedCategory();
       const categoryId = category === null ? null : Number(category);
-      const audience = this.audience();
       const sizes = feedSizeValues(this.selectedSizes());
       const minPrice = this.minPrice();
       const maxPrice = this.maxPrice();
@@ -209,11 +219,12 @@ export class DealFeedSearchComponent {
             ? {
                 workspace,
                 watchlist,
+                botId,
                 brand,
                 size: null,
                 sizes,
                 categoryId,
-                audience,
+                audience: null,
                 minPrice,
                 maxPrice,
                 titleQuery,
@@ -250,6 +261,7 @@ export class DealFeedSearchComponent {
       clearTimeout(this.searchTimer);
       clearTimeout(this.brandTimer);
       this.listGeneration++;
+      this.botGeneration++;
       this.brandGeneration++;
       this.state.destroy();
     });
@@ -270,13 +282,28 @@ export class DealFeedSearchComponent {
     }
   }
 
+  async loadBots(workspace = this.workspace()?.id): Promise<void> {
+    if (!workspace) return;
+    const generation = ++this.botGeneration;
+    try {
+      const rows = await this.api.feedBots(workspace);
+      if (generation !== this.botGeneration || this.destroyRef.destroyed) return;
+      this.bots.set(rows);
+      this.botError.set(null);
+    } catch (error) {
+      if (generation === this.botGeneration && !this.destroyRef.destroyed) {
+        this.botError.set(
+          error instanceof Error ? error.message : 'Vinted-Bots konnten nicht geladen werden.',
+        );
+      }
+    }
+  }
+
   async loadBrands(workspace = this.workspace()?.id): Promise<void> {
     if (!workspace) return;
     const generation = ++this.brandGeneration;
     try {
-      const brands = this.brandQuery
-        ? await this.api.searchBrands(workspace, this.brandQuery)
-        : await this.api.supportedBrands(workspace);
+      const brands = await this.api.searchBrands(workspace, this.brandQuery);
       if (generation !== this.brandGeneration || this.destroyRef.destroyed) return;
       this.brands.set(brands);
       this.brandError.set(null);
@@ -329,6 +356,7 @@ export class DealFeedSearchComponent {
     this.searchEntry.set('');
     this.titleQuery.set('');
     this.selected.set(null);
+    this.selectedBot.set(null);
     this.resetDirectFilters();
     void this.loadBrands();
     this.minPrice.set(null);
@@ -336,7 +364,6 @@ export class DealFeedSearchComponent {
   }
 
   private resetDirectFilters(): void {
-    this.audience.set(null);
     this.category.reset();
     this.brand.reset();
     this.sizes.reset();

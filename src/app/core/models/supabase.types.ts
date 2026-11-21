@@ -15036,6 +15036,13 @@ export type Database = {
         }
         Returns: Json
       }
+      sniper_feed_bots: {
+        Args: { p_workspace_id: string }
+        Returns: {
+          id: string
+          title: string
+        }[]
+      }
       sniper_feed_categories: {
         Args: { p_workspace_id: string }
         Returns: {
@@ -15072,6 +15079,7 @@ export type Database = {
               p_limit: number
               p_max_price: number
               p_min_price: number
+              p_query_id?: string
               p_size: string
               p_sizes: string[]
               p_title_query: string

@@ -2,7 +2,8 @@
   <div class="relative">
     <div
       #fieldContainer
-      class="linear-input flex min-h-7 w-full flex-wrap items-center gap-1 rounded-[7px] px-2 py-0.5 transition-colors pointer-coarse:min-h-11"
+      class="linear-input flex min-h-7 w-full items-center gap-1 rounded-[7px] px-2 py-0.5 transition-colors pointer-coarse:min-h-11"
+      [class.flex-wrap]="multiple()"
       [class.opacity-40]="isDisabled()"
     >
       @if (multiple()) {
@@ -52,11 +53,24 @@
         [placeholder]="multiple() && selected().length ? '' : placeholder()"
         [value]="query()"
         [disabled]="isDisabled()"
-        (focus)="open()"
+        (focus)="onFocus()"
+        (click)="open()"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
-        class="min-w-24 flex-1 bg-transparent px-1 py-0.5 [font-size:inherit] [line-height:inherit] text-fb-text-primary outline-none disabled:cursor-not-allowed"
+        class="flex-1 bg-transparent px-1 py-0.5 [font-size:inherit] [line-height:inherit] text-fb-text-primary outline-none disabled:cursor-not-allowed"
+        [class.min-w-24]="multiple()"
+        [class.min-w-0]="!multiple()"
       />
+      @if (!multiple() && clearable() && value() && !isDisabled()) {
+        <button
+          type="button"
+          (click)="clear()"
+          [attr.aria-label]="label() + ' entfernen'"
+          class="flex min-h-5 min-w-5 shrink-0 items-center justify-center rounded-md p-0.5 pointer-coarse:min-h-11 pointer-coarse:min-w-11 text-fb-text-muted transition-colors hover:bg-fb-surface-hover hover:text-fb-text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
+        >
+          <svg [lucideIcon]="removeIcon" class="size-3.5" aria-hidden="true"></svg>
+        </button>
+      }
     </div>
     @if (isOpen()) {
       <div
@@ -79,17 +93,37 @@
           [attr.aria-multiselectable]="multiple()"
           class="max-h-[min(16rem,calc(100dvh-26px))] overflow-y-auto overscroll-contain"
         >
+          @if (hasClearOption()) {
+            <button
+              type="button"
+              role="option"
+              [id]="listboxId() + '-0'"
+              [attr.aria-selected]="!value()"
+              (click)="clear()"
+              class="flex min-h-6 w-full items-center justify-between rounded-md px-2.5 py-0.5 pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
+              [class.bg-fb-surface-hover]="activeIndex() === 0"
+            >
+              <span class="flex min-w-0 items-center gap-2"
+                ><span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
+                  @if (!value()) {
+                    <svg [lucideIcon]="checkIcon" class="size-4"></svg>
+                  }
+                </span>
+                <span class="truncate">{{ clearOptionLabel() }}</span>
+              </span>
+            </button>
+          }
           @for (option of matches(); track option; let index = $index) {
             <button
               type="button"
               role="option"
-              [id]="listboxId() + '-' + index"
+              [id]="listboxId() + '-' + (index + clearOffset())"
               [attr.aria-selected]="selected().includes(option)"
               [attr.aria-disabled]="limitReached() && !selected().includes(option) ? 'true' : null"
               [class.opacity-50]="limitReached() && !selected().includes(option)"
               (click)="choose(option)"
               class="flex min-h-6 w-full items-center justify-between rounded-md px-2.5 py-0.5 pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
-              [class.bg-fb-surface-hover]="activeIndex() === index"
+              [class.bg-fb-surface-hover]="activeIndex() === index + clearOffset()"
             >
               <span class="flex min-w-0 items-center gap-2"
                 ><span class="flex size-4 shrink-0 items-center justify-center" aria-hidden="true">
@@ -112,14 +146,15 @@
             <button
               type="button"
               role="option"
-              [id]="listboxId() + '-' + matches().length"
+              [id]="listboxId() + '-' + (matches().length + clearOffset())"
               aria-selected="false"
               (click)="choose(custom)"
               class="min-h-6 w-full rounded-md bg-[var(--fb-control-bg)] px-2.5 py-0.5 font-medium pointer-coarse:min-h-11 text-left text-[13px] text-fb-text-primary hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--fb-control-focus)]"
+              [class.bg-fb-surface-hover]="activeIndex() === matches().length + clearOffset()"
             >
               „{{ custom }}“ übernehmen
             </button>
-          } @else if (matches().length === 0) {
+          } @else if (matches().length === 0 && !hasClearOption()) {
             <p class="px-2.5 py-2 text-[13px] text-fb-text-muted">Keine Vorschläge gefunden.</p>
           }
         </div>
