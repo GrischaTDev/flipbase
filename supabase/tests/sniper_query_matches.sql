@@ -128,15 +128,30 @@ select lives_ok($$select public.sniper_notify_feed_updates()$$,'Dienst sendet ge
 reset role;
 select is((select count(*) from realtime.messages where event='feed_updated' and topic='workspace:e2000000-0000-4000-8000-000000000004:sniper_feed'),1::bigint,'Genau ein Hinweis je Workspace');
 select ok((select bool_and(private and payload - 'id'=jsonb_build_object('refresh',true)) from realtime.messages where event='feed_updated'),'Hinweise sind privat und enthalten keine Artikel');
+-- Realtime prüft den Beitritt mit einer temporären Zeile aus Thema und Erweiterung.
+insert into realtime.messages (id,topic,extension) values
+ ('e2000000-0000-4000-8000-000000000091','workspace:e2000000-0000-4000-8000-000000000004:sniper_feed','broadcast'),
+ ('e2000000-0000-4000-8000-000000000092','workspace:e2000000-0000-4000-8000-000000000005:sniper_feed','broadcast'),
+ ('e2000000-0000-4000-8000-000000000093','workspace:e2000000-0000-4000-8000-000000000004:sniper_feed','presence');
+insert into realtime.messages (id,topic,extension,event,payload,private) values
+ ('e2000000-0000-4000-8000-000000000094','workspace:e2000000-0000-4000-8000-000000000004:sniper_feed','broadcast','public_test','{}',false);
 select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000002',true);
 select set_config('realtime.topic','workspace:e2000000-0000-4000-8000-000000000004:sniper_feed',true);
 set local role authenticated;
 select is((select count(*) from realtime.messages where event='feed_updated'),1::bigint,'Mitglied empfängt den eigenen Hinweis');
+select is((select count(*) from realtime.messages where id='e2000000-0000-4000-8000-000000000091'),1::bigint,'Die echte Beitrittsprobe erlaubt den eigenen Kanal ohne Private-Kennzeichnung');
+select is((select count(*) from realtime.messages where id='e2000000-0000-4000-8000-000000000093'),0::bigint,'Die Lesefreigabe bleibt auf Broadcast begrenzt');
+select is((select count(*) from realtime.messages where id='e2000000-0000-4000-8000-000000000094'),0::bigint,'Öffentliche Nachrichten bleiben von der Lesefreigabe ausgeschlossen');
 reset role;
 select set_config('realtime.topic','workspace:e2000000-0000-4000-8000-000000000005:sniper_feed',true);
 set local role authenticated;
 select is((select count(*) from realtime.messages where event='feed_updated'),0::bigint,'Fremder privater Kanal bleibt gesperrt');
+select is((select count(*) from realtime.messages where id='e2000000-0000-4000-8000-000000000092'),0::bigint,'Die Beitrittsprobe sperrt einen fremden Arbeitsbereich');
 select throws_ok($$insert into realtime.messages(topic,extension,event,payload,private) values ('workspace:e2000000-0000-4000-8000-000000000005:sniper_feed','broadcast','feed_updated','{}',true)$$,'42501',null,'Mitglieder dürfen keine Feed-Hinweise vortäuschen');
+reset role;
+select set_config('realtime.topic','workspace:e2000000-0000-4000-8000-000000000004:sniper_feed',true);
+set local role anon;
+select is((select count(*) from realtime.messages where id='e2000000-0000-4000-8000-000000000091'),0::bigint,'Anonyme dürfen dem privaten Kanal nicht beitreten');
 reset role;
 
 select ok(not has_function_privilege('authenticated','public.complete_sniper_search_filter_run(uuid,integer,integer,jsonb,jsonb)','execute'),'Defaultrechte öffnen keinen Dienst-Schreibweg');

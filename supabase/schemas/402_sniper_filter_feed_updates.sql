@@ -112,7 +112,9 @@ grant execute on function public.sniper_can_access_feed_topic(text) to authentic
 
 create policy "Berechtigte empfangen Sniper Feed Hinweise" on realtime.messages
     for select to authenticated using (
-        extension = 'broadcast' and private and topic = (select realtime.topic())
+        extension = 'broadcast' and topic = (select realtime.topic())
+        -- Realtime legt für die Beitrittsprüfung eine leere Zeile ohne Private-Kennzeichnung an.
+        and (private is true or (event is null and payload is null))
         and public.sniper_can_access_feed_topic(topic));
 
 create or replace function public.sniper_feed_categories(p_workspace_id uuid)
