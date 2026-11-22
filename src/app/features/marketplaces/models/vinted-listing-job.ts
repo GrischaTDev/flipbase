@@ -47,6 +47,9 @@ export interface VintedListingJob {
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly replacesJobId: string | null;
+  /** Eine frühere ungeklärte Änderung am selben Vinted-Inserat hält den Auftrag zurück. */
+  readonly waitReason?: 'dependency_unresolved' | null;
+  readonly blockedByActionId?: string | null;
 }
 function invalid(): never {
   throw new Error(
@@ -210,6 +213,15 @@ export function parseVintedListingJob(
     createdAt: timestamp(data['createdAt']),
     updatedAt: timestamp(data['updatedAt']),
     replacesJobId: data['replacesJobId'] === null ? null : listingIdentifier(data['replacesJobId']),
+    waitReason:
+      state === 'queued' && data['waitReason'] === 'dependency_unresolved'
+        ? 'dependency_unresolved'
+        : null,
+    blockedByActionId:
+      typeof data['blockedByActionId'] === 'string' &&
+      /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(data['blockedByActionId'])
+        ? data['blockedByActionId']
+        : null,
   };
 }
 /** Die native Erstellungskennung ist bekannt; ein begrenzter Nachabgleich läuft noch. */
@@ -282,11 +294,13 @@ export function vintedListingJobLabel(job: VintedListingJob, now = Date.now()): 
 }
 
 /** Tatsächlicher Relist-Zustand; die Wartezeit beginnt erst mit belegter Löschung. */
+const dependencyWaitLabel = 'Wartet auf Prüfung der vorherigen Änderung';
 export function vintedRelistingJobLabel(job: VintedListingJob, now: number): string {
   if (job.errorCode === 'editing') return 'Wird bearbeitet';
   if (job.state === 'claimed') return 'Wird vorbereitet';
   if (job.state === 'writing') return job.relistDeletedAt ? 'Wird inseriert' : 'Wird vorbereitet';
   if (job.state !== 'queued') return vintedListingJobLabel(job, now);
+  if (job.waitReason === 'dependency_unresolved') return dependencyWaitLabel;
   if (!job.relistDeletedAt) return 'Wird vorbereitet';
   if (!job.scheduledAt) return 'Wartet auf den Start';
   const remaining = Date.parse(job.scheduledAt) - now;

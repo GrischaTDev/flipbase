@@ -65,6 +65,37 @@ it('bezeichnet Relist-Vorbereitung, bestätigte Wartezeit und tatsächliches Ins
   expect(vintedRelistingJobLabel({ ...relist, state: 'failed' }, now)).toBe('Fehlgeschlagen');
 });
 
+it('nennt beim wartenden Relist die blockierende ungeklärte Änderung', () => {
+  const blockedByActionId = '46300000-0000-4000-8000-000000000077';
+  const relist = parseVintedListingJob(
+    {
+      ...job,
+      scheduledAt: null,
+      timeZone: null,
+      relistExternalId: '123',
+      waitReason: 'dependency_unresolved',
+      blockedByActionId,
+    },
+    job.workspaceId,
+  );
+  expect(relist.waitReason).toBe('dependency_unresolved');
+  expect(relist.blockedByActionId).toBe(blockedByActionId);
+  expect(vintedRelistingJobLabel(relist, Date.parse('2026-11-03T12:00:00Z'))).toBe(
+    'Wartet auf Prüfung der vorherigen Änderung',
+  );
+  const running = parseVintedListingJob(
+    {
+      ...job,
+      state: 'claimed',
+      waitReason: 'dependency_unresolved',
+      blockedByActionId: 'kein-uuid',
+    },
+    job.workspaceId,
+  );
+  expect(running.waitReason).toBeNull();
+  expect(running.blockedByActionId).toBeNull();
+});
+
 describe('Vinted-Inserataufträge', () => {
   it('erhält große Kennungen und bezeichnet Annahme nicht als Veröffentlichung', () => {
     const result = parseVintedListingJob(job, 'workspace-a', job.draftId, job.id);

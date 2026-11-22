@@ -1,28 +1,33 @@
 import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
-import {
-  readVintedListingEdit,
-  type VintedEditResult,
-  type VintedListingEditFields,
-} from './vinted-browser-listing-edit.ts';
+import type { VintedEditResult, VintedListingEditFields } from './vinted-browser-listing-edit.ts';
 import { parseVintedListingPriceCents } from './vinted-browser-listing-content.ts';
 import {
   vintedListingFormSelector,
   collectVintedListingFormValues,
 } from './vinted-listing-contracts.ts';
-import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
-import { readVintedListingItem } from './vinted-browser-listing-item.ts';
+import { confirmVintedSave, vintedSaveConfirmationMs } from './vinted-edit-confirmation.ts';
+import {
+  parseVintedListingItemPriceCents,
+  readVintedListingPriceCents,
+} from './vinted-browser-listing-item.ts';
+import { observeVintedListingSave } from './vinted-listing-save-response.ts';
 import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
 import {
   vintedListingUpdateFailure,
   type VintedListingUpdateStep,
 } from './vinted-browser-listing-update.ts';
 
+/** Fester Grund ohne Inhalte, warum ein Speicherklick nicht bestätigt werden konnte. */
+export type VintedListingPriceUnconfirmedReason =
+  'save_click' | 'save_rejected' | 'item_unreadable' | 'price_pending';
+
 export interface VintedListingPriceResult {
   status: VintedEditResult;
   fields?: VintedListingEditFields;
   priceCents?: number;
+  reason?: VintedListingPriceUnconfirmedReason;
 }
 
 /** Eine reservierte Seite, nur ein Preisfeld, genau ein Speicherklick. */
@@ -33,7 +38,7 @@ export async function updateVintedListingPrice(
   expectedPriceCents: number,
   priceCents: number,
   authorize: () => Promise<void>,
-  timeoutMs = 20_000,
+  timeoutMs = vintedSaveConfirmationMs,
 ): Promise<VintedListingPriceResult> {
   if (page.url() !== 'about:blank') throw new Error('Die Inseratseite ist nicht neu reserviert.');
   let step: VintedListingUpdateStep = 'authorize';
@@ -105,38 +110,47 @@ export async function updateVintedListingPrice(
     if ((await save.count()) !== 1 || !(await save.isEnabled()))
       throw new Error('Speichern nicht verfügbar.');
     await check();
-    step = 'save';
+    // Vor dem Klick anmelden, damit Vinteds Antwort auf genau diesen Speicheraufruf mitgelesen wird.
+    const response = await observeVintedListingSave(page, itemId, timeoutMs);
     try {
-      await beforeVintedWrite(authorize);
-      await save.click({ timeout: 10_000 });
-    } catch {
-      return { status: 'unconfirmed' };
+      step = 'save';
+      try {
+        await beforeVintedWrite(authorize);
+        await save.click({ timeout: 10_000 });
+      } catch {
+        return { status: 'unconfirmed', reason: 'save_click' };
+      }
+      step = 'confirm';
+      let readable = false;
+      const { status, evidence } = await confirmVintedSave({
+        response: response.result,
+        responseMatches: (item) => parseVintedListingItemPriceCents(item, itemId) === priceCents,
+        // Nur Kennung und Preis: Andere Felder dürfen die Bestätigung nicht blockieren, und
+        // die Abfrage lädt die Seite nicht neu, während Vinted noch speichert.
+        readSaved: async () => {
+          await checkAuthorization();
+          if ((await readVintedAccountIdentity(page))?.id !== accountId)
+            throw new Error('Die Kontozuordnung hat sich geändert.');
+          const saved = await readVintedListingPriceCents(page, itemId);
+          if (saved !== null) readable = true;
+          return saved;
+        },
+        matches: (saved) => saved === priceCents,
+        timeoutMs,
+      });
+      if (status === 'confirmed') return { status, fields };
+      return {
+        status,
+        reason:
+          evidence === 'rejected'
+            ? 'save_rejected'
+            : readable
+              ? 'price_pending'
+              : 'item_unreadable',
+      };
+    } finally {
+      await response.close();
     }
-    step = 'confirm';
-    const status = await confirmVintedEdit(
-      async () => {
-        await checkAuthorization();
-        if ((await readVintedAccountIdentity(page))?.id !== accountId)
-          throw new Error('Die Kontozuordnung hat sich geändert.');
-        // Die gespeicherte Anbieterantwort entscheidet auch bei ausbleibendem SPA-Seitenwechsel.
-        // Solange das Speichern noch läuft, darf kein Neuladen die Anfrage abbrechen.
-        const item = await readVintedListingItem(page, itemId);
-        if (item)
-          return {
-            title: item.title,
-            description: item.description,
-            price: String(item.priceCents / 100),
-          };
-        if (page.url() === target) throw new Error('Die Speicherung ist noch nicht bestätigt.');
-        return readVintedListingEdit(page, itemId, accountId);
-      },
-      (saved) =>
-        saved.title === fields.title &&
-        saved.description === fields.description &&
-        parseVintedListingPriceCents(saved.price) === priceCents,
-      timeoutMs,
-    );
-    return status === 'confirmed' ? { status, fields } : { status };
   } catch {
     throw vintedListingUpdateFailure(authorizationFailed ? 'authorize' : step);
   } finally {

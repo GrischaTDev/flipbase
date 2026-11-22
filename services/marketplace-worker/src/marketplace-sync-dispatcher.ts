@@ -52,6 +52,9 @@ export type MarketplaceRuntimeLossReason =
   | 'heartbeat_failed'
   | 'runtime_expired'
   | 'reservation_uncertain';
+/** Mindestrest der Berechtigung, mit dem ein fehlgeschlagener Heartbeat wiederholt werden darf. */
+const heartbeatRetryMarginMs = 25_000;
+
 export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
   private readonly options: DispatcherOptions<Job>;
   private readonly workerId: string;
@@ -239,6 +242,12 @@ export class MarketplaceSyncDispatcher<Job = CloudMessageClaim> {
       });
       return true;
     } catch {
+      // Ein einzelner Verbindungsfehler beendet nicht die ganze Laufzeit: Solange die zuletzt
+      // bestätigte Berechtigung noch sicher gilt, versucht der nächste Takt (20 s) es erneut.
+      // Wird sie knapp, endet die Laufzeit wie bisher, bevor der Server sie neu vergeben kann.
+      const expiresAt = Date.parse(this.lease?.expiresAt ?? '');
+      if (!this.lost && this.lease === lease && expiresAt - this.now() > heartbeatRetryMarginMs)
+        return true;
       this.loseRuntime('heartbeat_failed');
       return false;
     }

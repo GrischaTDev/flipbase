@@ -112,9 +112,15 @@ select is((select state from public.marketplace_account_actions where public_id=
 select is(pg_temp.claim(),null::jsonb,'Abgelaufene Lease gibt einen lebenden Browser nicht frei');
 reset role;
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='stopping';
+select is((select count(*)::integer from public.marketplace_account_actions where kind='outcome_reconcile' and state='queued'
+  and reconciliation_action_id=(select (body->>'id')::uuid from action_context where name='second')),1,'Abbruch nach Schreibbeginn erhält automatisch eine lesende Nachprüfung');
+-- Die folgenden Fälle prüfen Wartereihenfolge und manuelle Klärung ohne diese automatische Nachprüfung.
+update public.marketplace_account_actions set state='cancelled',finished_at=clock_timestamp() where kind='outcome_reconcile' and state='queued';
 set local role authenticated;
 select set_config('request.jwt.claims','{"sub":"57000000-0000-4000-8000-000000000001","role":"authenticated"}',true);
-insert into action_context values('dependent',pg_temp.enqueue());
+-- Eine nicht selbst abgesicherte Änderung desselben Inserats wartet; abgesicherte Preis-, Inhalts- und
+-- Löschaktionen prüfen den aktuellen Stand selbst (siehe marketplace-account-action-auto-reconcile.test.sql).
+insert into action_context values('dependent',pg_temp.enqueue(gen_random_uuid(),'listing_edit_intent','{"entryId":"57000000-0000-4000-8000-000000000034","intent":{}}'));
 insert into action_context values('independent',pg_temp.enqueue(gen_random_uuid(),'price_save','{"entryId":"57000000-0000-4000-8000-000000000035","expectedPriceCents":1000,"priceCents":1300}'));
 select is((select body->>'waitReason' from action_context where name='dependent'),'dependency_unresolved','Nur abhängige Änderung wartet auf Klärung');
 set local role service_role;
@@ -212,6 +218,9 @@ update public.marketplace_browser_sessions set state='closed',provider_stopped_a
 set local role service_role;
 select ok(pg_temp.finish('old_unknown_claim','outcome_unknown',null),'Unklarer Ausgang bleibt dauerhaft gespeichert');
 reset role;
+-- Der Langzeitfall prüft einen dauerhaft ungeklärten Ausgang; die automatische Nachprüfung bleibt dafür außen vor.
+update public.marketplace_account_actions set state='cancelled',finished_at=clock_timestamp() where kind='outcome_reconcile' and state='queued'
+  and reconciliation_action_id=(select (body->>'id')::uuid from action_context where name='old_unknown');
 update public.marketplace_account_actions set finished_at=clock_timestamp()-interval '91 days' where public_id=(select (body->>'id')::uuid from action_context where name='old_unknown');
 set local role service_role;
 select is(public.marketplace_account_actions_purge_history(),0,'Auch nach 90 Tagen werden unklare Ergebnisse nicht bereinigt');

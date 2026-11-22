@@ -719,8 +719,33 @@ test('ungeklärte Browserbereinigung erlaubt keine erfolgreiche Runtimefreigabe'
   await dispatcher.poll();
 });
 
-test('fehlgeschlagener Runtime-Heartbeat setzt Fähigkeiten sofort zurück', async () => {
-  const { dispatcher, lost, lossReasons } = fixture(
+test('ein einzelner Verbindungsfehler beim Heartbeat beendet die noch gültige Laufzeit nicht', async () => {
+  let failures = 1;
+  const { dispatcher, lost, advance } = fixture(
+    {
+      heartbeatWorker: async () => {
+        if (failures-- > 0) throw new Error('private response');
+        return true;
+      },
+    },
+    undefined,
+    true,
+  );
+  await dispatcher.initialize();
+  dispatcher.start();
+  advance(20_000);
+  // Die Berechtigung gilt noch 70 s; der nächste Takt versucht es erneut.
+  assert.equal(await dispatcher.heartbeat(), true);
+  assert.equal(dispatcher.ready, true);
+  assert.equal(lost(), 0);
+  advance(20_000);
+  assert.equal(await dispatcher.heartbeat(), true);
+  assert.equal(dispatcher.ready, true);
+  assert.equal(lost(), 0);
+});
+
+test('fehlgeschlagener Runtime-Heartbeat kurz vor Ablauf setzt Fähigkeiten sofort zurück', async () => {
+  const { dispatcher, lost, lossReasons, advance } = fixture(
     {
       heartbeatWorker: async () => {
         throw new Error('private response');
@@ -731,6 +756,8 @@ test('fehlgeschlagener Runtime-Heartbeat setzt Fähigkeiten sofort zurück', asy
   );
   await dispatcher.initialize();
   dispatcher.start();
+  // Ohne gelungene Verlängerung bleiben nur noch 20 s; das reicht nicht für einen weiteren Versuch.
+  advance(70_000);
   assert.equal(await dispatcher.heartbeat(), false);
   assert.equal(dispatcher.ready, false);
   assert.equal(dispatcher.scheduledEnabled, false);

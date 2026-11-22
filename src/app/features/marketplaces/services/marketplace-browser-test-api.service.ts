@@ -1167,9 +1167,11 @@ export class MarketplaceBrowserTestApiService {
     if (response.status === 404) throw new MarketplaceWorkerOutdatedError();
     await assertListingNotRelisting(response);
     if (response.status === 429) throw new VintedAccountBusyError();
-    if (!response.ok) throw new VintedEditUnconfirmedError();
     const body: unknown = await response.json().catch(() => null);
     const status = body && typeof body === 'object' && 'status' in body ? body.status : null;
+    // Die automatische Nachprüfung fand weiter den Ausgangspreis; ein neuer Versuch ist sicher.
+    if (response.status === 409 && status === 'failed') throw new VintedListingNotSavedError();
+    if (!response.ok) throw new VintedEditUnconfirmedError();
     if (
       status === 'conflict' &&
       body &&

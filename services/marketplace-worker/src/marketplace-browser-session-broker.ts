@@ -172,6 +172,8 @@ interface BrowserSessionBrokerOptions {
   recovery: { recover(): Promise<void> };
   authorizeRuntime?: () => Promise<boolean>;
   now?: () => number;
+  /** Pause zwischen Wiederholungen einer fehlgeschlagenen Leaseprüfung (Standard 1 s). */
+  leaseRetryDelayMs?: number;
   onStartFailure?: (stage: BrowserStartStage, detail?: string) => void;
   onSessionEvent?: (event: BrowserSessionTelemetryEvent) => void;
 }
@@ -601,14 +603,8 @@ export class MarketplaceBrowserSessionBroker {
     const session = this.find(scope, sessionId);
     if (session.stopPending) throw new Error('Sitzung wird beendet');
     session.lease.scope.userAccessToken = scope.userAccessToken;
-    let active: boolean;
-    try {
-      active =
-        session.lease.expiresAt > Date.now() &&
-        (await this.options.leases.assertActive(session.lease));
-    } catch {
-      active = false;
-    }
+    // Bleibt die Prüfung auch nach Wiederholungen ohne Antwort, läuft keine Browseraktion ohne Beleg.
+    let active = (await this.leaseActive(session.lease)) === true;
     if (session.stopPending) throw new Error('Sitzung wird beendet');
     if (session.lease.expiresAt <= Date.now()) active = false;
     if (!active) {
@@ -634,6 +630,24 @@ export class MarketplaceBrowserSessionBroker {
     }
   }
 
+  /**
+   * Prüft eine Lease beim Server. Verbindungsfehler werden zweimal kurz wiederholt, weil ein
+   * einzelner Aussetzer sonst einen laufenden Speichervorgang abbricht und ihn ungeklärt macht.
+   * `unknown` heißt: keine Antwort erhalten, aber auch keine Ablehnung.
+   */
+  private async leaseActive(lease: BrowserLease): Promise<boolean | 'unknown'> {
+    const delay = this.options.leaseRetryDelayMs ?? 1_000;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (lease.expiresAt <= Date.now()) return false;
+      try {
+        return await this.options.leases.assertActive(lease);
+      } catch {
+        if (attempt < 2) await new Promise((resolve) => setTimeout(resolve, delay * (attempt + 1)));
+      }
+    }
+    return 'unknown';
+  }
+
   async close(scope: BrowserSessionScope, sessionId: string): Promise<void> {
     await this.terminate(sessionId, this.find(scope, sessionId));
   }
@@ -641,14 +655,10 @@ export class MarketplaceBrowserSessionBroker {
   async reconcile(): Promise<void> {
     let cleanupFailed = false;
     for (const [id, session] of this.sessions) {
-      let active: boolean;
-      try {
-        active =
-          session.lease.expiresAt > Date.now() &&
-          (await this.options.leases.assertActive(session.lease));
-      } catch {
-        active = false;
-      }
+      const checked = await this.leaseActive(session.lease);
+      // Ein Verbindungsfehler beendet keinen laufenden Browser, solange seine Lease lokal noch
+      // gilt; die nächste Runde prüft erneut. Abgelaufene Leases enden wie bisher.
+      let active = checked !== false;
       if (session.lease.expiresAt <= Date.now()) active = false;
       const now = this.options.now?.() ?? Date.now();
       const idle =

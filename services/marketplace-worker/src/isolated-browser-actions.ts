@@ -1,6 +1,7 @@
 import { parseVintedTransferSource } from '../../../supabase/functions/_shared/kleinanzeigen-listing-validation.mts';
 import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
+import type { VintedListingPriceUnconfirmedReason } from './vinted-browser-listing-price.ts';
 import {
   isMarketplaceInboxNotificationKind,
   marketplaceInboxEventMaxBytes,
@@ -1291,10 +1292,14 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
   if (name === 'updateListingPrice') {
     const result = commandRecord(input);
     if (
-      Object.keys(result).some((key) => !['status', 'fields', 'priceCents'].includes(key)) ||
+      Object.keys(result).some(
+        (key) => !['status', 'fields', 'priceCents', 'reason'].includes(key),
+      ) ||
       !['confirmed', 'unconfirmed', 'conflict'].includes(String(result.status))
     )
       throw new Error('Ungültiges Speicherergebnis');
+    if (result.status !== 'unconfirmed' && Object.hasOwn(result, 'reason'))
+      throw new Error('Ungültiger Bestätigungsgrund');
     if (result.status === 'confirmed') {
       if (Object.hasOwn(result, 'priceCents')) throw new Error('Ungültiger Verkaufspreis');
       return { status: 'confirmed', fields: fields(result.fields) };
@@ -1312,7 +1317,17 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       return { status: 'conflict', priceCents: price };
     }
     if (Object.hasOwn(result, 'priceCents')) throw new Error('Unbestätigter Verkaufspreis');
-    return { status: result.status };
+    if (result.reason === undefined) return { status: result.status };
+    if (
+      !['save_click', 'save_rejected', 'item_unreadable', 'price_pending'].includes(
+        String(result.reason),
+      )
+    )
+      throw new Error('Ungültiger Bestätigungsgrund');
+    return {
+      status: result.status,
+      reason: result.reason as VintedListingPriceUnconfirmedReason,
+    };
   }
   if (name === 'readListingEdit') return fields(input);
   if (name === 'readListingCategory') {

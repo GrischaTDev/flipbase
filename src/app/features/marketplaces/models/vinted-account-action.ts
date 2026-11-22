@@ -54,6 +54,8 @@ export interface VintedAccountAction extends AccountScope {
   readonly errorCode: string | null;
   readonly result: unknown;
   readonly blockedByActionId: string | null;
+  /** Für ein ungeklärtes Ergebnis läuft oder wartet eine Nachprüfung. */
+  readonly reconciling?: boolean;
   readonly historyPurged: boolean;
   readonly resultExpired: boolean;
   readonly createdAt: string;
@@ -142,6 +144,7 @@ export function parseVintedAccountAction(value: unknown, scope: AccountScope): V
     errorCode,
     result: row['result'],
     blockedByActionId,
+    reconciling: row['reconciling'] === true,
     historyPurged: row['historyPurged'],
     resultExpired: row['resultExpired'],
     createdAt,

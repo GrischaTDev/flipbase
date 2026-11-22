@@ -1,7 +1,9 @@
 import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
-import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
+import { confirmVintedSave } from './vinted-edit-confirmation.ts';
+import { parseVintedListingItem } from './vinted-browser-listing-item.ts';
+import { observeVintedListingSave } from './vinted-listing-save-response.ts';
 import { VintedListingReadError } from './vinted-listing-read-error.ts';
 import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
 import { parseVintedListingPriceCents } from './vinted-browser-listing-content.ts';
@@ -76,23 +78,44 @@ export async function updateVintedListing(
   if (!(await save.isVisible()) || !(await save.isEnabled()))
     throw new Error('Speichern nicht verfügbar');
   await authorize();
+  const same = (saved: VintedListingEditFields) =>
+    saved.title === desired.title &&
+    saved.description === desired.description &&
+    parseVintedListingPriceCents(saved.price) === parseVintedListingPriceCents(desired.price);
+  const editPath = `/items/${itemId}/edit`;
+  const response = await observeVintedListingSave(page, itemId, 90_000);
   try {
-    await beforeVintedWrite(authorize);
-    await save.click({ timeout: 10_000 });
-    // Die Bestätigungsabfrage darf Vinteds noch laufenden Speichervorgang nicht wegnavigieren.
-    await page.waitForURL(
-      (url) => url.origin === vintedOrigin && url.pathname !== `/items/${itemId}/edit`,
-      { timeout: 15_000 },
-    );
-  } catch {
-    // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
-    return 'unconfirmed';
+    try {
+      await beforeVintedWrite(authorize);
+      await save.click({ timeout: 10_000 });
+    } catch {
+      // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
+      return 'unconfirmed';
+    }
+    let left = false;
+    const { status } = await confirmVintedSave({
+      response: response.result,
+      responseMatches: (item) => {
+        const saved = parseVintedListingItem(item, itemId);
+        return (
+          saved !== null &&
+          same({
+            title: saved.title,
+            description: saved.description,
+            price: String(saved.priceCents / 100),
+          })
+        );
+      },
+      readSaved: async (responseSeen) => {
+        // Die Maske erst neu öffnen, wenn Vinted geantwortet oder die Seite verlassen hat;
+        // sonst könnte das Neuladen den noch laufenden Speicheraufruf abbrechen.
+        left ||= responseSeen || new URL(page.url()).pathname !== editPath;
+        return left ? await readVintedListingEdit(page, itemId, accountId) : null;
+      },
+      matches: same,
+    });
+    return status;
+  } finally {
+    await response.close();
   }
-  return confirmVintedEdit(
-    () => readVintedListingEdit(page, itemId, accountId),
-    (saved) =>
-      saved.title === desired.title &&
-      saved.description === desired.description &&
-      parseVintedListingPriceCents(saved.price) === parseVintedListingPriceCents(desired.price),
-  );
 }

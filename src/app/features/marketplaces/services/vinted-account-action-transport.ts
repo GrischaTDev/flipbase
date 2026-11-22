@@ -192,17 +192,37 @@ export async function runVintedAccountAction(
   changed?.(action);
   window.dispatchEvent(new Event('flipbase-account-actions-changed'));
   window.dispatchEvent(new CustomEvent('flipbase-account-action-accepted', { detail: action }));
-  while (action.state === 'queued' || action.state === 'running') {
-    await new Promise<void>((resolve) => setTimeout(resolve, 1500));
-    const status = await post(
-      '/marketplace-browser/actions/status',
-      { ...scope, actionId: action.id },
-      token,
-    );
-    if (!status.ok)
+  // Ein ungeklärtes Ergebnis wird automatisch nachgeprüft; darauf begrenzt weiter warten.
+  let reconcileDeadline: number | null = null;
+  const pending = (current: VintedAccountAction): boolean => {
+    if (current.state === 'queued' || current.state === 'running') return true;
+    if (current.state !== 'outcome_unknown' || current.reconciling !== true) return false;
+    reconcileDeadline ??= Date.now() + reconcileWaitMs;
+    return Date.now() < reconcileDeadline;
+  };
+  // Ein einzelner Verbindungsaussetzer beendet das Warten nicht; der Auftrag läuft serverseitig weiter.
+  let failedPolls = 0;
+  while (pending(action)) {
+    await new Promise<void>((resolve) => setTimeout(resolve, failedPolls ? 3000 : 1500));
+    let status: Response | null;
+    try {
+      status = await post(
+        '/marketplace-browser/actions/status',
+        { ...scope, actionId: action.id },
+        token,
+      );
+    } catch {
+      status = null;
+    }
+    if (!status?.ok) {
+      const transient =
+        !status || status.status >= 500 || status.status === 408 || status.status === 429;
+      if (transient && ++failedPolls < statusPollAttempts) continue;
       throw new Error(
         'Der Aktionsstatus konnte nicht geladen werden. Prüfe die laufenden Aktionen.',
       );
+    }
+    failedPolls = 0;
     const updated = parseVintedAccountAction(record(await status.json())['action'], scope);
     if (updated.id !== action.id || updated.kind !== kind || updated.requestId !== action.requestId)
       throw new Error('Der Aktionsstatus passt nicht zur Anfrage.');
@@ -215,6 +235,10 @@ export async function runVintedAccountAction(
   window.dispatchEvent(new Event('flipbase-account-actions-changed'));
   return actionResponse(action);
 }
+
+// Die erste automatische Nachprüfung startet nach einer Minute und braucht selbst etwas Zeit.
+const reconcileWaitMs = 150_000;
+const statusPollAttempts = 5;
 
 function actionResponse(action: VintedAccountAction): Response {
   if (action.resultExpired)

@@ -58,6 +58,50 @@ test('writes only into an own fresh tab, saves once and confirms by reading the 
   }
 });
 
+test('confirms through the Vinted save response without reloading the form while the save is running', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, {
+        saveApi: 'saved',
+        saveResponseDelayMs: 2500,
+        staleItemReads: true,
+        noSaveNavigation: true,
+      });
+    assert.equal(
+      await updateVintedListingContent(page, '123', '98765', base, desired, allow, 20_000),
+      'confirmed',
+    );
+    assert.equal(f.saves(), 1);
+    assert.equal(f.writes(), 1);
+    assert.equal(f.readsDuringSave(), 0);
+    assert.equal(f.state().price, '18,00 €');
+  } finally {
+    await browser.close();
+  }
+});
+
+test('stops waiting at once when Vinted rejects the save and does not confirm it', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage(),
+      f = await createVintedListingEditFormFixture(page, {
+        saveApi: 'rejected',
+        noSaveNavigation: true,
+      });
+    const started = Date.now();
+    assert.equal(
+      await updateVintedListingContent(page, '123', '98765', base, desired, allow, 30_000),
+      'unconfirmed',
+    );
+    assert.ok(Date.now() - started < 20_000);
+    assert.equal(f.saves(), 1);
+    assert.equal(f.state().price, '20,50 €');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('changes the brand to a searched brand that the form does not suggest', async () => {
   const browser = await chromium.launch();
   try {
