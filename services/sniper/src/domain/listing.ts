@@ -32,6 +32,8 @@ export interface MarketplaceListing {
   imageUrls: string[];
   /** Reiner Artikelpreis - die Basis fuer jede Margenrechnung. */
   itemPrice: Money;
+  /** Ein Preis aus dem Katalog, der für einen Vinted-Preisfilter verwendbar ist. */
+  hasExactItemPrice?: boolean;
   /** Gesamtpreis inklusive Kaeuferschutz - der Betrag, der abgebucht wird. */
   totalPrice: Money;
   brand: string | null;

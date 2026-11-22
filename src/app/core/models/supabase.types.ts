@@ -15049,6 +15049,10 @@ export type Database = {
           catalog_id: number
         }[]
       }
+      sniper_feed_import_brand: {
+        Args: { p_brand_id: number; p_workspace_id: string }
+        Returns: string
+      }
       sniper_feed_matches_size: {
         Args: { p_filter_size: string; p_listing_size: string }
         Returns: boolean
@@ -15080,6 +15084,26 @@ export type Database = {
               p_max_price: number
               p_min_price: number
               p_query_id?: string
+              p_size: string
+              p_sizes: string[]
+              p_title_query: string
+              p_watchlist_id: string
+              p_workspace_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_after_time: string
+              p_audience: string
+              p_before_id: string
+              p_before_time: string
+              p_brand: string
+              p_catalog_id: number
+              p_limit: number
+              p_max_price: number
+              p_min_price: number
+              p_query_id: string
               p_size: string
               p_sizes: string[]
               p_title_query: string

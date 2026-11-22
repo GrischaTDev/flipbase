@@ -73,8 +73,8 @@ describe('Private Hinweise für den Deal-Feed', () => {
     const refresh = vi.fn();
     updates.watch(workspaceA, refresh);
     for (let i = 0; i < 20; i++) channels[0]?.receive();
-    await vi.advanceTimersByTimeAsync(250);
-    expect(refresh).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(true);
     for (let i = 0; i < 10; i++) {
       channels[0].receive();
       await vi.advanceTimersByTimeAsync(90);
@@ -89,7 +89,7 @@ describe('Private Hinweise für den Deal-Feed', () => {
     updates.watch(workspaceA, refresh);
     channels[0]?.status(REALTIME_SUBSCRIBE_STATES.SUBSCRIBED);
     await vi.advanceTimersByTimeAsync(250);
-    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(refresh).toHaveBeenCalledExactlyOnceWith(false);
     channels[0].status(REALTIME_SUBSCRIBE_STATES.CHANNEL_ERROR);
     channels[0].receive(null);
     channels[0].receive({ refresh: false });

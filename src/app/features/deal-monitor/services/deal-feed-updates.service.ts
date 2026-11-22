@@ -12,21 +12,25 @@ export class DealFeedUpdatesService {
     this.destroyRef.onDestroy(() => this.stopWatching?.());
   }
 
-  watch(workspace: string, onUpdate: () => void): () => void {
+  watch(workspace: string, onUpdate: (delta: boolean) => void): () => void {
     this.stopWatching?.();
     let active = true;
     let channel: RealtimeChannel | undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let lastRefresh = Number.NEGATIVE_INFINITY;
-    const scheduleRefresh = () => {
-      if (!active || timer !== undefined) return;
-      // Ein kurzer Sammelzeitraum, danach höchstens ein Abgleich pro Sekunde.
-      const delay = Math.max(250, 1_000 - (Date.now() - lastRefresh));
+    let snapshotPending = false;
+    const scheduleRefresh = (delta: boolean) => {
+      if (!active) return;
+      snapshotPending ||= !delta;
+      if (timer !== undefined) return;
+      const delay = Math.max(delta ? 0 : 250, 1_000 - (Date.now() - lastRefresh));
       timer = setTimeout(() => {
         timer = undefined;
         if (!active) return;
         lastRefresh = Date.now();
-        onUpdate();
+        const useDelta = !snapshotPending;
+        snapshotPending = false;
+        onUpdate(useDelta);
       }, delay);
     };
     const cleanup = () => {
@@ -55,11 +59,11 @@ export class DealFeedUpdatesService {
             'refresh' in payload &&
             payload.refresh === true
           )
-            scheduleRefresh();
+            scheduleRefresh(true);
         })
         .subscribe((status) => {
           // Auch der erste Beitritt schließt die Lücke zwischen Laden und Abonnieren.
-          if (status === 'SUBSCRIBED') scheduleRefresh();
+          if (status === 'SUBSCRIBED') scheduleRefresh(false);
         });
     } catch {
       // Der regelmäßige Feed-Abruf bleibt auch ohne Echtzeitverbindung aktiv.

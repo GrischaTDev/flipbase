@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { discoveryDate } from './discovery-date';
+import { discoveryAge, discoveryDate } from './discovery-date';
 
 describe('Funddatum nach Kalendertagen', () => {
   it('nennt heute mit Uhrzeit', () =>
@@ -24,4 +24,23 @@ describe('Funddatum nach Kalendertagen', () => {
     ));
   it('behandelt ungültige Zeiten ohne falsches heute', () =>
     expect(discoveryDate('kaputt', new Date())).toBe('Datum unbekannt'));
+});
+
+describe('Alter seit Erstfund', () => {
+  const discoveredAt = '2026-11-22T08:25:00Z';
+
+  it.each([
+    [-2_000, 'vor 0 s'],
+    [59_999, 'vor 59 s'],
+    [60_000, 'vor 1 min'],
+    [3_600_000, 'vor 1 Std.'],
+    [86_400_000, 'vor 1 Tag'],
+    [172_800_000, 'vor 2 Tagen'],
+  ])('zeigt nach %d Millisekunden %s', (elapsedMs, label) => {
+    expect(discoveryAge(discoveredAt, new Date(Date.parse(discoveredAt) + elapsedMs))).toBe(label);
+  });
+
+  it('zeigt eine fehlende Fundzeit als unbekannt', () => {
+    expect(discoveryAge('', new Date(discoveredAt))).toBe('Datum unbekannt');
+  });
 });

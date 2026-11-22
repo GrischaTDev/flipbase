@@ -5,17 +5,117 @@ import {
   type CollectorLike,
 } from '../../src/runtime/scheduler.js';
 import { RequestBudget } from '../../src/runtime/budget.js';
+import { pacedVintedFetch } from '../../src/runtime/paced-vinted-fetch.js';
+import type { MarketplaceListing } from '../../src/domain/listing.js';
 import { RateLimitedError } from '../../src/vinted/errors.js';
 import { catalogListing, searchFilter } from '../support/search-filter.js';
 import { createClient } from '@supabase/supabase-js';
 import { ListingStore } from '../../src/store/listing.store.js';
-import { VintedCollector } from '../../src/vinted/collector.js';
+import { buildVintedCatalogUrl, VintedCollector } from '../../src/vinted/collector.js';
 import { catalogPage } from '../vinted/support/catalog-page.js';
+import catalogFixture from '../fixtures/vinted-catalog.json' with { type: 'json' };
+import { VintedCatalogSchema } from '../../src/vinted/schema.js';
+import { normalizeVintedItem } from '../../src/vinted/normalizer.js';
 
 const NOW = new Date('2026-10-29T10:00:00Z');
 const log = { info: vi.fn(), error: vi.fn() };
 
 describe('bounded shared search scheduling', () => {
+  it.each([0, 1])(
+    'shares the same recorded Vinted arrival in both filters (%i)',
+    async (arrivalIndex) => {
+      const recorded = VintedCatalogSchema.parse(catalogFixture).items.map(normalizeVintedItem);
+      const arrival = recorded[arrivalIndex]!;
+      const broad = searchFilter({ id: 'broad', titleKeywords: [], seededRequests: [0] });
+      const cheap = { ...broad, id: 'cheap', priceTo: 20 };
+
+      async function replay(sharePriceRanges: boolean, exactPrice = true) {
+        let elapsed = 0;
+        let due = [broad];
+        let current = recorded.filter((listing) => listing !== arrival);
+        const requests: number[] = [];
+        const found = new Map<string, { time: number; filters: number | undefined }>();
+        const clock = () => new Date(NOW.getTime() + elapsed);
+        const paced = pacedVintedFetch(
+          async (input) => {
+            requests.push(elapsed);
+            elapsed += 250;
+            const limited = new URL(String(input)).searchParams.has('price_to');
+            return Response.json(
+              current.filter(({ itemPrice }) => !limited || itemPrice.amount <= 20),
+            );
+          },
+          {
+            minimumIntervalMs: 2500,
+            requestTimeoutMs: 20_000,
+            now: () => elapsed,
+            sleep: async (ms) => {
+              elapsed += ms;
+            },
+          },
+        );
+        const scheduler = new QueryScheduler({
+          queries: { dueQueries: async () => due, markSeeded: async () => undefined },
+          collector: {
+            collect: vi.fn(),
+            collectSource: async (query) => {
+              const url = buildVintedCatalogUrl(query, 'https://www.vinted.de');
+              return (await (await paced(url)).json()) as MarketplaceListing[];
+            },
+          },
+          listings: {
+            saveNew: vi.fn(),
+            completeRun: async (listings, query, diagnostics) => {
+              if (listings.some(({ externalId }) => externalId === arrival.externalId))
+                found.set(query.id, {
+                  time: elapsed - 5000,
+                  filters: diagnostics?.shared_filter_count,
+                });
+              return { accepted: true, created: 0, seeded: false };
+            },
+          },
+          budget: new RequestBudget(24),
+          log,
+          now: clock,
+          maxRequestsPerCycle: 1,
+          sharePriceRanges,
+        });
+        await scheduler.runOnce(clock());
+        due = [cheap];
+        await scheduler.runOnce(clock());
+        elapsed = 5000;
+        requests.length = 0;
+        current = [{ ...arrival, hasExactItemPrice: exactPrice }, ...current];
+        due = [broad, cheap];
+        await scheduler.runOnce(clock());
+        if (!found.has(cheap.id)) {
+          due = [cheap];
+          await scheduler.runOnce(clock());
+        }
+        return {
+          requests: requests.map((time) => time - 5000),
+          found: [...found],
+        };
+      }
+
+      expect(await replay(false)).toEqual({
+        requests: [0, 2500],
+        found: [
+          ['broad', { time: 250, filters: 1 }],
+          ['cheap', { time: 2750, filters: 1 }],
+        ],
+      });
+      expect(await replay(true)).toEqual({
+        requests: [0],
+        found: [
+          ['broad', { time: 250, filters: 2 }],
+          ['cheap', { time: 250, filters: 2 }],
+        ],
+      });
+      expect(await replay(true, false)).toEqual(await replay(false));
+    },
+  );
+
   it('captures a reset baseline and forwards only newer catalog listings on subsequent runs', async () => {
     let filter = searchFilter({
       catalogId: 1858,

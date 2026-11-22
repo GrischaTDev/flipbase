@@ -19,6 +19,29 @@
             : null
         "
       />
+      <div>
+        <div class="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <app-text-field
+            label="Vinted-Suchlink"
+            type="url"
+            [formControl]="feedLink"
+            [disabled]="importingLink()"
+            [ariaDescribedby]="linkError() ? 'vinted-feed-import-status' : ''"
+            [ariaInvalid]="!!linkError()"
+            (valueChange)="linkError.set(null)"
+          />
+          <app-button [loading]="importingLink()" [disabled]="saving()" (clicked)="importLink()"
+            >Link übernehmen</app-button
+          >
+        </div>
+        <p
+          id="vinted-feed-import-status"
+          role="status"
+          class="h-12 break-words text-xs leading-4 text-fb-text-danger"
+        >
+          {{ linkError() }}
+        </p>
+      </div>
       <app-category-picker
         label="Kategorie"
         placeholder="Alle gesammelten Kategorien"
@@ -94,7 +117,12 @@
       }
       <div class="flex justify-end gap-2">
         <app-button (clicked)="cancelled.emit()" [disabled]="saving()">Abbrechen</app-button
-        ><app-button type="submit" variant="primary" [loading]="saving()"
+        ><app-button
+          type="submit"
+          variant="primary"
+          [loading]="saving()"
+          [disabled]="importingLink()"
+          [class.invisible]="!hasChanges() && !saving()"
           >Suchfilter speichern</app-button
         >
       </div>

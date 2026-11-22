@@ -555,6 +555,7 @@ async function fixture(
   favoriteStore: FavoriteFixtureStore = new Map(),
   userId = '92000000-0000-4000-8000-000000000001',
   operator = false,
+  initialCount = 8,
 ) {
   // Lokale Bildantworten statt fremder Produktfotos: prüft Raster und Fehlerzustände.
   await page.route('https://images1.vinted.net/feed-fixture/**', async (route) => {
@@ -594,7 +595,7 @@ async function fixture(
     },
     { user, token },
   );
-  let items = Array.from({ length: 8 }, (_, i) => makeItem(i + 1));
+  let items = Array.from({ length: initialCount }, (_, i) => makeItem(i + 1));
   const watchlists: Record<string, unknown>[] = [];
   const calls: { name: string; body: Record<string, unknown> }[] = [];
   let failSave = false;
@@ -603,6 +604,7 @@ async function fixture(
   let watchlistGate: Promise<void> | null = null;
   let releaseWatchlists: (() => void) | undefined;
   let waitingForWatchlists = false;
+  let announceFeedUpdate: (() => void) | undefined;
   await page.routeWebSocket(/127\.0\.0\.1:54351/, (socket) => {
     socket.onMessage((message) => {
       if (typeof message !== 'string') return;
@@ -611,6 +613,21 @@ async function fixture(
         socket.send(
           JSON.stringify([joinRef, ref, topic, 'phx_reply', { status: 'ok', response: {} }]),
         );
+      if (event === 'phx_join' && topic === `realtime:workspace:${workspace}:sniper_feed`)
+        announceFeedUpdate = () =>
+          socket.send(
+            JSON.stringify([
+              joinRef,
+              null,
+              topic,
+              'broadcast',
+              {
+                type: 'broadcast',
+                event: 'feed_updated',
+                payload: { refresh: true },
+              },
+            ]),
+          );
     });
   });
   await page.route('http://127.0.0.1:54351/**', async (route) => {
@@ -668,6 +685,13 @@ async function fixture(
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];
     }
     if (name === 'sniper_supported_brands') json = [{ brand: 'Nike' }];
+    if (name === 'sniper_feed_import_brand') json = 'Nike';
+    if (name === 'vinted_listing_sizes')
+      json = [
+        { id: 13, title: 'S' },
+        { id: 14, title: 'M' },
+      ];
+    if (name === 'vinted_listing_options') json = { title: 'Neu, mit Etikett' };
     if (name === 'sniper_feed_categories') json = [{ catalog_id: 1049 }];
     if (name === 'sniper_feed_bots')
       json = [
@@ -687,13 +711,17 @@ async function fixture(
       const body = route.request().postDataJSON() as Record<string, unknown>;
       calls.push({ name, body });
       json = {
-        items: (body['p_workspace_id'] === secondWorkspace ? [makeItem(700)] : items).filter(
-          (item) =>
-            String(body['p_title_query'] ?? '')
-              .toLowerCase()
-              .split(/\s+/u)
-              .every((word) => item.title.toLowerCase().includes(word)),
-        ),
+        items: (body['p_workspace_id'] === secondWorkspace ? [makeItem(700)] : items)
+          .filter(
+            (item) =>
+              (!body['p_after_time'] ||
+                Date.parse(item.first_seen_at) >= Date.parse(String(body['p_after_time']))) &&
+              String(body['p_title_query'] ?? '')
+                .toLowerCase()
+                .split(/\s+/u)
+                .every((word) => item.title.toLowerCase().includes(word)),
+          )
+          .slice(0, Number(body['p_limit'] ?? 60)),
         covered,
         reported_at: new Date().toISOString(),
       };
@@ -780,6 +808,11 @@ async function fixture(
   });
   return {
     calls,
+    feedConnected: () => !!announceFeedUpdate,
+    announceFeedUpdate: () => announceFeedUpdate?.(),
+    addRecent: (id: number) => {
+      items = [{ ...makeItem(id), first_seen_at: new Date().toISOString() }, ...items];
+    },
     clearFeed: () => {
       items = [];
     },
@@ -820,6 +853,46 @@ async function checkAxe(page: Page) {
   );
   expect(violations).toEqual([]);
 }
+
+test('ergänzt einen Live-Fund mit zwei statt 60 Karten im Abruf @pr-smoke', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  const mock = await fixture(page, new Map(), undefined, false, 60);
+  await page.goto('/vinted-bot');
+  await expect(page.getByRole('article', { name: 'Nike Sneaker 1', exact: true })).toBeVisible();
+  await expect.poll(mock.feedConnected).toBe(true);
+  const snapshot = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/rpc/sniper_feed_search') &&
+      !response.request().postDataJSON()['p_after_time'],
+  );
+  await snapshot;
+
+  const arrival = 9831702863;
+  mock.addRecent(arrival);
+  const delta = page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/rpc/sniper_feed_search') &&
+      !!response.request().postDataJSON()['p_after_time'],
+  );
+  mock.announceFeedUpdate();
+  const update = await (await delta).json();
+  expect(update.items.map(({ url }: { url: string }) => url)).toEqual([
+    `https://www.vinted.de/items/${arrival}`,
+    'https://www.vinted.de/items/1',
+  ]);
+  await expect(
+    page.getByRole('article', { name: `Nike Sneaker ${arrival}`, exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole('article', { name: 'Nike Sneaker 2', exact: true })).toBeVisible();
+  const fullResponse = await page.waitForResponse(
+    (response) =>
+      response.url().endsWith('/rpc/sniper_feed_search') &&
+      !response.request().postDataJSON()['p_after_time'],
+  );
+  const full = await fullResponse.json();
+  expect(full.items).toHaveLength(60);
+  expect(full.items.slice(0, update.items.length)).toEqual(update.items);
+});
 
 for (const theme of ['light', 'dark'] as const) {
   test(`Vinted Bot Feed und Suchfilter verwalten ${theme} @pr-smoke`, async ({ page }) => {
@@ -965,6 +1038,9 @@ for (const theme of ['light', 'dark'] as const) {
     await expect(page.getByRole('heading', { name: 'Suchfilter', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByLabel('Name des Suchfilters')).toBeFocused();
+    await expect(
+      page.getByRole('button', { name: 'Suchfilter speichern', exact: true }),
+    ).toBeHidden();
     await page.getByLabel('Name des Suchfilters').blur();
     await expect(
       page.getByText('Bitte einen Namen mit höchstens 100 Zeichen eingeben.'),
@@ -976,14 +1052,19 @@ for (const theme of ['light', 'dark'] as const) {
     await page.getByRole('button', { name: 'Neuer Suchfilter', exact: true }).click();
     await expect(page.getByRole('combobox', { name: 'Zielgruppe', exact: true })).toHaveCount(0);
     await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
-    await page.getByRole('button', { name: /Kategorie Alle gesammelten Kategorien/ }).click();
-    await page.getByRole('combobox', { name: 'Kategorie suchen' }).fill('Sneak');
-    await page.getByRole('option', { name: /^Sneaker/ }).click();
-    await page.getByLabel('Größen', { exact: true }).click();
-    await page.getByRole('option', { name: 'S', exact: true }).click();
-    await page.getByRole('option', { name: 'M', exact: true }).click();
-    await page.getByLabel('Marke', { exact: true }).fill('Nik');
-    await page.getByRole('option', { name: 'Nike', exact: true }).click();
+    const vintedLink = page.getByLabel('Vinted-Suchlink');
+    const categoryButton = page.getByRole('button', { name: /^Kategorie / });
+    const categoryPosition = await categoryButton.evaluate((element) => element.offsetTop);
+    await vintedLink.fill('https://vinted.de.example/catalog?brand_ids[]=53');
+    await page.getByRole('button', { name: 'Link übernehmen' }).click();
+    await expect(page.getByText('Bitte einen Kataloglink von vinted.de eingeben.')).toBeVisible();
+    expect(await categoryButton.evaluate((element) => element.offsetTop)).toBe(categoryPosition);
+    await vintedLink.fill(
+      'https://www.vinted.de/catalog?catalog[]=1049&brand_ids[]=53&size_ids[]=13&size_ids[]=14&status_ids[]=6&search_text=Air+Max&price_to=25',
+    );
+    await page.getByRole('button', { name: 'Link übernehmen' }).click();
+    await expect(page.getByLabel('Marke', { exact: true })).toHaveValue('Nike');
+    await expect(page.getByLabel('Suchbegriff', { exact: true })).toHaveValue('Air Max');
     await checkAxe(page);
     mock.failSave(true);
     await page.getByRole('button', { name: 'Suchfilter speichern', exact: true }).click();
@@ -1005,11 +1086,20 @@ for (const theme of ['light', 'dark'] as const) {
         p_audience: null,
         p_sizes: ['s', 'm'],
         p_brand: 'Nike',
+        p_condition: 'Neu mit Etikett',
+        p_search_text: 'Air Max',
+        p_price_to: 25,
       }),
     });
     await page.getByRole('button', { name: 'Suchfilter bearbeiten', exact: true }).click();
     await expect(page.getByLabel('Marke', { exact: true })).toHaveValue('Nike');
     await expect(page.getByRole('button', { name: /Kategorie Herren.*Sneaker/ })).toBeVisible();
+    const saveFilter = page.getByRole('button', { name: 'Suchfilter speichern', exact: true });
+    await expect(saveFilter).toBeHidden();
+    await page.getByLabel('Name des Suchfilters').fill('Geändert');
+    await expect(saveFilter).toBeVisible();
+    await page.getByLabel('Name des Suchfilters').fill('Meine Sneaker');
+    await expect(saveFilter).toBeHidden();
     await page.getByLabel('Name des Suchfilters').fill('Ungespeichert');
     await page.getByRole('button', { name: 'Abbrechen', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Änderungen verwerfen?' })).toBeVisible();

@@ -1,7 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import { VintedCategoryService } from '../../platform-admin/services/vinted-category.service';
+import type { VintedFeedImport } from '../models/vinted-feed-link';
 import {
+  FEED_CLOTHING_SIZES,
   FeedBot,
   FeedPage,
   FeedRequest,
@@ -13,6 +15,45 @@ import {
 export class DealMonitorService {
   private readonly client = inject(SupabaseService).client;
   private readonly vintedCategories = inject(VintedCategoryService);
+
+  async resolveFeedImport(workspace: string, imported: VintedFeedImport) {
+    const [brand, condition, sizes] = await Promise.all([
+      imported.brandId === null
+        ? null
+        : this.client.rpc('sniper_feed_import_brand', {
+            p_workspace_id: workspace,
+            p_brand_id: imported.brandId,
+          }),
+      imported.conditionId === null
+        ? null
+        : this.client
+            .from('vinted_listing_options')
+            .select('title')
+            .eq('field_code', 'condition')
+            .eq('id', imported.conditionId)
+            .maybeSingle(),
+      imported.sizeIds.length === 0
+        ? null
+        : this.client.from('vinted_listing_sizes').select('id,title').in('id', imported.sizeIds),
+    ]);
+    if (brand?.error || condition?.error || sizes?.error)
+      throw new Error('Die Vinted-Filter konnten nicht aufgelöst werden.');
+    if (brand && !brand.data)
+      throw new Error('Die Marke aus dem Link ist für den Flipbase-Feed nicht hinterlegt.');
+    if (condition && !condition.data)
+      throw new Error('Der Zustand aus dem Link ist für den Feed nicht hinterlegt.');
+    const sizeLabels = (sizes?.data ?? []).map(({ title }) => title.trim().toUpperCase());
+    if (
+      sizeLabels.length !== imported.sizeIds.length ||
+      sizeLabels.some((label) => !FEED_CLOTHING_SIZES.some((size) => size.label === label))
+    )
+      throw new Error('Die Größen aus dem Link lassen sich im Feed nicht eindeutig übernehmen.');
+    return {
+      brand: brand?.data ?? '',
+      condition: condition?.data?.title.replace(',', '').trim() ?? '',
+      sizeLabels,
+    };
+  }
 
   async watchlists(workspace: string): Promise<Watchlist[]> {
     const rows: Watchlist[] = [];
@@ -85,12 +126,13 @@ export class DealMonitorService {
       p_max_price: request.maxPrice!,
       p_before_time: (request.cursor?.time ?? null)!,
       p_before_id: (request.cursor?.id ?? null)!,
-      p_limit: 60,
+      p_limit: request.afterTime ? 61 : 60,
       p_title_query: request.titleQuery ?? '',
       p_catalog_id: (request.categoryId ?? null)!,
       p_audience: (request.audience ?? null)!,
       p_sizes: request.sizes ?? [],
       p_query_id: (request.botId ?? null)!,
+      ...(request.afterTime ? { p_after_time: request.afterTime } : {}),
     });
     if (error) throw new Error('Artikel konnten nicht geladen werden. Bitte erneut versuchen.');
     if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data['items']))

@@ -25,14 +25,14 @@ export class DealFeedState {
   private generation = 0;
   private request: FeedRequest | null = null;
   private busyGeneration: number | null = null;
-  private updateGeneration: number | null = null;
+  private pendingUpdate: { generation: number; delta: boolean } | null = null;
   private releaseTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly fetchPage: (request: FeedRequest) => Promise<FeedPage>) {}
 
   setContext(request: FeedRequest | null): void {
     this.generation++;
-    this.updateGeneration = null;
+    this.pendingUpdate = null;
     this.request = request;
     this.items.set([]);
     this.pending.set([]);
@@ -64,16 +64,19 @@ export class DealFeedState {
     this.setContext(this.request);
   }
 
-  notifyUpdate(): void {
+  notifyUpdate(delta = false): void {
     if (!this.request) return;
     if (this.busyGeneration === this.generation) {
-      this.updateGeneration = this.generation;
+      this.pendingUpdate = {
+        generation: this.generation,
+        delta: delta && (this.pendingUpdate?.delta ?? true),
+      };
       return;
     }
-    void this.refresh();
+    void this.refresh(false, delta);
   }
 
-  async refresh(more = false): Promise<void> {
+  async refresh(more = false, delta = false): Promise<void> {
     const generation = this.generation;
     if (!this.request || this.busyGeneration === generation) return;
     if (more && !this.hasMore()) return;
@@ -85,12 +88,24 @@ export class DealFeedState {
       ...this.request,
       ...(more && last ? { cursor: { time: last.first_seen_at, id: last.id } } : {}),
     };
+    const afterTime =
+      delta && !more && !this.paused() && !this.slowMode()
+        ? this.items()[0]?.first_seen_at
+        : undefined;
     try {
-      const page = await this.fetchPage(request);
+      let useDelta = !!afterTime;
+      let page = await this.fetchPage(afterTime ? { ...request, afterTime } : request);
+      if (generation !== this.generation) return;
+      if (useDelta && (page.items.length > 60 || this.paused() || this.slowMode())) {
+        useDelta = false;
+        page = await this.fetchPage(request);
+      }
       if (generation !== this.generation) return;
       this.covered.set(page.covered);
       this.reportedAt.set(page.reported_at);
-      if (more) {
+      if (useDelta) {
+        this.applyDelta(page.items);
+      } else if (more) {
         const known = new Set(this.items().map((item) => item.id));
         this.items.update((items) => [
           ...items,
@@ -116,19 +131,38 @@ export class DealFeedState {
     } finally {
       if (this.busyGeneration === generation) this.busyGeneration = null;
       if (generation === this.generation) this.loading.set(false);
-      if (this.updateGeneration === generation) {
-        this.updateGeneration = null;
+      if (this.pendingUpdate?.generation === generation) {
+        const { delta } = this.pendingUpdate;
+        this.pendingUpdate = null;
         // Fehler werden über die bestehende Pollingpause erneut versucht.
-        if (generation === this.generation && !this.error()) void this.refresh();
+        if (generation === this.generation && !this.error()) void this.refresh(false, delta);
       }
     }
   }
 
   destroy(): void {
     this.generation++;
-    this.updateGeneration = null;
+    this.pendingUpdate = null;
     this.request = null;
     this.clearQueue();
+  }
+
+  private applyDelta(updates: FeedItem[]): void {
+    if (updates.length === 0) return;
+    const current = this.items();
+    const previous = new Map(current.map((item) => [item.id, item]));
+    const updated = new Set(updates.map((item) => item.id));
+    const merged = [
+      ...updates.map((item) => {
+        const old = previous.get(item.id);
+        return old && JSON.stringify(old) === JSON.stringify(item) ? old : item;
+      }),
+      ...current.filter((item) => !updated.has(item.id)),
+    ];
+    this.hasMore.set(this.hasMore() || merged.length >= 60);
+    const next = merged.slice(0, 60);
+    if (next.length !== current.length || next.some((item, index) => current[index] !== item))
+      this.items.set(next);
   }
 
   /**

@@ -9,7 +9,6 @@ import {
 } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
-  LucideClock,
   LucideDynamicIcon,
   LucideExternalLink,
   LucideHeart,
@@ -22,7 +21,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { FeedClockService } from '../../services/feed-clock.service';
-import { discoveryDate } from '../../utils/discovery-date';
+import { discoveryAge } from '../../utils/discovery-date';
 import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
@@ -57,7 +56,6 @@ export class DealCardComponent {
     ),
   );
   readonly icons = {
-    discovered: LucideClock,
     external: LucideExternalLink,
     heart: LucideHeart,
     share: LucideShare2,
@@ -65,7 +63,7 @@ export class DealCardComponent {
   };
   private readonly clock = inject(FeedClockService);
   readonly discoveredLabel = computed(() =>
-    discoveryDate(this.item().first_seen_at, this.clock.now()),
+    discoveryAge(this.item().first_seen_at, this.clock.now()),
   );
   readonly link = computed(() => safeVintedLink(this.item().url));
 

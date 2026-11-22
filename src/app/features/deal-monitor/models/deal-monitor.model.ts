@@ -54,6 +54,7 @@ export interface FeedRequest {
   audience?: string | null;
   titleQuery?: string;
   cursor?: { time: string; id: string };
+  afterTime?: string;
 }
 export const FEED_CLOTHING_SIZES = [
   { value: 'xs', label: 'XS' },

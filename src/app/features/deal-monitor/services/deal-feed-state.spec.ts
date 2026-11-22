@@ -134,6 +134,46 @@ describe('DealFeedState im langsamen Modus', () => {
 });
 
 describe('DealFeedState', () => {
+  it('ergänzt neue Funde mit gleichem Zeitstempel und behält unveränderte Karten', async () => {
+    const existing = [seenAt('b', 2), seenAt('a', 1)];
+    const arrival = seenAt('c', 2);
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(page(existing))
+      .mockResolvedValueOnce(page([arrival, { ...existing[0] }]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    await state.refresh(false, true);
+    expect(fetch).toHaveBeenLastCalledWith({ ...context, afterTime: arrival.first_seen_at });
+    expect(ids(state.items())).toEqual(['c', 'b', 'a']);
+    expect(state.items()[1]).toBe(existing[0]);
+    expect(state.items()[2]).toBe(existing[1]);
+    state.destroy();
+  });
+
+  it('holt bei einer größeren Änderung einen vollständigen Stand nach', async () => {
+    const initial = seenAt('a', 1);
+    const updates = Array.from({ length: 61 }, (_, index) => seenAt(String(index), 2));
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(page([initial]))
+      .mockResolvedValueOnce(page(updates))
+      .mockResolvedValueOnce(page(updates.slice(0, 60)));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    await state.refresh(false, true);
+    expect(fetch.mock.calls).toEqual([
+      [context],
+      [{ ...context, afterTime: initial.first_seen_at }],
+      [context],
+    ]);
+    expect(state.items()).toEqual(updates.slice(0, 60));
+    expect(state.hasMore()).toBe(true);
+    state.destroy();
+  });
+
   it('bündelt Hinweise während eines Abrufs zu einem anschließenden Abgleich ohne parallele Abfragen', async () => {
     let finish!: (page: FeedPage) => void;
     const fetch = vi

@@ -118,6 +118,7 @@ const comparisonCollection = new ComparisonCollection({
 const scheduler = new QueryScheduler({
   now: () => new Date(),
   maxRequestsPerCycle: 1,
+  sharePriceRanges: config.sharePriceRanges,
   onOriginPause: () => requestGuard.pause(),
   queries: {
     dueQueries: (now) => queries.dueQueries(now),
