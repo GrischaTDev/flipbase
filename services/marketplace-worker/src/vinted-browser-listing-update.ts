@@ -5,7 +5,7 @@ import {
   readVintedListingChoices,
 } from './vinted-browser-listing-form.ts';
 import { setTimeout as wait } from 'node:timers/promises';
-import type { Page } from 'playwright';
+import type { Locator, Page } from 'playwright';
 import type {
   VintedListingChoiceField,
   VintedListingContent,
@@ -21,6 +21,7 @@ import {
 } from './vinted-browser-listing-content.ts';
 import {
   mapVintedListingPhotoIds,
+  parseVintedListingItem,
   readVintedListingItem,
   type VintedListingItem,
 } from './vinted-browser-listing-item.ts';
@@ -29,7 +30,12 @@ import {
   fillVintedListingExtras,
   vintedListingExtraAttributes,
 } from './vinted-browser-listing-extras.ts';
-import { confirmVintedEdit } from './vinted-edit-confirmation.ts';
+import {
+  confirmVintedEdit,
+  confirmVintedSave,
+  vintedSaveConfirmationMs,
+} from './vinted-edit-confirmation.ts';
+import { observeVintedListingSave } from './vinted-listing-save-response.ts';
 import {
   arrangeVintedListingPhotos,
   sameVintedListingPhotos,
@@ -171,7 +177,7 @@ export async function updateVintedListingContent(
   base: VintedListingContent,
   desired: VintedListingContent,
   authorizeChange: () => Promise<void>,
-  confirmationTimeoutMs = 20_000,
+  confirmationTimeoutMs = vintedSaveConfirmationMs,
   /** Fehlt die Angabe, bleiben die Fotos unverändert. */
   photos?: VintedListingPhotoArrangement,
 ): Promise<VintedEditResult> {
@@ -261,7 +267,8 @@ export async function updateVintedListingContent(
         return readOpenVintedListingContent(page, accountId, externalId, identify);
       },
       (saved) => sameContent(saved.content, desired) && samePhotos(saved, desiredPhotos, aiPhoto),
-      confirmationTimeoutMs,
+      // Die Maske ist nur der letzte Rückfall nach Antwort und Nachlesen.
+      Math.min(confirmationTimeoutMs, 30_000),
     );
   /** Eingabefelder und Fotoraster, ohne eine Auswahlliste zu öffnen. */
   const readFormState = async () => {
@@ -389,38 +396,64 @@ export async function updateVintedListingContent(
     const save = await enabledSaveButton();
     detail = undefined;
     await check();
-    step = 'save';
-    await beforeVintedWrite(authorizeChange);
+    return await clickAndConfirm(
+      save,
+      desiredPhotos,
+      form.values.ai_photo,
+      photoIds ? desiredPhotos.map((url) => photoIds.get(url)) : null,
+    );
+  };
+  /**
+   * Genau ein Speicherklick. Bestätigt wird über Vinteds Antwort auf diesen Aufruf und eine
+   * Abfrage ohne Neuladen; erst danach liest die Maske neu, weil ihr Neuladen einen noch
+   * laufenden Speicheraufruf abbrechen könnte.
+   */
+  const clickAndConfirm = async (
+    save: Locator,
+    desiredPhotos: readonly string[],
+    aiPhoto: boolean,
+    expectedPhotoIds: readonly (number | undefined)[] | null,
+  ): Promise<VintedEditResult> => {
+    const response = await observeVintedListingSave(page, externalId, confirmationTimeoutMs);
     try {
-      await save.click({ timeout: 10_000 });
-    } catch {
-      // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
-      return 'unconfirmed';
-    }
-    step = 'confirm';
-    const expectedPhotoIds = photoIds ? desiredPhotos.map((url) => photoIds.get(url)) : null;
-    const deadline = Date.now() + Math.min(confirmationTimeoutMs, 12_000);
-    do {
+      step = 'save';
+      await beforeVintedWrite(authorizeChange);
       try {
-        const saved =
+        await save.click({ timeout: 10_000 });
+      } catch {
+        // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
+        return 'unconfirmed';
+      }
+      step = 'confirm';
+      const savedMatches = (saved: VintedListingItem) =>
+        sameContent(itemContent(saved), desired) &&
+        saved.photos.length === desiredPhotos.length &&
+        (!expectedPhotoIds ||
+          saved.photos.every((photo, index) => photo.id === expectedPhotoIds[index]));
+      const { status, evidence } = await confirmVintedSave({
+        response: response.result,
+        responseMatches: (item) => {
+          const saved = parseVintedListingItem(item, externalId);
+          return saved !== null && savedMatches(saved);
+        },
+        readSaved: async () =>
           (await readVintedAccountIdentity(page))?.id === accountId
             ? await readVintedListingItem(page, externalId)
-            : null;
-        if (
-          saved &&
-          sameContent(itemContent(saved), desired) &&
-          saved.photos.length === desiredPhotos.length &&
-          (!expectedPhotoIds ||
-            saved.photos.every((photo, index) => photo.id === expectedPhotoIds[index]))
-        )
-          return 'confirmed';
-      } catch {
-        // Nach dem Speichern lädt die Seite noch; ein Lesefehler ist kein Beleg für eine Ablehnung.
-      }
-      await wait(700);
-    } while (Date.now() < deadline);
-    // Zeigt die Abfrage den neuen Stand nicht, entscheidet wie bisher die Maske.
-    return await confirmByForm(desiredPhotos, form.values.ai_photo);
+            : null,
+        matches: savedMatches,
+        timeoutMs: confirmationTimeoutMs,
+        // Nach Vinteds Weiterleitung oder Antwort ist das Speichern abgeschlossen; liefert die
+        // Abfrage dann weiter keinen passenden Stand, entscheidet zügig die Maske.
+        settledReads: {
+          settled: () => !page.url().includes('/items/' + externalId + '/edit'),
+          reads: 4,
+        },
+      });
+      if (status === 'confirmed' || evidence === 'rejected') return status;
+    } finally {
+      await response.close();
+    }
+    return await confirmByForm(desiredPhotos, aiPhoto);
   };
   try {
     await authorize();
@@ -547,16 +580,7 @@ export async function updateVintedListingContent(
     const save = await enabledSaveButton();
     detail = undefined;
     await check();
-    step = 'save';
-    await beforeVintedWrite(authorizeChange);
-    try {
-      await save.click({ timeout: 10_000 });
-    } catch {
-      // Der Klick kann bereits gespeichert haben; ein automatischer Wiederholungsversuch wäre unsicher.
-      return 'unconfirmed';
-    }
-    step = 'confirm';
-    return await confirmByForm(desiredPhotos, current.aiPhoto);
+    return await clickAndConfirm(save, desiredPhotos, current.aiPhoto, null);
   } catch {
     throw authorizationFailed
       ? vintedListingUpdateFailure('authorize')

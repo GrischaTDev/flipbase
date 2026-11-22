@@ -213,6 +213,11 @@ it('sendet nur bisherigen und neuen Centpreis und wertet Konflikte sowie unbest�
   );
   request.mockResolvedValueOnce(Response.json({ status: 'unconfirmed' }));
   await expect(api.saveListingPrice(scope, id, 2050, 1000, 'token')).rejects.toThrow('bestätigt');
+  // Die automatische Nachprüfung fand weiter den Ausgangspreis: ein neuer Versuch ist sicher.
+  request.mockResolvedValueOnce(Response.json({ status: 'failed' }, { status: 409 }));
+  await expect(api.saveListingPrice(scope, id, 2050, 1000, 'token')).rejects.toBeInstanceOf(
+    VintedListingNotSavedError,
+  );
 });
 it('ordnet die bestätigte Relist-Sperre allen Inserat-Schreibaktionen mit derselben festen Meldung zu', async () => {
   const request = vi

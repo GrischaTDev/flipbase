@@ -651,6 +651,83 @@ test('a still-present listing yields a replayable failed delete without another 
   );
 });
 
+for (const [label, currentCents, resolution] of [
+  ['the unchanged original price proves an unsaved price change', 1000, 'failed'],
+  ['a third price leaves the price change unresolved', 1100, null],
+] as const)
+  test(`price reconciliation without another write: ${label}`, async () => {
+    const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
+    claim.target = {
+      accountId: '123',
+      externalId: null,
+      entryId: null,
+      entryKind: null,
+      body: null,
+    };
+    claim.reconciliationContext = {
+      target: { accountId: '123', externalId: '456', entryId, entryKind: 'publication', body: {} },
+      actionId: entryId,
+      kind: 'price_save',
+      payload: { entryId, expectedPriceCents: 1000, priceCents: 1200 },
+    };
+    const current = listingCurrentContentFixture();
+    current.content = { ...current.content, priceCents: currentCents };
+    const runner = new MarketplaceAccountActionRunner({
+      url: 'https://db.example',
+      serviceRoleKey: 'server',
+      publishableKey: 'public',
+      store,
+      fetch: async () => {
+        throw new Error('an unconfirmed price must not refresh the cache');
+      },
+      broker: {
+        open: async () => sessionId,
+        run: async (_scope, _id, operation) =>
+          operation({
+            version: () => '',
+            readListingContent: async () => current,
+            updateListingPrice: async () => {
+              throw new Error('must not save the price again');
+            },
+          }),
+        close: async () => undefined,
+        discardUnstartedAction: async () => undefined,
+      },
+    });
+    await runner.run(claim);
+    const result = calls.at(-1)?.body.p_result as Record<string, unknown>;
+    assert.equal(result.resolution, resolution);
+    if (resolution === 'failed') assert.deepEqual(result.providerResult, { status: 'failed' });
+    else assert.equal(result.providerResult, undefined);
+    assert.equal(
+      calls.some((call) => call.name === 'marketplace_account_action_begin_write'),
+      false,
+    );
+  });
+
+test('unconfirmed price results keep only a fixed reason through the isolated browser boundary', () => {
+  assert.deepEqual(
+    validateBrowserResult('updateListingPrice', { status: 'unconfirmed', reason: 'price_pending' }),
+    {
+      status: 'unconfirmed',
+      reason: 'price_pending',
+    },
+  );
+  assert.deepEqual(validateBrowserResult('updateListingPrice', { status: 'unconfirmed' }), {
+    status: 'unconfirmed',
+  });
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', { status: 'unconfirmed', reason: 'Preis 12,00 €' }),
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', {
+      status: 'confirmed',
+      reason: 'price_pending',
+      fields: { title: 'A', description: 'B', price: '12,00' },
+    }),
+  );
+});
+
 test('matching profile text cannot confirm an unverified profile photo or fabricate a replay result', async () => {
   const { claim, store, calls } = fixture('outcome_reconcile', { actionId: entryId });
   claim.target = { accountId: '123', externalId: null, entryId: null, entryKind: null, body: null };

@@ -96,6 +96,8 @@ create table public.marketplace_account_actions (
   started_at timestamptz,
   finished_at timestamptz,
   history_purged_at timestamptz,
+  -- Frühester Start; nur automatische Nachprüfungen werden damit zeitlich gestaffelt.
+  not_before timestamptz,
   unique(workspace_id,connection_id,request_id),
   foreign key(workspace_id,connection_id) references public.marketplace_connections(workspace_id,id) on delete cascade,
   check((history_purged_at is null and payload is not null) or (history_purged_at is not null and state in ('succeeded','failed','cancelled') and payload is null and result is null)),
@@ -265,11 +267,13 @@ begin
   if p_action.state='queued' then
     if p_action.is_write and p_action.resource_key is not null then
       select public_id into v_blocker from public.marketplace_account_actions where workspace_id=p_action.workspace_id and connection_id=p_action.connection_id
-        and is_write and resource_key=p_action.resource_key and state='outcome_unknown' and queue_order<p_action.queue_order order by queue_order limit 1;
+        and is_write and resource_key=p_action.resource_key and state='outcome_unknown' and queue_order<p_action.queue_order
+        and not (public.marketplace_account_action_self_guarded(kind) and public.marketplace_account_action_self_guarded(p_action.kind)) order by queue_order limit 1;
     end if;
     v_wait:=case when v_blocker is not null or (p_action.is_write and p_action.resource_key is not null and exists(
         select 1 from public.marketplace_browser_queue_entries() previous where previous.workspace_id=p_action.workspace_id and previous.connection_id=p_action.connection_id
-          and previous.is_write and previous.resource_key=p_action.resource_key and previous.queue_order<p_action.queue_order and previous.state='outcome_unknown')) then 'dependency_unresolved'
+          and previous.is_write and previous.resource_key=p_action.resource_key and previous.queue_order<p_action.queue_order and previous.state='outcome_unknown'
+          and public.marketplace_browser_write_waits_for('account_action',p_action.public_id::text,previous.kind,previous.job_id,previous.state))) then 'dependency_unresolved'
       when p_action.kind not in ('cloud_setup_open','cloud_session_open') and (not public.marketplace_cloud_write_available(p_action.workspace_id,p_action.connection_id)
         or exists(select 1 from public.marketplace_connections where workspace_id=p_action.workspace_id and id=p_action.connection_id and status in ('needs_login','paused'))) then 'account_paused'
       else public.marketplace_browser_slot_status(p_action.workspace_id,p_action.connection_id) end;
@@ -279,7 +283,9 @@ begin
     'imageUrl',(select coalesce(entry.body->>'imageUrl',entry.body->>'itemImageUrl') from public.marketplace_account_entries entry
       where entry.id=p_action.entry_id and entry.workspace_id=p_action.workspace_id and entry.connection_id=p_action.connection_id),
     'createdAt',p_action.created_at,'startedAt',p_action.started_at,'finishedAt',p_action.finished_at,'updatedAt',p_action.updated_at,
-    'historyPurged',p_action.history_purged_at is not null,'resultExpired',p_action.history_purged_at is not null,'blockedByActionId',v_blocker);
+    'historyPurged',p_action.history_purged_at is not null,'resultExpired',p_action.history_purged_at is not null,'blockedByActionId',v_blocker,
+    'reconciling',p_action.state='outcome_unknown' and exists(select 1 from public.marketplace_account_actions check_action
+      where check_action.reconciliation_action_id=p_action.public_id and check_action.state in ('queued','running')));
 end;
 $$;
 
@@ -346,6 +352,9 @@ begin
     elsif p_kind='outcome_reconcile' then
       select * into v_parent from public.marketplace_account_actions where public_id=(p_payload->>'actionId')::uuid and workspace_id=p_workspace_id and connection_id=p_connection_id;
       if not found or v_parent.state<>'outcome_unknown' or v_parent.external_account_id is distinct from v_connection.external_account_id then raise exception 'Kein passendes ungeklärtes Ergebnis' using errcode='22023'; end if;
+      -- Eine manuell angeforderte Prüfung läuft sofort; die noch geplante automatische entfällt.
+      update public.marketplace_account_actions set state='cancelled',error_code='superseded',finished_at=clock_timestamp(),updated_at=clock_timestamp()
+        where reconciliation_action_id=v_parent.public_id and state='queued' and not_before>clock_timestamp();
     end if;
     if v_entry_kind is not null then
       select * into v_entry from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_connection_id and kind=v_entry_kind
@@ -487,6 +496,48 @@ begin
 end;
 $$;
 
+-- Ungeklärte, rein lesend nachprüfbare Änderungen erhalten sofort eine automatische Nachprüfung.
+-- Sonst sperrt das unklare Ergebnis alle späteren Schreibaufträge auf dasselbe Inserat, bis jemand
+-- von Hand nachprüft. Höchstens zwei Prüfungen je Ergebnis; danach bleibt der manuelle Weg.
+-- Lesend nachprüfbare Schreibaktionen: Sie vergleichen vor dem Schreiben den aktuellen Anbieterstand
+-- oder setzen nur Zielwerte und lassen sich daher gefahrlos nachprüfen und wiederholen.
+create or replace function public.marketplace_account_action_self_guarded(p_kind text)
+returns boolean language sql immutable security invoker set search_path='' as $$
+  select p_kind in ('price_save','listing_edit_save','listing_content_save','listing_delete','profile_edit_save','profile_details_save');
+$$;
+
+-- Ein Schreibauftrag wartet auf frühere Aufträge derselben Ressource. Ein früheres ungeklärtes
+-- Ergebnis hält ihn nur zurück, wenn nicht beide Seiten selbst abgesicherte Kontoaktionen sind:
+-- Diese prüfen vor dem Klick den aktuellen Anbieterstand und schreiben bei Abweichung nichts.
+create or replace function public.marketplace_browser_write_waits_for(p_kind text,p_job_id text,p_previous_kind text,p_previous_job_id text,p_previous_state text)
+returns boolean language sql stable security invoker set search_path='' as $$
+  select p_previous_state in ('queued','paused','running')
+    or (p_previous_state='outcome_unknown' and not (p_kind='account_action' and p_previous_kind='account_action'
+      and exists(select 1 from public.marketplace_account_actions follow where follow.public_id=p_job_id::uuid and public.marketplace_account_action_self_guarded(follow.kind))
+      and exists(select 1 from public.marketplace_account_actions previous where previous.public_id=p_previous_job_id::uuid and public.marketplace_account_action_self_guarded(previous.kind))));
+$$;
+
+-- Plant die nächste lesende Nachprüfung mit wachsendem Abstand (1, 5, 15 Minuten), damit ein
+-- träge speicherndes Vinted nicht sofort als "nicht gespeichert" gilt. Nach drei Versuchen
+-- bleibt die manuelle Nachprüfung.
+create or replace function public.marketplace_account_action_auto_reconcile(p_action public.marketplace_account_actions)
+returns void language plpgsql volatile security invoker set search_path='' as $$
+declare v_payload jsonb:=jsonb_build_object('actionId',p_action.public_id); v_attempts integer;
+begin
+  if p_action.state<>'outcome_unknown' or p_action.history_purged_at is not null
+    or not (public.marketplace_account_action_self_guarded(p_action.kind) or p_action.kind='listing_edit_intent')
+    or exists(select 1 from public.marketplace_account_actions where reconciliation_action_id=p_action.public_id and state in ('queued','running')) then return; end if;
+  select count(*) into v_attempts from public.marketplace_account_actions where reconciliation_action_id=p_action.public_id;
+  if v_attempts>=3 then return; end if;
+  insert into public.marketplace_account_actions(workspace_id,connection_id,requested_by,request_id,request_hash,kind,payload,external_account_id,provider_profile_id,title,is_write,reconciliation_action_id,not_before)
+    values(p_action.workspace_id,p_action.connection_id,p_action.requested_by,gen_random_uuid(),
+      encode(pg_catalog.sha256(convert_to(jsonb_build_array('outcome_reconcile',v_payload)::text,'utf8')),'hex'),
+      'outcome_reconcile',v_payload,p_action.external_account_id,p_action.provider_profile_id,p_action.title,false,p_action.public_id,
+      clock_timestamp()+case v_attempts when 0 then interval '1 minute' when 1 then interval '5 minutes' else interval '15 minutes' end);
+end;
+$$;
+revoke all on function public.marketplace_account_action_auto_reconcile(public.marketplace_account_actions) from public,anon,authenticated;
+
 create or replace function public.marketplace_account_action_finish(p_action_id uuid,p_claim_token uuid,p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_state text,p_result jsonb default null,p_error_code text default null)
 returns boolean language plpgsql volatile security invoker set search_path='' as $$
 declare v_action public.marketplace_account_actions; v_parent public.marketplace_account_actions; v_verified timestamptz; v_reason text;
@@ -507,8 +558,9 @@ begin
   ),false) then raise exception 'Schreibbeginn fehlt' using errcode='42501'; end if;
   if p_state='outcome_unknown' and (not v_action.is_write or v_action.write_started_at is null) then raise exception 'Keine ungeklärte Anbieterwirkung' using errcode='22023'; end if;
   if p_state='succeeded' and v_action.kind='outcome_reconcile' and p_result->>'resolution' in ('succeeded','failed') then
+    -- Der Kontoabruf kann das Ergebnis inzwischen selbst geklärt haben; dann bleibt es unverändert.
     select * into v_parent from public.marketplace_account_actions where public_id=v_action.reconciliation_action_id and workspace_id=v_action.workspace_id
-      and connection_id=v_action.connection_id and external_account_id=v_action.external_account_id and state='outcome_unknown' for update;
+      and connection_id=v_action.connection_id and external_account_id=v_action.external_account_id and state in ('outcome_unknown','succeeded','failed') for update;
     begin v_verified:=(p_result->>'verifiedAt')::timestamptz; exception when others then raise exception 'Ungültiger Prüfnachweis' using errcode='22023'; end;
     if not found or p_result->>'reconciledActionId' is distinct from v_parent.public_id::text or v_verified is null or not isfinite(v_verified)
       or v_verified<v_action.started_at or v_verified>clock_timestamp()+interval '1 minute' then raise exception 'Ungültiger Prüfnachweis' using errcode='22023'; end if;
@@ -519,9 +571,17 @@ begin
       raise exception 'Fachlicher Prüfnachweis fehlt' using errcode='22023';
     end if;
     -- Der ursprüngliche Aufruf erhält sein typgerechtes Ergebnis; Prüfmetadaten bleiben im verknüpften Prüfauftrag.
-    update public.marketplace_account_actions set state=p_result->>'resolution',error_code=null,result=p_result->'providerResult',finished_at=clock_timestamp() where id=v_parent.id;
+    if v_parent.state='outcome_unknown' then
+      update public.marketplace_account_actions set state=p_result->>'resolution',error_code=null,result=p_result->'providerResult',finished_at=clock_timestamp() where id=v_parent.id;
+    end if;
   end if;
-  update public.marketplace_account_actions set state=p_state,result=p_result,error_code=p_error_code,finished_at=clock_timestamp(),lease_expires_at=null where id=v_action.id;
+  update public.marketplace_account_actions set state=p_state,result=p_result,error_code=p_error_code,finished_at=clock_timestamp(),lease_expires_at=null where id=v_action.id
+    returning * into v_action;
+  if p_state='outcome_unknown' then perform public.marketplace_account_action_auto_reconcile(v_action); end if;
+  if v_action.kind='outcome_reconcile' then
+    select * into v_parent from public.marketplace_account_actions where public_id=v_action.reconciliation_action_id and workspace_id=v_action.workspace_id and connection_id=v_action.connection_id;
+    if found then perform public.marketplace_account_action_auto_reconcile(v_parent); end if;
+  end if;
   v_reason:=case p_error_code when 'login_required' then 'needs_login' when 'identity_changed' then 'needs_login' when 'challenge_required' then 'challenge' when 'rate_limited' then 'rate_limited' end;
   if v_reason is not null and v_action.kind<>'cloud_setup_open' and exists(select 1 from public.marketplace_connections connection
     join public.marketplace_browser_profiles profile on profile.workspace_id=connection.workspace_id and profile.connection_id=connection.id
@@ -568,7 +628,9 @@ begin
     (worker_id<>p_worker_id or worker_epoch<>p_worker_epoch or lease_expires_at<=clock_timestamp()
       or exists(select 1 from public.marketplace_browser_sessions where public_id=action.browser_session_id and state='closed')) for update loop
     if v_action.write_started_at is not null then
-      update public.marketplace_account_actions set state='outcome_unknown',error_code='interrupted',lease_expires_at=null,finished_at=clock_timestamp() where id=v_action.id;
+      update public.marketplace_account_actions set state='outcome_unknown',error_code='interrupted',lease_expires_at=null,finished_at=clock_timestamp() where id=v_action.id
+        returning * into v_action;
+      perform public.marketplace_account_action_auto_reconcile(v_action);
     elsif exists(select 1 from public.marketplace_browser_sessions where public_id=v_action.browser_session_id and state='closed') then
       update public.marketplace_account_actions set state=case when v_action.attempts<3 and public.marketplace_account_action_authorized(v_action) then 'queued' else 'failed' end,
         error_code=case when v_action.attempts<3 and public.marketplace_account_action_authorized(v_action) then null else 'interrupted' end,
@@ -628,7 +690,7 @@ returns boolean language plpgsql volatile security invoker set search_path='' as
 begin
   case p_kind
   when 'account_action' then return exists(select 1 from public.marketplace_account_actions a where public_id=p_job_id::uuid and state='queued'
-    and public.marketplace_account_action_authorized(a) and (kind in ('cloud_setup_open','cloud_session_open') or exists(select 1 from public.marketplace_connections c where c.workspace_id=a.workspace_id and c.id=a.connection_id and c.status='connected'))
+    and (a.not_before is null or a.not_before<=clock_timestamp()) and public.marketplace_account_action_authorized(a) and (kind in ('cloud_setup_open','cloud_session_open') or exists(select 1 from public.marketplace_connections c where c.workspace_id=a.workspace_id and c.id=a.connection_id and c.status='connected'))
     and (kind in ('outcome_reconcile','cloud_setup_open','cloud_session_open') or public.marketplace_cloud_write_available(workspace_id,connection_id)));
   when 'sync' then return exists(select 1 from public.marketplace_operations o join public.marketplace_connections c on c.workspace_id=o.workspace_id and c.id=o.connection_id
     left join public.marketplace_sync_schedules s on s.id=o.schedule_id
@@ -663,7 +725,7 @@ begin
     and public.marketplace_browser_slot_status(q.workspace_id,q.connection_id) is null
     and (not q.is_write or q.resource_key is null or not exists(select 1 from public.marketplace_browser_queue_entries() previous
       where previous.workspace_id=q.workspace_id and previous.connection_id=q.connection_id and previous.is_write and previous.resource_key=q.resource_key
-        and previous.queue_order<q.queue_order and previous.state in ('queued','paused','running','outcome_unknown')))
+        and previous.queue_order<q.queue_order and public.marketplace_browser_write_waits_for(q.kind,q.job_id,previous.kind,previous.job_id,previous.state)))
     order by case when q.kind='sync' and q.is_user=false and q.created_at>clock_timestamp()-interval '5 minutes' then 1 else 0 end,q.queue_order,q.kind,q.job_id loop
     if public.marketplace_browser_job_ready(v_job.kind,v_job.job_id) then return jsonb_build_object('kind',v_job.kind,'jobId',v_job.job_id,'workspaceId',v_job.workspace_id,'connectionId',v_job.connection_id); end if;
   end loop;
@@ -679,7 +741,7 @@ begin
   if not found or public.marketplace_browser_slot_status(v_job.workspace_id,v_job.connection_id) is not null then return false; end if;
   if v_job.is_write and v_job.resource_key is not null and exists(select 1 from public.marketplace_browser_queue_entries() previous
     where previous.workspace_id=v_job.workspace_id and previous.connection_id=v_job.connection_id and previous.is_write and previous.resource_key=v_job.resource_key
-      and previous.queue_order<v_job.queue_order and previous.state in ('queued','paused','running','outcome_unknown')) then return false; end if;
+      and previous.queue_order<v_job.queue_order and public.marketplace_browser_write_waits_for(p_kind,p_job_id,previous.kind,previous.job_id,previous.state)) then return false; end if;
   return public.marketplace_browser_job_ready(p_kind,p_job_id);
 end;
 $$;
@@ -873,7 +935,7 @@ declare v_function regprocedure;
 begin
   for v_function in select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and (
     p.proname like 'marketplace_account_action%' or p.proname in ('marketplace_set_browser_pool_size','marketplace_browser_capacity_report','marketplace_browser_effective_capacity',
-      'marketplace_browser_slot_status','marketplace_cloud_setup_presence','marketplace_browser_dialog_presence','marketplace_browser_queue_entries','marketplace_browser_job_ready','marketplace_browser_next_work',
+      'marketplace_browser_slot_status','marketplace_cloud_setup_presence','marketplace_browser_dialog_presence','marketplace_browser_queue_entries','marketplace_browser_job_ready','marketplace_browser_next_work','marketplace_browser_write_waits_for',
       'marketplace_browser_job_eligible','marketplace_sync_prepare_scheduled','marketplace_browser_prepare_work','marketplace_browser_work_claim','marketplace_revoke_account_actions','marketplace_notify_account_actions','marketplace_notify_waiting_account_actions')) loop
     execute format('revoke all on function %s from public,anon,authenticated',v_function);
     execute format('grant execute on function %s to service_role',v_function);

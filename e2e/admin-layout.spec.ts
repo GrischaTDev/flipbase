@@ -68,7 +68,7 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
         expect((await content.boundingBox())!.width).toBe(1280);
         await page.getByRole('button', { name: 'Benutzermenü öffnen' }).click();
         const layout = page.getByRole('group', { name: 'Layout', exact: true });
-        await expect(layout.getByRole('button', { name: 'Mittel', exact: true })).toHaveAttribute(
+        await expect(layout.getByRole('button', { name: 'Normal', exact: true })).toHaveAttribute(
           'aria-pressed',
           'true',
         );
@@ -90,7 +90,7 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
         await page.reload();
         await expect(content).toHaveCSS('max-width', '1024px');
         await page.getByRole('button', { name: 'Benutzermenü öffnen' }).click();
-        await layout.getByRole('button', { name: 'Mittel', exact: true }).click();
+        await layout.getByRole('button', { name: 'Normal', exact: true }).click();
         await expect(content).toHaveCSS('max-width', '1280px');
         expect((await content.boundingBox())!.width).toBe(1280);
         await page.keyboard.press('Escape');
@@ -153,7 +153,7 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
           await expect(page.locator('main h1')).toBeVisible();
           await page.getByRole('button', { name: 'Benutzermenü öffnen' }).tap();
           const layout = page.getByRole('group', { name: 'Layout', exact: true });
-          for (const name of ['Schmal', 'Volle Breite', 'Mittel']) {
+          for (const name of ['Schmal', 'Volle Breite', 'Normal']) {
             const button = layout.getByRole('button', { name, exact: true });
             await expect
               .poll(async () => (await button.boundingBox())!.height)

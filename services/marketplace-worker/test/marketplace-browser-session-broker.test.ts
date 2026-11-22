@@ -540,6 +540,49 @@ test('releases a lease if the provider fails to start', async () => {
   void broker;
 });
 
+test('a single failed lease check is retried instead of stopping a running browser', async () => {
+  let checks = 0;
+  let failing = false;
+  let stops = 0;
+  const broker = createTestBroker({
+    leaseRetryDelayMs: 1,
+    leases: {
+      acquire: async (scope) => ({
+        id: 'lease',
+        scope,
+        expiresAt: Date.now() + 60_000,
+        active: true,
+      }),
+      assertActive: async () => {
+        checks += 1;
+        if (failing) throw new Error('connection reset');
+        if (checks === 3) throw new Error('connection reset');
+        return true;
+      },
+      release: async () => undefined,
+    },
+    profiles: { resolve: async () => 'profile' },
+    browsers: {
+      open: async () => ({
+        run: async (operation) => operation({ version: () => 'browser' }),
+        close: async () => {
+          stops += 1;
+        },
+      }),
+      stop: async () => undefined,
+    },
+  });
+  const id = await broker.open(scopeA);
+  assert.equal(await broker.run(scopeA, id, async (browser) => browser.version()), 'browser');
+  assert.equal(checks, 4);
+  // Bleibt der Server ganz stumm, bleibt der Browser bis zur nächsten Runde bestehen.
+  failing = true;
+  await broker.reconcile();
+  assert.equal(stops, 0);
+  await broker.close(scopeA, id);
+  assert.equal(stops, 1);
+});
+
 test('keeps the lease and retries cleanup when provider stop fails', async () => {
   let stops = 0;
   let active = true;

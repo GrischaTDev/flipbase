@@ -68,10 +68,8 @@ interface VintedListingItemWithExtras {
 const sameNumbers = (left: readonly number[], right: readonly number[]): boolean =>
   left.length === right.length && left.every((value, index) => value === right[index]);
 
-async function readVintedListingItemWithExtras(
-  page: Page,
-  externalId: string,
-): Promise<VintedListingItemWithExtras | null> {
+/** Rohdaten des eigenen Inserats aus Vinteds Bearbeitungsschnittstelle, ohne sie zu deuten. */
+async function fetchVintedListingItemRecord(page: Page, externalId: string): Promise<unknown> {
   if (!/^[1-9][0-9]{0,31}$/.test(externalId)) return null;
   let origin: string;
   try {
@@ -80,9 +78,8 @@ async function readVintedListingItemWithExtras(
     return null;
   }
   if (origin !== 'https://www.vinted.de') return null;
-  let item: unknown;
   try {
-    item = await page.evaluate(async (itemId) => {
+    return await page.evaluate(async (itemId) => {
       const response = await fetch('/api/v2/item_upload/items/' + itemId, {
         method: 'GET',
         credentials: 'include',
@@ -97,6 +94,53 @@ async function readVintedListingItemWithExtras(
   } catch {
     return null;
   }
+}
+
+/**
+ * Nur Kennung und Preis eines Inserats. Andere Felder dürfen fehlen oder unbekannt aufgebaut
+ * sein: Eine Preisbestätigung darf nicht daran scheitern, dass Vinted Fotos oder Merkmale
+ * anders liefert.
+ */
+export function parseVintedListingItemPriceCents(item: unknown, externalId: string): number | null {
+  if (!item || typeof item !== 'object' || !('id' in item) || String(item.id) !== externalId)
+    return null;
+  return parsePriceCents('price' in item ? item.price : null);
+}
+
+/** Liest tolerant nur den gespeicherten Preis des eigenen Inserats; nichts wird geschrieben. */
+export async function readVintedListingPriceCents(
+  page: Page,
+  externalId: string,
+): Promise<number | null> {
+  return parseVintedListingItemPriceCents(
+    await fetchVintedListingItemRecord(page, externalId),
+    externalId,
+  );
+}
+
+/** Deutet ein Inserat aus Vinteds Antwort, etwa der Antwort auf den Speicherklick. */
+export function parseVintedListingItem(
+  item: unknown,
+  externalId: string,
+): VintedListingItem | null {
+  return parseVintedListingItemRecord(item, externalId)?.item ?? null;
+}
+
+async function readVintedListingItemWithExtras(
+  page: Page,
+  externalId: string,
+): Promise<VintedListingItemWithExtras | null> {
+  return parseVintedListingItemRecord(
+    await fetchVintedListingItemRecord(page, externalId),
+    externalId,
+  );
+}
+
+function parseVintedListingItemRecord(
+  item: unknown,
+  externalId: string,
+): VintedListingItemWithExtras | null {
+  if (!/^[1-9][0-9]{0,31}$/.test(externalId)) return null;
   if (!item || typeof item !== 'object' || !('id' in item) || String(item.id) !== externalId)
     return null;
   const rawUserId = 'user_id' in item ? item.user_id : null;

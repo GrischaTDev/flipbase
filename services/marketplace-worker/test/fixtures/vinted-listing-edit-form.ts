@@ -76,11 +76,20 @@ export async function createVintedListingEditFormFixture(
      * Kennung und Kategorie, oder Fotos unter Adressen, die nicht zum Raster passen.
      */
     itemApi?: 'full' | 'reference' | 'foreign-photo-urls';
+    /** Vinted liefert den gespeicherten Titel normalisiert zurück, zum Beispiel ohne doppelte Leerzeichen. */
+    itemApiTitle?: string;
     modernControls?: boolean;
     /** Die Markenliste bietet eine Suche; gesuchte Marken erscheinen erst nach der Eingabe. */
     brandSearch?: boolean;
     /** Größen in zwei Gruppen mit Umschaltknöpfen wie am 06.11.2026 beobachtet. */
     sizeGroups?: boolean;
+    /**
+     * Die Maske speichert wie Vinted über PUT an die Inseratschnittstelle. `saved` antwortet mit
+     * dem gespeicherten Inserat, `rejected` mit einem Fehlerstatus ohne Speichern.
+     */
+    saveApi?: 'saved' | 'rejected';
+    /** Vinteds lesende Abfrage zeigt weiter den Stand vor dem Speichern (verzögerter Lesestand). */
+    staleItemReads?: boolean;
   } = {},
 ) {
   let saves = 0,
@@ -119,6 +128,7 @@ export async function createVintedListingEditFormFixture(
     photos: [editFormPhotoUrls[0]],
     ...options.state,
   };
+  const initialState = state;
   const option = (
     field: keyof typeof choices,
     role: 'radio' | 'checkbox',
@@ -138,6 +148,47 @@ export async function createVintedListingEditFormFixture(
       .filter(([id]) => selected.includes(id))
       .map(([, text]) => text)
       .join(', ');
+  /** Aufbau wie am 12.10.2026 an Vinteds Schnittstelle gemessen (nur Feldnamen und Typen). */
+  const itemBody = (source: EditFormState) => {
+    const price = /^([0-9]+)(?:[,.]([0-9]{1,2}))?/.exec(source.price.split('€').join('').trim());
+    const brand = [...choices.brand, ...searchableBrands].find(([id]) => id === source.brand);
+    return {
+      code: 0,
+      item: {
+        id: 98765,
+        catalog_id: source.categoryId ?? 2738,
+        title: options.itemApiTitle ?? source.title,
+        description: source.description,
+        price: {
+          amount: price ? price[1] + '.' + (price[2] ?? '0') : '0',
+          currency_code: 'EUR',
+        },
+        brand_id: source.brand,
+        brand_dto: brand ? { id: brand[0], title: brand[1] } : null,
+        color1_id: source.colors[0] ?? null,
+        color2_id: source.colors[1] ?? null,
+        package_size_id: source.packageSize,
+        item_attributes: [
+          { code: 'size', ids: source.size === null ? [] : [source.size] },
+          { code: 'condition', ids: source.condition === null ? [] : [source.condition] },
+          { code: 'material', ids: source.materials },
+        ],
+        photos: source.photos.map((photoUrl, index) => {
+          const address =
+            options.itemApi === 'foreign-photo-urls'
+              ? 'https://images1.vinted.net/other/' + index + '.webp'
+              : photoUrl;
+          return {
+            id: 5000 + editFormPhotoUrls.indexOf(photoUrl as (typeof editFormPhotoUrls)[number]),
+            url: address + '?s=fixture',
+            full_size_url: address,
+            thumbnails: [{ type: 'thumb310', url: address }],
+            is_main: index === 0,
+          };
+        }),
+      },
+    };
+  };
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
     if (url.pathname === '/api/v2/users/current')
@@ -145,54 +196,25 @@ export async function createVintedListingEditFormFixture(
         json: { user: { id: options.foreign ? '456' : '123', login: 'fixture' } },
       });
     // Wie bei Vinted: Die Bearbeitungsmaske erhält das Inserat mit seiner Kategorie hierüber.
+    if (url.pathname === '/api/v2/item_upload/items/98765' && route.request().method() === 'PUT') {
+      saves++;
+      writes++;
+      pendingSave = true;
+      if (options.saveResponseDelayMs)
+        await new Promise((resolve) => setTimeout(resolve, options.saveResponseDelayMs));
+      pendingSave = false;
+      if (options.saveApi === 'rejected')
+        return route.fulfill({ status: 422, json: { code: 99, message: 'invalid' } });
+      if (!options.ignoreSave) state = JSON.parse(route.request().postData()!) as EditFormState;
+      return route.fulfill({ json: itemBody(state) });
+    }
     if (url.pathname === '/api/v2/item_upload/items/98765') {
       itemReads++;
       if (options.itemApi === 'reference')
         return route.fulfill({
           json: { item: { id: 98765, catalog_id: state.categoryId ?? 2738 }, code: 0 },
         });
-      // Aufbau wie am 12.10.2026 an Vinteds Schnittstelle gemessen (nur Feldnamen und Typen).
-      const price = /^([0-9]+)(?:[,.]([0-9]{1,2}))?/.exec(state.price.split('€').join('').trim());
-      const brand = [...choices.brand, ...searchableBrands].find(([id]) => id === state.brand);
-      return route.fulfill({
-        json: {
-          code: 0,
-          item: {
-            id: 98765,
-            catalog_id: state.categoryId ?? 2738,
-            title: state.title,
-            description: state.description,
-            price: {
-              amount: price ? price[1] + '.' + (price[2] ?? '0') : '0',
-              currency_code: 'EUR',
-            },
-            brand_id: state.brand,
-            brand_dto: brand ? { id: brand[0], title: brand[1] } : null,
-            color1_id: state.colors[0] ?? null,
-            color2_id: state.colors[1] ?? null,
-            package_size_id: state.packageSize,
-            item_attributes: [
-              { code: 'size', ids: state.size === null ? [] : [state.size] },
-              { code: 'condition', ids: state.condition === null ? [] : [state.condition] },
-              { code: 'material', ids: state.materials },
-            ],
-            photos: state.photos.map((photoUrl, index) => {
-              const address =
-                options.itemApi === 'foreign-photo-urls'
-                  ? 'https://images1.vinted.net/other/' + index + '.webp'
-                  : photoUrl;
-              return {
-                id:
-                  5000 + editFormPhotoUrls.indexOf(photoUrl as (typeof editFormPhotoUrls)[number]),
-                url: address + '?s=fixture',
-                full_size_url: address,
-                thumbnails: [{ type: 'thumb310', url: address }],
-                is_main: index === 0,
-              };
-            }),
-          },
-        },
-      });
+      return route.fulfill({ json: itemBody(options.staleItemReads ? initialState : state) });
     }
     if (url.pathname === '/fixture/list-open') {
       listOpens++;
@@ -371,7 +393,7 @@ export async function createVintedListingEditFormFixture(
       [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id));
       document.querySelector('#save').onclick=async()=>{
         const one=name=>selected(name).map(identifier)[0]??null;
-        await fetch('/fixture/save',{method:'POST',body:JSON.stringify({
+        await fetch(${options.saveApi ? "'/api/v2/item_upload/items/98765'" : "'/fixture/save'"},{method:${options.saveApi ? "'PUT'" : "'POST'"},body:JSON.stringify({
           ${options.categoryChange ? "categoryId:one('category')," : ''}
           title:document.querySelector('[name=title]').value,description:document.querySelector('[name=description]').value,price:document.querySelector('[name=price]').value,
           brand:one('brand'),size:one('size'),condition:one('condition'),colors:selected('color').map(identifier),materials:selected('material').map(identifier),

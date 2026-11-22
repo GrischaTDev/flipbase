@@ -142,6 +142,76 @@ it('wiederholt eine unklare Wirkung nicht und behält ihren Anfragebeleg', async
   expect((await runVintedAccountAction(path, request, token)).status).toBe(502);
   expect(localStorage.length).toBe(1);
 });
+it('wartet auf die automatische Nachprüfung und liefert deren Bestätigung', async () => {
+  let requestId = '';
+  const fetchMock = vi.fn(async (_path: unknown, options: RequestInit = {}) => {
+    const body = JSON.parse(String(options.body)) as { requestId?: string };
+    if (_path === path && body.requestId) {
+      requestId = body.requestId;
+      return Response.json(
+        { action: { ...action(requestId, 'outcome_unknown'), reconciling: true } },
+        { status: 202 },
+      );
+    }
+    return Response.json({
+      action: {
+        ...action(requestId, 'succeeded', 3),
+        result: { status: 'confirmed' },
+        reconciling: false,
+      },
+    });
+  });
+  mockActionFetch(fetchMock);
+  const result = runVintedAccountAction(path, request, token);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  await vi.advanceTimersByTimeAsync(1500);
+  const response = await result;
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ status: 'confirmed' });
+  expect(localStorage.length).toBe(0);
+});
+it('bricht das Warten auf eine hängende Nachprüfung begrenzt ab', async () => {
+  let requestId = '';
+  const fetchMock = vi.fn(async (_path: unknown, options: RequestInit = {}) => {
+    const body = JSON.parse(String(options.body)) as { requestId?: string };
+    if (_path === path && body.requestId) requestId = body.requestId;
+    return Response.json(
+      { action: { ...action(requestId, 'outcome_unknown'), reconciling: true } },
+      { status: _path === path ? 202 : 200 },
+    );
+  });
+  mockActionFetch(fetchMock);
+  const result = runVintedAccountAction(path, request, token);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  await vi.advanceTimersByTimeAsync(155_000);
+  expect((await result).status).toBe(502);
+  expect(localStorage.length).toBe(1);
+});
+it('wartet nach einem einzelnen fehlgeschlagenen Statusabruf weiter', async () => {
+  let requestId = '';
+  let polls = 0;
+  const fetchMock = vi.fn(async (_path: unknown, options: RequestInit = {}) => {
+    const body = JSON.parse(String(options.body)) as { requestId?: string };
+    if (_path === path && body.requestId) {
+      requestId = body.requestId;
+      return Response.json({ action: action(requestId, 'running') }, { status: 202 });
+    }
+    polls++;
+    if (polls === 1) return new Response(null, { status: 503 });
+    return Response.json({
+      action: { ...action(requestId, 'succeeded', 3), result: { status: 'confirmed' } },
+    });
+  });
+  mockActionFetch(fetchMock);
+  const result = runVintedAccountAction(path, request, token);
+  await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  await vi.advanceTimersByTimeAsync(1500);
+  await vi.advanceTimersByTimeAsync(3000);
+  const response = await result;
+  expect(polls).toBe(2);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ status: 'confirmed' });
+});
 it('bindet eine erneute Cloud-Anmeldung an die vorher angelegte Dialogkennung', async () => {
   const dialogId = '77777777-7777-4777-8777-777777777777';
   const request = vi.fn().mockResolvedValue(

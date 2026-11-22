@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-22 - Juna - Vinted-Änderungen werden über Vinteds Antwort bestätigt und blockieren keinen Relist mehr dauerhaft
+
+**Anlass und lesende Produktionsdiagnose:** Ein Relist der Puma-Trainingsjacke (`listing:10789520736`, Auftrag 78) stand ab 16:38 Uhr stundenlang als „Wird vorbereitet“ in der Warteschlange, obwohl Worker und Browser frei waren. Zwei Minuten vorher war eine Preisänderung (36,90 € → 29,99 €) nach 28 Sekunden als `unconfirmed` und damit `outcome_unknown` geendet. Bei Vinted war der Preis tatsächlich gespeichert. Seit dem 15.11. wurden nur 12 von 20 Preisänderungen sofort bestätigt; die übrigen waren gespeichert, blieben aber bis zu 6,5 Stunden ungeklärt. Vier unabhängige Prüfberichte (Code, Architektur, Produktionszahlen, Wartezeiten) ergaben: Das Fundament aus dauerhafter Warteschlange, Anfragekennungen, Profil und IP je Konto trägt. Unklar wurden Speicherungen, weil Flipbase Vinteds eigene Antwort auf den Speicheraufruf nicht auswertete, das Nachlesen an einem einzigen unbekannten Nebenfeld scheiterte, nach dem Klick nach 12–30 Sekunden aufgab oder währenddessen neu lud, und weil einzelne Verbindungsaussetzer den Worker oder den Browser beendeten. Die harte Sperre auf ein ungeklärtes Ergebnis hielt danach auch Aufträge zurück, die sich selbst absichern.
+
+**Änderung:**
+
+- **Bestätigung über Vinteds Antwort (`vinted-listing-save-response.ts`, `vinted-edit-confirmation.ts`):** Vor dem Speicherklick liest der Worker per CDP die Antwort genau dieses Speicheraufrufs mit, ohne sie zu verändern oder selbst etwas zu senden. Ein gespeichertes Inserat mit den Zielwerten bestätigt sofort. Eine Fehlerantwort beendet das Warten sofort, bleibt aber zur lesenden Nachprüfung offen. Parallel wird bis zu 90 Sekunden nachgelesen, ohne die Seite neu zu laden.
+- **Preis (`vinted-browser-listing-price.ts`, `vinted-browser-listing-item.ts`):** Das Nachlesen prüft nur noch Kennung und Preis; Fotos oder Merkmale in unbekanntem Aufbau blockieren die Bestätigung nicht mehr. Feste Gründe: `save_click`, `save_rejected`, `item_unreadable`, `price_pending`, auch als `marketplace_account_action_unconfirmed` im Worker-Protokoll.
+- **Inhalt und Bearbeiten (`vinted-browser-listing-update.ts`, `vinted-browser-listing-edit.ts`):** Die Maske wird erst neu geöffnet, wenn Vinted geantwortet oder die Seite verlassen hat. Danach entscheidet sie zügig als Rückfall. Der Bearbeitungsweg gibt nach 15 Sekunden ohne Seitenwechsel nicht mehr auf.
+- **Robustheit (`marketplace-sync-dispatcher.ts`, `marketplace-browser-session-broker.ts`):** Ein fehlgeschlagener Heartbeat beendet den Worker nur noch, wenn die bestätigte Berechtigung keine 25 Sekunden mehr gilt. Leaseprüfungen werden bei Verbindungsfehlern zweimal wiederholt; ein laufender Browser wird bei ausbleibender Antwort nicht mehr sofort beendet.
+- **Warteschlange (`570_marketplace_account_actions.sql`):** Preis-, Inhalts-, Lösch- und Profilaktionen prüfen vor dem Schreiben den aktuellen Anbieterstand und warten deshalb nicht mehr auf ein früheres ungeklärtes Ergebnis einer solchen Aktion. Relists, Nachrichten, Angebote und Versandscheine warten weiterhin.
+- **Automatische Nachprüfung:** Ein ungeklärtes Ergebnis einer solchen Aktion, auch nach einem Abbruch, plant lesende Nachprüfungen nach 1, 5 und 15 Minuten (neue Spalte `not_before`). Danach bleibt der manuelle Weg. Eine manuell angeforderte Prüfung ersetzt die geplante. Zeigt das Formular dabei den Ausgangspreis, gilt die Preisänderung als nicht gespeichert.
+- **Kontoabruf (`464_marketplace_listing_execution.sql`):** Er bestätigt eine ungeklärte Preisänderung nur, wenn er genau den Zielpreis zeigt und Vinteds Änderungszeitpunkt nach dem Schreibbeginn liegt. Geplante Nachprüfungen entfallen dann.
+- **Oberfläche:** Speichern wartet bis zu 150 Sekunden auf die automatische Nachprüfung, und einzelne fehlgeschlagene Statusabrufe beenden das Warten nicht. Ein Relist, der auf eine ungeklärte Änderung wartet, zeigt „Wartet auf Prüfung der vorherigen Änderung“.
+- **Migration `20261122213000_vinted_unconfirmed_auto_reconcile.sql`:** Ungeklärte Ergebnisse der letzten sieben Tage auf verbundenen Cloudkonten erhalten einmalig dieselbe automatische Nachprüfung (höchstens 200).
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-22 - Juna - Beitritt zum privaten Vinted-Feed korrigieren
 
 **Ursache:** Supabase Realtime prüft Kanalbeitritte mit einer leeren Broadcast-Zeile.

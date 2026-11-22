@@ -256,6 +256,22 @@ $$;
 revoke all on function public.marketplace_bind_relisting_entry(public.marketplace_listing_jobs) from public,anon,authenticated;
 grant execute on function public.marketplace_bind_relisting_entry(public.marketplace_listing_jobs) to service_role;
 
+-- Ungeklärte frühere Kontoaktion auf demselben Vinted-Inserat, die eine wartende Veröffentlichung zurückhält.
+-- PL/pgSQL, weil Kontoaktionen und Warteschlangenreihenfolge erst in 570_marketplace_account_actions.sql entstehen.
+create or replace function public.marketplace_listing_job_blocker(p_job public.marketplace_listing_jobs)
+returns uuid language plpgsql stable security invoker set search_path='' as $$
+declare v_blocker uuid; v_external_id text:=coalesce(p_job.snapshot->>'relistExternalId',p_job.external_id);
+begin
+  if p_job.state<>'queued' or p_job.execution_mode<>'cloud' or v_external_id is null then return null; end if;
+  select action.public_id into v_blocker from public.marketplace_account_actions action
+    where action.workspace_id=p_job.workspace_id and action.connection_id=p_job.connection_id and action.is_write
+      and action.resource_key='listing:'||v_external_id and action.state='outcome_unknown' and action.queue_order<p_job.queue_order
+    order by action.queue_order limit 1;
+  return v_blocker;
+end;
+$$;
+revoke all on function public.marketplace_listing_job_blocker(public.marketplace_listing_jobs) from public,anon,authenticated;
+
 create or replace function public.marketplace_listing_job_document(p_job public.marketplace_listing_jobs)
 returns jsonb language sql stable security invoker set search_path='' as $$
   select jsonb_build_object('id',p_job.id::text,'workspaceId',p_job.workspace_id,'connectionId',p_job.connection_id,'draftId',p_job.draft_id::text,
@@ -269,7 +285,9 @@ returns jsonb language sql stable security invoker set search_path='' as $$
         and entry.kind='publication' and entry.external_id=p_job.external_id),
       (select entry.body->>'imageUrl' from public.marketplace_account_entries entry where entry.workspace_id=p_job.workspace_id and entry.connection_id=p_job.connection_id
         and entry.kind='publication' and entry.external_id=p_job.snapshot->>'relistExternalId')),
-    'coverStoragePath',p_job.snapshot->'images'->0->>'storagePath');
+    'coverStoragePath',p_job.snapshot->'images'->0->>'storagePath')
+    || (select jsonb_build_object('waitReason',case when blocker.id is not null then 'dependency_unresolved' end,'blockedByActionId',blocker.id)
+      from (select public.marketplace_listing_job_blocker(p_job) as id) blocker);
 $$;
 revoke all on function public.marketplace_listing_job_document(public.marketplace_listing_jobs) from public,anon,authenticated;
 

@@ -114,6 +114,31 @@ test('bestätigt den gespeicherten Preis auch ohne Seitenwechsel und klickt nur 
   }
 });
 
+test('normalisierter Titel macht eine gespeicherte Preisänderung nicht unklar', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingEditFormFixture(page, {
+      noSaveNavigation: true,
+      itemApi: 'full',
+      itemApiTitle: 'Meine Schuhe ',
+    });
+    const result = await updateVintedListingPrice(
+      page,
+      '98765',
+      '123',
+      2050,
+      3990,
+      async () => undefined,
+      2000,
+    );
+    assert.equal(result.status, 'confirmed');
+    assert.equal(form.saves(), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
 test('weist einen inzwischen geänderten Preis ohne Speichern ab', async () => {
   const browser = await chromium.launch();
   try {
@@ -147,15 +172,71 @@ test('bestätigt ignoriertes Speichern nicht und klickt nur einmal', async () =>
       2050,
       1000,
       async () => undefined,
-      50,
+      2000,
     );
     assert.equal(result.status, 'unconfirmed');
+    // Vinted zeigt nach dem ignorierten Klick lesbar weiter den alten Preis.
+    assert.equal(result.reason, 'price_pending');
     assert.equal(result.fields, undefined);
     assert.equal(form.saves(), 1);
   } finally {
     await browser.close();
   }
 });
+test('bestätigt den Preis über Vinteds Speicherantwort, auch wenn das Nachlesen noch den alten Stand zeigt', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingEditFormFixture(page, {
+      saveApi: 'saved',
+      staleItemReads: true,
+      noSaveNavigation: true,
+    });
+    const result = await updateVintedListingPrice(
+      page,
+      '98765',
+      '123',
+      2050,
+      1000,
+      async () => undefined,
+      5000,
+    );
+    assert.equal(result.status, 'confirmed');
+    assert.equal(result.fields?.price, '10,00');
+    assert.equal(form.saves(), 1);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('eine abgelehnte Speicherantwort beendet das Warten sofort und bleibt zur Nachprüfung offen', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    const form = await createVintedListingEditFormFixture(page, {
+      saveApi: 'rejected',
+      noSaveNavigation: true,
+    });
+    const started = Date.now();
+    const result = await updateVintedListingPrice(
+      page,
+      '98765',
+      '123',
+      2050,
+      1000,
+      async () => undefined,
+      30_000,
+    );
+    assert.equal(result.status, 'unconfirmed');
+    assert.equal(result.reason, 'save_rejected');
+    assert.ok(Date.now() - started < 20_000);
+    assert.equal(form.saves(), 1);
+    assert.equal(form.state().price, '20,50 €');
+  } finally {
+    await browser.close();
+  }
+});
+
 test('bestätigt einen bereits gespeicherten Zielpreis ohne einen zweiten Speicherklick', async () => {
   const browser = await chromium.launch();
   try {

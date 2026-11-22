@@ -184,6 +184,45 @@ $$;
 revoke all on function public.marketplace_relink_relisting_entry(public.marketplace_listing_jobs) from public,anon,authenticated;
 grant execute on function public.marketplace_relink_relisting_entry(public.marketplace_listing_jobs) to service_role;
 
+-- Eine ungeklärte Preisänderung gilt als bestätigt, sobald der eigene Kontoabruf nach dem Speicherklick
+-- genau den Zielpreis auf demselben Konto beobachtet. Ein alter Preis beweist dagegen nichts, weil
+-- Vinteds Inseratliste verzögert sein kann; diesen Fall klärt nur die Nachprüfung im Bearbeitungsformular.
+-- Bestätigt eine ungeklärte Preisänderung, wenn der Kontoabruf genau den Zielpreis zeigt und
+-- Vinted das Inserat nach dem Schreibbeginn geändert hat. Ohne diesen Zeitstempel könnte ein
+-- verzögerter Listenstand mit einem früheren, zufällig gleichen Preis die Änderung vortäuschen.
+-- Ein alter Preis entscheidet hier nichts; das bleibt der lesenden Nachprüfung überlassen.
+create or replace function public.marketplace_accept_imported_listing_price(p_workspace_id uuid,p_connection_id uuid,p_external_id text,p_observed_at timestamptz)
+returns void language plpgsql volatile security invoker set search_path='' as $$
+declare v_entry public.marketplace_account_entries; v_price_cents numeric; v_source_updated_at timestamptz;
+begin
+  select * into v_entry from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_connection_id
+    and kind='publication' and external_id=p_external_id and observed_at=p_observed_at;
+  if not found or p_observed_at>clock_timestamp()+interval '5 minutes'
+    or jsonb_typeof(v_entry.body->'price') not in ('number','string') or v_entry.body->>'price' !~ '^[0-9]{1,7}([.][0-9]{1,2})?$'
+    or jsonb_typeof(v_entry.body->'listingSourceUpdatedAt') is distinct from 'string'
+    or v_entry.body->>'listingSourceUpdatedAt' !~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}([.][0-9]{1,6})?(Z|[+-][0-9]{2}:[0-9]{2})$' then return; end if;
+  v_price_cents:=round((v_entry.body->>'price')::numeric*100);
+  v_source_updated_at:=(v_entry.body->>'listingSourceUpdatedAt')::timestamptz;
+  with resolved as (
+    update public.marketplace_account_actions action set state='succeeded',error_code=null,
+        result=jsonb_build_object('status','confirmed','resolvedBy','account_import'),finished_at=clock_timestamp()
+      from public.marketplace_connections account
+      where account.workspace_id=action.workspace_id and account.id=action.connection_id and account.external_account_id=action.external_account_id
+        and action.workspace_id=p_workspace_id and action.connection_id=p_connection_id and action.is_write and action.kind='price_save' and action.state='outcome_unknown'
+        and action.history_purged_at is null and action.resource_key='listing:'||p_external_id and action.write_started_at<p_observed_at
+        -- Kleine Uhrabweichung zwischen Vinted und Datenbank zulassen; ältere Stände zählen nicht.
+        and v_source_updated_at>=action.write_started_at-interval '30 seconds'
+        and jsonb_typeof(action.payload->'priceCents')='number' and (action.payload->>'priceCents')::numeric=v_price_cents
+      returning action.public_id
+  )
+  -- Geplante Nachprüfungen sind nach der Bestätigung überflüssig.
+  update public.marketplace_account_actions pending set state='cancelled',error_code='superseded',finished_at=clock_timestamp(),updated_at=clock_timestamp()
+    from resolved where pending.reconciliation_action_id=resolved.public_id and pending.state='queued';
+end;
+$$;
+revoke all on function public.marketplace_accept_imported_listing_price(uuid,uuid,text,timestamptz) from public,anon,authenticated;
+grant execute on function public.marketplace_accept_imported_listing_price(uuid,uuid,text,timestamptz) to service_role;
+
 -- Erst eine akzeptierte echte Anbieterlesekopie beendet den Schutz der neuen Kennung.
 -- Bestätigt sowohl Relistings als auch normale Neuveröffentlichungen mit Erstellungsbeleg,
 -- sobald der Kontoabgleich das Inserat aktiv auf demselben Konto beobachtet.
@@ -191,6 +230,7 @@ create or replace function public.marketplace_accept_relisting_import(p_workspac
 returns void language plpgsql volatile security invoker set search_path='' as $$
 declare v_job public.marketplace_listing_jobs; v_entry public.marketplace_account_entries; v_entry_id uuid;
 begin
+  perform public.marketplace_accept_imported_listing_price(p_workspace_id,p_connection_id,p_external_id,p_observed_at);
   select * into v_entry from public.marketplace_account_entries where workspace_id=p_workspace_id and connection_id=p_connection_id
     and kind='publication' and external_id=p_external_id and observed_at=p_observed_at;
   if not found or p_observed_at>clock_timestamp()+interval '5 minutes' then return; end if;

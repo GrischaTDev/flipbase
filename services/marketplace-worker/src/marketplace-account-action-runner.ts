@@ -153,6 +153,19 @@ function logAccountActionFailure(kind: string, errorCode: string | null, error: 
   );
 }
 
+function logAccountActionUnconfirmed(kind: string, reason: unknown): void {
+  // Nur feste Gründe; ohne Inhalte, Preise oder Kontodaten.
+  const known = ['save_click', 'save_rejected', 'item_unreadable', 'price_pending'];
+  process.stdout.write(
+    `${JSON.stringify({
+      event: 'marketplace_account_action_unconfirmed',
+      kind,
+      reason: typeof reason === 'string' && known.includes(reason) ? reason : 'unknown',
+    })}
+`,
+  );
+}
+
 export const accountActionRoutes: Readonly<Record<string, string>> = {
   '/marketplace-browser/listings/price/save': 'price_save',
   '/marketplace-browser/listings/delete': 'listing_delete',
@@ -458,6 +471,7 @@ export class MarketplaceAccountActionRunner {
         state = 'failed';
         errorCode = 'begin_unconfirmed';
       }
+      if (state === 'outcome_unknown') logAccountActionUnconfirmed(claim.actionKind, result.reason);
       if (
         state === 'succeeded' &&
         !beginAttempted &&
@@ -853,6 +867,15 @@ export class MarketplaceAccountActionRunner {
       const current = await required(browser.readListingContent)(account, external, authorize);
       if (parent.kind === 'price_save' && current.content.priceCents === payload.priceCents)
         resolution = 'succeeded';
+      // Das frische Bearbeitungsformular zeigt noch den Ausgangspreis: Der Klick wurde nicht
+      // gespeichert. Ein neuer Preisauftrag ist sicher, weil er Ausgangs- und Zielpreis erneut prüft.
+      else if (
+        parent.kind === 'price_save' &&
+        current.content.priceCents === payload.expectedPriceCents
+      ) {
+        resolution = 'failed';
+        providerResult = { status: 'failed' };
+      }
       if (parent.kind === 'listing_edit_save') {
         const fields = editFields(payload.fields);
         if (
