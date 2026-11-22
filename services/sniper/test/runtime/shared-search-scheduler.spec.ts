@@ -34,7 +34,7 @@ describe('bounded shared search scheduling', () => {
         let due = [broad];
         let current = recorded.filter((listing) => listing !== arrival);
         const requests: number[] = [];
-        const found = new Map<string, { time: number; filters: number }>();
+        const found = new Map<string, { time: number; filters: number | undefined }>();
         const clock = () => new Date(NOW.getTime() + elapsed);
         const paced = pacedVintedFetch(
           async (input) => {
@@ -69,7 +69,7 @@ describe('bounded shared search scheduling', () => {
               if (listings.some(({ externalId }) => externalId === arrival.externalId))
                 found.set(query.id, {
                   time: elapsed - 5000,
-                  filters: diagnostics.shared_filter_count,
+                  filters: diagnostics?.shared_filter_count,
                 });
               return { accepted: true, created: 0, seeded: false };
             },
