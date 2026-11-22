@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-22 - Juna - Beitritt zum privaten Vinted-Feed korrigieren
+
+**Ursache:** Supabase Realtime prüft Kanalbeitritte mit einer leeren Broadcast-Zeile.
+Die Zeile erhält beim Anlegen noch keine Privat-Markierung und scheiterte an der
+Leseregel. Diese berücksichtigt jetzt auch die leere Prüfzeile. Anmeldung, gültiger
+Arbeitsbereich und passendes Thema bleiben Voraussetzung.
+
+**Prüfung:** Vor dem Fix lehnte ein lokaler Realtime-Server den eigenen Kanal ab.
+Danach empfing das Mitglied den privaten Feed-Hinweis über WebSocket. Fremde und
+anonyme Beitritte blieben gesperrt. SQL-Regressionen prüfen auch öffentliche
+Nachrichten, Presence und das fehlende Schreibrecht.
+
 ## 2026-11-22 - Juna - Vinted-Linkimport und schnellere Feed-Aktualisierung
 
 **Suchfilter:** Deutsche Vinted-Kataloglinks lassen sich im vorhandenen Editor übernehmen.
