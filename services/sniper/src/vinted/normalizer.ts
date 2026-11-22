@@ -51,6 +51,7 @@ export function normalizeVintedItem(item: VintedItem): MarketplaceListing {
       amount: Number(itemPriceSource.amount),
       currency: itemPriceSource.currency_code,
     },
+    ...(item.price ? { hasExactItemPrice: true } : {}),
     totalPrice: {
       amount: Number(item.total_item_price.amount),
       currency: item.total_item_price.currency_code,

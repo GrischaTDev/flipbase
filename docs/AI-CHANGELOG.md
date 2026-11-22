@@ -1,5 +1,112 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-22 - Juna - Vinted-Linkimport und schnellere Feed-Aktualisierung
+
+**Suchfilter:** Deutsche Vinted-Kataloglinks lassen sich im vorhandenen Editor übernehmen.
+Importiert werden Suchbegriff, Preisgrenzen und die unterstützten Kennungen für Marke,
+gesammelte Kategorie, Größen und Zustand. Nicht übertragbare Filter lösen eine Meldung aus.
+
+**Feed:** Der Sammler verwendet einen vollständigen gemeinsamen Katalogausschnitt für
+gleichzeitig fällige Abfragen derselben Suche mit engeren EUR-Preisgrenzen. Voraussetzung
+sind exakte Artikelpreise und ein wiedergefundener Kontrollpunkt je Abfrage. Der Schalter
+`SNIPER_SHARE_PRICE_RANGES=false` stellt getrennte Abrufe wieder her. Private Live-Hinweise
+holen nur neue und zeitgleiche Karten ab. Regelmäßiger Vollabgleich und Wiederverbindung
+sichern den Bestand und spätere Änderungen ab.
+
+**Vergleich:** Der wiederholbare Test mit aufgezeichneten Vinted-Artikeln benötigt für
+zwei passende Abfragen einen statt zwei Katalogabrufe. Mit dem Standard-Mindestabstand
+von 2,5 Sekunden und simulierten 250 ms Quellantwortzeit erschienen beide geprüften
+Artikel im engeren Filter nach jeweils 250 ms statt 2.750 ms. Für die breite Abfrage
+blieb es bei 250 ms.
+Der erste Live-Hinweis ohne laufende Drosselung startet den Abgleich ohne die bisherige
+250-ms-Wartezeit. Ein neuer Artikel mit einem Zeitanker ergibt im Browserfall zwei statt
+60 übertragene Karten. Der Vergleich lief lokal und misst keine Produktionslatenz.
+
+## 2026-11-22 - Juna - Angemeldeten Vintz-Sniper messen und Flipbase-Ablauf erproben
+
+**Praxisprüfung:** Im bereits angemeldeten Vintz-Konto zwei Testfeeds für Ralph Lauren und
+Carhartt-Fleecejacken sowie einen Testordner angelegt. Linkimport, Speicherung erweiterter
+Filter, Ordnerwechsel, Anhalten und Wiederaufnahme tatsächlich ausgeführt. Verkäuferland,
+Kaufkonto, Pre-Fire, Ansicht und Kaufhistorie geprüft. Zum Schluss nur die beiden eigenen
+Testfeeds angehalten. Keine Kaufaktion.
+
+**Technik und Messung:** WebSocket mit Bestandsaufnahmen, einzelnen Änderungen, Status
+und Verbindungszeichen beobachtet. 17 Vorschauereignisse derselben Artikel mit ihrer
+späteren Bestätigung abgeglichen. Die geschätzten Zeiten lagen in dieser Stichprobe
+3,7 bis 7,3 Sekunden vor bestätigten Details. Die ursprüngliche Fundzeit blieb bestehen.
+19 neue sichtbare Karten in 32,5 Sekunden trotz verzögerter Details. Der erste
+Speicherversuch scheiterte serverseitig, der spätere Versuch lieferte zwei aktive Feeds.
+Keine Behauptung einer Tagesverfügbarkeit oder Kenntnis der Vintz-Quellserver.
+
+**Umsetzungsplan:** [Vintz-Sniper und der nächste Flipbase-Feed](research/2026-11-22-vintz-sniper-implementation-plan.md)
+beschreibt die Übernahme in den vorhandenen Filter-, Sammler- und Broadcastablauf,
+kontrollierten Quellvergleich sowie die Trennung von Vorschau, Schätzung und Kaufstatus.
+Lokaler [Replay-Prototyp](../tools/sniper-feed-prototype/feed-replay.test.mjs) für Import,
+Trefferverteilung bei vollständiger und begrenzter Abdeckung, Wiederverbindung,
+Landfilter sowie simuliertes Pre-Fire mit Kaufhistorie. Eine zulässige frühe Datenquelle
+und der zugelassene Kaufweg bleiben Entscheidungspunkte für eine spätere Live-Umsetzung.
+
+## 2026-11-22 - Juna - Vintz-Sniper mit dem Flipbase-Feed verglichen
+
+**Beobachtung:** Der bereits geöffnete Chrome-Tab zeigte die Vintz-Mitgliedschaft ohne aktiven
+Sniper-Zugang. Die Mitgliedschaftsseite beschreibt Pre-Fire für Artikel kurz vor dem
+Live-Start und den Sofortkauf über ein verbundenes Vinted-Konto. Auf dem bereitgestellten
+Screenshot stehen Alter, geschätzte Restzeit oder Wartezustand und Kaufaktion getrennt auf
+der Karte. Eine Karte wartet mit 30 Sekunden noch, während eine mit 29 Sekunden bereits
+„Buy“ zeigt. Datenquelle, Zeitbasis des Alters, Berechnung der Restzeit und tatsächliche
+Geschwindigkeit von Vintz konnten nicht bestätigt werden.
+
+**Flipbase:** Der Feed speichert den Erstfund in `first_seen_at` und zeigt ihn derzeit als
+Kalenderdatum mit Uhrzeit an. Das vorhandene Kartenlabel „Noch nicht kaufbar“ hängt an
+`is_hidden`. Der aktuelle Katalogparser setzt `is_visible` pauschal auf `true`. Beide
+Speicherpfade lassen vorhandene Angebote unverändert. Eine relative Altersanzeige kann den
+vorhandenen Erstfund verwenden. Ein verlässlicher Live-Status erfordert ein belegtes Signal
+aus der Datenquelle und die Übernahme von Statusänderungen für dieselbe Artikelkennung.
+
+**Prüfung:** Browserseite, Screenshot und relevanten Quellcode gemeinsam ausgewertet.
+Separater Analysezweig auf dem frisch abgerufenen `origin/master` (`e1775e80`).
+Die primäre Arbeitskopie und der lokale Hauptzweig waren belegt. Nur diese Dokumentation
+bearbeitet.
+
+**Live-Nachprüfung am 22.11.2026:** Im laufenden Flipbase-Feed den gespeicherten Erstfund
+abgelesen und per Vinted-Artikel-ID der ersten Ergebnisseite der normalen deutschen Suche
+für Ralph Lauren mit „Neues zuerst“ zugeordnet. Zehn ablesbare Suchstichproben zwischen
+09:27:09 und 09:30:26 Uhr (MEZ), darunter mehrere frische Seitenabrufe ohne lokalen
+Browsercache. Kaufbarkeit beim Öffnen der Detailseite über die aktive Schaltfläche
+„Kaufen“, `can_buy: true` und `is_hidden: false` geprüft. Die Uhrzeiten für Suche und
+Kaufoption sind erste bestätigte Messpunkte.
+
+| Vinted-ID   | Flipbase-Erstfund | Zuletzt nicht auf der Suchseite | Erster Suchtreffer | Kaufoption bestätigt |
+| ----------- | ----------------- | ------------------------------- | ------------------ | -------------------- |
+| 10917935762 | 09:27:05,7        | –                               | 09:27:09,4         | 09:28:31,3           |
+| 10917947050 | 09:28:12,0        | 09:27:59,0                      | 09:28:22,1         | 09:28:36,8           |
+| 10917948808 | 09:28:24,7        | 09:27:59,0                      | 09:28:22,1         | 09:28:58,4           |
+| 10917954817 | 09:29:11,1        | 09:28:58,5                      | 09:29:18,4         | 09:29:33,7           |
+| 10917956463 | 09:29:49,5        | 09:29:54,2                      | 09:30:26,7         | 09:30:40,5           |
+| 10917961074 | 09:29:49,5        | 09:29:54,2                      | 09:30:26,7         | 09:30:40,5           |
+| 10917964670 | 09:30:20,4        | 09:29:54,2                      | 09:30:26,7         | 09:30:40,5           |
+
+**Live-Befund:** Zwei bereits von Flipbase gefundene Artikel fehlten rund 4,6 Sekunden
+nach ihrem Erstfund auf der geprüften Suchseite und erschienen beim folgenden Abruf.
+Ein anderer wurde in der Vinted-Suche rund 2,6 Sekunden vor dem Flipbase-Erstfund
+beobachtet. Zwei zusätzliche frische Feed-Funde außerhalb des Markenvergleichs zeigten
+die Kaufoption bereits 6,3 bzw. 12,1 Sekunden nach Erstfund. Alle sieben gemeinsamen
+Artikel hatten beim ersten auswertbaren Detailaufruf die Kaufoption. Kein Übergang
+von gesperrt zu kaufbar beobachtet. Die Artikeldaten liefern den aktuellen Kaufstatus
+und als strukturierte Angabe `InStock`. Die Suche nach einer künftigen
+Artikelfreigabezeit blieb ohne Beleg. Das gefundene `closet_countdown_end_date` war
+bei der gezielt untersuchten Karte leer. Kein Kauf und keine Produktänderung.
+
+**Umsetzung und weitere Analyse:** Feed-Karten zeigen das relative Alter seit Erstfund
+auf dem Bild. Exakten Zeitpunkt als Tooltip und vorhandenen Warnstatus erhalten. Eine
+gemeinsame Uhr aktualisiert sichtbare Karten sekündlich und pausiert im Hintergrund.
+Flipbase kennt geplante Zeiten für eigene Relist-Aufträge. Die öffentliche Vinted-
+Stichprobe lieferte den aktuellen Kaufstatus, aber keinen Freigabezeitpunkt für fremde
+Artikel. Der Feed schaltet Kaufbarkeit daher nicht nach einem Timer um. Vintz' Tempo
+lässt sich ohne Messung passender Artikel und Suchfilter nicht aus der Anzahl sichtbarer
+Karten ableiten. Für Flipbase getrennt messbar sind Abrufabstand je Suche,
+Suchabdeckung und Zeit zwischen Erstfund und Anzeige.
+
 ## 2026-11-21 - Juna - Vinted-Feed: Wortanfang-Suche, Vinted-Bot-Filter, abwählbare Marke und Zielgruppe entfernt
 
 **Anlass:** Im Vinted-Feed fand die Titelsuche bei Teilwörtern wie `CARH` keine Artikel (erst beim ausgeschriebenen Wort `Carhartt`). Zudem konnte eine gewählte Marke nicht mehr einzeln abgewählt werden, zeigte alle Artikel dieser Marke statt eines speziellen Admin-Bots (z. B. Carhartt Fleecejacken), und das zusätzliche Feld „Zielgruppe“ (Damen/Herren/Damen und Herren) doppelte sich verwirrend mit dem Kategorie-Feld.

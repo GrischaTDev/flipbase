@@ -31,6 +31,7 @@ import { CategoryPickerComponent } from '../../../../shared/components/category-
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 import { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
 import { collectedCategorySource } from '../../models/collected-category-source';
+import { parseVintedFeedLink } from '../../models/vinted-feed-link';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import {
   FEED_CLOTHING_SIZES,
@@ -67,6 +68,10 @@ export class WatchlistEditorComponent {
   readonly cancelled = output<void>();
   readonly brandSearchError = signal<string | null>(null);
   readonly submitAttempted = signal(false);
+  readonly feedLink = new FormControl('', { nonNullable: true });
+  readonly importingLink = signal(false);
+  readonly linkError = signal<string | null>(null);
+  private importGeneration = 0;
   readonly sizeOptions = FEED_CLOTHING_SIZES.map((size) => size.label);
   readonly form = new FormGroup({
     title: new FormControl('', {
@@ -87,6 +92,12 @@ export class WatchlistEditorComponent {
       Validators.max(9999999999.99),
     ]),
   });
+  private readonly initialFilter = signal('');
+  private readonly currentFilter = toSignal(
+    this.form.valueChanges.pipe(map(() => this.filterSnapshot())),
+    { initialValue: this.filterSnapshot() },
+  );
+  readonly hasChanges = computed(() => this.currentFilter() !== this.initialFilter());
   readonly categorySource = computed(() =>
     collectedCategorySource(this.categories(), this.collectedCategoryIds()),
   );
@@ -119,6 +130,10 @@ export class WatchlistEditorComponent {
   constructor() {
     effect(() => {
       const row = this.watchlist();
+      this.importGeneration++;
+      this.importingLink.set(false);
+      this.linkError.set(null);
+      this.feedLink.reset();
       this.submitAttempted.set(false);
       this.form.reset({
         title: row?.title ?? '',
@@ -130,14 +145,70 @@ export class WatchlistEditorComponent {
         price_from: row?.price_from ?? null,
         price_to: row?.price_to ?? null,
       });
+      this.initialFilter.set(this.filterSnapshot());
     });
     afterNextRender(() =>
       this.element.nativeElement.querySelector<HTMLInputElement>('input')?.focus(),
     );
   }
 
+  private filterSnapshot(): string {
+    const draft = this.form.getRawValue();
+    return JSON.stringify({
+      ...draft,
+      title: draft.title.trim(),
+      brand: draft.brand.trim(),
+      search_text: draft.search_text.trim(),
+      sizes: feedSizeValues(draft.sizes).sort(),
+    });
+  }
+
+  async importLink(): Promise<void> {
+    if (this.importingLink() || this.saving()) return;
+    const generation = ++this.importGeneration;
+    this.linkError.set(null);
+    this.importingLink.set(true);
+    try {
+      const imported = parseVintedFeedLink(this.feedLink.value);
+      if (imported.brandId === null && this.watchlist()?.legacy_brand_id != null)
+        throw new Error(
+          'Dieser Suchfilter hat eine alte Markenkennung. Übernimm den Link in einen neuen Suchfilter.',
+        );
+      if (
+        imported.categoryId !== null &&
+        !this.collectedCategoryIds().includes(imported.categoryId)
+      )
+        throw new Error('Die Kategorie aus dem Link wird im Feed noch nicht gesammelt.');
+      const fields = await this.api.resolveFeedImport(this.workspaceId(), imported);
+      if (generation !== this.importGeneration) return;
+      if (
+        fields.condition &&
+        !this.conditionOptions.some((option) => option.value === fields.condition)
+      )
+        throw new Error('Der Zustand aus dem Link wird im Feed nicht unterstützt.');
+      this.form.patchValue({
+        catalog_id: imported.categoryId === null ? null : String(imported.categoryId),
+        brand: fields.brand,
+        condition: fields.condition,
+        sizes: [...new Set(fields.sizeLabels)].join(' · '),
+        search_text: imported.searchText,
+        price_from: imported.minPrice,
+        price_to: imported.maxPrice,
+      });
+      this.form.markAsDirty();
+      this.feedLink.reset();
+    } catch (error) {
+      if (generation === this.importGeneration)
+        this.linkError.set(
+          error instanceof Error ? error.message : 'Der Link konnte nicht übernommen werden.',
+        );
+    } finally {
+      if (generation === this.importGeneration) this.importingLink.set(false);
+    }
+  }
+
   submit(): void {
-    if (this.saving()) return;
+    if (this.saving() || this.importingLink() || !this.hasChanges()) return;
     this.submitAttempted.set(true);
     this.form.markAllAsTouched();
     const value = this.form.getRawValue();

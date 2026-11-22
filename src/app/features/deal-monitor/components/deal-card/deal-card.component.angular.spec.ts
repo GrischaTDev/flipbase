@@ -10,6 +10,7 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { FeedItem } from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
+import { FeedClockService } from '../../services/feed-clock.service';
 import { DealCardComponent } from './deal-card.component';
 
 interface AngularInputMetadata {
@@ -128,7 +129,7 @@ describe('DealCardComponent', () => {
       '42',
       'Sehr gut',
     ]);
-    expect(card.querySelectorAll('app-badge')).toHaveLength(3);
+    expect(card.querySelectorAll('dl app-badge')).toHaveLength(3);
     expect(card.querySelector('time')?.getAttribute('datetime')).toBe(item.first_seen_at);
     expect(card.querySelectorAll('app-button')).toHaveLength(3);
     expect(card.textContent).not.toContain('Käuferschutz');
@@ -170,8 +171,17 @@ describe('DealCardComponent', () => {
   it('zeigt den Hinweis auf nicht kaufbare Artikel ohne unsicheren Link', () => {
     const fixture = TestBed.createComponent(DealCardComponent);
     fixture.componentRef.setInput('item', { ...item, is_hidden: true, url: 'javascript:alert(1)' });
+    const clock = TestBed.inject(FeedClockService);
+    const discoveredAt = Date.parse(item.first_seen_at);
+    clock.now.set(new Date(discoveredAt + 59_000));
     fixture.detectChanges();
     const card = fixture.nativeElement as HTMLElement;
+    const discovered = card.querySelector('time');
+    expect(discovered?.textContent).toContain('vor 59 s');
+
+    clock.now.set(new Date(discoveredAt + 60_000));
+    fixture.detectChanges();
+    expect(discovered?.textContent).toContain('vor 1 min');
     expect(card.textContent).toContain('Noch nicht kaufbar');
     expect(card.querySelector('a')).toBeNull();
   });

@@ -9,6 +9,27 @@ export interface SearchRequestPlan {
   validationError?: unknown;
 }
 
+/** Eine fällige Quelle kann einen engeren Preisfilter derselben Suche mit bedienen. */
+export function coversPriceRange(source: SearchRequestPlan, target: SearchRequestPlan): boolean {
+  const a = source.sourceQuery;
+  const b = target.sourceQuery;
+  if (
+    a.filterFormatVersion !== 1 ||
+    b.filterFormatVersion !== 1 ||
+    source.validationError ||
+    target.validationError ||
+    source.key === target.key
+  )
+    return false;
+  return (
+    a.catalogId === b.catalogId &&
+    a.brandId === b.brandId &&
+    a.searchText === b.searchText &&
+    (a.priceFrom === null || (b.priceFrom !== null && a.priceFrom <= b.priceFrom)) &&
+    (a.priceTo === null || (b.priceTo !== null && a.priceTo >= b.priceTo))
+  );
+}
+
 /** Nur wirklich identische Quellparameter teilen. Lokale Titelregeln bleiben je Filter erhalten. */
 export function planSearchRequests(queries: readonly SniperQuery[]): SearchRequestPlan[] {
   const groups = new Map<string, SearchRequestPlan>();

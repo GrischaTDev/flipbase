@@ -65,7 +65,7 @@ create or replace function public.sniper_feed_search(
     p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric,
     p_max_price numeric, p_before_time timestamptz, p_before_id uuid, p_limit integer,
     p_title_query text, p_catalog_id integer, p_audience text, p_sizes text[],
-    p_query_id uuid default null
+    p_query_id uuid, p_after_time timestamptz
 )
 returns jsonb language plpgsql stable security definer set search_path = '' as $function$
 declare
@@ -87,7 +87,8 @@ begin
         raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
     end if;
     if p_limit is null or p_limit not between 1 and 100
-        or (p_before_time is null) <> (p_before_id is null) then
+        or (p_before_time is null) <> (p_before_id is null)
+        or (p_before_time is not null and p_after_time is not null) then
         raise exception 'Ungueltige Seitengroesse oder Position.' using errcode = '22023';
     end if;
     if p_title_query is not null and length(p_title_query) > 200 then
@@ -181,6 +182,7 @@ begin
         left join public.vinted_categories as category on category.id = listing.catalog_id
         where listing.first_seen_at >= now() - interval '3 days'
             and not listing.is_initial_stock
+            and (p_after_time is null or listing.first_seen_at >= p_after_time)
             and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
             and (not v_has_title_query or (v_title_query is not null and to_tsvector('simple', coalesce(listing.title,'')) @@ v_title_query))
             and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
@@ -237,6 +239,21 @@ begin
     return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
 end;
 $function$;
+revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid, timestamptz) from public, anon;
+grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid, timestamptz) to authenticated;
+
+-- Bestehende Browser und Aufrufer behalten die bisherige Seitensignatur.
+create or replace function public.sniper_feed_search(
+    p_workspace_id uuid, p_watchlist_id uuid, p_brand text, p_size text, p_min_price numeric,
+    p_max_price numeric, p_before_time timestamptz, p_before_id uuid, p_limit integer,
+    p_title_query text, p_catalog_id integer, p_audience text, p_sizes text[],
+    p_query_id uuid default null
+)
+returns jsonb language sql stable security invoker set search_path = '' as $function$
+    select public.sniper_feed_search(p_workspace_id, p_watchlist_id, p_brand, p_size, p_min_price,
+        p_max_price, p_before_time, p_before_id, p_limit, p_title_query, p_catalog_id, p_audience,
+        p_sizes, p_query_id, null);
+$function$;
 revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid) from public, anon;
 grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid) to authenticated;
 
@@ -247,3 +264,34 @@ returns jsonb language sql stable security definer set search_path = '' as $func
 $function$;
 revoke all on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text) from public, anon;
 grant execute on function public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text) to authenticated;
+
+-- Nur bereits im Feed konfigurierte Markenkennungen werden beim Linkimport aufgelöst.
+create or replace function public.sniper_feed_import_brand(p_workspace_id uuid, p_brand_id integer)
+returns text language plpgsql stable security definer set search_path = '' as $function$
+declare
+    v_name text;
+    v_configured_names bigint;
+begin
+    if not public.can_access_workspace(p_workspace_id) then
+        raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode = '42501';
+    end if;
+    select min(btrim(brand.name)), count(distinct lower(btrim(brand.name)))
+    into v_name, v_configured_names
+    from public.sniper_queries query
+    cross join lateral unnest(query.brand_ids, query.brand_names) as brand(id, name)
+    where query.marketplace = 'vinted' and query.is_active and query.deleted_at is null
+      and brand.id = p_brand_id and nullif(btrim(brand.name), '') is not null;
+    if v_configured_names > 0 then
+        return case when v_configured_names = 1 then v_name end;
+    end if;
+    select min(btrim(listing.brand)) into v_name
+    from public.sniper_queries query
+    join public.sniper_listings listing on listing.discovered_by_query_id = query.id
+    where query.marketplace = 'vinted' and query.is_active and query.deleted_at is null
+      and query.brand_id = p_brand_id and nullif(btrim(listing.brand), '') is not null
+    having count(distinct lower(btrim(listing.brand))) = 1;
+    return v_name;
+end;
+$function$;
+revoke all on function public.sniper_feed_import_brand(uuid, integer) from public, anon;
+grant execute on function public.sniper_feed_import_brand(uuid, integer) to authenticated;

@@ -24,11 +24,21 @@
         }
       </button>
 
-      @if (item().is_hidden) {
-        <app-badge tone="caution" class="pointer-events-none absolute top-3 left-3">
-          Noch nicht kaufbar
+      <div
+        class="pointer-events-none absolute top-3 right-3 left-3 flex flex-col items-start gap-1"
+      >
+        <app-badge>
+          <time
+            class="whitespace-nowrap tabular-nums"
+            [attr.datetime]="item().first_seen_at"
+            [title]="'Entdeckt: ' + (item().first_seen_at | date: 'dd.MM.yyyy · HH:mm:ss')"
+            ><span class="sr-only">Entdeckt </span>{{ discoveredLabel() }}</time
+          >
         </app-badge>
-      }
+        @if (item().is_hidden) {
+          <app-badge tone="caution">Noch nicht kaufbar</app-badge>
+        }
+      </div>
 
       <div class="pointer-events-none absolute right-2 bottom-2 left-2 flex items-center gap-2">
         <div class="pointer-events-auto ml-auto flex shrink-0 items-center gap-2">
@@ -101,16 +111,7 @@
         }
       </dl>
 
-      <div class="mt-auto flex flex-wrap items-center justify-between gap-2">
-        <p class="flex min-w-0 items-center gap-1.5 text-xs text-fb-text-muted">
-          <svg [lucideIcon]="icons.discovered" class="size-3.5 shrink-0" aria-hidden="true"></svg>
-          <time
-            [attr.datetime]="item().first_seen_at"
-            [title]="'Entdeckt: ' + (item().first_seen_at | date: 'dd.MM.yyyy · HH:mm')"
-          >
-            {{ discoveredLabel() }}
-          </time>
-        </p>
+      <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
         <div class="flex shrink-0 items-center gap-1.5">
           <app-button
             variant="secondary"

@@ -40,5 +40,32 @@ select throws_ok($$select public.sniper_feed_search('95000000-0000-4000-8000-000
 select throws_ok($$select public.sniper_feed_search('95000000-0000-4000-8000-000000000999',null,null,null,null,null,null,null,100,'Vintage')$$,'42501',null,'Workspace-Grenze bleibt auch bei einer Textsuche bestehen');
 select throws_ok($$select public.sniper_feed_search('95000000-0000-4000-8000-000000000002',null,null,null,null,null,null,null,100,repeat('a',201))$$,'22023',null,'Überlange Eingaben werden abgelehnt');
 reset role;
+insert into public.sniper_listings(external_id,title,url,item_price,total_price,brand,size,condition,discovered_by_query_id,first_seen_at)
+values ('title-same-time', 'Weitere Jacke', 'https://www.vinted.de/items/7', 15, 17, 'Nike', 'L', 'Neu, mit Etikett', '95000000-0000-4000-8000-000000000003', now());
+insert into public.sniper_watchlists(id,workspace_id,title,condition)
+values ('95000000-0000-4000-8000-000000000006','95000000-0000-4000-8000-000000000002','Mit Etikett','Neu mit Etikett');
+set local role authenticated;
+select is(jsonb_array_length(public.sniper_feed_search(
+ '95000000-0000-4000-8000-000000000002',null,'Nike',null,null,null,null,null,61,'',null,null,'{}',null,now())->'items'),2,
+ 'Der Live-Ausschnitt enthält alle gleichzeitigen Funde und keine älteren Karten');
+select is(jsonb_array_length(public.sniper_feed_search(
+ '95000000-0000-4000-8000-000000000002',null,'Nike',null,12,null,null,null,61,'',null,null,'{}',null,now())->'items'),1,
+ 'Die normalen Preisfilter gelten auch für Live-Ausschnitte');
+select is(jsonb_array_length(public.sniper_feed_search(
+ '95000000-0000-4000-8000-000000000002','95000000-0000-4000-8000-000000000006',null,null,null,null,null,null,61,'',null,null,'{}',null,now())->'items'),1,
+ 'Ein importierter Zustand findet dieselbe Bezeichnung auch mit dem Vinted-Komma');
+select throws_ok($$select public.sniper_feed_search(
+ '95000000-0000-4000-8000-000000000999',null,null,null,null,null,null,null,61,'',null,null,'{}',null,now())$$,
+ '42501',null,'Live-Ausschnitte prüfen den Arbeitsbereich');
+select is(public.sniper_feed_import_brand('95000000-0000-4000-8000-000000000002',53),null,'Widersprüchliche Treffer ergeben keine Zuordnung für eine alte Markenkennung');
+reset role;
+update public.sniper_queries set brand_ids = '{53}', brand_names = '{Nike}' where id = '95000000-0000-4000-8000-000000000003';
+set local role authenticated;
+select is(public.sniper_feed_import_brand('95000000-0000-4000-8000-000000000002',53),'Nike','Die konfigurierte Markenkennung hat Vorrang vor abweichenden Treffern');
+select is(public.sniper_feed_import_brand('95000000-0000-4000-8000-000000000002',2147483647),null,'Unbekannte Kennung wird nicht durch einen anderen Filter ersetzt');
+select throws_ok($$select public.sniper_feed_import_brand('95000000-0000-4000-8000-000000000999',53)$$,'42501',null,'Markenimport prüft den Arbeitsbereich');
+reset role;
+select ok(not has_function_privilege('anon','public.sniper_feed_import_brand(uuid, integer)','execute'),'Anonyme Aufrufe der Markenauflösung sind gesperrt');
+select ok(not has_function_privilege('anon','public.sniper_feed_search(uuid, uuid, text, text, numeric, numeric, timestamptz, uuid, integer, text, integer, text, text[], uuid, timestamptz)','execute'),'Anonyme Aufrufe des Live-Ausschnitts sind gesperrt');
 select * from finish();
 rollback;

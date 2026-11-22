@@ -565,7 +565,7 @@ returns boolean language sql stable security invoker set search_path = '' as $$
                  where selected_brand.id = p_watchlist.legacy_brand_id
                    and lower(btrim(selected_brand.name)) = lower(btrim(p_listing.brand))))))
        and (p_watchlist.search_text is null or strpos(lower(p_listing.title || ' ' || coalesce(p_listing.description, '')), lower(p_watchlist.search_text)) > 0)
-       and (p_watchlist.condition is null or p_watchlist.condition = p_listing.condition)
+       and (p_watchlist.condition is null or replace(p_watchlist.condition, ',', '') = replace(p_listing.condition, ',', ''))
        and (coalesce(cardinality(p_watchlist.sizes), 0) = 0 or exists (
            select 1 from unnest(p_watchlist.sizes) as size
            where public.sniper_feed_matches_size(p_listing.size, size)))

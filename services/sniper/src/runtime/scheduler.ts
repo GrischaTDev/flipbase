@@ -6,7 +6,11 @@ import type { SearchFilterRunResult, SearchFilterRunDiagnostics } from '../store
 import { RequestBudgetUnavailableError, type RequestBudget } from './budget.js';
 import { createTitleKeywordMatcher } from '../domain/title-keywords.js';
 import { searchFilterRequest } from '../domain/search-filter-request.js';
-import { planSearchRequests, type SearchRequestPlan } from './search-request-planner.js';
+import {
+  coversPriceRange,
+  planSearchRequests,
+  type SearchRequestPlan,
+} from './search-request-planner.js';
 import { RequestPausedError } from './request-start-guard.js';
 import { evaluateFailure, type RetryDecision } from './retry-policy.js';
 import { VintedCollectorError } from '../vinted/errors.js';
@@ -139,6 +143,7 @@ export interface SchedulerDeps {
   origin?: string;
   now?: () => Date;
   maxRequestsPerCycle?: number;
+  sharePriceRanges?: boolean;
   onOriginPause?: () => void;
 }
 
@@ -149,6 +154,11 @@ interface ConsumerSourceWindow {
   coverage: SearchFilterRunDiagnostics['coverage'];
   pages: number;
   needsMore: boolean;
+}
+
+interface SharedPriceWindow {
+  listings: MarketplaceListing[];
+  filterCount: number;
 }
 
 const MAX_CONSUMER_SOURCE_WINDOWS = 2048;
@@ -249,13 +259,24 @@ export class QueryScheduler {
       const plans = planSearchRequests(queriesToRun);
       if (isProbeCycle && plans.length === 0) await this.originStore.releaseProbe(origin, false);
       const limit = this.deps.maxRequestsPerCycle ?? 1;
-      for (const plan of plans.slice(0, limit)) {
-        if (!this.deps.budget.hasCapacity()) {
+      let requests = 0;
+      const reusable = new Map<string, SharedPriceWindow>();
+      for (const [index, plan] of plans.entries()) {
+        const cached = reusable.get(plan.key);
+        if (!cached && requests >= limit) continue;
+        if (!cached && !this.deps.budget.hasCapacity()) {
           report.skippedForBudget += plan.consumers.length;
           if (isProbeCycle) await this.originStore.releaseProbe(origin, false);
           break;
         }
-        await this.pollShared(plan, report, isProbeCycle);
+        if (!cached) requests++;
+        const later =
+          !isProbeCycle && !cached && this.deps.sharePriceRanges !== false
+            ? plans.slice(index + 1).filter((target) => coversPriceRange(plan, target))
+            : [];
+        await this.pollShared(plan, report, isProbeCycle, cached, (listings) =>
+          this.sharePriceWindows(later, listings, reusable, plan.consumers.length),
+        );
         if (report.originPause) break;
       }
       return report;
@@ -451,10 +472,52 @@ export class QueryScheduler {
     return this.deps.now?.() ?? new Date();
   }
 
+  private sharePriceWindows(
+    targets: SearchRequestPlan[],
+    listings: MarketplaceListing[],
+    reusable: Map<string, SharedPriceWindow>,
+    filterCount: number,
+  ): number {
+    if (
+      !targets.length ||
+      listings.some(
+        ({ itemPrice, hasExactItemPrice }) =>
+          !hasExactItemPrice || itemPrice.currency !== 'EUR' || !Number.isFinite(itemPrice.amount),
+      )
+    )
+      return filterCount;
+    const matchesByTarget = new Map<string, MarketplaceListing[]>();
+    for (const target of targets) {
+      if (reusable.has(target.key)) continue;
+      const { priceFrom, priceTo } = target.sourceQuery;
+      const matches = listings.filter(
+        ({ itemPrice }) =>
+          (priceFrom === null || itemPrice.amount >= priceFrom) &&
+          (priceTo === null || itemPrice.amount <= priceTo),
+      );
+      // Jede Teilabfrage muss ihren eigenen exakt abgerufenen Ausschnitt wiederfinden.
+      const caughtUp = target.consumers.every((query) => {
+        const previous = this.previousConsumerSourceIds.get(
+          JSON.stringify([query.id, query.filterRevision, target.key]),
+        );
+        return previous && matches.some(({ externalId }) => previous.has(externalId));
+      });
+      if (caughtUp) {
+        matchesByTarget.set(target.key, matches);
+        filterCount += target.consumers.length;
+      }
+    }
+    for (const [key, matches] of matchesByTarget)
+      reusable.set(key, { listings: matches, filterCount });
+    return filterCount;
+  }
+
   private async pollShared(
     plan: SearchRequestPlan,
     report: CycleReport,
     isProbe: boolean,
+    cached: SharedPriceWindow | undefined,
+    share: (listings: MarketplaceListing[]) => number,
   ): Promise<void> {
     if (plan.sourceQuery.filterFormatVersion !== 1) {
       const failedBefore = report.failed;
@@ -501,6 +564,7 @@ export class QueryScheduler {
     const isSeed = (query: SniperQuery) =>
       !(query.seededRequests ?? []).includes(searchFilterRequest(query).index);
     let page = 0;
+    let filterCount = cached?.filterCount ?? plan.consumers.length;
     const titleMatchesByQuery = new Map<SniperQuery, MarketplaceListing[]>();
     const resetBaselines = new Map<SniperQuery, string>();
     try {
@@ -508,7 +572,9 @@ export class QueryScheduler {
       let more = true;
       while (more) {
         page++;
-        const listings = await collectSource.call(this.deps.collector, plan.sourceQuery, { page });
+        const listings =
+          cached?.listings ??
+          (await collectSource.call(this.deps.collector, plan.sourceQuery, { page }));
         for (const window of windows.values()) {
           if (!window.needsMore) continue;
           window.pages = page;
@@ -522,6 +588,12 @@ export class QueryScheduler {
           window.needsMore = window.previousIds !== undefined && !overlap && listings.length > 0;
         }
         const needsCatchup = [...windows.values()].some((window) => window.needsMore);
+        if (
+          !cached &&
+          page === 1 &&
+          [...windows.values()].every(({ coverage }) => coverage === 'caught_up')
+        )
+          filterCount = share(listings);
         more = needsCatchup && page < 3 && this.deps.budget.hasCapacity() && !isProbe;
         if (needsCatchup && !more) {
           for (const window of windows.values()) if (window.needsMore) window.coverage = 'limited';
@@ -600,7 +672,7 @@ export class QueryScheduler {
         const diagnostics: SearchFilterRunDiagnostics = {
           coverage: resetBaseline !== undefined ? 'initial' : window.coverage,
           source_pages: window.pages,
-          shared_filter_count: plan.consumers.length,
+          shared_filter_count: filterCount,
           duration_ms: Math.min(86_400_000, Math.max(0, this.currentTime().getTime() - started)),
           ...(resetBaseline === undefined ? {} : { baseline_external_id: resetBaseline }),
         };
@@ -649,7 +721,7 @@ export class QueryScheduler {
       seeded: report.seeded,
       failed: report.failed,
       skipped: report.skippedForBudget,
-      sharedFilters: plan.consumers.length,
+      sharedFilters: filterCount,
       sourcePages: page,
       coverage: [...new Set([...windows.values()].map((window) => window.coverage))].join(','),
     });

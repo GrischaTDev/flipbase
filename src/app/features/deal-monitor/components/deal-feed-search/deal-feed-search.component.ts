@@ -237,14 +237,14 @@ export class DealFeedSearchComponent {
       const workspace = this.workspace()?.id;
       if (!workspace) return;
       const cleanup = untracked(() =>
-        this.updates.watch(workspace, () => {
+        this.updates.watch(workspace, (delta) => {
           if (
             !this.destroyRef.destroyed &&
             !this.document.hidden &&
             !this.state.error() &&
             this.workspace()?.id === workspace
           )
-            this.state.notifyUpdate();
+            this.state.notifyUpdate(delta);
         }),
       );
       onCleanup(cleanup);
