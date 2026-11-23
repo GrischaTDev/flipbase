@@ -2,6 +2,7 @@ import { parseVintedTransferSource } from '../../../supabase/functions/_shared/k
 import { parseVintedSellingTree } from '../../../supabase/functions/_shared/vinted-selling-tree.mjs';
 import { parseVintedListingDeleteResult } from './vinted-browser-listing-delete.ts';
 import type { VintedListingPriceUnconfirmedReason } from './vinted-browser-listing-price.ts';
+import { parseVintedWriteRequestShapes } from './vinted-write-request-shape.ts';
 import {
   isMarketplaceInboxNotificationKind,
   marketplaceInboxEventMaxBytes,
@@ -1293,16 +1294,21 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     const result = commandRecord(input);
     if (
       Object.keys(result).some(
-        (key) => !['status', 'fields', 'priceCents', 'reason'].includes(key),
+        (key) => !['status', 'fields', 'priceCents', 'reason', 'requestShapes'].includes(key),
       ) ||
       !['confirmed', 'unconfirmed', 'conflict'].includes(String(result.status))
     )
       throw new Error('Ungültiges Speicherergebnis');
     if (result.status !== 'unconfirmed' && Object.hasOwn(result, 'reason'))
       throw new Error('Ungültiger Bestätigungsgrund');
+    const shapes = Object.hasOwn(result, 'requestShapes')
+      ? { requestShapes: parseVintedWriteRequestShapes(result.requestShapes) }
+      : {};
+    if (result.status === 'conflict' && Object.hasOwn(result, 'requestShapes'))
+      throw new Error('Ungültige Messung');
     if (result.status === 'confirmed') {
       if (Object.hasOwn(result, 'priceCents')) throw new Error('Ungültiger Verkaufspreis');
-      return { status: 'confirmed', fields: fields(result.fields) };
+      return { status: 'confirmed', fields: fields(result.fields), ...shapes };
     }
     if (Object.hasOwn(result, 'fields')) throw new Error('Unbestätigte Inseratfelder');
     if (result.status === 'conflict') {
@@ -1317,7 +1323,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
       return { status: 'conflict', priceCents: price };
     }
     if (Object.hasOwn(result, 'priceCents')) throw new Error('Unbestätigter Verkaufspreis');
-    if (result.reason === undefined) return { status: result.status };
+    if (result.reason === undefined) return { status: result.status, ...shapes };
     if (
       !['save_click', 'save_rejected', 'item_unreadable', 'price_pending'].includes(
         String(result.reason),
@@ -1327,6 +1333,7 @@ export function validateBrowserResult(name: BrowserActionName, input: unknown): 
     return {
       status: result.status,
       reason: result.reason as VintedListingPriceUnconfirmedReason,
+      ...shapes,
     };
   }
   if (name === 'readListingEdit') return fields(input);

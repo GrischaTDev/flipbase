@@ -1090,3 +1090,109 @@ test('sold listing source read uses the item in the sale and never writes its hi
     validateAccountActionPayload('listing_content_save', { entryId, saleItemId: '789' }),
   );
 });
+
+const measuredShape = {
+  method: 'PUT',
+  path: '/api/v2/item_upload/items/:id',
+  contentType: 'json',
+  fields: ['item:object', 'item.price:object', 'item.price.amount:string'],
+  status: 200,
+};
+
+test('gemessener Anfrageaufbau kommt ins Worker-Protokoll, nicht ins gespeicherte Ergebnis', async () => {
+  const { claim, store, calls } = fixture('price_save', {
+    entryId,
+    expectedPriceCents: 100,
+    priceCents: 100,
+  });
+  const runner = new MarketplaceAccountActionRunner({
+    url: 'https://db.example',
+    serviceRoleKey: 'server',
+    publishableKey: 'public',
+    store,
+    fetch: async () => Response.json(true),
+    broker: {
+      open: async () => sessionId,
+      run: async (_scope, _id, operation) =>
+        operation({
+          version: () => '',
+          updateListingPrice: async () => ({
+            status: 'confirmed',
+            fields: { title: 'Artikel', description: 'Beschreibung', price: '1,00' },
+            requestShapes: [measuredShape],
+          }),
+        } as unknown as BrowserInfo),
+      close: async () => undefined,
+      discardUnstartedAction: async () => undefined,
+    },
+  });
+  const logged: string[] = [];
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    logged.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk).toString('utf8'));
+    return true;
+  }) as typeof process.stdout.write;
+  try {
+    await runner.run(claim);
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+  const result = calls.at(-1)?.body.p_result as Record<string, unknown>;
+  assert.equal(calls.at(-1)?.body.p_state, 'succeeded');
+  assert.equal(Object.hasOwn(result, 'requestShapes'), false);
+  const events = logged
+    .map((line) => {
+      try {
+        return JSON.parse(line.trim()) as Record<string, unknown>;
+      } catch {
+        return null;
+      }
+    })
+    .filter((entry) => entry?.event === 'marketplace_vinted_write_request_shape');
+  assert.deepEqual(events, [
+    { event: 'marketplace_vinted_write_request_shape', kind: 'price_save', ...measuredShape },
+  ]);
+});
+
+test('der Anfrageaufbau passiert die Browsergrenze nur vollständig geprüft', () => {
+  assert.deepEqual(
+    validateBrowserResult('updateListingPrice', {
+      status: 'unconfirmed',
+      reason: 'price_pending',
+      requestShapes: [measuredShape],
+    }),
+    { status: 'unconfirmed', reason: 'price_pending', requestShapes: [measuredShape] },
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', {
+      status: 'unconfirmed',
+      requestShapes: [{ ...measuredShape, path: '/api/v2/item_upload/items/10789520736' }],
+    }),
+  );
+  assert.throws(() =>
+    validateBrowserResult('updateListingPrice', {
+      status: 'conflict',
+      priceCents: 1200,
+      requestShapes: [measuredShape],
+    }),
+  );
+  assert.deepEqual(
+    validateBrowserResult('deleteListing', {
+      status: 'confirmed',
+      step: 'verify',
+      requestShapes: [{ ...measuredShape, method: 'POST', path: '/api/v2/items/:id/delete' }],
+    }),
+    {
+      status: 'confirmed',
+      step: 'verify',
+      requestShapes: [{ ...measuredShape, method: 'POST', path: '/api/v2/items/:id/delete' }],
+    },
+  );
+  assert.throws(() =>
+    validateBrowserResult('deleteListing', {
+      status: 'failed',
+      step: 'open',
+      requestShapes: [measuredShape],
+    }),
+  );
+});

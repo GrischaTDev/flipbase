@@ -2,6 +2,11 @@ import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+import {
+  parseVintedWriteRequestShapes,
+  recordVintedWriteRequests,
+  type VintedWriteRequestShape,
+} from './vinted-write-request-shape.ts';
 
 export async function readVintedListingPresence(
   page: Page,
@@ -48,13 +53,15 @@ export async function readVintedListingPresence(
 export interface VintedListingDeleteResult {
   status: 'confirmed' | 'failed' | 'outcome_unknown';
   step: 'authorize' | 'source' | 'open' | 'confirm' | 'verify';
+  /** Aufbau der Löschanfragen, die Vinteds Seite gesendet hat; ohne Werte. */
+  requestShapes?: VintedWriteRequestShape[];
 }
 export function parseVintedListingDeleteResult(input: unknown): VintedListingDeleteResult {
   if (
     !input ||
     typeof input !== 'object' ||
     Array.isArray(input) ||
-    Object.keys(input).length !== 2 ||
+    Object.keys(input).some((key) => !['status', 'step', 'requestShapes'].includes(key)) ||
     !('status' in input) ||
     !('step' in input) ||
     typeof input.status !== 'string' ||
@@ -64,7 +71,16 @@ export function parseVintedListingDeleteResult(input: unknown): VintedListingDel
     (input.status === 'confirmed' && input.step !== 'verify')
   )
     throw new Error('Ungültige Löschbestätigung');
-  return input as VintedListingDeleteResult;
+  const result: VintedListingDeleteResult = {
+    status: input.status as VintedListingDeleteResult['status'],
+    step: input.step as VintedListingDeleteResult['step'],
+  };
+  if ('requestShapes' in input) {
+    if (input.status === 'failed' && input.step !== 'verify')
+      throw new Error('Ungültige Löschbestätigung');
+    result.requestShapes = parseVintedWriteRequestShapes(input.requestShapes);
+  }
+  return result;
 }
 
 /** Löscht genau einmal über die native Oberfläche; nur ein danach gelesener 404 bestätigt die Entfernung. */
@@ -78,6 +94,11 @@ export async function deleteVintedListing(
   if (page.url() !== 'about:blank') throw new Error('Die Artikelseite ist nicht neu reserviert.');
   let attempted = false;
   let step: VintedListingDeleteResult['step'] = 'authorize';
+  let recorder: Awaited<ReturnType<typeof recordVintedWriteRequests>> | null = null;
+  const measured = (result: VintedListingDeleteResult): VintedListingDeleteResult => {
+    const requestShapes = recorder?.shapes() ?? [];
+    return requestShapes.length ? { ...result, requestShapes } : result;
+  };
   try {
     if (![itemId, accountId].every((id) => /^[1-9][0-9]{0,31}$/.test(id)))
       return { status: 'failed', step };
@@ -148,6 +169,8 @@ export async function deleteVintedListing(
     if ((await confirm.count()) !== 1 || !(await confirm.isEnabled()))
       return { status: 'outcome_unknown', step };
     await check();
+    // Passive Messung für einen späteren direkten Löschweg; ihr Ausfall ändert nichts.
+    recorder = await recordVintedWriteRequests(page).catch(() => null);
     await beforeVintedWrite(authorize);
     attempted = true;
     await confirm.click({ timeout: 5_000 });
@@ -170,16 +193,17 @@ export async function deleteVintedListing(
             url.pathname === '/api/v2/item_upload/items/' + id
           );
         }, itemId);
-        if (removed) return { status: 'confirmed', step };
+        if (removed) return measured({ status: 'confirmed', step });
       } catch {
         // Vinted wechselt nach der Löschung ins eigene Profil. Währenddessen ist noch kein Beleg lesbar.
       }
       await wait(300);
     } while (Date.now() < deadline);
-    return { status: 'outcome_unknown', step };
+    return measured({ status: 'outcome_unknown', step });
   } catch {
-    return { status: attempted ? 'outcome_unknown' : 'failed', step };
+    return attempted ? measured({ status: 'outcome_unknown', step }) : { status: 'failed', step };
   } finally {
+    await recorder?.close();
     await page.close();
   }
 }

@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - Aufbau von Vinteds Speicher- und Löschaufrufen messen
+
+**Anlass:** Stufe 4 des Plans zur Vinted-Zuverlässigkeit soll Preisänderungen und Löschungen direkt über Vinteds Schnittstelle schreiben, mit dem Formular als Rückfall. Seit Stufe 1 gab es in Produktion noch keine Preisänderung und keine Löschung. Das genaue Format von Vinteds Aufrufen ist daher nicht gemessen. Ein geratenes Format könnte ein Inserat beschädigen, etwa Fotos oder Merkmale entfernen. Deshalb wird zuerst gemessen.
+
+**Änderung:**
+
+- **Passive Messung (`vinted-write-request-shape.ts`):** Während des Speicherklicks einer Preisänderung und des Löschklicks hört der Browser per CDP-Network mit, ohne abzufangen oder selbst etwas zu senden. Beschrieben werden nur schreibende Aufrufe des Hauptframes an `https://www.vinted.de/api/v2/`, und zwar mit Methode, Adressmuster (Kennungen als `:id`), Inhaltstyp, Feldnamen mit Typ und Antwortstatus. Werte, Texte, Preise und Kennungen werden nie erfasst. Zahlen- und unbekannte Schlüssel erscheinen als `#` oder `?`.
+- **Weg ins Protokoll:** Die Messung reist streng geprüft im Aktionsergebnis über die Browsergrenze (`isolated-browser-actions.ts`, `parseVintedListingDeleteResult`). Der Worker schreibt sie als `marketplace_vinted_write_request_shape` in sein Protokoll, das seit Stufe 3 über Updates erhalten bleibt, und entfernt sie vor dem Speichern aus dem Ergebnis.
+- Fällt die Messung aus, laufen Preisänderung und Löschen unverändert weiter.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-23 - Juna - Vinted-Abläufe: Protokolle bleiben über Updates erhalten, neuer Preis erscheint sofort
 
 **Anlass:** Stufe 3 des Plans zur Vinted-Zuverlässigkeit. Die Ursachen der Fehler vom 15. bis 17.11. ließen sich nicht mehr klären, weil das Container-Protokoll des Workers bei jedem Update mit dem alten Container verschwindet. Bei Preisänderungen zeigte die Oberfläche bis zur Bestätigung den alten Preis.
