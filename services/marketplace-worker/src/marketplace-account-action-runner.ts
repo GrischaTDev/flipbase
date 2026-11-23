@@ -153,6 +153,18 @@ function logAccountActionFailure(kind: string, errorCode: string | null, error: 
   );
 }
 
+/** Schreibt den gemessenen Anfrageaufbau ins Worker-Protokoll und entfernt ihn aus dem Ergebnis. */
+function logWriteRequestShapes(kind: string, result: Record<string, unknown>): void {
+  const shapes = result['requestShapes'];
+  delete result['requestShapes'];
+  if (!Array.isArray(shapes)) return;
+  for (const shape of shapes)
+    process.stdout.write(
+      `${JSON.stringify({ event: 'marketplace_vinted_write_request_shape', kind, ...shape })}
+`,
+    );
+}
+
 function logAccountActionUnconfirmed(kind: string, reason: unknown): void {
   // Nur feste Gründe; ohne Inhalte, Preise oder Kontodaten.
   const known = ['save_click', 'save_rejected', 'item_unreadable', 'price_pending'];
@@ -452,6 +464,7 @@ export class MarketplaceAccountActionRunner {
           throw error;
         }
       });
+      logWriteRequestShapes(claim.actionKind, result);
       state =
         result.status === 'unconfirmed' || result.status === 'outcome_unknown'
           ? 'outcome_unknown'

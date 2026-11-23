@@ -13,6 +13,10 @@ import {
   readVintedListingPriceCents,
 } from './vinted-browser-listing-item.ts';
 import { observeVintedListingSave } from './vinted-listing-save-response.ts';
+import {
+  recordVintedWriteRequests,
+  type VintedWriteRequestShape,
+} from './vinted-write-request-shape.ts';
 import { fillVintedListingPrice } from './vinted-browser-listing-price-input.ts';
 import {
   vintedListingUpdateFailure,
@@ -28,6 +32,8 @@ export interface VintedListingPriceResult {
   fields?: VintedListingEditFields;
   priceCents?: number;
   reason?: VintedListingPriceUnconfirmedReason;
+  /** Aufbau der Speicheranfragen, die Vinteds Seite nach dem Klick gesendet hat; ohne Werte. */
+  requestShapes?: VintedWriteRequestShape[];
 }
 
 /** Eine reservierte Seite, nur ein Preisfeld, genau ein Speicherklick. */
@@ -112,6 +118,12 @@ export async function updateVintedListingPrice(
     await check();
     // Vor dem Klick anmelden, damit Vinteds Antwort auf genau diesen Speicheraufruf mitgelesen wird.
     const response = await observeVintedListingSave(page, itemId, timeoutMs);
+    // Passive Messung für einen späteren direkten Schreibweg; ihr Ausfall ändert nichts.
+    const recorder = await recordVintedWriteRequests(page).catch(() => null);
+    const measured = <T extends VintedListingPriceResult>(result: T): T => {
+      const requestShapes = recorder?.shapes() ?? [];
+      return requestShapes.length ? { ...result, requestShapes } : result;
+    };
     try {
       step = 'save';
       try {
@@ -138,8 +150,8 @@ export async function updateVintedListingPrice(
         matches: (saved) => saved === priceCents,
         timeoutMs,
       });
-      if (status === 'confirmed') return { status, fields };
-      return {
+      if (status === 'confirmed') return measured({ status, fields });
+      return measured({
         status,
         reason:
           evidence === 'rejected'
@@ -147,8 +159,9 @@ export async function updateVintedListingPrice(
             : readable
               ? 'price_pending'
               : 'item_unreadable',
-      };
+      });
     } finally {
+      await recorder?.close();
       await response.close();
     }
   } catch {

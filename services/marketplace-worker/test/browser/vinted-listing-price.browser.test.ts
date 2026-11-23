@@ -5,6 +5,7 @@ import { updateVintedListing } from '../../src/vinted-browser-listing-edit.ts';
 import { updateVintedListingPrice } from '../../src/vinted-browser-listing-price.ts';
 import { readVintedListingPresence } from '../../src/vinted-browser-listing-delete.ts';
 import { createVintedListingEditFormFixture } from '../fixtures/vinted-listing-edit-form.ts';
+import { recordVintedWriteRequests } from '../../src/vinted-write-request-shape.ts';
 
 test('fehlende dauerhafte Schreibfreigabe verhindert den echten Speicherklick', async () => {
   const browser = await chromium.launch();
@@ -204,6 +205,21 @@ test('bestätigt den Preis über Vinteds Speicherantwort, auch wenn das Nachlese
     assert.equal(result.status, 'confirmed');
     assert.equal(result.fields?.price, '10,00');
     assert.equal(form.saves(), 1);
+    // Die Messung beschreibt den echten Speicheraufruf nur mit Feldnamen, ohne Werte.
+    assert.equal(result.requestShapes?.length, 1);
+    assert.deepEqual(
+      { ...result.requestShapes![0], fields: undefined },
+      {
+        method: 'PUT',
+        path: '/api/v2/item_upload/items/:id',
+        contentType: 'json',
+        status: 200,
+        fields: undefined,
+      },
+    );
+    assert.ok(result.requestShapes![0]!.fields.includes('price:string'));
+    assert.equal(JSON.stringify(result.requestShapes).includes('10,00'), false);
+    assert.equal(JSON.stringify(result.requestShapes).includes('Meine Schuhe'), false);
   } finally {
     await browser.close();
   }
@@ -371,6 +387,49 @@ test('Preisänderung erlaubt fehlende KI- und Push-Auswahl bei gepushten Inserat
       assert.equal(blockedForm.saves(), 0);
       assert.equal(blockedForm.writes(), 0);
     }
+  } finally {
+    await browser.close();
+  }
+});
+
+test('die Messung hört nur Vinteds schreibende Schnittstellenaufrufe des Hauptframes mit', async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage();
+    await page.route('https://www.vinted.de/**', (route) =>
+      route.request().url().endsWith('/start')
+        ? route.fulfill({ contentType: 'text/html', body: '<h1>Vinted</h1>' })
+        : route.fulfill({ status: 204 }),
+    );
+    await page.goto('https://www.vinted.de/start');
+    const recorder = await recordVintedWriteRequests(page);
+    await page.evaluate(async () => {
+      await fetch('/api/v2/items/98765', { method: 'GET' });
+      await fetch('/api/v2/items/98765/delete', { method: 'POST' });
+      await fetch('/api/v2/item_upload/items/98765', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ item: { price: '10.00', title: 'Geheim' } }),
+      });
+      await fetch('/fixture/delete/98765', { method: 'DELETE' });
+    });
+    await recorder.close();
+    assert.deepEqual(recorder.shapes(), [
+      {
+        method: 'POST',
+        path: '/api/v2/items/:id/delete',
+        contentType: 'none',
+        fields: [],
+        status: 204,
+      },
+      {
+        method: 'PUT',
+        path: '/api/v2/item_upload/items/:id',
+        contentType: 'json',
+        fields: ['item:object', 'item.price:string', 'item.title:string'],
+        status: 204,
+      },
+    ]);
   } finally {
     await browser.close();
   }

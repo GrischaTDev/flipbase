@@ -393,7 +393,7 @@ export async function createVintedListingEditFormFixture(
       [2,3].forEach(id=>document.querySelector('#package-size-'+id).onclick=()=>[2,3].forEach(other=>document.querySelector('#package_type_selector_'+other).checked=other===id));
       document.querySelector('#save').onclick=async()=>{
         const one=name=>selected(name).map(identifier)[0]??null;
-        await fetch(${options.saveApi ? "'/api/v2/item_upload/items/98765'" : "'/fixture/save'"},{method:${options.saveApi ? "'PUT'" : "'POST'"},body:JSON.stringify({
+        await fetch(${options.saveApi ? "'/api/v2/item_upload/items/98765'" : "'/fixture/save'"},{method:${options.saveApi ? "'PUT',headers:{'Content-Type':'application/json'}" : "'POST'"},body:JSON.stringify({
           ${options.categoryChange ? "categoryId:one('category')," : ''}
           title:document.querySelector('[name=title]').value,description:document.querySelector('[name=description]').value,price:document.querySelector('[name=price]').value,
           brand:one('brand'),size:one('size'),condition:one('condition'),colors:selected('color').map(identifier),materials:selected('material').map(identifier),
