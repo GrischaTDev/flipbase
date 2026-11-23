@@ -2,6 +2,7 @@ import { beforeVintedWrite } from './vinted-write-authorization.ts';
 import { setTimeout as wait } from 'node:timers/promises';
 import type { Page } from 'playwright';
 import { readVintedAccountIdentity } from './vinted-browser-reader.ts';
+import { readVintedCsrfToken } from './vinted-browser-messages.ts';
 import {
   parseVintedWriteRequestShapes,
   recordVintedWriteRequests,
@@ -55,13 +56,15 @@ export interface VintedListingDeleteResult {
   step: 'authorize' | 'source' | 'open' | 'confirm' | 'verify';
   /** Aufbau der Löschanfragen, die Vinteds Seite gesendet hat; ohne Werte. */
   requestShapes?: VintedWriteRequestShape[];
+  /** Ob direkt über die Schnittstelle oder über die Knöpfe der Seite gelöscht wurde. */
+  via?: 'direct' | 'form';
 }
 export function parseVintedListingDeleteResult(input: unknown): VintedListingDeleteResult {
   if (
     !input ||
     typeof input !== 'object' ||
     Array.isArray(input) ||
-    Object.keys(input).some((key) => !['status', 'step', 'requestShapes'].includes(key)) ||
+    Object.keys(input).some((key) => !['status', 'step', 'requestShapes', 'via'].includes(key)) ||
     !('status' in input) ||
     !('step' in input) ||
     typeof input.status !== 'string' ||
@@ -80,6 +83,11 @@ export function parseVintedListingDeleteResult(input: unknown): VintedListingDel
       throw new Error('Ungültige Löschbestätigung');
     result.requestShapes = parseVintedWriteRequestShapes(input.requestShapes);
   }
+  if ('via' in input) {
+    if ((input.via !== 'direct' && input.via !== 'form') || input.status === 'failed')
+      throw new Error('Ungültige Löschbestätigung');
+    result.via = input.via;
+  }
   return result;
 }
 
@@ -95,9 +103,14 @@ export async function deleteVintedListing(
   let attempted = false;
   let step: VintedListingDeleteResult['step'] = 'authorize';
   let recorder: Awaited<ReturnType<typeof recordVintedWriteRequests>> | null = null;
+  let via: VintedListingDeleteResult['via'];
   const measured = (result: VintedListingDeleteResult): VintedListingDeleteResult => {
     const requestShapes = recorder?.shapes() ?? [];
-    return requestShapes.length ? { ...result, requestShapes } : result;
+    return {
+      ...result,
+      ...(requestShapes.length ? { requestShapes } : {}),
+      ...(via && result.status !== 'failed' ? { via } : {}),
+    };
   };
   try {
     if (![itemId, accountId].every((id) => /^[1-9][0-9]{0,31}$/.test(id)))
@@ -157,23 +170,66 @@ export async function deleteVintedListing(
     const open = root.getByTestId('item-delete-button');
     if ((await open.count()) !== 1 || !(await open.isVisible())) return { status: 'failed', step };
     await check();
-    // Schon der erste Löschknopf kann bei verändertem Anbieteraufbau eine Wirkung haben.
-    await beforeVintedWrite(authorize);
-    attempted = true;
-    await open.click({ timeout: 5_000 });
-    step = 'confirm';
-    const confirm = page
-      .getByTestId('item-delete-modal')
-      .getByTestId('item-delete-confirmation-button');
-    await confirm.waitFor({ state: 'visible', timeout: 5_000 });
-    if ((await confirm.count()) !== 1 || !(await confirm.isEnabled()))
-      return { status: 'outcome_unknown', step };
-    await check();
-    // Passive Messung für einen späteren direkten Löschweg; ihr Ausfall ändert nichts.
+    // Die Messung bleibt aktiv, damit eine spätere Änderung an Vinteds Aufruf sichtbar wird.
     recorder = await recordVintedWriteRequests(page).catch(() => null);
-    await beforeVintedWrite(authorize);
-    attempted = true;
-    await confirm.click({ timeout: 5_000 });
+    const token = await readVintedCsrfToken(page).catch(() => null);
+    let direct: 'deleted' | 'rejected' | 'unclear' | null = null;
+    if (token) {
+      // Derselbe Aufruf wie Vinteds eigener Löschdialog (am 23.11.2026 gemessen:
+      // POST /api/v2/items/<id>/delete ohne Inhalt, Antwort 200).
+      await beforeVintedWrite(authorize);
+      attempted = true;
+      via = 'direct';
+      const status = await page
+        .evaluate(
+          async ({ id, csrf }) => {
+            try {
+              const response = await fetch('/api/v2/items/' + id + '/delete', {
+                method: 'POST',
+                credentials: 'include',
+                cache: 'no-store',
+                headers: { Accept: 'application/json', 'X-CSRF-Token': csrf },
+                signal: AbortSignal.timeout(15_000),
+              });
+              const url = new URL(response.url);
+              return url.origin === 'https://www.vinted.de' &&
+                url.pathname === '/api/v2/items/' + id + '/delete'
+                ? response.status
+                : 0;
+            } catch {
+              return 0;
+            }
+          },
+          { id: itemId, csrf: token },
+        )
+        .catch(() => 0);
+      direct =
+        status >= 200 && status < 300
+          ? 'deleted'
+          : status >= 400 && status < 500
+            ? 'rejected'
+            : 'unclear';
+    }
+    // Nur eine eindeutige Ablehnung erlaubt den Weg über die Knöpfe: Dann wurde nichts gelöscht.
+    // Bei unklarem Ausgang entscheidet allein das Nachlesen, ohne zweiten Löschversuch.
+    if (direct === null || direct === 'rejected') {
+      via = 'form';
+      await check();
+      // Schon der erste Löschknopf kann bei verändertem Anbieteraufbau eine Wirkung haben.
+      await beforeVintedWrite(authorize);
+      attempted = true;
+      await open.click({ timeout: 5_000 });
+      step = 'confirm';
+      const confirm = page
+        .getByTestId('item-delete-modal')
+        .getByTestId('item-delete-confirmation-button');
+      await confirm.waitFor({ state: 'visible', timeout: 5_000 });
+      if ((await confirm.count()) !== 1 || !(await confirm.isEnabled()))
+        return measured({ status: 'outcome_unknown', step });
+      await check();
+      await beforeVintedWrite(authorize);
+      await confirm.click({ timeout: 5_000 });
+    }
     step = 'verify';
     const deadline = Date.now() + timeoutMs;
     do {

@@ -1196,3 +1196,16 @@ test('der Anfrageaufbau passiert die Browsergrenze nur vollständig geprüft', (
     }),
   );
 });
+
+test('der Löschweg passiert die Browsergrenze nur als fester Wert und landet nur im Protokoll', () => {
+  assert.deepEqual(
+    validateBrowserResult('deleteListing', { status: 'confirmed', step: 'verify', via: 'direct' }),
+    { status: 'confirmed', step: 'verify', via: 'direct' },
+  );
+  assert.throws(() =>
+    validateBrowserResult('deleteListing', { status: 'confirmed', step: 'verify', via: 'api' }),
+  );
+  assert.throws(() =>
+    validateBrowserResult('deleteListing', { status: 'failed', step: 'source', via: 'form' }),
+  );
+});

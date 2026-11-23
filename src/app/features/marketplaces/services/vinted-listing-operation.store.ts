@@ -312,7 +312,7 @@ export class VintedListingOperationStore {
         return server.state === 'queued'
           ? 'Preisänderung wartet'
           : this.pendingPrice(entry) !== null
-            ? 'Neuer Preis wird übertragen'
+            ? 'Preis wird übertragen'
             : 'Preis wird geändert';
       if (server.kind === 'listing_delete')
         return server.state === 'queued' ? 'Löschen wartet' : 'Inserat wird gelöscht';
@@ -331,7 +331,7 @@ export class VintedListingOperationStore {
         : action?.kind === 'edit'
           ? 'Inserat wird aktualisiert'
           : action?.targetPriceCents !== undefined
-            ? 'Neuer Preis wird übertragen'
+            ? 'Preis wird übertragen'
             : 'Preis wird geändert';
   }
 

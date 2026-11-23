@@ -1,5 +1,22 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - Vinted-Inserate direkt löschen, Kleiderschrank nach dem Löschen aktuell, Statusbalken in Flipbase-Gelb
+
+**Anlass:** Die Messung aus PR 724 hat am 23.11.2026 bei einer echten Preisänderung und einer echten Löschung den Aufbau beider Vinted-Aufrufe erfasst. Löschen ist `POST /api/v2/items/:id/delete` ohne Inhalt (Antwort 200). Die Preisänderung ist `PUT /api/v2/item_upload/items/:id` mit dem vollständigen Inserat einschließlich Fotos, Merkmalen und Formularkennungen (`temp_uuid`, `upload_session_id`). Außerdem verschwand ein gelöschtes Inserat erst nach manuellem Aktualisieren aus dem Kleiderschrank. Der graue Statusbalken auf den Karten soll im Flipbase-Gelb besser hervorstechen.
+
+**Änderung:**
+
+- **Direktes Löschen (`vinted-browser-listing-delete.ts`):** Nach den unveränderten Eigentums- und Kontoprüfungen sendet der Browser denselben Aufruf wie Vinteds Löschdialog, mit dem CSRF-Token der Seite (wie bei Nachrichten und Favoriten). Bestätigt wird wie bisher erst über das nachgelesene 404.
+  - Nur eine eindeutige Ablehnung (4xx) führt zum bisherigen Weg über die Knöpfe; dann wurde nichts gelöscht.
+  - Bei unklarem Ausgang folgt kein zweiter Löschversuch.
+  - Ohne Token bleibt es beim Knopfweg.
+  - Das gilt auch für das Löschen des alten Inserats beim Relist. Der Worker protokolliert den genutzten Weg als `marketplace_vinted_write_path`.
+- **Preisänderung bleibt beim Formular:** Ein direkter Aufruf müsste das ganze Inserat neu zusammensetzen und zurückschicken. Eine falsche Zuordnung eines Felds würde das Inserat verändern. Die Formularspeicherung wird seit PR 720 über Vinteds Antwort bestätigt und hat am 23.11. funktioniert.
+- **Kleiderschrank nach dem Löschen (`marketplace-account.store.ts`):** Ein Hintergrundabruf, der vor dem Ende der Löschung gestartet war, brachte das gelöschte Inserat zurück. Lokal bestätigte Löschungen bleiben jetzt ausgeblendet, bis der Server sie ebenfalls nicht mehr liefert, höchstens 10 Minuten.
+- **Statusbalken:** Auf den Kleiderschrankkarten ist der Balken jetzt Flipbase-Gelb (#fcc601) mit dunkler Schrift. Abgeblendet werden nur Foto, Text und Aktionen, damit der Balken kräftig bleibt. Der Preisstatus heißt kürzer „Preis wird übertragen“ und passt auch auf schmale Karten.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-23 - Juna - Aufbau von Vinteds Speicher- und Löschaufrufen messen
 
 **Anlass:** Stufe 4 des Plans zur Vinted-Zuverlässigkeit soll Preisänderungen und Löschungen direkt über Vinteds Schnittstelle schreiben, mit dem Formular als Rückfall. Seit Stufe 1 gab es in Produktion noch keine Preisänderung und keine Löschung. Das genaue Format von Vinteds Aufrufen ist daher nicht gemessen. Ein geratenes Format könnte ein Inserat beschädigen, etwa Fotos oder Merkmale entfernen. Deshalb wird zuerst gemessen.
