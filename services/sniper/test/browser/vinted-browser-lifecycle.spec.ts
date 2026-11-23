@@ -290,6 +290,20 @@ describe('ChromeVintedBrowser lifecycle', () => {
     expect(order).toEqual(['open', 'close']);
   });
 
+  it('respects a higher configured tab reuse threshold', async () => {
+    const { context } = setup();
+    const browser = new ChromeVintedBrowser('https://www.vinted.de', {
+      profileDir: '/tmp/sniper-profile',
+      cdpPort: 9222,
+      maxRequestsPerTab: 40,
+    });
+    for (let index = 0; index < 40; index++)
+      expect((await browser.fetch('https://www.vinted.de/catalog')).status).toBe(403);
+    expect(context.newPage).not.toHaveBeenCalled();
+    await browser.fetch('https://www.vinted.de/catalog');
+    expect(context.newPage).toHaveBeenCalledTimes(1);
+  });
+
   it('does not keep opening tabs after the old tab cannot be closed', async () => {
     const { browser, context, page } = setup();
     for (let index = 0; index < 15; index++) await browser.fetch('https://www.vinted.de/catalog');

@@ -14,7 +14,9 @@ export async function removeTestRows(client: SupabaseClient): Promise<void> {
   const { data, error } = await client
     .from('sniper_queries')
     .select('id')
-    .or('query_key.like.test|%,query_key.like.vinted-source|category|99%');
+    .or(
+      'query_key.like.test|%,query_key.like.vinted-source|category|99%,query_key.like.vinted-source|brand|99%',
+    );
 
   if (error) {
     throw new Error(`finding test queries failed: ${error.message}`);

@@ -1,6 +1,6 @@
 import type { BadgeTone } from '../../../shared/components/badge/badge.component';
 
-export type VintedFeedSourceKind = 'main' | 'category';
+export type VintedFeedSourceKind = 'main' | 'category' | 'brand';
 export type VintedFeedSourceCoverage = 'unknown' | 'initial' | 'caught_up' | 'limited';
 
 /** Eine gemeinsame Abrufquelle der persönlichen Vinted-Feeds. */
@@ -72,7 +72,8 @@ const COVERAGES: readonly VintedFeedSourceCoverage[] = [
 
 function parseSource(value: unknown, index: number): VintedFeedSource {
   const row = record(value);
-  const kind: VintedFeedSourceKind = row['kind'] === 'category' ? 'category' : 'main';
+  const kind: VintedFeedSourceKind =
+    row['kind'] === 'category' ? 'category' : row['kind'] === 'brand' ? 'brand' : 'main';
   const coverage = COVERAGES.find((entry) => entry === row['coverage_status']) ?? 'unknown';
   const catalogId = optionalCount(row['catalog_id']);
   return {
@@ -103,7 +104,9 @@ export function parseVintedFeedCapacity(value: unknown): VintedFeedCapacity {
 }
 
 export function sourceKindLabel(kind: VintedFeedSourceKind): string {
-  return kind === 'main' ? 'Hauptquelle' : 'Kategorie';
+  if (kind === 'category') return 'Kategorie';
+  if (kind === 'brand') return 'Marke';
+  return 'Hauptquelle';
 }
 
 export function sourceCoverageStatus(coverage: VintedFeedSourceCoverage): {

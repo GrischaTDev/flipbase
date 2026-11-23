@@ -300,6 +300,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
   private previousRequest: Promise<void> = Promise.resolve();
   private catalogReady = false;
   private readonly requestTimeoutMs: number;
+  private readonly maxRequestsPerTab: number;
 
   get needsRestart(): boolean {
     return this.unresponsive || this.runtime.hasFailed;
@@ -307,10 +308,11 @@ export class ChromeVintedBrowser implements VintedBrowser {
 
   constructor(
     private readonly baseUrl: string,
-    options: ChromeProcessOptions & { requestTimeoutMs?: number },
+    options: ChromeProcessOptions & { requestTimeoutMs?: number; maxRequestsPerTab?: number },
   ) {
     this.runtime = new ChromeProcess(options);
     this.requestTimeoutMs = options.requestTimeoutMs ?? 20_000;
+    this.maxRequestsPerTab = options.maxRequestsPerTab ?? 15;
     this.desktop = new BrowserDesktop((args, input) => this.runtime.execute(args, input));
   }
 
@@ -369,7 +371,11 @@ export class ChromeVintedBrowser implements VintedBrowser {
       const context = browser.contexts()[0];
       if (!context) throw new Error('Browserkontext fehlt.');
       let page = context.pages()[0];
-      if (!page || this.requestsSinceTabChange >= 15 || this.recycleAfterFailure) {
+      if (
+        !page ||
+        this.requestsSinceTabChange >= this.maxRequestsPerTab ||
+        this.recycleAfterFailure
+      ) {
         try {
           // Erst Ersatz öffnen, damit Chrome beim letzten geschlossenen Tab weiterläuft.
           const replacement = await abortableBrowserOperation(context.newPage(), signal, (late) =>

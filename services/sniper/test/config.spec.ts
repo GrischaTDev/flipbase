@@ -34,11 +34,25 @@ describe('loadConfig', () => {
     const config = loadConfig(validEnv);
 
     expect(config.vintedBaseUrl).toBe('https://www.vinted.de');
-    expect(config.requestsPerMinute).toBe(24);
+    expect(config.requestsPerMinute).toBe(40);
     expect(config.tickIntervalMs).toBe(1000);
-    expect(config.requestMinIntervalMs).toBe(2500);
+    expect(config.requestMinIntervalMs).toBe(1500);
+    expect(config.browserMaxRequestsPerTab).toBe(150);
+    expect(config.maxRequestsPerCycle).toBe(4);
     expect(config.categoryMaxAgeMs).toBe(86_400_000);
     expect(config.freshCatalogRequests).toBe(true);
+  });
+
+  it('loads configurable tab reuse and cycle batch limits', () => {
+    const config = loadConfig({
+      ...validEnv,
+      SNIPER_BROWSER_MAX_REQUESTS_PER_TAB: '200',
+      SNIPER_MAX_REQUESTS_PER_CYCLE: '6',
+    });
+    expect(config.browserMaxRequestsPerTab).toBe(200);
+    expect(config.maxRequestsPerCycle).toBe(6);
+    expect(() => loadConfig({ ...validEnv, SNIPER_BROWSER_MAX_REQUESTS_PER_TAB: '4' })).toThrow();
+    expect(() => loadConfig({ ...validEnv, SNIPER_MAX_REQUESTS_PER_CYCLE: '0' })).toThrow();
   });
 
   it('switches fresh catalog requests off only on an explicit false', () => {

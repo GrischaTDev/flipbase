@@ -15,10 +15,12 @@ const EnvSchema = z.object({
   SNIPER_BROWSER_CDP_PORT: z.coerce.number().int().min(1).max(65535).default(9228),
   SNIPER_BROWSER_PROFILE_DIR: z.string().min(1).default('/var/lib/flipbase-sniper/browser'),
   VINTED_BASE_URL: z.string().min(1).default('https://www.vinted.de'),
-  SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(24),
+  SNIPER_REQUESTS_PER_MINUTE: z.coerce.number().int().min(1).default(40),
   SNIPER_TICK_INTERVAL_MS: z.coerce.number().int().min(1000).default(1000),
-  SNIPER_REQUEST_MIN_INTERVAL_MS: z.coerce.number().int().min(1000).max(60_000).default(2500),
+  SNIPER_REQUEST_MIN_INTERVAL_MS: z.coerce.number().int().min(250).max(60_000).default(1500),
   SNIPER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(20_000),
+  SNIPER_BROWSER_MAX_REQUESTS_PER_TAB: z.coerce.number().int().min(5).max(1000).default(150),
+  SNIPER_MAX_REQUESTS_PER_CYCLE: z.coerce.number().int().min(1).max(20).default(4),
   SNIPER_USER_AGENT: z
     .string()
     .min(1)
@@ -45,6 +47,8 @@ export interface SnipeConfig {
   tickIntervalMs: number;
   requestMinIntervalMs: number;
   requestTimeoutMs: number;
+  browserMaxRequestsPerTab: number;
+  maxRequestsPerCycle: number;
   userAgent: string;
   healthPort: number;
   categoryMaxAgeMs: number;
@@ -68,6 +72,8 @@ export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
     tickIntervalMs: parsed.SNIPER_TICK_INTERVAL_MS,
     requestMinIntervalMs: parsed.SNIPER_REQUEST_MIN_INTERVAL_MS,
     requestTimeoutMs: parsed.SNIPER_REQUEST_TIMEOUT_MS,
+    browserMaxRequestsPerTab: parsed.SNIPER_BROWSER_MAX_REQUESTS_PER_TAB,
+    maxRequestsPerCycle: parsed.SNIPER_MAX_REQUESTS_PER_CYCLE,
     userAgent: parsed.SNIPER_USER_AGENT,
     healthPort: parsed.SNIPER_HEALTH_PORT,
     categoryMaxAgeMs: parsed.SNIPER_CATEGORY_MAX_AGE_MS,
