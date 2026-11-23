@@ -19,6 +19,8 @@ export interface VintedWardrobeTableRow {
   readonly highlighted: boolean;
   readonly running: boolean;
   readonly runningLabel?: string;
+  /** Neuer Preis, solange er noch zu Vinted übertragen wird. */
+  readonly pendingPrice?: number | null;
   readonly plan?: VintedRelistingPlan;
 }
 

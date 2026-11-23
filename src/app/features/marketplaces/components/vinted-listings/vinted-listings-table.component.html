@@ -134,11 +134,18 @@
               />
             </td>
             <td class="whitespace-nowrap px-2 py-2 text-right font-semibold text-fb-text-primary">
-              {{
-                entry.price === null
-                  ? '—'
-                  : (entry.price | currency: entry.currency : 'symbol' : '1.2-2' : 'de')
-              }}
+              @if (row.pendingPrice !== null && row.pendingPrice !== undefined) {
+                {{ row.pendingPrice | currency: entry.currency : 'symbol' : '1.2-2' : 'de' }}
+                <span class="block text-xs font-normal text-fb-text-secondary"
+                  >wird übertragen</span
+                >
+              } @else {
+                {{
+                  entry.price === null
+                    ? '—'
+                    : (entry.price | currency: entry.currency : 'symbol' : '1.2-2' : 'de')
+                }}
+              }
             </td>
             <td class="sticky right-0 bg-fb-surface px-3 py-2">
               <div class="flex flex-wrap items-center justify-end gap-1" data-listing-actions>

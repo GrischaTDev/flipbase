@@ -25,6 +25,8 @@ export interface VintedListingOperation {
   readonly state: 'running' | 'success' | 'error';
   readonly message: string;
   readonly serverActionId?: string;
+  /** Zielpreis einer laufenden Preisänderung; die Oberfläche zeigt ihn sofort an. */
+  readonly targetPriceCents?: number;
   readonly updatedAt: string;
 }
 
@@ -253,8 +255,31 @@ export class VintedListingOperationStore {
     );
   }
 
-  async changePrice(entry: MarketplaceEntry, save: () => Promise<void>): Promise<void> {
-    return this.run(entry, 'price', save);
+  async changePrice(
+    entry: MarketplaceEntry,
+    save: () => Promise<void>,
+    targetPriceCents?: number,
+  ): Promise<void> {
+    return this.run(entry, 'price', save, false, targetPriceCents);
+  }
+
+  /**
+   * Neuer Preis einer noch laufenden Preisänderung in Euro, sonst `null`. Schlägt die Änderung
+   * fehl, verschwindet der Wert und der bisherige Preis steht wieder da.
+   */
+  pendingPrice(
+    entry: Pick<MarketplaceEntry, 'workspaceId' | 'connectionId' | 'id'>,
+  ): number | null {
+    const action = this.scopedActions().find(
+      (action) =>
+        action.kind === 'price' &&
+        action.state === 'running' &&
+        action.targetPriceCents !== undefined &&
+        action.workspaceId === entry.workspaceId &&
+        action.connectionId === entry.connectionId &&
+        action.entryId === entry.id,
+    );
+    return action?.targetPriceCents !== undefined ? action.targetPriceCents / 100 : null;
   }
 
   async deleteListing(entry: MarketplaceEntry, remove: () => Promise<void>): Promise<void> {
@@ -284,7 +309,11 @@ export class VintedListingOperationStore {
     const server = this.pendingAccountAction(entry);
     if (server) {
       if (server.kind === 'price_save')
-        return server.state === 'queued' ? 'Preisänderung wartet' : 'Preis wird geändert';
+        return server.state === 'queued'
+          ? 'Preisänderung wartet'
+          : this.pendingPrice(entry) !== null
+            ? 'Neuer Preis wird übertragen'
+            : 'Preis wird geändert';
       if (server.kind === 'listing_delete')
         return server.state === 'queued' ? 'Löschen wartet' : 'Inserat wird gelöscht';
       return server.state === 'queued' ? 'Aktualisierung wartet' : 'Inserat wird aktualisiert';
@@ -301,7 +330,9 @@ export class VintedListingOperationStore {
         ? 'Inserat wird gelöscht'
         : action?.kind === 'edit'
           ? 'Inserat wird aktualisiert'
-          : 'Preis wird geändert';
+          : action?.targetPriceCents !== undefined
+            ? 'Neuer Preis wird übertragen'
+            : 'Preis wird geändert';
   }
 
   private async run(
@@ -309,6 +340,7 @@ export class VintedListingOperationStore {
     kind: VintedListingOperation['kind'],
     action: () => Promise<void>,
     removeWhenPrepared = false,
+    targetPriceCents?: number,
   ): Promise<void> {
     const userId = this.auth.currentUser()?.id;
     if (
@@ -331,6 +363,7 @@ export class VintedListingOperationStore {
         startedAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         state: 'running',
+        ...(targetPriceCents !== undefined ? { targetPriceCents } : {}),
         message:
           kind === 'relist'
             ? 'Relisting wird vorbereitet …'

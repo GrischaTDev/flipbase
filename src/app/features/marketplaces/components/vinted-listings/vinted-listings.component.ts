@@ -267,6 +267,7 @@ export class VintedListingsComponent {
       highlighted: this.metricDisplay.highlighted().has(entry.id),
       running,
       runningLabel: plan?.label ?? (running ? this.operations.runningLabel(entry) : undefined),
+      pendingPrice: this.operations.pendingPrice(entry),
     };
   }
   private plannedEntry(plan: VintedRelistingPlan, previous?: MarketplaceEntry): MarketplaceEntry {
