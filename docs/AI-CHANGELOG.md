@@ -1,5 +1,23 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - Sniper-Durchsatz und geteilte Markenquellen für persönliche Feeds
+
+**Anlass:** Die Analyse des produktiven Stufentests nach PR #726 (Deckel bei rund 25 Seiten/min trotz 1,0 s Abstand) und der Vinted-Katalogabrufe zeigte zwei konkrete Bremsen: Erstens erzwang der Dienst nach jedem 15. Abruf einen vollständigen Tab-Wechsel samt Dokument-Navigation und begrenzte jeden Sammeltakt auf einen einzelnen Abruf (`maxRequestsPerCycle = 1`), wodurch vor und nach jeder einzelnen Seite mehrere Datenbank-Rundreisen außerhalb des Takts anfielen. Zweitens liefern reine Hauptquellen (Damen `1904` / Herren `5`) zu Stoßzeiten über 1.000 Artikel/min über alle Marken hinweg — in einer Live-Stichprobe fehlten 8 von 10 frischen Ralph-Lauren-Artikeln auf Seite 1 der Hauptquellen, und frühe Vinted-Vorschauen erscheinen nur bei Abfragen mit Marken- oder Suchwortbezug.
+
+**Änderung:**
+
+- **Geteilte Markenquellen (`403_sniper_personal_feeds.sql`, Migration `20261123225500_vinted_feed_brand_sources.sql`):**
+  - Persönliche Feeds ohne Unterkategorie (einschließlich der Wurzelkategorien Damen `1904` und Herren `5`) mit gesetzter Marken-ID nutzen zusätzlich eine gemeinsame Markenquelle (`vinted-source|brand|<brand_id>`), die bei Vinted gezielt `brand_ids=<id>` abfragt.
+  - Die Wurzelkategorien Damen (`1904`) und Herren (`5`) werden über `sniper_watchlist_source_keys` direkt auf die Hauptquellen (`vinted-source|main|1904` bzw. `5`) statt auf langsame Kategoriequellen abgebildet.
+  - `sniper_feed_search` übernimmt direkte Markenquellen-Funde ohne Katalogzuordnung unmittelbar in den Marken-Feed; `set_sniper_feed_settings`, `sniper_purge_expired_listings` und `sniper_feed_capacity` berücksichtigen Markenquellen mit.
+- **Sniper-Durchsatz (`services/sniper`):**
+  - Tab-Wiederverwendung über `SNIPER_BROWSER_MAX_REQUESTS_PER_TAB` (Standard 150, statt fest 15) und Mehrfachabrufe je Sammeltakt über `SNIPER_MAX_REQUESTS_PER_CYCLE` (Standard 4, statt fest 1) konfigurierbar gemacht; doppelte `originState`-Abfrage vor der Kategorieprüfung eingespart.
+  - Standardtaktung auf den im Stufentest bestätigten Wert angepasst (`SNIPER_REQUEST_MIN_INTERVAL_MS=1500`, konfigurierbar ab 250 ms; `SNIPER_REQUESTS_PER_MINUTE=40`).
+- **Administration (`vinted-feed-sources`):**
+  - Quellenart `brand` („Marke“) wird in der Systemübersicht neben Haupt- und Kategoriequellen mit Markennamen angezeigt.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-23 - Juna - Persönliche Vinted-Feeds aus gemeinsamen Quellen
 
 **Anlass:** Der Entwurf „Persönliche Vinted-Feeds“ (vorher nur unversioniert im

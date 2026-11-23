@@ -4,6 +4,7 @@ import {
   pendingCategoryRefresh,
   sourceAgeLabel,
   sourceCoverageStatus,
+  sourceKindLabel,
 } from './vinted-feed-sources';
 
 describe('Vinted-Quellen', () => {
@@ -23,6 +24,15 @@ describe('Vinted-Quellen', () => {
           feed_count: 3,
           last_success_at: '2026-11-23T10:00:00Z',
           coverage_status: 'limited',
+        },
+        {
+          key: 'vinted-source|brand|88',
+          kind: 'brand',
+          catalog_id: null,
+          category_path: 'Ralph Lauren',
+          feed_count: 2,
+          last_success_at: '2026-11-23T10:00:00Z',
+          coverage_status: 'caught_up',
         },
         { kind: 'unbekannt', coverage_status: 'seltsam' },
       ],
@@ -45,7 +55,17 @@ describe('Vinted-Quellen', () => {
       lastSuccessAt: '2026-11-23T10:00:00Z',
       coverage: 'limited',
     });
-    expect(capacity.sources[1]).toMatchObject({ kind: 'main', coverage: 'unknown' });
+    expect(capacity.sources[1]).toEqual({
+      key: 'vinted-source|brand|88',
+      kind: 'brand',
+      catalogId: null,
+      categoryPath: 'Ralph Lauren',
+      feedCount: 2,
+      lastSuccessAt: '2026-11-23T10:00:00Z',
+      coverage: 'caught_up',
+    });
+    expect(capacity.sources[2]).toMatchObject({ kind: 'main', coverage: 'unknown' });
+    expect(sourceKindLabel('brand')).toBe('Marke');
     expect(parseVintedFeedCapacity(null).sources).toEqual([]);
   });
 

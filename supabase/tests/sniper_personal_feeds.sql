@@ -43,10 +43,16 @@ $$;
 -- Quellschlüssel
 select is(public.sniper_watchlist_source_keys(904030001,'women'),array['vinted-source|category|904030001'],
   'Mit Kategorie liest ein Feed aus der Kategoriequelle');
+select is(public.sniper_watchlist_source_keys(1904,null,88),array['vinted-source|main|1904','vinted-source|brand|88'],
+  'Wurzelkategorie Damen mit Marke nutzt Haupt- und Markenquelle');
 select is(public.sniper_watchlist_source_keys(null,'men'),array['vinted-source|main|5'],
   'Ohne Kategorie liest ein Herren-Feed aus der Hauptquelle Herren');
+select is(public.sniper_watchlist_source_keys(null,'men',88),array['vinted-source|main|5','vinted-source|brand|88'],
+  'Ohne Kategorie mit Marke liest ein Herren-Feed zusätzlich aus der Markenquelle');
 select is(public.sniper_watchlist_source_keys(null,'both'),array['vinted-source|main|1904','vinted-source|main|5'],
   'Ohne Kategorie und für beide liest ein Feed aus beiden Hauptquellen');
+select is(public.sniper_watchlist_source_keys(null,'both',88),array['vinted-source|main|1904','vinted-source|main|5','vinted-source|brand|88'],
+  'Ohne Kategorie und für beide mit Marke nutzt zusätzlich die gemeinsame Markenquelle');
 
 select set_config('request.jwt.claim.sub','c4030000-0000-4000-8000-000000000001',true);
 set local role authenticated;
@@ -222,8 +228,28 @@ select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspa
 reset role;
 select ok(exists(select 1 from public.sniper_queries where query_key='vinted-source|main|5' and is_active
   and catalog_id=5 and poll_interval_ms=5000),'Feed ohne Kategorie startet die Hauptquelle seiner Zielgruppe');
+select ok(exists(select 1 from public.sniper_queries where query_key='vinted-source|brand|99' and is_active
+  and catalog_id is null and brand_id=99 and brand_ids=array[99] and brand_names=array['Polo Club']
+  and poll_interval_ms=60000),'Feed ohne Kategorie mit Marke startet zusätzlich die gemeinsame Markenquelle');
 set local role authenticated;
+select is((public.sniper_feed_capacity()->>'active_brand_sources')::integer,1,
+  'Die Administration sieht eine laufende Markenquelle');
 select lives_ok($$select public.set_sniper_feed_settings(10,90)$$,'Administration hebt die Grenze wieder an');
+reset role;
+select is((select poll_interval_ms from public.sniper_queries
+  where query_key='vinted-source|brand|99'),90000,'Neuer Takt gilt auch sofort für laufende Markenquellen');
+-- Fund aus reiner Markenquelle (ohne Katalogkennung) erscheint im Marken-Feed.
+update public.sniper_watchlists set started_at=now()-interval '20 minutes'
+where workspace_id=pg_temp.feed_workspace() and title='Herren ohne Kategorie';
+insert into public.sniper_listings(external_id,title,url,item_price,total_price,brand,size,condition,first_seen_at)
+values ('40600001','Polo Club Vorschau','https://www.vinted.de/items/40600001',15,17,'Polo Club','M','Gut',now()-interval '5 seconds');
+insert into public.sniper_query_matches(query_id,listing_id,filter_revision,is_seed)
+select query.id, listing.id, query.filter_revision, false
+from public.sniper_queries query cross join public.sniper_listings listing
+where query.id=pg_temp.source_id('vinted-source|brand|99') and listing.external_id='40600001';
+set local role authenticated;
+select is(pg_temp.feed_page(pg_temp.feed_id('Herren ohne Kategorie'))->'items'->0->>'title',
+  'Polo Club Vorschau','Direkte Markenquellen-Funde erscheinen sofort im Marken-Feed');
 select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Mäntel'),true)$$,
   'Nach dem Anheben startet die neue Kategorie');
 select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Mäntel'),false)$$,
@@ -232,7 +258,7 @@ select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspa
   'Der Herren-Feed stoppt');
 reset role;
 select ok(not exists(select 1 from public.sniper_queries where query_key in ('vinted-source|main|5',
-  'vinted-source|category|904030002') and is_active),'Quellen ohne Bedarf werden beendet');
+  'vinted-source|brand|99','vinted-source|category|904030002') and is_active),'Quellen ohne Bedarf werden beendet');
 
 set local role service_role;
 select lives_ok($$select public.sniper_notify_feed_updates(pg_temp.source_id('vinted-source|category|904030001'))$$,
@@ -280,12 +306,14 @@ select is((select count(*)::integer from public.sniper_watchlists where is_activ
   'Abgelaufene Feeds wurden gestoppt');
 select is(pg_temp.active_sources(),0,'Bereinigung beendet die Quellen abgelaufener Feeds');
 update public.sniper_queries set updated_at=now()-interval '2 days'
-where query_key='vinted-source|category|904030002';
+where query_key in ('vinted-source|category|904030002','vinted-source|brand|99');
 set local role service_role;
 select lives_ok('select public.sniper_purge_expired_listings()','Bereinigung läuft erneut');
 reset role;
 select ok(pg_temp.source_id('vinted-source|category|904030002') is null,
   'Ruhende Kategoriequellen ohne Bedarf werden nach einem Tag gelöscht');
+select ok(pg_temp.source_id('vinted-source|brand|99') is null,
+  'Ruhende Markenquellen ohne Bedarf werden nach einem Tag gelöscht');
 set local role anon;
 select throws_ok($$select pg_temp.feed_page(null)$$,'42501',null,'Anonyme erhalten keinen Feed');
 reset role;

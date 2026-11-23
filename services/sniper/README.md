@@ -150,15 +150,19 @@ Nutzer legen ihre Feeds unter **Werkzeuge → Vinted Feed** (`/vinted-bot`) an.
 Ein Feed erzeugt keine eigene Vinted-Abfrage. Er liest aus einer gemeinsamen
 Quelle (Schlüssel in `sniper_queries.query_key`):
 
-| Quelle             | Schlüssel      | Abfrage  | Takt  |
-| ------------------ | -------------- | -------- | ----- |
-| Hauptquelle Damen  | `vinted-source | main     | 1904` | nur `catalog_ids=1904` | 5 s, durch das Budget gebremst                        |
-| Hauptquelle Herren | `vinted-source | main     | 5`    | nur `catalog_ids=5`    | 5 s, durch das Budget gebremst                        |
-| Kategoriequelle    | `vinted-source | category | <id>` | nur `catalog_ids=<id>` | `sniper_feed_settings.category_poll_interval_seconds` |
+| Quelle             | Schlüssel                       | Abfrage                | Takt                                                  |
+| ------------------ | ------------------------------- | ---------------------- | ----------------------------------------------------- |
+| Hauptquelle Damen  | `vinted-source\|main\|1904`     | nur `catalog_ids=1904` | 5 s, durch das Budget gebremst                        |
+| Hauptquelle Herren | `vinted-source\|main\|5`        | nur `catalog_ids=5`    | 5 s, durch das Budget gebremst                        |
+| Markenquelle       | `vinted-source\|brand\|<id>`    | nur `brand_ids=<id>`   | `sniper_feed_settings.category_poll_interval_seconds` |
+| Kategoriequelle    | `vinted-source\|category\|<id>` | nur `catalog_ids=<id>` | `sniper_feed_settings.category_poll_interval_seconds` |
 
-Feeds ohne Kategorie lesen aus der Hauptquelle ihrer Zielgruppe (bei „beide“
-aus beiden), Feeds mit Kategorie aus der Kategoriequelle. Marke, Suchtext,
-Größe, Zustand und Preis filtert `sniper_feed_search` in der Datenbank. Die
+Feeds ohne Unterkategorie (einschließlich der Wurzelkategorien Damen `1904` und
+Herren `5`) lesen aus der Hauptquelle ihrer Zielgruppe und bei gesetzter
+Marken-ID zusätzlich aus der gemeinsamen Markenquelle (`vinted-source|brand|<id>`),
+damit Markenfunde und frühe Vinted-Vorschauen nicht im Hauptstrom untergehen.
+Feeds mit Unterkategorie lesen aus der Kategoriequelle. Marke, Suchtext, Größe,
+Zustand und Preis filtert `sniper_feed_search` in der Datenbank. Die
 Katalogliste liefert keine Kategorie und nur den Markennamen; ein Feed mit
 Marken-ID speichert deshalb immer auch den Namen.
 
@@ -229,7 +233,8 @@ Diagnose ausgeben. Der aktuelle Ausfallbericht steht unter
 
 ### Erholung nach Browserausfällen
 
-Der automatische Leser ersetzt seinen Tab vor dem 16. abgeschlossenen Abruf.
+Der automatische Leser ersetzt seinen Tab nach `SNIPER_BROWSER_MAX_REQUESTS_PER_TAB`
+abgeschlossenen Abrufen (Standard 150, konfigurierbar von 5 bis 1.000).
 Der Ersatz öffnet zuerst, damit Chrome beim Schließen des bisherigen letzten
 Tabs weiterläuft. Cookies bleiben im selben Profil; manuelle Bedienung setzt
 diesen Zähler nach sicherem Abschluss zurück. Ein ungeklärter Wechsel erzeugt
@@ -254,9 +259,12 @@ Vinted-Pause bleibt bei einem Neustart gespeichert.
 ### Gleichmäßige Abrufe und Zugriffspausen
 
 Alle vom Sammler gestarteten Vinted-Abrufe teilen sich einen Mindestabstand:
-standardmäßig 2,5 Sekunden zwischen zwei Starts und höchstens 24 Starts in einem
-rollenden Minutenfenster. Das gilt auch für Kategorien und Wiederholungen nach
-Serverfehlern. Der Browser arbeitet seriell im bestehenden Profil. Nach dem
+standardmäßig 1,5 Sekunden zwischen zwei Starts (`SNIPER_REQUEST_MIN_INTERVAL_MS`,
+konfigurierbar von 250 bis 60.000 ms), höchstens 40 Starts in einem rollenden
+Minutenfenster (`SNIPER_REQUESTS_PER_MINUTE`) und bis zu 4 fällige Abrufe je
+Takt (`SNIPER_MAX_REQUESTS_PER_CYCLE`), um unnötige Datenbank-Rundreisen zwischen
+einzelnen Seitenabrufen zu vermeiden. Das gilt auch für Kategorien und
+Wiederholungen nach Serverfehlern. Der Browser arbeitet seriell im bestehenden Profil. Nach dem
 regulären Sitzungsaufbau lädt er Katalogantworten ohne Browsercache per Fetch;
 eine reguläre Sitzungsauffrischung darf weiterhin navigieren. Das Budget zählt
 Sammlerabrufe, nicht jedes durch Navigation ausgelöste Netzwerkpaket.
