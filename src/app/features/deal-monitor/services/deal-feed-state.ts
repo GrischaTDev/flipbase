@@ -1,22 +1,17 @@
 import { signal } from '@angular/core';
 import { FEED_ITEM_LIMIT, FeedItem, FeedPage, FeedRequest } from '../models/deal-monitor.model';
 
-/** Abstand, in dem der langsame Modus den nächsten neuen Fund einschiebt. */
-export const SLOW_MODE_STEP_MS = 900;
-
 export class DealFeedState {
   readonly items = signal<FeedItem[]>([]);
   readonly loaded = signal(false);
   readonly error = signal<string | null>(null);
   readonly covered = signal(false);
   readonly reportedAt = signal<string | null>(null);
-  readonly slowMode = signal(false);
-  readonly queued = signal<FeedItem[]>([]);
+  readonly lastCheckedAt = signal<string | null>(null);
   private generation = 0;
   private request: FeedRequest | null = null;
   private busyGeneration: number | null = null;
   private pendingUpdate: { generation: number; delta: boolean } | null = null;
-  private releaseTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private readonly fetchPage: (request: FeedRequest) => Promise<FeedPage>) {}
 
@@ -29,16 +24,8 @@ export class DealFeedState {
     this.loaded.set(false);
     this.covered.set(false);
     this.reportedAt.set(null);
-    this.clearQueue();
+    this.lastCheckedAt.set(null);
     if (request) void this.refresh();
-  }
-
-  setSlowMode(enabled: boolean): void {
-    this.slowMode.set(enabled);
-    if (enabled) return;
-    const waiting = this.queued();
-    this.clearQueue();
-    if (waiting.length) this.items.update((items) => [...waiting, ...items]);
   }
 
   notifyUpdate(delta: boolean): void {
@@ -58,22 +45,21 @@ export class DealFeedState {
     const request = this.request;
     if (!request || this.busyGeneration === generation) return;
     this.busyGeneration = generation;
-    const afterTime = delta && !this.slowMode() ? this.items()[0]?.first_seen_at : undefined;
+    const afterTime = delta ? this.items()[0]?.first_seen_at : undefined;
     try {
       let useDelta = !!afterTime;
       let page = await this.fetchPage(afterTime ? { ...request, afterTime } : request);
       if (generation !== this.generation) return;
-      if (useDelta && (page.items.length >= FEED_ITEM_LIMIT || this.slowMode())) {
+      if (useDelta && page.items.length >= FEED_ITEM_LIMIT) {
         useDelta = false;
         page = await this.fetchPage(request);
       }
       if (generation !== this.generation) return;
       this.covered.set(page.covered);
       this.reportedAt.set(page.reported_at);
+      this.lastCheckedAt.set(page.last_checked_at ?? null);
       if (useDelta) {
         this.applyDelta(page.items);
-      } else if (this.slowMode() && this.loaded() && this.items().length) {
-        this.queueNewFinds(page.items);
       } else {
         this.items.set(page.items);
       }
@@ -97,7 +83,6 @@ export class DealFeedState {
     this.generation++;
     this.pendingUpdate = null;
     this.request = null;
-    this.clearQueue();
   }
 
   private applyDelta(updates: FeedItem[]): void {
@@ -115,43 +100,4 @@ export class DealFeedState {
     if (next.length !== current.length || next.some((item, index) => current[index] !== item))
       this.items.set(next);
   }
-
-  private queueNewFinds(pageItems: FeedItem[]): void {
-    const newest = this.items()[0];
-    const shown = new Set(this.items().map((item) => item.id));
-    const present = new Set(pageItems.map((item) => item.id));
-    const waiting = new Set(this.queued().map((item) => item.id));
-    const fresh = pageItems.filter(
-      (item) => !shown.has(item.id) && !waiting.has(item.id) && isNewer(item, newest),
-    );
-    const queued = [...fresh, ...this.queued().filter((item) => present.has(item.id))];
-    const queuedIds = new Set(queued.map((item) => item.id));
-    this.queued.set(queued);
-    this.items.set(pageItems.filter((item) => !queuedIds.has(item.id)));
-    this.scheduleRelease();
-  }
-
-  private scheduleRelease(): void {
-    if (this.releaseTimer !== undefined || this.queued().length === 0) return;
-    this.releaseTimer = setTimeout(() => {
-      this.releaseTimer = undefined;
-      const queued = this.queued();
-      const next = queued.at(-1);
-      if (!next) return;
-      this.queued.set(queued.slice(0, -1));
-      this.items.update((items) => [next, ...items]);
-      this.scheduleRelease();
-    }, SLOW_MODE_STEP_MS);
-  }
-
-  private clearQueue(): void {
-    clearTimeout(this.releaseTimer);
-    this.releaseTimer = undefined;
-    this.queued.set([]);
-  }
-}
-
-function isNewer(item: FeedItem, reference: FeedItem): boolean {
-  const difference = Date.parse(item.first_seen_at) - Date.parse(reference.first_seen_at);
-  return difference > 0 || (difference === 0 && item.id > reference.id);
 }

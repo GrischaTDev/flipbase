@@ -2,53 +2,63 @@ import { DestroyRef, Injectable, inject } from '@angular/core';
 import { RealtimeChannel } from '@supabase/supabase-js';
 import { SupabaseService } from '../../../core/services/supabase.service';
 
+interface WorkspaceChannel {
+  channel: RealtimeChannel;
+  listeners: Set<(delta: boolean) => void>;
+  timer?: ReturnType<typeof setTimeout>;
+  lastRefresh: number;
+  snapshotPending: boolean;
+  subscribed: boolean;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DealFeedUpdatesService {
   private readonly client = inject(SupabaseService).client;
   private readonly destroyRef = inject(DestroyRef);
-  private stopWatching?: () => void;
+  private readonly channels = new Map<string, WorkspaceChannel>();
 
   constructor() {
-    this.destroyRef.onDestroy(() => this.stopWatching?.());
+    this.destroyRef.onDestroy(() => {
+      for (const workspace of [...this.channels.keys()]) {
+        this.teardown(workspace);
+      }
+    });
   }
 
+  /** Mehrere Feed-Spalten desselben Arbeitsbereichs teilen sich einen Realtime-Kanal. */
   watch(workspace: string, onUpdate: (delta: boolean) => void): () => void {
-    this.stopWatching?.();
+    if (this.destroyRef.destroyed) return () => undefined;
     let active = true;
-    let channel: RealtimeChannel | undefined;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    let lastRefresh = Number.NEGATIVE_INFINITY;
-    let snapshotPending = false;
-    const scheduleRefresh = (delta: boolean) => {
-      if (!active) return;
-      snapshotPending ||= !delta;
-      if (timer !== undefined) return;
-      const delay = Math.max(delta ? 0 : 250, 1_000 - (Date.now() - lastRefresh));
-      timer = setTimeout(() => {
-        timer = undefined;
-        if (!active) return;
-        lastRefresh = Date.now();
-        const useDelta = !snapshotPending;
-        snapshotPending = false;
-        onUpdate(useDelta);
-      }, delay);
-    };
-    const cleanup = () => {
+    const entry = this.ensureChannel(workspace);
+    if (!entry) return () => undefined;
+    entry.listeners.add(onUpdate);
+    if (entry.subscribed) this.scheduleRefresh(workspace, entry, false);
+
+    return () => {
       if (!active) return;
       active = false;
-      clearTimeout(timer);
-      if (this.stopWatching === cleanup) this.stopWatching = undefined;
-      if (channel) void this.client.removeChannel(channel).catch(() => undefined);
+      const current = this.channels.get(workspace);
+      if (!current) return;
+      current.listeners.delete(onUpdate);
+      if (current.listeners.size === 0) this.teardown(workspace);
     };
-    this.stopWatching = cleanup;
-    if (this.destroyRef.destroyed) {
-      cleanup();
-      return cleanup;
-    }
+  }
+
+  private ensureChannel(workspace: string): WorkspaceChannel | null {
+    const existing = this.channels.get(workspace);
+    if (existing) return existing;
     try {
-      channel = this.client.channel(`workspace:${workspace}:sniper_feed`, {
+      const channel = this.client.channel(`workspace:${workspace}:sniper_feed`, {
         config: { private: true },
       });
+      const entry: WorkspaceChannel = {
+        channel,
+        listeners: new Set(),
+        lastRefresh: Number.NEGATIVE_INFINITY,
+        snapshotPending: false,
+        subscribed: false,
+      };
+      this.channels.set(workspace, entry);
       channel
         .on('broadcast', { event: 'feed_updated' }, (message: { payload?: unknown }) => {
           const payload = message.payload;
@@ -59,16 +69,43 @@ export class DealFeedUpdatesService {
             'refresh' in payload &&
             payload.refresh === true
           )
-            scheduleRefresh(true);
+            this.scheduleRefresh(workspace, entry, true);
         })
         .subscribe((status) => {
           // Auch der erste Beitritt schließt die Lücke zwischen Laden und Abonnieren.
-          if (status === 'SUBSCRIBED') scheduleRefresh(false);
+          if (status === 'SUBSCRIBED') {
+            entry.subscribed = true;
+            this.scheduleRefresh(workspace, entry, false);
+          }
         });
+      return entry;
     } catch {
       // Der regelmäßige Feed-Abruf bleibt auch ohne Echtzeitverbindung aktiv.
-      cleanup();
+      this.teardown(workspace);
+      return null;
     }
-    return cleanup;
+  }
+
+  private scheduleRefresh(workspace: string, entry: WorkspaceChannel, delta: boolean): void {
+    if (this.channels.get(workspace) !== entry) return;
+    entry.snapshotPending ||= !delta;
+    if (entry.timer !== undefined) return;
+    const delay = Math.max(delta ? 0 : 250, 1_000 - (Date.now() - entry.lastRefresh));
+    entry.timer = setTimeout(() => {
+      entry.timer = undefined;
+      if (this.channels.get(workspace) !== entry) return;
+      entry.lastRefresh = Date.now();
+      const useDelta = !entry.snapshotPending;
+      entry.snapshotPending = false;
+      for (const listener of [...entry.listeners]) listener(useDelta);
+    }, delay);
+  }
+
+  private teardown(workspace: string): void {
+    const entry = this.channels.get(workspace);
+    if (!entry) return;
+    clearTimeout(entry.timer);
+    this.channels.delete(workspace);
+    void this.client.removeChannel(entry.channel).catch(() => undefined);
   }
 }

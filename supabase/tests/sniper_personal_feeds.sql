@@ -88,8 +88,8 @@ reset role;
 select is(pg_temp.active_sources(),1,'Der Start legt genau eine Quelle an');
 select ok(exists(select 1 from public.sniper_queries where query_key='vinted-source|category|904030001'
   and is_active and catalog_id=904030001 and brand_id is null and search_text is null and price_from is null
-  and price_to is null and poll_interval_ms=90000 and next_attempt_at is not null),
-  'Die Kategoriequelle fragt nur die Kategorie ab und reiht sich als fällig ein');
+  and price_to is null and poll_interval_ms=5000 and next_attempt_at is not null),
+  'Die Kategoriequelle fragt nur die Kategorie ab und reiht sich im 5-Sekunden-Takt ein');
 
 select set_config('request.jwt.claim.sub','c4030000-0000-4000-8000-000000000002',true);
 set local role authenticated;

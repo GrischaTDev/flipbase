@@ -154,4 +154,20 @@ describe('Private Hinweise für den Deal-Feed', () => {
     await vi.advanceTimersByTimeAsync(250);
     expect(refresh).toHaveBeenCalledTimes(1);
   });
+
+  it('teilt einen Kanal zwischen mehreren Feed-Spalten desselben Arbeitsbereichs', async () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const stopFirst = updates.watch(workspaceA, first);
+    const stopSecond = updates.watch(workspaceA, second);
+    expect(client.channel).toHaveBeenCalledTimes(1);
+    channels[0].receive();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(first).toHaveBeenCalledExactlyOnceWith(true);
+    expect(second).toHaveBeenCalledExactlyOnceWith(true);
+    stopFirst();
+    expect(client.removeChannel).not.toHaveBeenCalled();
+    stopSecond();
+    expect(client.removeChannel).toHaveBeenCalledWith(channels[0].channel);
+  });
 });

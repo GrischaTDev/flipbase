@@ -10,20 +10,32 @@ import {
   signal,
   untracked,
 } from '@angular/core';
+import {
+  LucideDynamicIcon,
+  LucideRotateCcw,
+  LucideSearch,
+  LucideSlidersHorizontal,
+} from '@lucide/angular';
 import { PageLayoutService } from '../../../../core/services/page-layout.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
-import { FeedItem, PersonalFeed, recentFeedItems } from '../../models/deal-monitor.model';
+import {
+  FeedItem,
+  PersonalFeed,
+  availableLiveSizes,
+  effectiveFeedPriceBounds,
+  filterLiveFeedItems,
+  recentFeedItems,
+} from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { DealFeedState } from '../../services/deal-feed-state';
 import { DealFeedUpdatesService } from '../../services/deal-feed-updates.service';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import { FeedClockService } from '../../services/feed-clock.service';
+import { discoveryAge } from '../../utils/discovery-date';
 import { DealCardComponent } from '../deal-card/deal-card.component';
 import { DealDetailModalComponent } from '../deal-detail-modal/deal-detail-modal.component';
 
-const SLOW_MODE_STORAGE_KEY = 'flipbase:vinted-feed:slow-mode';
 const RECONCILE_INTERVAL_MS = 15_000;
 
 @Component({
@@ -31,9 +43,9 @@ const RECONCILE_INTERVAL_MS = 15_000;
   imports: [
     ButtonComponent,
     CardComponent,
-    CustomCheckboxComponent,
     DealCardComponent,
     DealDetailModalComponent,
+    LucideDynamicIcon,
   ],
   templateUrl: './deal-feed-search.component.html',
   host: { class: '@container block min-w-0' },
@@ -42,6 +54,7 @@ const RECONCILE_INTERVAL_MS = 15_000;
 export class DealFeedSearchComponent {
   readonly workspaceId = input.required<string>();
   readonly feed = input.required<PersonalFeed>();
+  readonly compact = input(false);
   private readonly feedId = computed(() => this.feed().id);
   private readonly startedAt = computed(() => this.feed().started_at);
   private readonly active = computed(() => this.feed().is_active);
@@ -53,27 +66,77 @@ export class DealFeedSearchComponent {
   readonly favorites = inject(DealFavoritesService);
   readonly state = new DealFeedState((request) => this.api.feed(request));
   readonly selectedDeal = signal<FeedItem | null>(null);
-  readonly gridColumns = computed(() =>
-    this.widescreen()
-      ? 'grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]'
-      : 'grid-cols-1 @min-[30rem]:grid-cols-2 @min-[46rem]:grid-cols-3 @min-[62rem]:grid-cols-4 @min-[78rem]:grid-cols-5',
+  readonly icons = {
+    filter: LucideSlidersHorizontal,
+    search: LucideSearch,
+    reset: LucideRotateCcw,
+  };
+
+  readonly liveQuery = signal('');
+  readonly liveSizes = signal<string[]>([]);
+  readonly liveMinPrice = signal<number | null>(null);
+  readonly liveMaxPrice = signal<number | null>(null);
+  readonly compactFiltersOpen = signal(false);
+
+  readonly priceBounds = computed(() => effectiveFeedPriceBounds(this.feed()));
+  readonly sizeChoices = computed(() => availableLiveSizes(this.feed()));
+  readonly showSizeFilter = computed(() => this.sizeChoices().length > 1);
+  readonly hasLiveFilters = computed(
+    () =>
+      this.liveQuery().trim().length > 0 ||
+      this.liveSizes().length > 0 ||
+      this.liveMinPrice() !== null ||
+      this.liveMaxPrice() !== null,
   );
-  readonly feedItems = computed(() =>
+  readonly showFilterPanel = computed(() => !this.compact() || this.compactFiltersOpen());
+
+  readonly priceBoundHint = computed(() => {
+    const bounds = this.priceBounds();
+    const min = this.liveMinPrice();
+    const max = this.liveMaxPrice();
+    if (min !== null && this.feed().price_from !== null && min < bounds.min) {
+      return `Mindestpreis des Feeds ist ${bounds.min} €.`;
+    }
+    if (max !== null && bounds.max !== null && max > bounds.max) {
+      return `Höchstpreis des Feeds ist ${bounds.max} €.`;
+    }
+    if (min !== null && max !== null && min > max) {
+      return 'Mindestpreis darf nicht über dem Höchstpreis liegen.';
+    }
+    return null;
+  });
+
+  readonly gridColumns = computed(() => {
+    if (this.compact()) return 'grid-cols-1 @min-[28rem]:grid-cols-2';
+    return this.widescreen()
+      ? 'grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]'
+      : 'grid-cols-1 @min-[30rem]:grid-cols-2 @min-[46rem]:grid-cols-3 @min-[62rem]:grid-cols-4 @min-[78rem]:grid-cols-5';
+  });
+
+  readonly recentItems = computed(() =>
     recentFeedItems(this.state.items(), this.clock.now().getTime()),
   );
-  readonly cardMotion = computed(() =>
-    this.state.slowMode()
-      ? 'motion-safe:duration-500 motion-safe:ease-out motion-safe:starting:-translate-x-12'
-      : 'motion-safe:duration-200 motion-safe:starting:-translate-x-3',
+  readonly feedItems = computed(() =>
+    filterLiveFeedItems(this.recentItems(), this.feed(), {
+      query: this.liveQuery(),
+      sizes: this.liveSizes(),
+      minPrice: this.liveMinPrice(),
+      maxPrice: this.liveMaxPrice(),
+    }),
   );
+
   readonly stale = computed(() => {
     const reportedAt = this.state.reportedAt();
     return reportedAt !== null && this.clock.now().getTime() - Date.parse(reportedAt) > 120_000;
   });
 
+  readonly checkedAgeLabel = computed(() => {
+    const timestamp = this.state.lastCheckedAt();
+    return timestamp ? discoveryAge(timestamp, this.clock.now()) : null;
+  });
+
   constructor() {
     const destroyRef = inject(DestroyRef);
-    this.state.setSlowMode(this.readSlowModePreference());
     effect((onCleanup) => {
       const workspace = this.workspaceId();
       const watchlist = this.feedId();
@@ -81,6 +144,7 @@ export class DealFeedSearchComponent {
       const startedAt = this.startedAt();
       untracked(() => {
         this.selectedDeal.set(null);
+        this.resetLiveFilters();
         this.state.setContext(active && startedAt ? { workspace, watchlist } : null);
       });
       if (!active || !startedAt) return;
@@ -100,20 +164,35 @@ export class DealFeedSearchComponent {
     destroyRef.onDestroy(() => this.state.destroy());
   }
 
-  slowModeChanged(enabled: boolean): void {
-    this.state.setSlowMode(enabled);
-    try {
-      this.document.defaultView?.localStorage.setItem(SLOW_MODE_STORAGE_KEY, String(enabled));
-    } catch {
-      // Ohne Browserspeicher gilt die Wahl nur für diesen Besuch.
-    }
+  onQueryInput(event: Event): void {
+    this.liveQuery.set((event.target as HTMLInputElement).value);
   }
 
-  private readSlowModePreference(): boolean {
-    try {
-      return this.document.defaultView?.localStorage.getItem(SLOW_MODE_STORAGE_KEY) === 'true';
-    } catch {
-      return false;
-    }
+  onMinPriceInput(event: Event): void {
+    this.liveMinPrice.set(parsePriceInput((event.target as HTMLInputElement).value));
   }
+
+  onMaxPriceInput(event: Event): void {
+    this.liveMaxPrice.set(parsePriceInput((event.target as HTMLInputElement).value));
+  }
+
+  toggleLiveSize(size: string): void {
+    this.liveSizes.update((current) =>
+      current.includes(size) ? current.filter((entry) => entry !== size) : [...current, size],
+    );
+  }
+
+  resetLiveFilters(): void {
+    this.liveQuery.set('');
+    this.liveSizes.set([]);
+    this.liveMinPrice.set(null);
+    this.liveMaxPrice.set(null);
+  }
+}
+
+function parsePriceInput(raw: string): number | null {
+  const trimmed = raw.trim().replace(',', '.');
+  if (!trimmed) return null;
+  const value = Number(trimmed);
+  return Number.isFinite(value) && value >= 0 ? value : null;
 }

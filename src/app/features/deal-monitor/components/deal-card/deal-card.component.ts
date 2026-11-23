@@ -8,7 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import { LucideExternalLink, LucideHeart, LucideShare2 } from '@lucide/angular';
+import { LucideExternalLink, LucideHeart } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -16,7 +16,6 @@ import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-mon
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { FeedClockService } from '../../services/feed-clock.service';
 import { discoveryAge } from '../../utils/discovery-date';
-import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
   selector: 'app-deal-card',
@@ -31,7 +30,6 @@ export class DealCardComponent {
 
   readonly favoritesService = inject(DealFavoritesService);
   private readonly failedImages = signal<ReadonlySet<string>>(new Set());
-  readonly shareMessage = signal<string | null>(null);
 
   readonly isFavorite = computed(() => this.favoritesService.isFavorite(this.item()));
 
@@ -43,7 +41,6 @@ export class DealCardComponent {
   readonly icons = {
     external: LucideExternalLink,
     heart: LucideHeart,
-    share: LucideShare2,
   };
   private readonly clock = inject(FeedClockService);
   readonly discoveredLabel = computed(() =>
@@ -63,16 +60,5 @@ export class DealCardComponent {
   openDetail(event?: Event): void {
     event?.stopPropagation();
     this.inspect.emit(this.item());
-  }
-
-  async share(): Promise<void> {
-    const result = await shareVintedListing(this.item());
-    this.shareMessage.set(
-      result === 'copied'
-        ? 'Link kopiert.'
-        : result === 'unavailable'
-          ? 'Teilen ist hier nicht verfügbar.'
-          : null,
-    );
   }
 }

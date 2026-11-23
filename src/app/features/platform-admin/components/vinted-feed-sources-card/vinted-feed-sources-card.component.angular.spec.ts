@@ -114,7 +114,7 @@ describe('VintedFeedSourcesCardComponent', () => {
       categoryPollIntervalSeconds: 60,
     });
 
-    card.settingsForm.setValue({ maxCategorySources: 501, categoryPollIntervalSeconds: 10 });
+    card.settingsForm.setValue({ maxCategorySources: 501, categoryPollIntervalSeconds: 4 });
     card.settingsForm.markAsDirty();
     await card.saveSettings();
     expect(api.saveSettings).not.toHaveBeenCalled();
@@ -122,7 +122,7 @@ describe('VintedFeedSourcesCardComponent', () => {
       'Bitte gib eine ganze Zahl von 0 bis 500 ein.',
     );
     expect(card.fieldError('categoryPollIntervalSeconds')).toBe(
-      'Bitte gib eine ganze Zahl von 15 bis 3600 ein.',
+      'Bitte gib eine ganze Zahl von 5 bis 3600 ein.',
     );
 
     card.settingsForm.setValue({ maxCategorySources: 20, categoryPollIntervalSeconds: 30 });

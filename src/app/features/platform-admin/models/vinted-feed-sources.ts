@@ -42,7 +42,7 @@ export interface VintedCategorySyncStatus {
 
 export const VINTED_FEED_SETTING_LIMITS = {
   maxCategorySources: { min: 0, max: 500 },
-  categoryPollIntervalSeconds: { min: 15, max: 3600 },
+  categoryPollIntervalSeconds: { min: 5, max: 3600 },
 } as const;
 
 function record(value: unknown): Record<string, unknown> {

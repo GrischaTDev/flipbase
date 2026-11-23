@@ -154,9 +154,6 @@
       @if (item().is_hidden) {
         <app-badge tone="caution">Hinweis: Angebot aktuell noch nicht direkt kaufbar</app-badge>
       }
-      @if (shareMessage(); as message) {
-        <p role="status" class="text-sm text-fb-text-secondary">{{ message }}</p>
-      }
     </div>
   </div>
 
@@ -173,7 +170,6 @@
         (clicked)="toggleFavorite()"
         >{{ isFavorite() ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}</app-button
       >
-      <app-button variant="secondary" [icon]="icons.share" (clicked)="share()">Teilen</app-button>
     </div>
 
     <div class="flex items-center gap-2">

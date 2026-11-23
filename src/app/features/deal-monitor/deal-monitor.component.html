@@ -1,93 +1,222 @@
 <section class="mx-auto flex w-full min-w-0 flex-col gap-4">
   <app-page-header title="Vinted Feed" [icon]="icons.feed">
-    <app-button
-      header-actions
-      [icon]="icons.add"
-      [disabled]="!workspaceId() || editorOpen() || isSaving()"
-      (clicked)="openEditor()"
-      >Neuer Feed</app-button
-    >
-  </app-page-header>
-
-  <div class="flex h-11 flex-wrap items-center gap-2 overflow-auto text-sm">
-    <p role="status">
-      {{ loadingFeeds() && feeds().length === 0 ? 'Feeds werden geladen …' : message() }}
-    </p>
-    @if (error(); as text) {
-      <span role="alert" class="text-fb-text-danger">{{ text }}</span>
-      <app-button size="slim" variant="secondary" (clicked)="loadFeeds()">Erneut laden</app-button>
-    }
-  </div>
-
-  @if (workspaceId(); as workspace) {
-    @if (selectedFeed(); as feed) {
-      <section aria-label="Persönliche Feeds" class="flex flex-wrap items-end gap-2">
-        <app-custom-select
-          class="w-full sm:w-64"
-          label="Feed"
-          ariaLabel="Feed"
-          [options]="feedOptions()"
-          [value]="feed.id"
-          [disabled]="isSaving()"
-          (valueChange)="selectedId.set($event)"
-        />
-        <app-button
-          class="min-w-32"
-          [fullWidth]="true"
-          [icon]="feed.is_active ? icons.stop : icons.start"
-          [loading]="pending() === 'toggle'"
-          [disabled]="isSaving()"
-          (clicked)="toggle(feed)"
-          >{{ feed.is_active ? 'Feed stoppen' : 'Feed starten' }}</app-button
-        >
+    <div header-actions class="flex flex-wrap items-center gap-2">
+      @if (canShowColumns()) {
         <app-button
           variant="secondary"
-          [icon]="icons.edit"
-          [disabled]="isSaving()"
-          (clicked)="openEditor(feed)"
-          >Feed bearbeiten</app-button
+          size="slim"
+          [icon]="showColumns() ? icons.single : icons.columns"
+          (clicked)="viewMode.set(showColumns() ? 'single' : 'columns')"
+          >{{ showColumns() ? 'Einzelansicht' : 'Nebeneinander' }}</app-button
         >
-        <app-button
-          variant="destructive"
-          [icon]="icons.delete"
-          [disabled]="isSaving()"
-          ariaLabel="Feed löschen"
-          (clicked)="remove(feed)"
-        />
-      </section>
-      @if (feed.is_active) {
-        <app-deal-feed-search [workspaceId]="workspace" [feed]="feed" />
-      } @else {
-        <div class="rounded-lg border border-fb-border bg-fb-surface p-5">
-          <h2 class="text-base font-semibold">Feed gestoppt</h2>
+      }
+      <app-button
+        [icon]="icons.add"
+        [disabled]="!workspaceId() || editorOpen() || isSaving()"
+        (clicked)="openEditor()"
+        >Neuer Feed</app-button
+      >
+    </div>
+  </app-page-header>
+
+  @if ((loadingFeeds() && feeds().length === 0) || message() || error()) {
+    <div class="flex flex-wrap items-center gap-2 text-sm">
+      @if (loadingFeeds() && feeds().length === 0) {
+        <p role="status" class="text-fb-text-secondary">Feeds werden geladen …</p>
+      } @else if (message(); as statusText) {
+        <p role="status" class="text-fb-text-secondary">{{ statusText }}</p>
+      }
+      @if (error(); as text) {
+        <span role="alert" class="text-fb-text-danger">{{ text }}</span>
+        <app-button size="slim" variant="secondary" (clicked)="loadFeeds()"
+          >Erneut laden</app-button
+        >
+      }
+    </div>
+  }
+
+  @if (workspaceId(); as workspace) {
+    @if (feeds().length > 0) {
+      <div
+        role="tablist"
+        aria-label="Persönliche Feeds"
+        class="flex items-center gap-1.5 overflow-x-auto border-b border-fb-border pb-2"
+      >
+        @for (item of feeds(); track item.id) {
+          @let isSelected = !showColumns() && item.id === selectedId();
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="isSelected"
+            (click)="selectFeed(item)"
+            class="inline-flex shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+            [class]="
+              isSelected
+                ? 'border-fb-primary bg-fb-surface text-fb-text-primary shadow-xs'
+                : 'border-transparent text-fb-text-secondary hover:bg-fb-surface-hover hover:text-fb-text-primary'
+            "
+          >
+            <span
+              class="h-2 w-2 shrink-0 rounded-full"
+              [class]="item.is_active ? 'bg-emerald-500' : 'bg-fb-text-muted/40'"
+              aria-hidden="true"
+            ></span>
+            <span>{{ item.title }}</span>
+          </button>
+        }
+      </div>
+
+      @if (showColumns()) {
+        <div
+          class="grid gap-4"
+          [class]="
+            activeFeeds().length === 2
+              ? 'grid-cols-2'
+              : activeFeeds().length === 3
+                ? 'grid-cols-3'
+                : 'grid-flow-col auto-cols-[minmax(24rem,1fr)] overflow-x-auto pb-2'
+          "
+        >
+          @for (columnFeed of activeFeeds(); track columnFeed.id) {
+            <section
+              class="flex min-w-0 flex-col gap-3 rounded-xl border border-fb-border bg-fb-surface/40 p-3.5"
+              [attr.aria-label]="'Feed ' + columnFeed.title"
+            >
+              <div class="flex items-start justify-between gap-2 border-b border-fb-border pb-2.5">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"
+                      aria-hidden="true"
+                    ></span>
+                    <h2 class="truncate text-sm font-semibold text-fb-text-primary">
+                      {{ columnFeed.title }}
+                    </h2>
+                  </div>
+                  @let badges = feedBadges(columnFeed);
+                  @if (badges.length) {
+                    <div class="mt-1.5 flex flex-wrap gap-1">
+                      @for (badge of badges; track badge) {
+                        <app-badge tone="neutral" size="sm">{{ badge }}</app-badge>
+                      }
+                    </div>
+                  }
+                </div>
+                <div class="flex shrink-0 items-center gap-1">
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    [icon]="icons.stop"
+                    [iconOnly]="true"
+                    ariaLabel="Feed stoppen"
+                    title="Feed stoppen"
+                    [loading]="pending() === 'toggle' && pendingFeedId() === columnFeed.id"
+                    [disabled]="isSaving()"
+                    (clicked)="toggle(columnFeed)"
+                  />
+                  <app-button
+                    size="slim"
+                    variant="secondary"
+                    [icon]="icons.edit"
+                    [iconOnly]="true"
+                    ariaLabel="Feed bearbeiten"
+                    title="Feed bearbeiten"
+                    [disabled]="isSaving()"
+                    (clicked)="openEditor(columnFeed)"
+                  />
+                  <app-button
+                    size="slim"
+                    variant="destructive"
+                    [icon]="icons.delete"
+                    [iconOnly]="true"
+                    ariaLabel="Feed löschen"
+                    title="Feed löschen"
+                    [disabled]="isSaving()"
+                    (clicked)="remove(columnFeed)"
+                  />
+                </div>
+              </div>
+              <app-deal-feed-search
+                [workspaceId]="workspace"
+                [feed]="columnFeed"
+                [compact]="true"
+              />
+            </section>
+          }
         </div>
+      } @else if (selectedFeed(); as feed) {
+        <div
+          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-surface px-4 py-3"
+        >
+          <div class="flex min-w-0 flex-wrap items-center gap-2">
+            <span
+              class="h-2.5 w-2.5 shrink-0 rounded-full"
+              [class]="feed.is_active ? 'bg-emerald-500' : 'bg-fb-text-muted/40'"
+              aria-hidden="true"
+            ></span>
+            <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ feed.title }}</h2>
+            @for (badge of feedBadges(feed); track badge) {
+              <app-badge tone="neutral" size="sm">{{ badge }}</app-badge>
+            }
+          </div>
+          <div class="flex shrink-0 flex-wrap items-center gap-2">
+            <app-button
+              size="slim"
+              [variant]="feed.is_active ? 'secondary' : 'primary'"
+              [icon]="feed.is_active ? icons.stop : icons.start"
+              [loading]="pending() === 'toggle' && pendingFeedId() === feed.id"
+              [disabled]="isSaving()"
+              (clicked)="toggle(feed)"
+              >{{ feed.is_active ? 'Feed stoppen' : 'Feed starten' }}</app-button
+            >
+            <app-button
+              size="slim"
+              variant="secondary"
+              [icon]="icons.edit"
+              [disabled]="isSaving()"
+              (clicked)="openEditor(feed)"
+              >Feed bearbeiten</app-button
+            >
+            <app-button
+              size="slim"
+              variant="destructive"
+              [icon]="icons.delete"
+              [iconOnly]="true"
+              ariaLabel="Feed löschen"
+              title="Feed löschen"
+              [disabled]="isSaving()"
+              (clicked)="remove(feed)"
+            />
+          </div>
+        </div>
+
+        @if (feed.is_active) {
+          <app-deal-feed-search [workspaceId]="workspace" [feed]="feed" />
+        } @else {
+          <div class="rounded-xl border border-fb-border bg-fb-surface p-5">
+            <h2 class="text-base font-semibold text-fb-text-primary">Feed gestoppt</h2>
+            <p class="mt-1 text-sm text-fb-text-secondary">
+              Starte diesen Feed oben über „Feed starten“, um passende Vinted-Artikel live zu
+              empfangen.
+            </p>
+          </div>
+        }
       }
     } @else if (!loadingFeeds() && !error()) {
-      <div class="rounded-lg border border-dashed border-fb-border bg-fb-surface p-5">
-        <h2 class="text-base font-semibold">Noch keine Feeds</h2>
+      <div class="rounded-xl border border-dashed border-fb-border bg-fb-surface p-6">
+        <h2 class="text-base font-semibold text-fb-text-primary">Noch keine Feeds</h2>
+        <p class="mt-1 text-sm text-fb-text-secondary">
+          Lege deinen ersten Feed an – per Filter oder direkt über einen kopierten Vinted-Suchlink.
+        </p>
       </div>
     }
+
     @if (editorOpen()) {
       <app-modal-shell
         [title]="editing() ? 'Feed bearbeiten' : 'Neuer Feed'"
         size="lg"
-        [hasFooter]="false"
         (closed)="closeEditor()"
       >
-        <div header-actions class="flex gap-2">
-          <app-button variant="secondary" [disabled]="isSaving()" (clicked)="closeEditor()"
-            >Abbrechen</app-button
-          >
-          <app-button
-            type="submit"
-            formId="personal-vinted-feed"
-            variant="primary"
-            [class.invisible]="!hasUnsavedChanges() && pending() !== 'save'"
-            [disabled]="feedEditor.importingLink()"
-            [loading]="pending() === 'save'"
-            >Feed speichern</app-button
-          >
-        </div>
         <app-personal-feed-editor
           #feedEditor
           [feed]="editing()"
@@ -96,6 +225,21 @@
           [saveError]="editorError()"
           (saved)="save($event)"
         />
+        <div modal-footer class="flex w-full items-center justify-end gap-2">
+          <app-button variant="secondary" [disabled]="isSaving()" (clicked)="closeEditor()"
+            >Abbrechen</app-button
+          >
+          <app-button
+            type="submit"
+            formId="personal-vinted-feed"
+            variant="primary"
+            [disabled]="
+              feedEditor.importingLink() || (!hasUnsavedChanges() && pending() !== 'save')
+            "
+            [loading]="pending() === 'save'"
+            >Feed speichern</app-button
+          >
+        </div>
       </app-modal-shell>
     }
   } @else {
