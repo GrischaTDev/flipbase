@@ -1,9 +1,10 @@
 # Vinted-Bot betreiben
 
 Der Bot ist ein eigener Node-Dienst. Das Nginx-Abbild der Webanwendung startet
-ihn nicht. Er liest Kategorien auch dann ein, wenn noch keine Suchaufträge
-existieren. Welche Artikel gesammelt werden, bestimmen ausschließlich aktive
-Zeilen in `public.sniper_queries`.
+ihn nicht. Er liest den Vinted-Kategoriebaum auch ohne persönliche Feeds ein.
+Welche Artikel im Live-Feed gesammelt werden, bestimmen die gestarteten Feeds
+mit gültigem Zugang. Geteilte Sammelaufträge liest er über
+`public.sniper_active_personal_collections`.
 
 Änderungen unter `services/sniper` bauen und veröffentlichen über die
 Produktionspipeline automatisch ein eigenes Botabbild. Der Webcontainer und der
@@ -19,12 +20,6 @@ Abruf der Vinted-Startseite vom Server lieferte HTTP 200. Der vorhandene Parser
 las daraus 2.920 Kategorien, davon 2.500 Blätter. Die fehlende Inbetriebnahme
 war damit die Ursache der unbearbeiteten Anforderung.
 
-Die Administrationsseite liest den Status jetzt alle fünf Sekunden nach.
-Eine seit mindestens einer Minute unbeantwortete Anforderung wird ausdrücklich
-angezeigt. Das ist ein Hinweis auf eine ausstehende Bearbeitung, kein sicherer
-Nachweis, dass der Dienst ausgefallen ist. Nach Verlassen der Seite endet die
-Abfrage. Sie löst selbst keinen Vinted-Abruf aus.
-
 ## Lokal prüfen
 
 ```sh
@@ -37,7 +32,7 @@ npm run build
 
 Für einen lokalen Start die Werte aus `.env.example` in einer lokalen `.env`
 setzen und `npm start` ausführen. Nur die dafür vorgesehene Datenbank verwenden.
-Ein gestarteter Bot arbeitet alle dort aktiven Suchaufträge ab.
+Ein gestarteter Bot arbeitet die dort angeforderten Live-Suchen ab.
 
 ## Abbild und isolierter Starttest
 
@@ -141,10 +136,9 @@ from public.sniper_queries;
 ```
 
 Die Kategorienzahl muss mit dem gespeicherten Stand übereinstimmen;
-`refreshed_at` muss aktuell und `last_error` leer sein. Danach „Neu einlesen“ in
-der Administration anfordern und prüfen, dass der Zeitpunkt ohne Seitenneuladen
-fortschreitet. Die Kategorienzahl kann sich bei Vinted ändern; 2.920 ist ein
-Messwert und kein dauerhaft festgelegter Sollwert.
+`refreshed_at` muss aktuell und `last_error` leer sein. Die Kategorienzahl kann
+sich bei Vinted ändern. Die 2.920 Kategorien aus der ersten Abnahme sind ein
+historischer Messwert.
 
 Bei Problemen den Bot mit `docker compose -f docker-compose.sniper.yml stop`
 anhalten oder `FLIPBASE_SNIPER_IMAGE` auf das vorherige geprüfte Abbild setzen
@@ -152,54 +146,49 @@ und `up -d` ausführen. Kategorien und Geschäftsdaten dabei nicht löschen.
 
 ## Sammelaufträge und Betrieb
 
-Die Administration enthält jetzt **Sammelaufträge** (`/admin/queries`) und
-**Botbetrieb** (`/admin/operation`). Die Sammelaufträge sind zentrale
-Markenfilter für alle Nutzer. Ein Filter besteht aus einem frei wählbaren Namen,
-einer Vinted-Markenkennung, dem Abfragetakt und einer optionalen Notiz.
-Kategorien, Suchbegriffe, Preise und Zustände werden ausschließlich im
-persönlichen Suchfilter des jeweiligen Arbeitsbereichs gepflegt. Neue
-Markenfilter werden pausiert gespeichert; Aktivieren setzt eine höchstens zwei
-Minuten alte Betriebsmeldung voraus. Name, Takt und Notiz bleiben bearbeitbar,
-die Marke und der Sammelschlüssel bleiben unverändert.
+Nutzer legen ihre Feeds unter **Werkzeuge → Vinted Feed** (`/vinted-bot`) an.
+Ein Feed erzeugt keine eigene Vinted-Abfrage. Er liest aus einer gemeinsamen
+Quelle (Schlüssel in `sniper_queries.query_key`):
 
-Die Administration fügt Marken einzeln hinzu. Wenn ein Nutzer eine weitere
-Marke benötigt, wird dafür ein zusätzlicher zentraler Markenfilter angelegt.
-Vollständig ungefilterte Aufträge bleiben gesperrt. Die Vinted-Katalogantwort
-enthält bei einem reinen Markenauftrag weiterhin keine Kategoriekennung. Deshalb
-greifen persönliche Kategoriefilter für neue Artikel
-erst, sobald eine Kategorie-Anreicherung vorhanden ist; Marke, Suchbegriff,
-Zustand und Preis können bereits auf dem gemeinsamen Bestand filtern.
+| Quelle             | Schlüssel      | Abfrage  | Takt  |
+| ------------------ | -------------- | -------- | ----- |
+| Hauptquelle Damen  | `vinted-source | main     | 1904` | nur `catalog_ids=1904` | 5 s, durch das Budget gebremst                        |
+| Hauptquelle Herren | `vinted-source | main     | 5`    | nur `catalog_ids=5`    | 5 s, durch das Budget gebremst                        |
+| Kategoriequelle    | `vinted-source | category | <id>` | nur `catalog_ids=<id>` | `sniper_feed_settings.category_poll_interval_seconds` |
 
-### Gewünschter Markenstart vom 12.09.2026
+Feeds ohne Kategorie lesen aus der Hauptquelle ihrer Zielgruppe (bei „beide“
+aus beiden), Feeds mit Kategorie aus der Kategoriequelle. Marke, Suchtext,
+Größe, Zustand und Preis filtert `sniper_feed_search` in der Datenbank. Die
+Katalogliste liefert keine Kategorie und nur den Markennamen; ein Feed mit
+Marken-ID speichert deshalb immer auch den Namen.
 
-Der Nutzer legt Nike, adidas und Ralph Lauren als getrennte Markenfilter an.
-Jeder Filter hat keine zusätzlichen Kategorie-, Suchtext- oder Preisbedingungen
-und startet zunächst mit 20 Sekunden Takt.
+Der Dienst liest die Sicht `sniper_active_feed_sources`: nur Quellen, die
+mindestens ein aktiver, zugangsberechtigter Feed braucht. Wer zuerst fällig ist,
+wird zuerst abgerufen. Kategoriequellen werden nach ihrem Takt fällig, die
+Hauptquellen nutzen die übrigen Abrufe. Eine neue Quelle reiht sich als fällig
+hinter bereits überfällige ein. Eine Quelle ohne Bedarf wird beendet, behält aber
+Fehlerzähler und Wartezeit; ein Neustart umgeht keine Vinted-Pause. Ruhende
+Kategoriequellen löscht die Bereinigung nach einem Tag.
 
-| Marke        | Vinted-Suchlink                                                  | Preisgrenzen |
-| ------------ | ---------------------------------------------------------------- | ------------ |
-| Nike         | [Nike](https://www.vinted.de/catalog?brand_ids%5B%5D=53)         | keine        |
-| adidas       | [adidas](https://www.vinted.de/catalog?brand_ids%5B%5D=14)       | keine        |
-| Ralph Lauren | [Ralph Lauren](https://www.vinted.de/catalog?brand_ids%5B%5D=88) | keine        |
+Die Zahl gleichzeitig laufender Kategoriequellen begrenzt
+`sniper_feed_settings.max_category_sources` (Standard 10). Ein Feed, der eine
+neue Kategorie bräuchte, wird beim Start über der Grenze abgelehnt; laufende
+Kategorien kann jeder nutzen. Je Nutzer laufen höchstens zwölf Feeds. Grenze
+und Takt stellt die Administration in **Systemzustand → Vinted-Quellen** ein
+(`set_sniper_feed_settings`); eine Senkung beendet keine laufenden Quellen.
+Die Karte zeigt dazu Quellen, Feeds, Abdeckung und Abrufe je Minute.
 
-Alle drei Markenfilter lieferten vom Server HTTP 200 und ausschließlich die
-jeweilige Marke. Zwei Abrufe im Abstand von rund zwölf Sekunden ergaben
-13/5/2 neue Artikel für Nike/adidas/Ralph Lauren. Das ist eine kurze Stichprobe,
-keine Garantie lückenloser Erfassung. Antworten enthalten keine Kategoriekennung;
-die Kategorie wird nicht aus Titel oder Marke geraten. Separate Marken wie
-„Polo Ralph Lauren“ sind nicht automatisch Bestandteil der Kennung 88.
+Nach einem Lauf mit neuen sichtbaren Treffern benachrichtigt der Dienst über
+`sniper_notify_feed_updates(query_id)` nur die Arbeitsbereiche, deren aktive
+Feeds an dieser Quelle hängen. Unsichtbare Einleseläufe senden keinen Hinweis.
+Ein Feed gilt in der Ansicht nur als abgedeckt, wenn jede seiner Quellen läuft,
+nicht `limited` meldet und zuletzt innerhalb des doppelten Takts (mindestens
+60 s) plus 30 s erfolgreich war.
 
-Nach Veröffentlichung der Markenfilter-Migration die drei Aufträge über die
-Administration pausiert anlegen, Namen und Kennungen kontrollieren und aktivieren.
-Anschließend Erstbestand, mindestens einen weiteren Sammellauf und Botfehler
-prüfen. Persönliche Merkzettel bleiben die zweite Filterebene auf dem Bestand.
-Diese Änderung benötigt keinen neuen Sammlercode; der veröffentlichte Bot
-unterstützt die Kombination bereits.
-
-Die Migration `20260912165527_sniper_administration.sql` muss **vor** dem neuen
-Botabbild angewendet werden. Danach genau den bisherigen Container aktualisieren.
-Die alte Botversion sendet keine Betriebsmeldung; die neue Aktivierung bleibt
-deshalb bis zum Botupdate gesperrt. Nach dem Wechsel lesend prüfen:
+**Administration → Systemzustand** (`/admin/system`) zeigt in der Karte
+**Vinted-Feed-Dienst** Betriebsmeldung, Anfragebudget und letzte Fehler. Falls
+der Sammler eine manuelle Prüfung meldet, öffnet **Vinted-Zugriff prüfen** die
+bestehende Sitzungsansicht. Betriebsmeldung auch lesend prüfen:
 
 ```sql
 select reported_at, requests_last_minute, rejected_last_minute,
@@ -209,9 +198,8 @@ from public.sniper_runtime_status where id = 1;
 
 Der Bot meldet nach jedem Takt den Stand seines echten 60-Sekunden-Fensters.
 403 und 429 zählen als abgewiesene Antworten, Netzwerkfehler als versuchte
-Anfragen. Die Oberfläche unterscheidet die letzte Betriebsmeldung von einem
-erfolgreichen Vinted-Abruf und kennzeichnet alte Werte. Fundzahlen über 24 Stunden
-zählen beim ersten entdeckenden Auftrag, nicht mehrfach bei Überlappung.
+Anfragen. Der Zeitstempel der Betriebsmeldung zeigt, wann sich der Dienst zuletzt
+gemeldet hat.
 
 ### Sitzungserneuerung und Feeddiagnose
 
@@ -226,7 +214,7 @@ Anmeldeseiten, wiederholte Erneuerungen und markierte Prüfseiten bleiben Fehler
 Für einen tatsächlichen Feedstillstand immer gemeinsam prüfen:
 
 - `sniper_queries.last_success_at`, `last_error_kind`, `last_error_message`
-  und `consecutive_failures`: Erfolg und Fehler je aktivem Markenauftrag.
+  und `consecutive_failures`: Erfolg und Fehler je aktiver Quelle.
 - `sniper_runtime_status.reported_at` gegenüber `vinted_last_success_at`:
   eine aktuelle Betriebsmeldung belegt noch keinen erfolgreichen Vinted-Abruf.
 - `sniper_listings.first_seen_at`: tatsächlicher neuer Artikelzulauf.
@@ -277,7 +265,7 @@ Vor jedem Quellauftrag werden fällige Filter neu gelesen. Nur exakt gleiche
 Quellparameter teilen eine Rohantwort; Titelbegriffe und Ausschlüsse werden
 anschließend je Filter geprüft. Kategorie, Marke, Preis und vorhandener Suchtext
 werden dabei nicht erweitert. Mehrere Marken und ODER-Begriffe bleiben eigene
-Teilabfragen. Das gewünschte Tempo bestimmt die früheste Fälligkeit, garantiert
+Teilabfragen. Der Takt der Quelle bestimmt die früheste Fälligkeit, garantiert
 aber keinen festen Abstand: weitere Quellen, Antwortzeiten und Anbieterpausen
 wirken weiterhin mit. Bestehende Umgebungswerte haben Vorrang vor neuen Vorgaben.
 
@@ -326,20 +314,20 @@ standardmäßig auf 20 Sekunden und erlaubt ebenfalls 1.000 bis 60.000.
 Diese Werte sind Flipbase-Betriebsentscheidungen, keine dokumentierten
 Vinted-Anfragegrenzen und kein Nachweis, dass Vinted die Abrufe dauerhaft zulässt.
 
-Nach HTTP 403 pausieren alle Marken und Kategorieabrufe. Nach Ablauf prüft
+Nach HTTP 403 pausieren alle Quellen. Nach Ablauf prüft
 genau eine fällige Abfrage den Zugang. Dabei wird die zuletzt abgewiesene,
 weiterhin aktive Abfrage bevorzugt. Bei einer erkannten Cloudflare-Prüfseite
 darf alle fünf Minuten genau eine Probe laufen, auch nach wiederholten Fehlern
-und Dienstneustarts. Zwischen diesen Proben bleiben alle Marken und
-Kategorieabrufe pausiert. Die fünf Minuten sind eine begrenzte betriebliche
+und Dienstneustarts. Zwischen diesen Proben bleiben alle Quellen pausiert. Die fünf Minuten sind eine begrenzte betriebliche
 Wiederprüfung, keine von Vinted bestätigte Anfragegrenze.
 Andere 403-Ablehnungen führen anhand der gespeicherten Fehlerzähler weiterhin
 zu 5, 10, 20, 40 und höchstens 60 Minuten Pause, auch nach einem Neustart.
-Wird sie administrativ pausiert oder gelöscht, dient eine andere aktive,
-fällige Abfrage als Ersatz; dabei beginnt gegebenenfalls deren Fehlerzähler.
+Braucht kein Feed sie mehr, dient eine andere aktive, fällige Quelle als Ersatz;
+dabei beginnt gegebenenfalls deren Fehlerzähler.
 Ein längeres `Retry-After` des Anbieters wird auch bei 403 eingehalten.
 Erst ein erfolgreicher Katalogabruf gibt den gemeinsamen Zugang wieder frei.
-Ohne aktive fällige Abfrage bleibt die gemeinsame Pause erhalten.
+Ohne aktive fällige Quelle bleibt die gemeinsame Pause erhalten. Die manuelle
+Zugriffsprüfung nutzt ohne laufenden Feed die zuletzt abgerufene Hauptquelle.
 
 Der Betriebsstatus nennt die Pause und die früheste Wiederprüfung durchgehend.
 In `query_failed` stehen zusätzlich HTTP-Status, Phase, erkannter
@@ -347,44 +335,35 @@ Challenge-Hinweis und Anbieterwartezeit. Antwortinhalte und Cookies werden
 dafür nicht protokolliert. Ein fehlender Challenge-Hinweis beweist keine
 Abwesenheit anderer Schutzmechanismen.
 
-## Nutzerfilter und Artikelansicht
+## Persönliche Feeds und Artikelansicht
 
-Unter **Werkzeuge → Deal-Monitor** (`/deal-monitor`) stehen drei neueste Funde
-und ein chronologisches Artikelraster bereit. Auf dem Handy sind die drei
-Highlights seitlich durchblätterbar. Die Ansicht fragt alle zehn Sekunden nach;
-der sichtbare Zulauf lässt sich pausieren. Ältere Seiten laden pausiert nach,
-höchstens 300 Artikel gleichzeitig. Fortsetzen beginnt wieder bei den neuesten.
-
-Merkzettel gehören zum Arbeitsbereich. Sie filtern Kategorie, Markenname,
-Suchtext, Zustand und Preis auf dem gemeinsamen Bestand.
-Sie lösen keine Vinted-Anfragen aus und verändern keine zentralen Sammelaufträge.
-Löschen entfernt den Merkzettel, keine Artikel.
-Übernommene Markenkennungen bleiben kompatibel, bis ein Markenname gesetzt wird;
-für einen Filter ohne diese alte Markenbindung einen neuen Merkzettel anlegen.
+Ein Feed wird unter dem eigenen Konto im gewählten Arbeitsbereich gespeichert.
+Starten und Stoppen steuern die Sammlung für diesen Feed. Die Ansicht zeigt
+höchstens 100 Funde seit dem letzten Start und aus den letzten zehn Minuten.
+Favoriten bleiben in der eigenen Favoritenansicht sichtbar, wenn sie aus dem
+laufenden Feed herausfallen.
 
 Die frühere Deal-Erkennung (Rabattschwelle je Merkzettel, Referenzpreis aus dem
 Gruppenmedian, festgehaltene Treffer) ist verworfen und seit der Migration
-`20261114150000_sniper_remove_deal_detection.sql` vollständig entfernt. Der
-Preisvergleich läuft getrennt davon über den Vergleichsbestand
-(`vinted_comparison_*`).
+`20261114150000_sniper_remove_deal_detection.sql` vollständig entfernt.
 
 ## Kategorie und Aufbewahrung
 
 Die erste bekannte Kategorie wird am Artikel festgehalten. Ein späterer Fund
-durch einen Kategorieauftrag kann sie ergänzen, ohne Erstfund und ursprünglichen
-Entdeckungsauftrag zu ändern.
+durch eine Kategoriequelle kann sie ergänzen, ohne Erstfund und ursprüngliche
+Entdeckungsquelle zu ändern.
 
-Die vom Nutzer gewählte Aufbewahrung beträgt **30 Tage seit Erstfund**.
-Der Bot bereinigt beim Start und danach einmal pro Minute bis zu 1.000
-abgelaufene Artikel. War das Paket voll, setzt er die Bereinigung bereits im
-nächsten Sammeltakt fort, damit ein Rückstand abgebaut wird. Aufträge bleiben
-erhalten. Fehler stehen bis zum erfolgreichen Wiederholen
-im Botbetrieb. Steht der Bot still, pausiert auch die Bereinigung.
+Normale Artikeldaten verfallen 15 Minuten nach dem Erstfund. Der Sammler löscht
+sie in Paketen. Kompakte externe IDs bleiben drei Tage erhalten, damit ein erneut
+entdeckter Artikel als bereits gesehen erkannt wird – über alle Quellen hinweg.
+Eine Quelle, die länger als 15 Minuten nicht drankommt, sieht Funde einer
+anderen Quelle danach nicht mehr. Die
+Favoriten speichern die für ihre Anzeige benötigten Artikeldaten separat.
 
 Ein Rückwechsel auf ein älteres Abbild stellt bereits gelöschte Artikel nicht
 wieder her. Dafür ist das Datenbankbackup nötig.
 
-Die Statistik zählt mehrfach gefundene Artikel weiterhin beim ersten Auftrag.
+Die Statistik zählt mehrfach gefundene Artikel weiterhin bei der ersten Quelle.
 Gelöschte Artikel können bei
 einem erneuten Fund wieder aufgenommen werden; eine dauerhafte Liste gelöschter
 Marktplatzkennungen wird nicht geführt.

@@ -6,8 +6,8 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { ModalDialogDirective } from '../../../../shared/directives/modal-dialog.directive';
-import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
-import type { VintedBrand } from '../../../platform-admin/models/vinted-brand.model';
+import { VintedBrandSearchService } from '../../../../core/services/vinted-brand-search.service';
+import type { VintedBrand } from '../../../../core/models/vinted-brand.model';
 import { VintedListingBrandDialogComponent } from './vinted-listing-brand-dialog.component';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
 

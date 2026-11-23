@@ -226,7 +226,7 @@ export class SniperBrowserConnectComponent {
   }
   private showError(error: unknown): void {
     this.error.set(
-      error instanceof Error ? error.message : 'Die Botsitzung ist gerade nicht verfügbar.',
+      error instanceof Error ? error.message : 'Die Prüfsitzung ist gerade nicht verfügbar.',
     );
   }
 }

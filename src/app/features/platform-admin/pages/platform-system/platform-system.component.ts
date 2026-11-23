@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   signal,
+  viewChild,
 } from '@angular/core';
 import { LucideActivity as Activity, LucideRefreshCw as RefreshCw } from '@lucide/angular';
 import {
@@ -21,6 +22,9 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
+import { SniperBrowserConnectComponent } from '../../components/sniper-browser-connect/sniper-browser-connect.component';
+import { VintedFeedSourcesCardComponent } from '../../components/vinted-feed-sources-card/vinted-feed-sources-card.component';
+import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
 import {
   PlatformSystemHealth,
   cloudIpStatus,
@@ -32,6 +36,7 @@ import {
   storageUsedPercent,
 } from '../../models/platform-system-health';
 import { PlatformSystemService } from '../../services/platform-system.service';
+import { SniperBrowserService } from '../../services/sniper-browser.service';
 
 const REFRESH_INTERVAL_MS = 30_000;
 
@@ -44,7 +49,9 @@ const REFRESH_INTERVAL_MS = 30_000;
     ButtonComponent,
     CardComponent,
     PageHeaderComponent,
+    SniperBrowserConnectComponent,
     TextFieldComponent,
+    VintedFeedSourcesCardComponent,
   ],
   templateUrl: './platform-system.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -53,7 +60,10 @@ export class PlatformSystemComponent implements OnInit {
   private readonly system = inject(PlatformSystemService);
   private readonly featureSwitches = inject(PlatformFeatureSwitchService);
   private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly browser = inject(SniperBrowserService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly sourcesCard = viewChild(VintedFeedSourcesCardComponent);
+  private browserStatusRequest: Promise<SniperBrowserStatus | null> | null = null;
 
   readonly systemIcon = Activity;
   readonly refreshIcon = RefreshCw;
@@ -66,6 +76,18 @@ export class PlatformSystemComponent implements OnInit {
   readonly switchError = signal<string | null>(null);
   readonly savingKey = signal<PlatformFeatureKey | null>(null);
   readonly messageDrafts = signal<Partial<Record<PlatformFeatureKey, string>>>({});
+  readonly browserOpen = signal(false);
+  private readonly browserStatus = signal<SniperBrowserStatus | null>(null);
+  readonly browserNeedsAttention = computed(() => {
+    const status = this.browserStatus();
+    return status?.state === 'interaction_required' || status?.state === 'manual';
+  });
+  readonly browserCanOpen = computed(() => {
+    const status = this.browserStatus();
+    return (
+      status?.state === 'interaction_required' || (status?.state === 'manual' && !!status.sessionId)
+    );
+  });
 
   readonly status = computed(() => {
     const health = this.health();
@@ -88,10 +110,22 @@ export class PlatformSystemComponent implements OnInit {
     this.destroyRef.onDestroy(() => clearInterval(timer));
   }
 
+  refresh(): void {
+    void this.load();
+    void this.sourcesCard()?.load();
+  }
+
   async load(): Promise<void> {
     if (this.loading()) return;
     this.loading.set(true);
     this.error.set(null);
+    const browserStatus = this.browser.status().catch(() => null);
+    this.browserStatusRequest = browserStatus;
+    void browserStatus.then((status) => {
+      if (!this.destroyRef.destroyed && this.browserStatusRequest === browserStatus) {
+        this.browserStatus.set(status);
+      }
+    });
     try {
       const [health] = await Promise.all([this.system.health(), this.featureSwitches.refresh(0)]);
       this.health.set(health);
@@ -101,6 +135,11 @@ export class PlatformSystemComponent implements OnInit {
     } finally {
       this.loading.set(false);
     }
+  }
+
+  closeBrowser(): void {
+    this.browserOpen.set(false);
+    void this.load();
   }
 
   isEnabled(area: PlatformFeatureArea): boolean {

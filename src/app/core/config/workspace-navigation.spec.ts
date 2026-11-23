@@ -231,7 +231,7 @@ describe('Aktive Navigationspfade', () => {
   });
 
   it('markiert bei Bot-Unterseiten nicht gleichzeitig die Bot-Startseite', () => {
-    for (const path of ['/vinted-bot', '/vinted-bot/filters', '/vinted-bot/favorites']) {
+    for (const path of ['/vinted-bot', '/vinted-bot/favorites']) {
       const active = VINTED_BOT_NAVIGATION.filter((child) => isNavigationChildActive(child, path));
       assert.deepEqual(
         active.map((child) => child.path),
@@ -239,22 +239,22 @@ describe('Aktive Navigationspfade', () => {
       );
     }
     assert.equal(
-      isNavigationChildActive(VINTED_BOT_NAVIGATION[1], '/vinted-bot/filters?sort=asc'),
+      isNavigationChildActive(VINTED_BOT_NAVIGATION[1], '/vinted-bot/favorites?sort=asc'),
       true,
     );
     assert.equal(
-      isNavigationChildActive(VINTED_BOT_NAVIGATION[1], '/vinted-bot/filters-old'),
+      isNavigationChildActive(VINTED_BOT_NAVIGATION[1], '/vinted-bot/favorites-old'),
       false,
     );
   });
 
-  it('markiert den administrativen Bot-Eintrag auf tieferliegenden Seiten', () => {
+  it('markiert den administrativen Nutzereintrag auf der Detailseite', () => {
     const active = PLATFORM_ADMIN_SIDEBAR_NAVIGATION.filter((child) =>
-      isNavigationChildActive(child, '/admin/vinted-bot/operation#status'),
+      isNavigationChildActive(child, '/admin/users/example#status'),
     );
     assert.deepEqual(
       active.map((child) => child.path),
-      ['/admin/vinted-bot'],
+      ['/admin/users'],
     );
   });
 });

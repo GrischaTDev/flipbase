@@ -1,27 +1,17 @@
-import { computed, signal } from '@angular/core';
-import { FeedItem, FeedPage, FeedRequest } from '../models/deal-monitor.model';
+import { signal } from '@angular/core';
+import { FEED_ITEM_LIMIT, FeedItem, FeedPage, FeedRequest } from '../models/deal-monitor.model';
 
 /** Abstand, in dem der langsame Modus den nächsten neuen Fund einschiebt. */
 export const SLOW_MODE_STEP_MS = 900;
 
-/** Ein Kontextwechsel verwirft auch verspätete Antworten des alten Arbeitsbereichs. */
 export class DealFeedState {
   readonly items = signal<FeedItem[]>([]);
-  readonly paused = signal(false);
-  readonly pending = signal<FeedItem[]>([]);
-  readonly loading = signal(false);
   readonly loaded = signal(false);
   readonly error = signal<string | null>(null);
   readonly covered = signal(false);
   readonly reportedAt = signal<string | null>(null);
-  readonly hasMore = signal(false);
   readonly slowMode = signal(false);
-  /** Neue Funde für den langsamen Modus, neuester zuerst. */
   readonly queued = signal<FeedItem[]>([]);
-  readonly newCount = computed(() => {
-    const known = new Set(this.items().map((item) => item.id));
-    return this.pending().filter((item) => !known.has(item.id)).length;
-  });
   private generation = 0;
   private request: FeedRequest | null = null;
   private busyGeneration: number | null = null;
@@ -35,14 +25,10 @@ export class DealFeedState {
     this.pendingUpdate = null;
     this.request = request;
     this.items.set([]);
-    this.pending.set([]);
     this.error.set(null);
     this.loaded.set(false);
-    this.loading.set(false);
-    this.hasMore.set(false);
     this.covered.set(false);
     this.reportedAt.set(null);
-    this.paused.set(false);
     this.clearQueue();
     if (request) void this.refresh();
   }
@@ -50,21 +36,12 @@ export class DealFeedState {
   setSlowMode(enabled: boolean): void {
     this.slowMode.set(enabled);
     if (enabled) return;
-    // Ausgeschaltet erscheinen alle wartenden Funde sofort wieder als Stapel.
     const waiting = this.queued();
     this.clearQueue();
     if (waiting.length) this.items.update((items) => [...waiting, ...items]);
   }
 
-  pause(): void {
-    this.paused.set(true);
-  }
-  resume(): void {
-    // Auch einen laufenden Seitenabruf verwerfen, bevor der Zulauf weitergeht.
-    this.setContext(this.request);
-  }
-
-  notifyUpdate(delta = false): void {
+  notifyUpdate(delta: boolean): void {
     if (!this.request) return;
     if (this.busyGeneration === this.generation) {
       this.pendingUpdate = {
@@ -73,30 +50,20 @@ export class DealFeedState {
       };
       return;
     }
-    void this.refresh(false, delta);
+    void this.refresh(delta);
   }
 
-  async refresh(more = false, delta = false): Promise<void> {
+  async refresh(delta = false): Promise<void> {
     const generation = this.generation;
-    if (!this.request || this.busyGeneration === generation) return;
-    if (more && !this.hasMore()) return;
+    const request = this.request;
+    if (!request || this.busyGeneration === generation) return;
     this.busyGeneration = generation;
-    this.loading.set(true);
-    if (more) this.pause();
-    const last = this.items().at(-1);
-    const request = {
-      ...this.request,
-      ...(more && last ? { cursor: { time: last.first_seen_at, id: last.id } } : {}),
-    };
-    const afterTime =
-      delta && !more && !this.paused() && !this.slowMode()
-        ? this.items()[0]?.first_seen_at
-        : undefined;
+    const afterTime = delta && !this.slowMode() ? this.items()[0]?.first_seen_at : undefined;
     try {
       let useDelta = !!afterTime;
       let page = await this.fetchPage(afterTime ? { ...request, afterTime } : request);
       if (generation !== this.generation) return;
-      if (useDelta && (page.items.length > 60 || this.paused() || this.slowMode())) {
+      if (useDelta && (page.items.length >= FEED_ITEM_LIMIT || this.slowMode())) {
         useDelta = false;
         page = await this.fetchPage(request);
       }
@@ -105,23 +72,10 @@ export class DealFeedState {
       this.reportedAt.set(page.reported_at);
       if (useDelta) {
         this.applyDelta(page.items);
-      } else if (more) {
-        const known = new Set(this.items().map((item) => item.id));
-        this.items.update((items) => [
-          ...items,
-          ...page.items.filter((item) => !known.has(item.id)),
-        ]);
-        this.hasMore.set(page.items.length === 60);
-      } else if (this.paused() && this.loaded()) {
-        this.pending.set(page.items);
-      } else if (this.slowMode() && this.loaded() && this.items().length > 0) {
+      } else if (this.slowMode() && this.loaded() && this.items().length) {
         this.queueNewFinds(page.items);
-        this.pending.set([]);
-        this.hasMore.set(page.items.length === 60);
       } else {
         this.items.set(page.items);
-        this.pending.set([]);
-        this.hasMore.set(page.items.length === 60);
       }
       this.loaded.set(true);
       this.error.set(null);
@@ -130,12 +84,11 @@ export class DealFeedState {
         this.error.set(error instanceof Error ? error.message : 'Laden fehlgeschlagen.');
     } finally {
       if (this.busyGeneration === generation) this.busyGeneration = null;
-      if (generation === this.generation) this.loading.set(false);
       if (this.pendingUpdate?.generation === generation) {
         const { delta } = this.pendingUpdate;
         this.pendingUpdate = null;
-        // Fehler werden über die bestehende Pollingpause erneut versucht.
-        if (generation === this.generation && !this.error()) void this.refresh(false, delta);
+        // Der regelmäßige Abgleich übernimmt Wiederholungen nach Fehlern.
+        if (generation === this.generation && !this.error()) void this.refresh(delta);
       }
     }
   }
@@ -152,23 +105,17 @@ export class DealFeedState {
     const current = this.items();
     const previous = new Map(current.map((item) => [item.id, item]));
     const updated = new Set(updates.map((item) => item.id));
-    const merged = [
+    const next = [
       ...updates.map((item) => {
         const old = previous.get(item.id);
         return old && JSON.stringify(old) === JSON.stringify(item) ? old : item;
       }),
       ...current.filter((item) => !updated.has(item.id)),
-    ];
-    this.hasMore.set(this.hasMore() || merged.length >= 60);
-    const next = merged.slice(0, 60);
+    ].slice(0, FEED_ITEM_LIMIT);
     if (next.length !== current.length || next.some((item, index) => current[index] !== item))
       this.items.set(next);
   }
 
-  /**
-   * Nur Funde, die neuer als der oberste sichtbare Artikel sind, warten auf ihren
-   * Einschub. Alles andere übernimmt die Seite wie gewohnt an seiner Stelle.
-   */
   private queueNewFinds(pageItems: FeedItem[]): void {
     const newest = this.items()[0];
     const shown = new Set(this.items().map((item) => item.id));
@@ -188,8 +135,6 @@ export class DealFeedState {
     if (this.releaseTimer !== undefined || this.queued().length === 0) return;
     this.releaseTimer = setTimeout(() => {
       this.releaseTimer = undefined;
-      // Während der Pause schaut jemand auf die Karten; danach geht es weiter.
-      if (this.paused()) return;
       const queued = this.queued();
       const next = queued.at(-1);
       if (!next) return;

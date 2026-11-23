@@ -132,7 +132,7 @@ begin
   from pg_class
   join pg_namespace on pg_namespace.oid = pg_class.relnamespace
   where pg_namespace.nspname = 'public'
-    and relname in ('sniper_queries', 'sniper_listings')
+    and relname in ('sniper_queries', 'sniper_listings', 'sniper_watchlists', 'sniper_recent_listing_keys')
     and relrowsecurity = false;
 
   if unprotected is not null then
@@ -141,9 +141,9 @@ begin
 end;
 $$;
 
-select pass('RLS ist auf beiden Sniper-Tabellen aktiv');
+select pass('RLS ist auf Feeds, Sammelaufträgen, Artikeln und Artikelkennungen aktiv');
 
--- Angemeldete Nutzer duerfen lesen, aber nicht schreiben.
+-- Die Altauftragsrichtlinie erlaubt begrenztes Lesen für die Administration.
 do $$
 declare
   write_policies text[];
@@ -169,13 +169,16 @@ begin
     and cmd = 'SELECT'
     and 'authenticated' = any(roles);
 
-  if read_policies <> 2 then
-    raise exception 'expected exactly 2 select policies for authenticated including administration, found %', read_policies;
+  if read_policies <> 1 or exists (
+    select 1 from pg_policies where schemaname = 'public' and tablename = 'sniper_listings'
+      and 'authenticated' = any(roles)
+  ) then
+    raise exception 'only the legacy query policy may allow direct reading';
   end if;
 end;
 $$;
 
-select pass('Angemeldete duerfen lesen, aber nicht schreiben');
+select pass('Die Altauftragsrichtlinie erlaubt keinen direkten Zugriff auf Feed-Karten');
 
 -- anon darf auf keiner der beiden Tabellen irgendetwas.
 --
@@ -202,29 +205,26 @@ $$;
 
 select pass('anon hat keinerlei Rechte auf sniper_queries und sniper_listings');
 
--- authenticated darf auf beiden Tabellen genau lesen - nicht mehr.
+-- Artikelkarten werden ausschließlich über den berechtigten persönlichen Feed gelesen.
 do $$
 declare
-  tabelle text;
   rechte text[];
 begin
-  foreach tabelle in array array['sniper_queries', 'sniper_listings']
-  loop
-    select array_agg(privilege_type order by privilege_type)
-    into rechte
-    from information_schema.role_table_grants
-    where table_schema = 'public'
-      and table_name = tabelle
-      and grantee = 'authenticated';
-
-    if rechte is distinct from array['SELECT'] then
-      raise exception 'authenticated soll auf % genau SELECT haben, hat aber: %', tabelle, rechte;
-    end if;
-  end loop;
+  select array_agg(privilege_type order by privilege_type)
+  into rechte
+  from information_schema.role_table_grants
+  where table_schema = 'public' and table_name = 'sniper_queries' and grantee = 'authenticated';
+  if rechte is distinct from array['SELECT'] or exists (
+    select 1 from information_schema.role_table_grants where table_schema = 'public'
+      and table_name in ('sniper_listings','sniper_recent_listing_keys','sniper_active_personal_collections')
+      and grantee = 'authenticated'
+  ) then
+    raise exception 'authenticated shall only have SELECT on sniper_queries';
+  end if;
 end;
 $$;
 
-select pass('authenticated darf sniper_queries und sniper_listings genau lesen');
+select pass('Kein Tabellenzugriff auf Artikel, Wiedererkennung und persönliche Sammelaufträge');
 
 -- anon haelt auf keiner Sniper-Tabelle irgendein Recht.
 --

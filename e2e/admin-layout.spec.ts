@@ -112,7 +112,6 @@ previewTest.describe('Einheitliche Seitenbreite', () => {
   for (const route of [
     '/marketplaces/vinted/accounts',
     '/vinted-bot',
-    '/vinted-bot/filters',
     '/vinted-bot/favorites',
     '/marketplaces/ebay/listings',
     '/expenses',

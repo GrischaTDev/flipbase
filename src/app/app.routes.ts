@@ -258,20 +258,13 @@ export const routes: Routes = [
       {
         path: 'vinted-bot',
         canActivate: [platformFeatureGuard('vinted_feed')],
+        canDeactivate: [unsavedEntryGuard],
         loadComponent: () =>
           import('./features/deal-monitor/deal-monitor.component').then(
             (m) => m.DealMonitorComponent,
           ),
       },
-      {
-        path: 'vinted-bot/filters',
-        canActivate: [platformFeatureGuard('vinted_feed')],
-        canDeactivate: [unsavedEntryGuard],
-        loadComponent: () =>
-          import('./features/deal-monitor/pages/deal-filters/deal-filters.component').then(
-            (m) => m.DealFiltersComponent,
-          ),
-      },
+      { path: 'vinted-bot/filters', redirectTo: 'vinted-bot', pathMatch: 'full' },
       {
         path: 'vinted-bot/favorites',
         canActivate: [platformFeatureGuard('vinted_feed')],

@@ -152,9 +152,28 @@ export class QueryStore {
       .sort(compareDueQueries);
   }
 
-  async activeQueries(): Promise<SniperQuery[]> {
+  /** Zuletzt genutzte Hauptquelle, unabhängig davon, ob gerade ein Feed läuft. */
+  async accessCheckQuery(): Promise<SniperQuery | null> {
     const { data, error } = await this.client
       .from('sniper_queries')
+      .select(COLUMNS)
+      .like('query_key', 'vinted-source|main|%')
+      .is('deleted_at', null)
+      .neq('run_state', 'invalid')
+      .order('last_polled_at', { ascending: false, nullsFirst: false })
+      .limit(1);
+
+    if (error) {
+      throw new Error(`loading access check query failed: ${error.message}`);
+    }
+
+    const row = (data as QueryRow[])[0];
+    return row ? toQuery(row) : null;
+  }
+
+  async activeQueries(): Promise<SniperQuery[]> {
+    const { data, error } = await this.client
+      .from('sniper_active_feed_sources')
       .select(COLUMNS)
       .eq('is_active', true)
       // 'blocked' bleibt geladen: isDue fuehrt Altbestaende ueber den Backoff zurueck.

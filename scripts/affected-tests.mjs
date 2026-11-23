@@ -39,7 +39,7 @@ const featureSpecs = {
     'responsive-admin-layout',
   ],
   'deal-calculator': [],
-  'deal-monitor': ['deal-monitor', 'sniper-administration'],
+  'deal-monitor': ['deal-monitor'],
   'ebay-fee-calculator': [],
   expenses: ['expense-recurrence-contract', 'responsive-admin-layout'],
   fulfillment: ['company-shop-shipping', 'responsive-admin-layout'],
@@ -48,7 +48,7 @@ const featureSpecs = {
   listings: ['listing-studio', 'vinted-listing-drafts', 'vinted-listing-edge-cases'],
   'master-data': ['brand-label-library', 'clothing-size-guide', 'sale-platforms'],
   onboarding: ['beta-registration', 'company-settings'],
-  'platform-admin': ['beta-registration', 'sniper-administration', 'beta-access-lifecycle'],
+  'platform-admin': ['beta-registration', 'beta-access-lifecycle', 'platform-system-vinted-access'],
   purchases: [
     'optional-shop',
     'purchase-profitability',
@@ -389,7 +389,7 @@ export function selectAffectedTests(paths, files) {
       marketplace:
         paths === null ||
         changed.some((file) =>
-          /^(?:package(?:-lock)?\.json|services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/functions\/(?:marketplace-|ebay-|vinted-ai-search\/|vinted-photo-background-mask\/|_shared\/))/u.test(
+          /^(?:package(?:-lock)?\.json|services\/marketplace-worker\/|tools\/flipbase-extension\/|supabase\/functions\/(?:marketplace-|ebay-|vinted-photo-background-mask\/|_shared\/))/u.test(
             file,
           ),
         ),

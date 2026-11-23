@@ -164,7 +164,7 @@ export function startBrowserApi(options: BrowserApiOptions): Server {
             message:
               error instanceof BrowserSessionError
                 ? error.message
-                : 'Die Botsitzung ist gerade nicht verfügbar.',
+                : 'Die Prüfsitzung ist gerade nicht verfügbar.',
           });
         else outgoing.destroy();
       });

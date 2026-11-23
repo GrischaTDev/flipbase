@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { parseVintedListingContent } from '../models/vinted-listing-content';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { VintedBrandSearchService } from '../../platform-admin/services/vinted-brand-search.service';
+import { VintedBrandSearchService } from '../../../core/services/vinted-brand-search.service';
 import type { MarketplaceEntry } from '../models/marketplace-read.models';
 import type { MarketplaceConnection } from '../models/marketplace.models';
 import {

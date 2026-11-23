@@ -4,7 +4,7 @@ import type { OriginState } from '../../src/store/origin-state.store.js';
 import { BrowserSessionController } from '../../src/browser/browser-session.js';
 import { ForbiddenError } from '../../src/vinted/errors.js';
 
-function setup() {
+function setup(options: { accessCheckSource?: boolean } = {}) {
   let clock = Date.parse('2026-10-07T12:00:00Z');
   let lastNavigation = -Infinity;
   let origin: OriginState = {
@@ -97,7 +97,12 @@ function setup() {
       tryAcquireProbe: async () => false,
       releaseProbe: async () => undefined,
     },
-    queries: { activeQueries: async () => (query.isActive ? [structuredClone(query)] : []) },
+    queries: {
+      activeQueries: async () => (query.isActive ? [structuredClone(query)] : []),
+      ...(options.accessCheckSource
+        ? { accessCheckQuery: async () => structuredClone(query) }
+        : {}),
+    },
     collector: {
       collect: async (_query, options) => {
         expect(options).toEqual({ allowRetries: false });
@@ -261,6 +266,12 @@ describe('BrowserSessionController', () => {
     query.isActive = false;
     await expect(controller.open('owner')).rejects.toMatchObject({ status: 409 });
     expect(events.some((event) => event.startsWith('open:'))).toBe(false);
+  });
+  it('opens the access check over a main source while no feed is running', async () => {
+    const { controller, query, events } = setup({ accessCheckSource: true });
+    query.isActive = false;
+    await controller.open('owner');
+    expect(events.some((event) => event.startsWith('open:'))).toBe(true);
   });
   it('retains the request spacing after a failed proof instead of opening again immediately', async () => {
     const { controller, advance, behavior, state } = setup();

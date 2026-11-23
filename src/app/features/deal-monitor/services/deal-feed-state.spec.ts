@@ -1,9 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DealFeedState, SLOW_MODE_STEP_MS } from './deal-feed-state';
 import {
+  FEED_ITEM_LIMIT,
+  FEED_WINDOW_MS,
   FeedItem,
   FeedPage,
   FeedRequest,
+  recentFeedItems,
   safeVintedImage,
   safeVintedLink,
 } from '../models/deal-monitor.model';
@@ -29,14 +32,7 @@ const page = (items: FeedItem[]): FeedPage => ({
   covered: true,
   reported_at: '2026-09-12T12:00:00Z',
 });
-const context: FeedRequest = {
-  workspace: 'a',
-  watchlist: null,
-  brand: null,
-  size: null,
-  minPrice: null,
-  maxPrice: null,
-};
+const context: FeedRequest = { workspace: 'a', watchlist: 'feed-a' };
 const settle = async () => {
   await Promise.resolve();
   await Promise.resolve();
@@ -81,31 +77,6 @@ describe('DealFeedState im langsamen Modus', () => {
     }
   });
 
-  it('hält während der Pause an und zeigt beim Ausschalten alles sofort', async () => {
-    vi.useFakeTimers();
-    try {
-      const fetch = vi
-        .fn()
-        .mockResolvedValueOnce(page([seenAt('old', 1)]))
-        .mockResolvedValue(page([seenAt('b', 3), seenAt('a', 2), seenAt('old', 1)]));
-      const state = new DealFeedState(fetch);
-      state.setSlowMode(true);
-      state.setContext(context);
-      await settle();
-      await state.refresh();
-      state.pause();
-      vi.advanceTimersByTime(SLOW_MODE_STEP_MS * 3);
-      expect(ids(state.items())).toEqual(['old']);
-      expect(ids(state.queued())).toEqual(['b', 'a']);
-      state.setSlowMode(false);
-      expect(ids(state.items())).toEqual(['b', 'a', 'old']);
-      expect(state.queued()).toEqual([]);
-      state.destroy();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
   it('verwirft wartende Funde beim Filterwechsel und zeigt den ersten Stand sofort', async () => {
     vi.useFakeTimers();
     try {
@@ -120,7 +91,7 @@ describe('DealFeedState im langsamen Modus', () => {
       await settle();
       await state.refresh();
       expect(ids(state.queued())).toEqual(['a']);
-      state.setContext({ ...context, brand: 'Nike' });
+      state.setContext({ ...context, watchlist: 'feed-b' });
       await settle();
       expect(state.queued()).toEqual([]);
       expect(ids(state.items())).toEqual(['other', 'x']);
@@ -144,7 +115,7 @@ describe('DealFeedState', () => {
     const state = new DealFeedState(fetch);
     state.setContext(context);
     await settle();
-    await state.refresh(false, true);
+    await state.refresh(true);
     expect(fetch).toHaveBeenLastCalledWith({ ...context, afterTime: arrival.first_seen_at });
     expect(ids(state.items())).toEqual(['c', 'b', 'a']);
     expect(state.items()[1]).toBe(existing[0]);
@@ -154,23 +125,22 @@ describe('DealFeedState', () => {
 
   it('holt bei einer größeren Änderung einen vollständigen Stand nach', async () => {
     const initial = seenAt('a', 1);
-    const updates = Array.from({ length: 61 }, (_, index) => seenAt(String(index), 2));
+    const updates = Array.from({ length: FEED_ITEM_LIMIT }, (_, index) => seenAt(String(index), 2));
     const fetch = vi
       .fn()
       .mockResolvedValueOnce(page([initial]))
       .mockResolvedValueOnce(page(updates))
-      .mockResolvedValueOnce(page(updates.slice(0, 60)));
+      .mockResolvedValueOnce(page(updates.slice(0, FEED_ITEM_LIMIT)));
     const state = new DealFeedState(fetch);
     state.setContext(context);
     await settle();
-    await state.refresh(false, true);
+    await state.refresh(true);
     expect(fetch.mock.calls).toEqual([
       [context],
       [{ ...context, afterTime: initial.first_seen_at }],
       [context],
     ]);
-    expect(state.items()).toEqual(updates.slice(0, 60));
-    expect(state.hasMore()).toBe(true);
+    expect(state.items()).toEqual(updates.slice(0, FEED_ITEM_LIMIT));
     state.destroy();
   });
 
@@ -187,60 +157,13 @@ describe('DealFeedState', () => {
       .mockResolvedValue(page([item('newest')]));
     const state = new DealFeedState(fetch);
     state.setContext(context);
-    for (let i = 0; i < 10; i++) state.notifyUpdate();
+    for (let i = 0; i < 10; i++) state.notifyUpdate(false);
     expect(fetch).toHaveBeenCalledTimes(1);
     finish(page([item('older')]));
     await settle();
     expect(fetch).toHaveBeenCalledTimes(2);
     await settle();
     expect(state.items().map((row) => row.id)).toEqual(['newest']);
-  });
-
-  it('legt angekündigte Funde bei pausiertem Feed ausschließlich im Zulauf ab', async () => {
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(page([item('older')]))
-      .mockResolvedValue(page([item('newest'), item('older')]));
-    const state = new DealFeedState(fetch);
-    state.setContext(context);
-    await settle();
-    state.pause();
-    state.notifyUpdate();
-    await settle();
-    expect(state.items().map((row) => row.id)).toEqual(['older']);
-    expect(state.pending().map((row) => row.id)).toEqual(['newest', 'older']);
-    expect(state.newCount()).toBe(1);
-    expect(state.paused()).toBe(true);
-  });
-
-  it('hält beim angekündigten Abgleich nach einer älteren Seite deren Karten fest', async () => {
-    const first = Array.from({ length: 60 }, (_, index) => item(String(index)));
-    let finish!: (page: FeedPage) => void;
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(page(first))
-      .mockImplementationOnce(
-        () =>
-          new Promise<FeedPage>((resolve) => {
-            finish = resolve;
-          }),
-      )
-      .mockResolvedValue(page([item('arrival'), ...first]));
-    const state = new DealFeedState(fetch);
-    state.setContext(context);
-    await settle();
-    const older = state.refresh(true);
-    state.notifyUpdate();
-    state.notifyUpdate();
-    expect(fetch).toHaveBeenCalledTimes(2);
-    finish(page([item('older')]));
-    await older;
-    await settle();
-    expect(fetch).toHaveBeenCalledTimes(3);
-    expect(fetch).toHaveBeenLastCalledWith(context);
-    expect(state.items().map((row) => row.id)).toEqual([...first.map((row) => row.id), 'older']);
-    expect(state.pending()[0].id).toBe('arrival');
-    expect(state.paused()).toBe(true);
   });
 
   it('verwirft vorgemerkte Hinweise beim Kontextwechsel und nach dem Verlassen', async () => {
@@ -256,14 +179,14 @@ describe('DealFeedState', () => {
       .mockResolvedValue(page([item('workspace-b')]));
     const state = new DealFeedState(fetch);
     state.setContext(context);
-    state.notifyUpdate();
+    state.notifyUpdate(false);
     state.setContext({ ...context, workspace: 'b' });
     finish(page([item('private-a')]));
     await settle();
     expect(fetch).toHaveBeenCalledTimes(2);
     expect(state.items()[0].id).toBe('workspace-b');
     state.destroy();
-    state.notifyUpdate();
+    state.notifyUpdate(false);
     await settle();
     expect(fetch).toHaveBeenCalledTimes(2);
   });
@@ -281,7 +204,7 @@ describe('DealFeedState', () => {
       .mockResolvedValue(page([item('recovered')]));
     const state = new DealFeedState(fetch);
     state.setContext(context);
-    state.notifyUpdate();
+    state.notifyUpdate(false);
     reject(new Error('offline'));
     await settle();
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -290,21 +213,6 @@ describe('DealFeedState', () => {
     expect(state.items()[0].id).toBe('recovered');
   });
 
-  it('keeps paused cards fixed while buffering arrivals, resumes at the newest page', async () => {
-    const fetch = vi.fn().mockResolvedValue(page([item('a')]));
-    const state = new DealFeedState(fetch);
-    state.setContext(context);
-    await settle();
-    state.pause();
-    fetch.mockResolvedValue(page([item('b'), item('a')]));
-    await state.refresh();
-    expect(state.items().map((row) => row.id)).toEqual(['a']);
-    expect(state.newCount()).toBe(1);
-    state.resume();
-    await settle();
-    expect(state.items().map((row) => row.id)).toEqual(['b', 'a']);
-    expect(state.newCount()).toBe(0);
-  });
   it('discards a delayed response after a workspace switch', async () => {
     let finish!: (page: FeedPage) => void;
     const fetch = vi
@@ -357,57 +265,20 @@ describe('DealFeedState', () => {
     expect(state.error()).toBeNull();
     expect(state.items()[0].id).toBe('b');
   });
-  it('uses the last timestamp and UUID as a cursor, deduplicates pages and pauses scrolling', async () => {
-    const first = Array.from({ length: 60 }, (_, i) => item(String(i)));
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(page(first))
-      .mockResolvedValue(page([item('59'), item('60')]));
-    const state = new DealFeedState(fetch);
-    state.setContext(context);
-    await settle();
-    await state.refresh(true);
-    expect(fetch).toHaveBeenLastCalledWith({
-      ...context,
-      cursor: { time: first[59].first_seen_at, id: '59' },
-    });
-    expect(state.items()).toHaveLength(61);
-    expect(state.paused()).toBe(true);
-    expect(state.hasMore()).toBe(false);
-  });
-  it('resuming cancels a delayed older page', async () => {
-    let finish!: (page: FeedPage) => void;
-    const fetch = vi
-      .fn()
-      .mockResolvedValueOnce(page(Array.from({ length: 60 }, (_, i) => item(String(i)))))
-      .mockImplementationOnce(
-        () =>
-          new Promise<FeedPage>((resolve) => {
-            finish = resolve;
-          }),
-      )
-      .mockResolvedValue(page([item('newest')]));
-    const state = new DealFeedState(fetch);
-    state.setContext(context);
-    await settle();
-    const older = state.refresh(true);
-    state.resume();
-    await settle();
-    finish(page([item('old')]));
-    await older;
-    expect(state.items().map((row) => row.id)).toEqual(['newest']);
-  });
-  it('allows loading older saved finds beyond the former 300-item cap', async () => {
-    let pageIndex = 0;
-    const fetch = vi.fn(async () =>
-      page(Array.from({ length: 60 }, (_, index) => item(String(pageIndex * 60 + index)))),
-    );
-    const state = new DealFeedState(fetch);
-    state.setContext(context);
-    await settle();
-    for (pageIndex = 1; pageIndex <= 5; pageIndex++) await state.refresh(true);
-    expect(state.items()).toHaveLength(360);
-    expect(state.hasMore()).toBe(true);
+});
+
+describe('Zeitfenster persönlicher Feeds', () => {
+  it('entfernt abgelaufene Karten unabhängig von einem neuen Fund und begrenzt die Zahl', () => {
+    const now = Date.parse('2026-09-12T12:10:00Z');
+    const rows = [seenAt('newest', 10), seenAt('previous', 9), seenAt('expired', 0)];
+    expect(ids(recentFeedItems(rows, now))).toEqual(['newest', 'previous']);
+    expect(recentFeedItems(rows, now + FEED_WINDOW_MS)).toEqual([]);
+    expect(
+      recentFeedItems(
+        Array.from({ length: 110 }, () => rows[0]),
+        now,
+      ),
+    ).toHaveLength(FEED_ITEM_LIMIT);
   });
 });
 

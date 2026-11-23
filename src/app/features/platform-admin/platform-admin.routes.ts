@@ -1,9 +1,7 @@
 import { Routes } from '@angular/router';
-import { unsavedEntryGuard } from '../../shared/guards/unsaved-entry.guard';
 
 // Die Unterseiten der Administration stehen in der Seitenleiste
-// (core/config/platform-admin-navigation.ts) und ersetzen dort das Hauptmenue. Die Bot-Seiten sind unter
-// "vinted-bot" gebuendelt und haben dort ihr eigenes Seitenmenue.
+// (core/config/platform-admin-navigation.ts) und ersetzen dort das Hauptmenü.
 export const platformAdminRoutes: Routes = [
   { path: '', redirectTo: 'overview', pathMatch: 'full' },
   {
@@ -62,38 +60,10 @@ export const platformAdminRoutes: Routes = [
         (m) => m.PlatformUserUsageComponent,
       ),
   },
-  {
-    path: 'vinted-bot',
-    loadComponent: () =>
-      import('./vinted-bot-shell/vinted-bot-shell.component').then(
-        (m) => m.VintedBotShellComponent,
-      ),
-    children: [
-      { path: '', redirectTo: 'queries', pathMatch: 'full' },
-      {
-        path: 'queries',
-        canDeactivate: [unsavedEntryGuard],
-        loadComponent: () =>
-          import('./pages/sniper-queries/sniper-queries.component').then(
-            (m) => m.SniperQueriesComponent,
-          ),
-      },
-      {
-        path: 'operation',
-        loadComponent: () =>
-          import('./pages/sniper-operation/sniper-operation.component').then(
-            (m) => m.SniperOperationComponent,
-          ),
-      },
-      {
-        path: 'categories',
-        redirectTo: 'operation',
-        pathMatch: 'full',
-      },
-    ],
-  },
-  // Fruehere Adressen, damit Lesezeichen und alte Links weiter funktionieren.
-  { path: 'queries', redirectTo: 'vinted-bot/queries', pathMatch: 'full' },
-  { path: 'operation', redirectTo: 'vinted-bot/operation', pathMatch: 'full' },
-  { path: 'categories', redirectTo: 'vinted-bot/categories', pathMatch: 'full' },
+  // Frühere Adressen der zentralen Bot-Verwaltung führen zum Systemzustand.
+  { path: 'vinted-bot', redirectTo: '/admin/system', pathMatch: 'full' },
+  { path: 'vinted-bot/:page', redirectTo: '/admin/system', pathMatch: 'full' },
+  { path: 'queries', redirectTo: '/admin/system', pathMatch: 'full' },
+  { path: 'operation', redirectTo: '/admin/system', pathMatch: 'full' },
+  { path: 'categories', redirectTo: '/admin/system', pathMatch: 'full' },
 ];

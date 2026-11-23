@@ -1,6 +1,6 @@
 <section class="space-y-4">
   <app-page-header title="Systemzustand" [icon]="systemIcon">
-    <app-button header-actions [icon]="refreshIcon" [loading]="loading()" (clicked)="load()">
+    <app-button header-actions [icon]="refreshIcon" [loading]="loading()" (clicked)="refresh()">
       Aktualisieren
     </app-button>
   </app-page-header>
@@ -28,7 +28,7 @@
           </div>
         </app-card>
 
-        <app-card variant="section" title="Vinted-Feed-Bot" data-service="feed-bot">
+        <app-card variant="section" title="Vinted-Feed-Dienst" data-service="feed-bot">
           <div class="space-y-2 text-sm text-fb-text-secondary">
             <div>
               <app-badge [tone]="state.feedBot.tone">{{ state.feedBot.label }}</app-badge>
@@ -48,9 +48,17 @@
                 <p class="text-fb-text-primary">{{ cycleError }}</p>
               }
             }
-            <app-button class="block" size="slim" variant="ghost" link="/admin/vinted-bot">
-              Bot verwalten
-            </app-button>
+            <div class="min-h-11">
+              @if (browserNeedsAttention()) {
+                <app-button
+                  size="slim"
+                  [disabled]="!browserCanOpen() || browserOpen()"
+                  (clicked)="browserOpen.set(true)"
+                >
+                  Vinted-Zugriff prüfen
+                </app-button>
+              }
+            </div>
           </div>
         </app-card>
 
@@ -118,6 +126,8 @@
     <p role="status" class="text-sm text-fb-text-secondary">Systemzustand wird geladen …</p>
   }
 
+  <app-vinted-feed-sources-card />
+
   <app-card variant="section" title="Bereiche" data-platform-feature-switches>
     @if (switchError(); as message) {
       <p role="alert" class="mb-3 text-sm text-fb-critical">{{ message }}</p>
@@ -155,3 +165,6 @@
     </ul>
   </app-card>
 </section>
+@if (browserOpen()) {
+  <app-sniper-browser-connect (closed)="closeBrowser()" />
+}

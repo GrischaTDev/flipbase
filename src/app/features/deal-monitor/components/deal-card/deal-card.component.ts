@@ -8,13 +8,7 @@ import {
   signal,
 } from '@angular/core';
 import { CurrencyPipe, DatePipe } from '@angular/common';
-import {
-  LucideDynamicIcon,
-  LucideExternalLink,
-  LucideHeart,
-  LucideShare2,
-  LucideSparkles,
-} from '@lucide/angular';
+import { LucideExternalLink, LucideHeart, LucideShare2 } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
@@ -26,14 +20,7 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
   selector: 'app-deal-card',
-  imports: [
-    CardComponent,
-    BadgeComponent,
-    ButtonComponent,
-    LucideDynamicIcon,
-    CurrencyPipe,
-    DatePipe,
-  ],
+  imports: [CardComponent, BadgeComponent, ButtonComponent, CurrencyPipe, DatePipe],
   templateUrl: './deal-card.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'block h-full min-w-0' },
@@ -41,8 +28,6 @@ import { shareVintedListing } from '../../utils/share-vinted-listing';
 export class DealCardComponent {
   readonly item = input.required<FeedItem>();
   readonly inspect = output<FeedItem>();
-  readonly allowAiSearch = input(false);
-  readonly aiSearch = output<FeedItem>();
 
   readonly favoritesService = inject(DealFavoritesService);
   private readonly failedImages = signal<ReadonlySet<string>>(new Set());
@@ -59,7 +44,6 @@ export class DealCardComponent {
     external: LucideExternalLink,
     heart: LucideHeart,
     share: LucideShare2,
-    aiSearch: LucideSparkles,
   };
   private readonly clock = inject(FeedClockService);
   readonly discoveredLabel = computed(() =>

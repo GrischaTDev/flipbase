@@ -65,7 +65,7 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
 import { VintedListingMediaComponent } from './vinted-listing-media.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
-import type { VintedCategory } from '../../../platform-admin/models/vinted-category.model';
+import type { VintedCategory } from '../../../../core/models/vinted-category.model';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';

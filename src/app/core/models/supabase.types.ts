@@ -3595,6 +3595,7 @@ export type Database = {
           is_write: boolean
           kind: string
           lease_expires_at: string | null
+          not_before: string | null
           payload: Json | null
           provider_profile_id: string | null
           public_id: string
@@ -3635,6 +3636,7 @@ export type Database = {
           is_write: boolean
           kind: string
           lease_expires_at?: string | null
+          not_before?: string | null
           payload?: Json | null
           provider_profile_id?: string | null
           public_id?: string
@@ -3675,6 +3677,7 @@ export type Database = {
           is_write?: boolean
           kind?: string
           lease_expires_at?: string | null
+          not_before?: string | null
           payload?: Json | null
           provider_profile_id?: string | null
           public_id?: string
@@ -8200,6 +8203,30 @@ export type Database = {
           },
         ]
       }
+      sniper_feed_settings: {
+        Row: {
+          category_poll_interval_seconds: number
+          id: number
+          max_category_sources: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category_poll_interval_seconds?: number
+          id?: number
+          max_category_sources?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category_poll_interval_seconds?: number
+          id?: number
+          max_category_sources?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       sniper_listings: {
         Row: {
           brand: string | null
@@ -8290,7 +8317,21 @@ export type Database = {
             foreignKeyName: "sniper_listings_catalog_source_query_id_fkey"
             columns: ["catalog_source_query_id"]
             isOneToOne: false
+            referencedRelation: "sniper_active_feed_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_listings_catalog_source_query_id_fkey"
+            columns: ["catalog_source_query_id"]
+            isOneToOne: false
             referencedRelation: "sniper_queries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_listings_discovered_by_query_id_fkey"
+            columns: ["discovered_by_query_id"]
+            isOneToOne: false
+            referencedRelation: "sniper_active_feed_sources"
             referencedColumns: ["id"]
           },
           {
@@ -8504,10 +8545,35 @@ export type Database = {
             foreignKeyName: "sniper_query_matches_query_id_fkey"
             columns: ["query_id"]
             isOneToOne: false
+            referencedRelation: "sniper_active_feed_sources"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sniper_query_matches_query_id_fkey"
+            columns: ["query_id"]
+            isOneToOne: false
             referencedRelation: "sniper_queries"
             referencedColumns: ["id"]
           },
         ]
+      }
+      sniper_recent_listing_keys: {
+        Row: {
+          external_id: string
+          first_seen_at: string
+          marketplace: string
+        }
+        Insert: {
+          external_id: string
+          first_seen_at: string
+          marketplace: string
+        }
+        Update: {
+          external_id?: string
+          first_seen_at?: string
+          marketplace?: string
+        }
+        Relationships: []
       }
       sniper_runtime_status: {
         Row: {
@@ -8552,46 +8618,58 @@ export type Database = {
         Row: {
           audience: string | null
           brand: string | null
+          brand_id: number | null
           catalog_id: number | null
           condition: string | null
           created_at: string
           id: string
+          is_active: boolean
           legacy_brand_id: number | null
           price_from: number | null
           price_to: number | null
           search_text: string | null
           sizes: string[]
+          started_at: string | null
           title: string
+          user_id: string | null
           workspace_id: string
         }
         Insert: {
           audience?: string | null
           brand?: string | null
+          brand_id?: number | null
           catalog_id?: number | null
           condition?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           legacy_brand_id?: number | null
           price_from?: number | null
           price_to?: number | null
           search_text?: string | null
           sizes?: string[]
+          started_at?: string | null
           title: string
+          user_id?: string | null
           workspace_id: string
         }
         Update: {
           audience?: string | null
           brand?: string | null
+          brand_id?: number | null
           catalog_id?: number | null
           condition?: string | null
           created_at?: string
           id?: string
+          is_active?: boolean
           legacy_brand_id?: number | null
           price_from?: number | null
           price_to?: number | null
           search_text?: string | null
           sizes?: string[]
+          started_at?: string | null
           title?: string
+          user_id?: string | null
           workspace_id?: string
         }
         Relationships: [
@@ -9177,77 +9255,6 @@ export type Database = {
           },
         ]
       }
-      vinted_ai_searches: {
-        Row: {
-          cached_input_tokens: number | null
-          created_at: string
-          error_code: string | null
-          estimated_cost_usd: number | null
-          finished_at: string | null
-          id: number
-          input_hash: string
-          input_tokens: number | null
-          listing_id: string
-          model: string
-          output_tokens: number | null
-          pricing: Json | null
-          response_id: string | null
-          result: Json | null
-          status: string
-          user_id: string
-          web_search_calls: number | null
-          workspace_id: string
-        }
-        Insert: {
-          cached_input_tokens?: number | null
-          created_at?: string
-          error_code?: string | null
-          estimated_cost_usd?: number | null
-          finished_at?: string | null
-          id?: never
-          input_hash: string
-          input_tokens?: number | null
-          listing_id: string
-          model: string
-          output_tokens?: number | null
-          pricing?: Json | null
-          response_id?: string | null
-          result?: Json | null
-          status?: string
-          user_id: string
-          web_search_calls?: number | null
-          workspace_id: string
-        }
-        Update: {
-          cached_input_tokens?: number | null
-          created_at?: string
-          error_code?: string | null
-          estimated_cost_usd?: number | null
-          finished_at?: string | null
-          id?: never
-          input_hash?: string
-          input_tokens?: number | null
-          listing_id?: string
-          model?: string
-          output_tokens?: number | null
-          pricing?: Json | null
-          response_id?: string | null
-          result?: Json | null
-          status?: string
-          user_id?: string
-          web_search_calls?: number | null
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vinted_ai_searches_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       vinted_categories: {
         Row: {
           id: number
@@ -9350,200 +9357,6 @@ export type Database = {
           requested_at?: string | null
         }
         Relationships: []
-      }
-      vinted_comparison_items: {
-        Row: {
-          brand: string | null
-          category_id: number | null
-          checked_at: string | null
-          color: string | null
-          condition: string | null
-          consecutive_failures: number
-          currency: string
-          error_kind: string | null
-          external_id: string
-          first_seen_at: string
-          id: number
-          last_active_at: string | null
-          last_seen_at: string
-          lease_token: string | null
-          lease_until: string | null
-          material: string | null
-          model: string | null
-          next_attempt_at: string
-          price: number
-          published_earliest: string | null
-          published_latest: string | null
-          size: string | null
-          sold_detected_at: string | null
-          status: string
-          title: string
-          url: string
-        }
-        Insert: {
-          brand?: string | null
-          category_id?: number | null
-          checked_at?: string | null
-          color?: string | null
-          condition?: string | null
-          consecutive_failures?: number
-          currency?: string
-          error_kind?: string | null
-          external_id: string
-          first_seen_at?: string
-          id?: never
-          last_active_at?: string | null
-          last_seen_at?: string
-          lease_token?: string | null
-          lease_until?: string | null
-          material?: string | null
-          model?: string | null
-          next_attempt_at?: string
-          price: number
-          published_earliest?: string | null
-          published_latest?: string | null
-          size?: string | null
-          sold_detected_at?: string | null
-          status?: string
-          title: string
-          url: string
-        }
-        Update: {
-          brand?: string | null
-          category_id?: number | null
-          checked_at?: string | null
-          color?: string | null
-          condition?: string | null
-          consecutive_failures?: number
-          currency?: string
-          error_kind?: string | null
-          external_id?: string
-          first_seen_at?: string
-          id?: never
-          last_active_at?: string | null
-          last_seen_at?: string
-          lease_token?: string | null
-          lease_until?: string | null
-          material?: string | null
-          model?: string | null
-          next_attempt_at?: string
-          price?: number
-          published_earliest?: string | null
-          published_latest?: string | null
-          size?: string | null
-          sold_detected_at?: string | null
-          status?: string
-          title?: string
-          url?: string
-        }
-        Relationships: []
-      }
-      vinted_comparison_matches: {
-        Row: {
-          first_seen_at: string
-          id: number
-          item_id: number
-          last_seen_at: string
-          scope_id: number
-        }
-        Insert: {
-          first_seen_at?: string
-          id?: never
-          item_id: number
-          last_seen_at?: string
-          scope_id: number
-        }
-        Update: {
-          first_seen_at?: string
-          id?: never
-          item_id?: number
-          last_seen_at?: string
-          scope_id?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vinted_comparison_matches_item_id_fkey"
-            columns: ["item_id"]
-            isOneToOne: false
-            referencedRelation: "vinted_comparison_items"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "vinted_comparison_matches_scope_id_fkey"
-            columns: ["scope_id"]
-            isOneToOne: false
-            referencedRelation: "vinted_comparison_scopes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      vinted_comparison_scopes: {
-        Row: {
-          consecutive_failures: number
-          coverage_limited: boolean
-          created_at: string
-          error_kind: string | null
-          id: number
-          initial_finished_at: string | null
-          last_catalog_at: string | null
-          last_claim_kind: string | null
-          lease_token: string | null
-          lease_until: string | null
-          maintenance_at: string | null
-          next_attempt_at: string
-          page: number
-          query_id: string
-          query_revision: number
-          request_cursor: number
-          window_start: string
-        }
-        Insert: {
-          consecutive_failures?: number
-          coverage_limited?: boolean
-          created_at?: string
-          error_kind?: string | null
-          id?: never
-          initial_finished_at?: string | null
-          last_catalog_at?: string | null
-          last_claim_kind?: string | null
-          lease_token?: string | null
-          lease_until?: string | null
-          maintenance_at?: string | null
-          next_attempt_at?: string
-          page?: number
-          query_id: string
-          query_revision: number
-          request_cursor: number
-          window_start?: string
-        }
-        Update: {
-          consecutive_failures?: number
-          coverage_limited?: boolean
-          created_at?: string
-          error_kind?: string | null
-          id?: never
-          initial_finished_at?: string | null
-          last_catalog_at?: string | null
-          last_claim_kind?: string | null
-          lease_token?: string | null
-          lease_until?: string | null
-          maintenance_at?: string | null
-          next_attempt_at?: string
-          page?: number
-          query_id?: string
-          query_revision?: number
-          request_cursor?: number
-          window_start?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "vinted_comparison_scopes_query_id_fkey"
-            columns: ["query_id"]
-            isOneToOne: false
-            referencedRelation: "sniper_queries"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       vinted_listing_catalog_refreshes: {
         Row: {
@@ -9757,6 +9570,62 @@ export type Database = {
             columns: ["size_group_id"]
             isOneToOne: false
             referencedRelation: "vinted_listing_size_groups"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vinted_photo_background_masks: {
+        Row: {
+          byte_size: number | null
+          created_at: string
+          error_code: string | null
+          estimated_cost_usd: number | null
+          finished_at: string | null
+          id: string
+          input_hash: string
+          model: string
+          provider: string
+          status: string
+          storage_path: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          byte_size?: number | null
+          created_at?: string
+          error_code?: string | null
+          estimated_cost_usd?: number | null
+          finished_at?: string | null
+          id?: string
+          input_hash: string
+          model: string
+          provider: string
+          status?: string
+          storage_path?: string | null
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          byte_size?: number | null
+          created_at?: string
+          error_code?: string | null
+          estimated_cost_usd?: number | null
+          finished_at?: string | null
+          id?: string
+          input_hash?: string
+          model?: string
+          provider?: string
+          status?: string
+          storage_path?: string | null
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vinted_photo_background_masks_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
             referencedColumns: ["id"]
           },
         ]
@@ -10529,6 +10398,61 @@ export type Database = {
           },
         ]
       }
+      sniper_active_feed_sources: {
+        Row: {
+          brand_id: number | null
+          brand_ids: number[] | null
+          brand_names: string[] | null
+          catalog_id: number | null
+          consecutive_failures: number | null
+          coverage_checked_at: string | null
+          coverage_status: string | null
+          created_at: string | null
+          deleted_at: string | null
+          excluded_title_keywords: string[] | null
+          filter_format_version: number | null
+          filter_revision: number | null
+          id: string | null
+          is_active: boolean | null
+          is_seeded: boolean | null
+          is_standard: boolean | null
+          keyword_mode: string | null
+          last_attempt_at: string | null
+          last_error_at: string | null
+          last_error_kind: string | null
+          last_error_message: string | null
+          last_polled_at: string | null
+          last_request_duration_ms: number | null
+          last_status: string | null
+          last_success_at: string | null
+          marketplace: string | null
+          newest_external_id: number | null
+          next_attempt_at: string | null
+          notes: string | null
+          poll_interval_ms: number | null
+          price_from: number | null
+          price_to: number | null
+          query_key: string | null
+          request_cursor: number | null
+          reset_baseline_external_id: string | null
+          results_reset_at: string | null
+          run_state: string | null
+          search_text: string | null
+          seeded_requests: number[] | null
+          shared_filter_count: number | null
+          title: string | null
+          title_keywords: string[] | null
+          updated_at: string | null
+        }
+        Relationships: []
+      }
+      sniper_needed_feed_sources: {
+        Row: {
+          feed_count: number | null
+          key: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       accept_beta_application: {
@@ -10890,7 +10814,6 @@ export type Database = {
         Args: { p_channel: string; p_event: string; p_workspace_id: string }
         Returns: boolean
       }
-      claim_vinted_comparison_task: { Args: { p_now: string }; Returns: Json }
       clear_sniper_favorites: {
         Args: { p_expected_user_id: string; p_workspace_id: string }
         Returns: boolean
@@ -10938,10 +10861,6 @@ export type Database = {
           p_revision: number
         }
         Returns: Json
-      }
-      complete_vinted_comparison_task: {
-        Args: { p_lease_token: string; p_result: Json; p_task_id: string }
-        Returns: boolean
       }
       correct_purchase_costing: {
         Args: {
@@ -11448,6 +11367,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      ensure_sniper_feed_sources: {
+        Args: { p_keys: string[] }
+        Returns: undefined
+      }
       expense_audit_values: {
         Args: { p_expense: Database["public"]["Tables"]["expenses"]["Row"] }
         Returns: Json
@@ -11465,16 +11388,6 @@ export type Database = {
       fail_beta_lifecycle_operation: {
         Args: { p_lease_id: string; p_request_id: string }
         Returns: undefined
-      }
-      fail_vinted_comparison_task: {
-        Args: {
-          p_error_kind: string
-          p_error_message: string
-          p_lease_token: string
-          p_retry_at: string
-          p_task_id: string
-        }
-        Returns: boolean
       }
       finalize_purchase_costing: {
         Args: { p_purchase_id: string; p_workspace_id: string }
@@ -12215,8 +12128,18 @@ export type Database = {
         }[]
       }
       list_size_references: { Args: { p_admin?: boolean }; Returns: Json }
+      lock_sniper_feed_changes: { Args: never; Returns: undefined }
       lock_workspace_shop: {
         Args: { p_workspace_id: string }
+        Returns: undefined
+      }
+      marketplace_accept_imported_listing_price: {
+        Args: {
+          p_connection_id: string
+          p_external_id: string
+          p_observed_at: string
+          p_workspace_id: string
+        }
         Returns: undefined
       }
       marketplace_accept_relisting_import: {
@@ -12233,6 +12156,12 @@ export type Database = {
           p_action: Database["public"]["Tables"]["marketplace_account_actions"]["Row"]
         }
         Returns: boolean
+      }
+      marketplace_account_action_auto_reconcile: {
+        Args: {
+          p_action: Database["public"]["Tables"]["marketplace_account_actions"]["Row"]
+        }
+        Returns: undefined
       }
       marketplace_account_action_begin_write: {
         Args: {
@@ -12335,6 +12264,10 @@ export type Database = {
           p_worker_epoch: number
           p_worker_id: string
         }
+        Returns: boolean
+      }
+      marketplace_account_action_self_guarded: {
+        Args: { p_kind: string }
         Returns: boolean
       }
       marketplace_account_action_target: {
@@ -12533,6 +12466,16 @@ export type Database = {
           p_worker_id: string
         }
         Returns: Json
+      }
+      marketplace_browser_write_waits_for: {
+        Args: {
+          p_job_id: string
+          p_kind: string
+          p_previous_job_id: string
+          p_previous_kind: string
+          p_previous_state: string
+        }
+        Returns: boolean
       }
       marketplace_cache_listing_content: {
         Args: {
@@ -12930,6 +12873,10 @@ export type Database = {
         Args: { p_image_id: string }
         Returns: string
       }
+      marketplace_drop_photo_option_image: {
+        Args: { p_image_id: string; p_options: Json }
+        Returns: Json
+      }
       marketplace_edit_relisting_plan: {
         Args: {
           p_editing: boolean
@@ -13071,6 +13018,10 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_keep_photo_option_images: {
+        Args: { p_image_ids: string[]; p_options: Json }
+        Returns: Json
+      }
       marketplace_known_favorite_count: {
         Args: { p_body: Json }
         Returns: number
@@ -13113,6 +13064,12 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_listing_job_blocker: {
+        Args: {
+          p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
+        }
+        Returns: string
+      }
       marketplace_listing_job_document: {
         Args: {
           p_job: Database["public"]["Tables"]["marketplace_listing_jobs"]["Row"]
@@ -13137,6 +13094,10 @@ export type Database = {
       }
       marketplace_listing_permission_valid: {
         Args: { p_permission_id: number; p_user_id: string; p_version?: number }
+        Returns: boolean
+      }
+      marketplace_listing_photo_masks_accessible: {
+        Args: { p_options: Json; p_workspace_id: string }
         Returns: boolean
       }
       marketplace_listing_photo_options_valid: {
@@ -13574,6 +13535,15 @@ export type Database = {
           p_thread: Database["public"]["Tables"]["marketplace_negotiation_threads"]["Row"]
         }
         Returns: undefined
+      }
+      marketplace_next_sync_due_at: {
+        Args: {
+          p_base_interval_minutes: number
+          p_connection_id: string
+          p_now?: string
+          p_workspace_id: string
+        }
+        Returns: string
       }
       marketplace_notification_categories: {
         Args: { p_categories: Json; p_enabled: boolean }
@@ -14591,11 +14561,11 @@ export type Database = {
         Args: { p_input: Json; p_request_id: string }
         Returns: Json
       }
-      reserve_vinted_ai_search: {
+      reserve_vinted_photo_background_mask: {
         Args: {
           p_input_hash: string
-          p_listing_id: string
           p_model: string
+          p_provider: string
           p_user_id: string
           p_workspace_id: string
         }
@@ -14796,6 +14766,23 @@ export type Database = {
             }
             Returns: string
           }
+        | {
+            Args: {
+              p_audience: string
+              p_brand: string
+              p_brand_id: number
+              p_catalog_id: number
+              p_condition: string
+              p_id: string
+              p_price_from: number
+              p_price_to: number
+              p_search_text: string
+              p_sizes: string[]
+              p_title: string
+              p_workspace_id: string
+            }
+            Returns: string
+          }
       seed_default_expense_categories: {
         Args: { p_workspace_id: string }
         Returns: undefined
@@ -14973,8 +14960,19 @@ export type Database = {
         Args: { p_lines: Json; p_workspace_id: string }
         Returns: undefined
       }
+      set_sniper_feed_settings: {
+        Args: {
+          p_category_poll_interval_seconds: number
+          p_max_category_sources: number
+        }
+        Returns: undefined
+      }
       set_sniper_query_active: {
         Args: { p_active: boolean; p_id: string }
+        Returns: undefined
+      }
+      set_sniper_watchlist_active: {
+        Args: { p_active: boolean; p_id: string; p_workspace_id: string }
         Returns: undefined
       }
       set_workspace_archive_state: {
@@ -15022,6 +15020,10 @@ export type Database = {
         Args: { p_topic: string }
         Returns: boolean
       }
+      sniper_can_access_workspace: {
+        Args: { p_workspace_id: string }
+        Returns: boolean
+      }
       sniper_check_favorite_scope: {
         Args: { p_expected_user_id: string; p_workspace_id: string }
         Returns: string
@@ -15043,6 +15045,7 @@ export type Database = {
           title: string
         }[]
       }
+      sniper_feed_capacity: { Args: never; Returns: Json }
       sniper_feed_categories: {
         Args: { p_workspace_id: string }
         Returns: {
@@ -15130,7 +15133,10 @@ export type Database = {
         Returns: boolean
       }
       sniper_normalize_favorite_item: { Args: { p_item: Json }; Returns: Json }
-      sniper_notify_feed_updates: { Args: never; Returns: undefined }
+      sniper_notify_feed_updates: {
+        Args: { p_query_id: string }
+        Returns: undefined
+      }
       sniper_purge_expired_listings: {
         Args: { p_batch_size?: number }
         Returns: number
@@ -15179,10 +15185,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      sniper_watchlist_source_keys: {
+        Args: { p_audience: string; p_catalog_id: number }
+        Returns: string[]
+      }
       stock_lot_reserved_quantity: {
         Args: { p_lot_id: string }
         Returns: number
       }
+      stop_unused_sniper_feed_sources: { Args: never; Returns: undefined }
       submit_label_draft: {
         Args: {
           p_expected_version: number
@@ -15337,20 +15348,11 @@ export type Database = {
         Args: { p_content: Json; p_publish: boolean }
         Returns: Json
       }
-      vinted_ai_search_usage: {
+      vinted_listing_catalog_status: { Args: never; Returns: Json }
+      vinted_photo_background_mask_usage: {
         Args: { p_workspace_id: string }
         Returns: Json
       }
-      vinted_comparison_market: {
-        Args: {
-          p_brand: string
-          p_category_id: number
-          p_listing_id: string
-          p_model: string
-        }
-        Returns: Json
-      }
-      vinted_listing_catalog_status: { Args: never; Returns: Json }
       web_push_allowed_categories: {
         Args: { p_user_id: string; p_workspace_id: string }
         Returns: string[]

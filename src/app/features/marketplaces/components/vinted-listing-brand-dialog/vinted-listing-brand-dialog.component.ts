@@ -16,9 +16,9 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
-import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
+import { VintedBrandSearchService } from '../../../../core/services/vinted-brand-search.service';
 import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
-import type { VintedBrand } from '../../../platform-admin/models/vinted-brand.model';
+import type { VintedBrand } from '../../../../core/models/vinted-brand.model';
 import {
   validVintedListingBrand,
   type VintedListingBrandSelection,

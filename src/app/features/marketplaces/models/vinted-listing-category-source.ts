@@ -1,7 +1,7 @@
 import type { CategoryPickerSource } from '../../../core/models/category-picker-source';
 import type { ProductCategory } from '../../../core/models/product-category.models';
-import { vintedCategorySource } from '../../platform-admin/models/vinted-category-source';
-import type { VintedCategoryNode } from '../../platform-admin/models/vinted-category-tree';
+import { vintedCategorySource } from '../../../core/models/vinted-category-source';
+import type { VintedCategoryNode } from '../../../core/models/vinted-category-tree';
 
 /** Oberkategorien bleiben zur Navigation und für alte Entwürfe sichtbar; veröffentlicht werden konkrete Artikelkategorien. */
 export function vintedListingCategorySource(

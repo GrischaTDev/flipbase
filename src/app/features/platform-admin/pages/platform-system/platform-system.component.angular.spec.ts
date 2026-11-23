@@ -12,7 +12,11 @@ import type {
 import { PlatformFeatureSwitchService } from '../../../../core/services/platform-feature-switch.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { parsePlatformSystemHealth } from '../../models/platform-system-health';
+import type { SniperBrowserStatus } from '../../models/sniper-browser.model';
 import { PlatformSystemService } from '../../services/platform-system.service';
+import { parseVintedFeedCapacity } from '../../models/vinted-feed-sources';
+import { VintedFeedSourcesService } from '../../services/vinted-feed-sources.service';
+import { SniperBrowserService } from '../../services/sniper-browser.service';
 import { PlatformSystemComponent } from './platform-system.component';
 
 const recent = new Date(Date.now() - 30_000).toISOString();
@@ -33,7 +37,7 @@ describe('PlatformSystemComponent', () => {
     vi.useRealTimers();
   });
 
-  async function render(confirm: boolean) {
+  async function render(confirm: boolean, browserState: SniperBrowserStatus['state'] = 'ready') {
     const switches = signal<readonly PlatformFeatureSwitch[]>([
       { key: 'vinted', enabled: true, maintenanceMessage: null, updatedAt: '' },
     ]);
@@ -48,6 +52,17 @@ describe('PlatformSystemComponent', () => {
       providers: [
         provideRouter([]),
         { provide: ConfirmDialogService, useValue: { frage } },
+        {
+          provide: SniperBrowserService,
+          useValue: {
+            status: vi.fn(async () => ({
+              state: browserState,
+              sessionId: null,
+              expiresAt: null,
+              message: null,
+            })),
+          },
+        },
         {
           provide: PlatformSystemService,
           useValue: {
@@ -68,6 +83,42 @@ describe('PlatformSystemComponent', () => {
                 cloudIps: { enabled: 1, expiringSoon: 0, expired: 0 },
               }),
             ),
+          },
+        },
+        {
+          provide: VintedFeedSourcesService,
+          useValue: {
+            capacity: vi.fn(async () =>
+              parseVintedFeedCapacity({
+                max_category_sources: 12,
+                category_poll_interval_seconds: 60,
+                active_category_sources: 1,
+                active_feeds: 3,
+                requests_last_minute: 20,
+                request_budget: 120,
+                reported_at: recent,
+                sources: [
+                  {
+                    key: 'main',
+                    kind: 'main',
+                    catalog_id: null,
+                    category_path: null,
+                    feed_count: 2,
+                    last_success_at: recent,
+                    coverage_status: 'caught_up',
+                  },
+                ],
+              }),
+            ),
+            categorySync: vi.fn(async () => ({
+              refreshedAt: recent,
+              requestedAt: null,
+              lastAttemptAt: recent,
+              categoryCount: 2500,
+              lastError: null,
+            })),
+            saveSettings: vi.fn(),
+            requestCategoryRefresh: vi.fn(),
           },
         },
         {
@@ -100,14 +151,25 @@ describe('PlatformSystemComponent', () => {
     expect(element.querySelector('[data-service="feed-bot"]')?.textContent).toContain(
       'Keine Meldung',
     );
+    expect(element.querySelector('[data-service="feed-bot"] button')).toBeNull();
     expect(element.querySelector('[data-service="operations"]')?.textContent).toContain(
       '4 erfolgreich',
     );
     const push = element.querySelector('[data-service="push-worker"]')?.textContent ?? '';
     expect(push).toContain('Läuft');
     expect(push).toContain('3 warten');
+    expect(element.querySelector('[data-metric="category-sources"]')?.textContent?.trim()).toBe(
+      '1 / 12',
+    );
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
+  });
+
+  it('zeigt die manuelle Zugriffsprüfung bei angeforderter Interaktion', async () => {
+    const { element } = await render(true, 'interaction_required');
+    const action = element.querySelector<HTMLButtonElement>('[data-service="feed-bot"] button');
+    expect(action?.textContent?.trim()).toBe('Vinted-Zugriff prüfen');
+    expect(action?.disabled).toBe(false);
   });
 
   it('schaltet einen Bereich erst nach Bestätigung mit Wartungstext ab', async () => {

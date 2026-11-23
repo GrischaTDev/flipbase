@@ -46,10 +46,16 @@ insert into public.shipping_orders(id,workspace_id,sale_id,order_number,platform
 select throws_ok($$update public.shipping_orders set sale_id='98000000-0000-4000-8000-000000000041' where id='98000000-0000-4000-8000-000000000042'$$,'23503',null,'Fremder Versandverkauf beim Ändern abgewiesen');
 select throws_ok($$delete from public.sales where id='98000000-0000-4000-8000-000000000040'$$,'23503',null,'Eigener referenzierter Verkauf bleibt geschützt');
 
-insert into public.sniper_watchlists(workspace_id,title) select '98000000-0000-4000-8000-000000000003'::uuid,'Filter '||number from generate_series(1,100) as number;
-select throws_ok($$insert into public.sniper_watchlists(workspace_id,title) values ('98000000-0000-4000-8000-000000000003','Too many total')$$,'54000',null,'101. Merkzettel abgewiesen');
+insert into public.sniper_watchlists(workspace_id,user_id,title)
+select '98000000-0000-4000-8000-000000000003'::uuid,'98000000-0000-4000-8000-000000000001'::uuid,'Filter '||number
+from generate_series(1,100) as number;
+select throws_ok($$insert into public.sniper_watchlists(workspace_id,user_id,title) values
+('98000000-0000-4000-8000-000000000003','98000000-0000-4000-8000-000000000001','Too many total')$$,
+'54000',null,'101. eigener Feed abgewiesen');
 select lives_ok($$update public.sniper_watchlists set title='Edited' where title='Filter 1'$$,'Bearbeiten am Kontingent bleibt möglich');
-select lives_ok($$insert into public.sniper_watchlists(workspace_id,title) values ('98000000-0000-4000-8000-000000000004','Other workspace')$$,'Kontingente sind pro Arbeitsbereich');
+select lives_ok($$insert into public.sniper_watchlists(workspace_id,user_id,title) values
+('98000000-0000-4000-8000-000000000004','98000000-0000-4000-8000-000000000002','Other workspace')$$,
+'Kontingente sind persönlich und arbeitsbereichsgebunden');
 select set_config('request.jwt.claim.sub','98000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
 select throws_ok($$select public.save_sniper_watchlist('98000000-0000-4000-8000-000000000003',null,'RPC bypass',null,null,null,null,null,null)$$,'54000',null,'Authentifizierte RPC kann das Gesamtkontingent nicht umgehen');

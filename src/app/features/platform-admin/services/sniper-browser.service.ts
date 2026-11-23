@@ -67,7 +67,7 @@ export class SniperBrowserService {
           'message' in failure &&
           typeof failure.message === 'string'
           ? failure.message
-          : 'Die Botsitzung ist gerade nicht verfügbar.',
+          : 'Die Prüfsitzung ist gerade nicht verfügbar.',
       );
     }
     return response;

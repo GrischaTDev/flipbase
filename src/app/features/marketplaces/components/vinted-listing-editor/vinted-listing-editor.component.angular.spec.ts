@@ -18,7 +18,7 @@ vi.mock('../../../../../../supabase/functions/_shared/vinted-listing-photo-rende
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
-import { VintedCategoryService } from '../../../platform-admin/services/vinted-category.service';
+import { VintedCategoryService } from '../../../../core/services/vinted-category.service';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { VintedListingOriginalPhotoService } from '../../services/vinted-listing-original-photo.service';
@@ -40,7 +40,7 @@ import { listingCurrentContentFixture } from '../../../../../../services/marketp
 import { VintedRelistingSubmissionService } from '../../services/vinted-relisting-submission.service';
 import { VintedListingPhotoSourceService } from '../../services/vinted-listing-photo-source.service';
 import { VintedPhotoBackgroundMaskService } from '../../services/vinted-photo-background-mask.service';
-import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
+import { VintedBrandSearchService } from '../../../../core/services/vinted-brand-search.service';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
 import { VintedActionOverviewHeaderStore } from '../../services/vinted-action-overview-header.store';
 import type { MarketplaceSnapshot } from '../../models/marketplace-read.models';

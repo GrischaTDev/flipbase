@@ -199,8 +199,8 @@ function toLegacyItem(product: z.infer<typeof CatalogProductSchema>, baseUrl: st
   });
 }
 
-/** Gemeinsamer begrenzter Katalogzustand für Feed und kompakte Preisvergleiche. */
-export function parseVintedCatalogState(page: string) {
+/** Begrenzter Katalogzustand einer Vinted-Katalogseite. */
+function parseVintedCatalogState(page: string) {
   assertPageSize(page);
   const flightPayload = decodeFlightPayload(page);
   const markerStart = flightPayload.indexOf(ITEMS_MARKER);
