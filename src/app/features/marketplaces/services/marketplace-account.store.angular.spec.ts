@@ -683,6 +683,20 @@ describe('Inseratbeschreibungen und Kennzahlen', () => {
     expect(store.snapshot()!.publications.items).toEqual([]);
     expect(store.snapshot()!.publications.total).toBe(0);
   });
+  it('bringt ein gelöschtes Inserat nicht über einen veralteten Abruf zurück', async () => {
+    const stale = publication('Vorhandener Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z');
+    api.readSnapshot.mockResolvedValue(stale);
+    await settle();
+    const before = store.snapshot()!.publications.items[0];
+    await store.deleteListing(accountA.connectionId, before.id);
+    expect(store.snapshot()!.publications.items).toEqual([]);
+    // Der Abruf lief noch mit dem Stand vor der Löschung.
+    const reads = api.readSnapshot.mock.calls.length;
+    await store.reloadImportedSnapshot(accountA);
+    expect(api.readSnapshot.mock.calls.length).toBe(reads + 1);
+    expect(store.snapshot()!.publications.items).toEqual([]);
+    expect(store.snapshot()!.publications.total).toBe(0);
+  });
   it('übernimmt eine verspätete Löschantwort nicht in ein anderes Konto', async () => {
     api.readSnapshot.mockResolvedValue(
       publication('Vorhandener Text', 'loaded', 8, 3, '2099-10-01T13:00:00Z'),

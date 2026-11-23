@@ -779,7 +779,15 @@ export class MarketplaceAccountStore {
       } else {
         if (kind === 'publication') this.observeListingMetrics(result.items);
         this.accountSnapshot.update((value) =>
-          value ? { ...value, [snapshotPages[kind]]: combined } : value,
+          value
+            ? {
+                ...value,
+                [snapshotPages[kind]]:
+                  kind === 'publication'
+                    ? this.withoutConfirmedDeletions(value.connectionId, combined, false)
+                    : combined,
+              }
+            : value,
         );
       }
     } catch (error) {
@@ -1067,6 +1075,7 @@ export class MarketplaceAccountStore {
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
     await this.browserApi.deleteListing(this.scope(connection), entryId, token);
+    this.rememberDeletion(connectionId, entryId);
     if (!this.isCurrent(key) || selection !== this.selectionRevision)
       throw new Error('Die Kontoauswahl hat sich geändert. Prüfe die Löschung bei Vinted.');
     this.accountSnapshot.update((value) =>
@@ -1588,7 +1597,55 @@ export class MarketplaceAccountStore {
     this.displayedMetricObservations.clear();
     this.metricChanges.set({});
   }
+  /**
+   * Lokal bestätigte Löschungen. Ein Abruf, der vor dem Ende der Löschung gestartet ist, liefert
+   * das Inserat noch und darf es nicht zurückbringen. Der Eintrag endet, sobald der Server das
+   * Inserat ebenfalls nicht mehr liefert, spätestens nach zehn Minuten.
+   */
+  private readonly confirmedDeletions = new Map<string, number>();
+  private rememberDeletion(connectionId: string, entryId: string): void {
+    this.confirmedDeletions.set(connectionId + ':' + entryId, Date.now() + 600_000);
+  }
+  private withoutConfirmedDeletions<
+    T extends { items: readonly MarketplaceEntry[]; total?: number },
+  >(connectionId: string, page: T, complete: boolean): T {
+    if (!this.confirmedDeletions.size) return page;
+    const now = Date.now();
+    const present = new Set<string>();
+    const items = page.items.filter((entry) => {
+      const key = connectionId + ':' + entry.id;
+      const expiresAt = this.confirmedDeletions.get(key);
+      if (expiresAt === undefined) return true;
+      if (expiresAt <= now) {
+        this.confirmedDeletions.delete(key);
+        return true;
+      }
+      present.add(key);
+      return false;
+    });
+    // Ein vollständiger Abruf ohne das Inserat bestätigt die Löschung auch serverseitig.
+    if (complete)
+      for (const key of [...this.confirmedDeletions.keys()])
+        if (key.startsWith(connectionId + ':') && !present.has(key))
+          this.confirmedDeletions.delete(key);
+    if (items.length === page.items.length) return page;
+    return {
+      ...page,
+      items,
+      ...(typeof page.total === 'number'
+        ? { total: Math.max(0, page.total - (page.items.length - items.length)) }
+        : {}),
+    };
+  }
   private acceptSnapshot(snapshot: MarketplaceSnapshot): void {
+    snapshot = {
+      ...snapshot,
+      publications: this.withoutConfirmedDeletions(
+        snapshot.connectionId,
+        snapshot.publications,
+        !snapshot.publications.nextCursor,
+      ),
+    };
     this.listingClock.refresh();
     this.observeListingMetrics(snapshot.publications.items);
     for (const entry of snapshot.publications.items) this.rememberStoredDescription(entry);

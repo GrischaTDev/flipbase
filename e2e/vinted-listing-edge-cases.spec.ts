@@ -1380,7 +1380,7 @@ for (const width of [390, 1440])
         await expect(dialog).not.toBeVisible();
         await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(1);
         await expect(
-          wardrobe.getByRole('status').filter({ hasText: 'Neuer Preis wird übertragen' }),
+          wardrobe.getByRole('status').filter({ hasText: 'Preis wird übertragen' }),
         ).toBeVisible();
         // Der neue Preis steht schon während der Übertragung in der Zeile.
         await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toContainText(

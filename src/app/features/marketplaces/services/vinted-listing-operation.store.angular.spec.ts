@@ -100,7 +100,7 @@ it('zeigt den neuen Preis sofort und nach einem Fehler wieder den bisherigen', a
     2999,
   );
   expect(store.pendingPrice(jacket)).toBe(29.99);
-  expect(store.runningLabel(jacket)).toBe('Neuer Preis wird übertragen');
+  expect(store.runningLabel(jacket)).toBe('Preis wird übertragen');
   expect(store.pendingPrice(entry('d', 'Andere Jacke'))).toBeNull();
   fail(new Error('Der neue Preis wurde nicht gespeichert.'));
   await saving.catch(() => undefined);

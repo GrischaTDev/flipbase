@@ -157,6 +157,13 @@ function logAccountActionFailure(kind: string, errorCode: string | null, error: 
 function logWriteRequestShapes(kind: string, result: Record<string, unknown>): void {
   const shapes = result['requestShapes'];
   delete result['requestShapes'];
+  const via = result['via'];
+  delete result['via'];
+  if (via === 'direct' || via === 'form')
+    process.stdout.write(
+      `${JSON.stringify({ event: 'marketplace_vinted_write_path', kind, via, status: result['status'] })}
+`,
+    );
   if (!Array.isArray(shapes)) return;
   for (const shape of shapes)
     process.stdout.write(
