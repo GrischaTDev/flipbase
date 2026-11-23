@@ -1,5 +1,7 @@
 \set on_error_stop on
 begin;
+-- Diese Ablauf-Fixtures verwenden synthetische Artikeldaten. Die Katalogprüfung hat einen eigenen Test.
+delete from public.vinted_listing_categories;
 create extension if not exists pgtap with schema extensions;
 set local search_path = public, extensions;
 select no_plan();

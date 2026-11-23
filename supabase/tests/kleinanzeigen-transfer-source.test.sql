@@ -1,5 +1,7 @@
 \set ON_ERROR_STOP on
 begin;
+-- Diese Ablauf-Fixtures verwenden synthetische Artikeldaten. Die Katalogprüfung hat einen eigenen Test.
+delete from public.vinted_listing_categories;
 set local search_path=public,extensions;
 select no_plan();
 insert into storage.buckets(id,name,public) values('item-media','item-media',false) on conflict(id) do nothing;
