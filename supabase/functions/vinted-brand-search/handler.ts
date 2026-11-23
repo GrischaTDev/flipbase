@@ -4,8 +4,21 @@ export interface BrandSearchDependencies {
   authenticate(token: string): Promise<{ id: string } | null>;
   isOperator(userId: string, token: string): Promise<boolean>;
   canManageWorkspace(userId: string, token: string, workspaceId: string): Promise<boolean>;
+  canUseFeed(userId: string, token: string, workspaceId: string): Promise<boolean>;
+  /** Plattform-Schalter `vinted_feed`; ein fehlender Eintrag gilt als eingeschaltet. */
+  isFeedEnabled(token: string): Promise<boolean>;
   search(keyword: string): Promise<VintedBrand[]>;
+  /** Uhr für Bremse und Zwischenspeicher; in Tests ersetzbar. */
+  now?: () => number;
 }
+
+/** Höchstens so viele Suchen je Nutzer und Minute. */
+export const BRAND_SEARCH_LIMIT_PER_MINUTE = 30;
+const RATE_WINDOW_MS = 60_000;
+const RATE_TRACKED_USERS = 5_000;
+/** Ergebnisse je normalisiertem Suchwort bleiben kurz im Prozessspeicher. */
+export const BRAND_CACHE_TTL_MS = 10 * 60_000;
+export const BRAND_CACHE_MAX_ENTRIES = 500;
 
 const allowedOrigins = new Set([
   'https://app.flipbase.de',
@@ -28,7 +41,60 @@ function respond(data: unknown, status: number, origin: string | null): Response
   return Response.json(data, { status, headers: corsHeaders(origin) });
 }
 
+/** Feste Minutenfenster je Nutzer; alte Fenster werden bei vielen Nutzern verworfen. */
+function createRateLimiter(now: () => number) {
+  const windows = new Map<string, { startedAt: number; count: number }>();
+  return (userId: string): boolean => {
+    const time = now();
+    if (windows.size >= RATE_TRACKED_USERS) {
+      for (const [key, window] of windows) {
+        if (time - window.startedAt >= RATE_WINDOW_MS) windows.delete(key);
+      }
+    }
+    const current = windows.get(userId);
+    if (!current || time - current.startedAt >= RATE_WINDOW_MS) {
+      windows.set(userId, { startedAt: time, count: 1 });
+      return true;
+    }
+    if (current.count >= BRAND_SEARCH_LIMIT_PER_MINUTE) return false;
+    current.count++;
+    return true;
+  };
+}
+
+function createBrandCache(now: () => number) {
+  const entries = new Map<string, { expiresAt: number; brands: VintedBrand[] }>();
+  return {
+    get(key: string): VintedBrand[] | null {
+      const entry = entries.get(key);
+      if (!entry) return null;
+      if (entry.expiresAt <= now()) {
+        entries.delete(key);
+        return null;
+      }
+      return entry.brands;
+    },
+    set(key: string, brands: VintedBrand[]): void {
+      entries.delete(key);
+      entries.set(key, { expiresAt: now() + BRAND_CACHE_TTL_MS, brands });
+      while (entries.size > BRAND_CACHE_MAX_ENTRIES) {
+        const oldest = entries.keys().next().value;
+        if (oldest === undefined) break;
+        entries.delete(oldest);
+      }
+    },
+  };
+}
+
+function normalizedKeyword(keyword: string): string {
+  return keyword.toLocaleLowerCase('de-DE').replace(/\s+/g, ' ');
+}
+
 export function createBrandSearchHandler(dependencies: BrandSearchDependencies) {
+  const now = dependencies.now ?? Date.now;
+  const allowSearch = createRateLimiter(now);
+  const cache = createBrandCache(now);
+
   return async (request: Request): Promise<Response> => {
     const origin = request.headers.get('origin');
     if (request.method === 'OPTIONS')
@@ -64,27 +130,50 @@ export function createBrandSearchHandler(dependencies: BrandSearchDependencies) 
       return respond({ error: 'invalid_keyword' }, 400, origin);
     }
 
-    const listingSearch = typeof body === 'object' && body !== null && 'workspaceId' in body;
-    const workspaceId = listingSearch ? (body as { workspaceId: unknown }).workspaceId : null;
+    const scopedSearch = typeof body === 'object' && body !== null && 'workspaceId' in body;
+    const workspaceId = scopedSearch ? (body as { workspaceId: unknown }).workspaceId : null;
+    const feedSearch =
+      typeof body === 'object' && body !== null && 'purpose' in body && body.purpose === 'feed';
     if (
-      listingSearch &&
+      (scopedSearch || feedSearch) &&
       (typeof workspaceId !== 'string' ||
         !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(workspaceId))
     )
       return respond({ error: 'invalid_workspace' }, 400, origin);
-    const allowed = () =>
-      typeof workspaceId === 'string'
-        ? dependencies.canManageWorkspace(user.id, token, workspaceId)
-        : dependencies.isOperator(user.id, token);
+
+    if (feedSearch) {
+      try {
+        if (!(await dependencies.isFeedEnabled(token)))
+          return respond({ error: 'feature_disabled' }, 503, origin);
+      } catch {
+        return respond({ error: 'authorization_unavailable' }, 503, origin);
+      }
+    }
+
+    const allowed = () => {
+      if (typeof workspaceId !== 'string') return dependencies.isOperator(user.id, token);
+      return feedSearch
+        ? dependencies.canUseFeed(user.id, token, workspaceId)
+        : dependencies.canManageWorkspace(user.id, token, workspaceId);
+    };
     try {
       if (!(await allowed())) return respond({ error: 'forbidden' }, 403, origin);
     } catch {
       return respond({ error: 'authorization_unavailable' }, 503, origin);
     }
 
+    const term = keyword.trim();
+    if (feedSearch && term.length < 2) return respond({ brands: [] }, 200, origin);
+    if (!allowSearch(user.id)) return respond({ error: 'rate_limited' }, 429, origin);
+
     try {
-      const brands = await dependencies.search(keyword.trim());
-      if (listingSearch) {
+      const cacheKey = normalizedKeyword(term);
+      let brands = cache.get(cacheKey);
+      if (brands === null) {
+        brands = await dependencies.search(term);
+        cache.set(cacheKey, brands);
+      }
+      if (scopedSearch) {
         try {
           if (!(await allowed())) return respond({ error: 'forbidden' }, 403, origin);
         } catch {

@@ -1,693 +1,99 @@
-import { DealFavoritesService } from '../../services/deal-favorites.service';
-import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
-import { createDealFavoritesFixture } from '../../../../../test-support/deal-favorites.fixture';
 import '@angular/compiler';
-import { ElementRef, EventEmitter, signal, ɵresolveComponentResources } from '@angular/core';
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { By } from '@angular/platform-browser';
-import axe from 'axe-core';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { DealFeedSearchComponent } from './deal-feed-search.component';
-import { DealMonitorService } from '../../services/deal-monitor.service';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PageLayoutService } from '../../../../core/services/page-layout.service';
+import { FEED_WINDOW_MS, FeedItem, PersonalFeed } from '../../models/deal-monitor.model';
+import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { DealFeedUpdatesService } from '../../services/deal-feed-updates.service';
-import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { FeedItem } from '../../models/deal-monitor.model';
-import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { CardComponent } from '../../../../shared/components/card/card.component';
-import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
-import { CategoryPickerComponent } from '../../../../shared/components/category-picker/category-picker.component';
-import { AttributePickerComponent } from '../../../../shared/components/attribute-picker/attribute-picker.component';
-import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
-import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
-import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
-import { PageHeaderComponent } from '../../../../shared/components/page-header/page-header.component';
-import { DealCardComponent } from '../deal-card/deal-card.component';
-import { DealDetailModalComponent } from '../deal-detail-modal/deal-detail-modal.component';
-import { WatchlistEditorComponent } from '../watchlist-editor/watchlist-editor.component';
-import { PlatformOperatorService } from '../../../../core/services/platform-operator.service';
+import { DealMonitorService } from '../../services/deal-monitor.service';
+import { FeedClockService } from '../../services/feed-clock.service';
+import { DealFeedSearchComponent } from './deal-feed-search.component';
 
-interface AngularInputMetadata {
-  inputs: Record<string, unknown>;
-  declaredInputs: Record<string, string>;
-  outputs: Record<string, string>;
-}
-
-const snapshots = new Map<unknown, AngularInputMetadata>();
-let selectValueChangeDescriptor: PropertyDescriptor | undefined;
-
-function registerSignalInputs(
-  component: unknown,
-  inputNames: readonly string[],
-  outputNames: readonly string[] = [],
-): void {
-  const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
-  if (!snapshots.has(component))
-    snapshots.set(component, {
-      inputs: metadata.inputs,
-      declaredInputs: metadata.declaredInputs,
-      outputs: metadata.outputs,
-    });
-  metadata.inputs = {
-    ...metadata.inputs,
-    ...Object.fromEntries(inputNames.map((name) => [name, [name, 1, null]])),
-  };
-  metadata.declaredInputs = {
-    ...metadata.declaredInputs,
-    ...Object.fromEntries(inputNames.map((name) => [name, name])),
-  };
-  metadata.outputs = {
-    ...metadata.outputs,
-    ...Object.fromEntries(outputNames.map((name) => [name, name])),
-  };
-}
-
-const componentResources: Readonly<Record<string, string>> = {
-  './vinted-ai-search-modal.component.html':
-    'src/app/features/deal-monitor/components/vinted-ai-search-modal/vinted-ai-search-modal.component.html',
-  './custom-search-input.component.html':
-    'src/app/shared/components/custom-search-input/custom-search-input.component.html',
-  './deal-feed-search.component.html':
-    'src/app/features/deal-monitor/components/deal-feed-search/deal-feed-search.component.html',
-  './page-header.component.html':
-    'src/app/shared/components/page-header/page-header.component.html',
-  './page-header.component.scss':
-    'src/app/shared/components/page-header/page-header.component.scss',
-  './button.component.html': 'src/app/shared/components/button/button.component.html',
-  './button.component.scss': 'src/app/shared/components/button/button.component.scss',
-  './card.component.html': 'src/app/shared/components/card/card.component.html',
-  './card.component.scss': 'src/app/shared/components/card/card.component.scss',
-  './badge.component.html': 'src/app/shared/components/badge/badge.component.html',
-  './badge.component.scss': 'src/app/shared/components/badge/badge.component.scss',
-  './custom-select.component.html':
-    'src/app/shared/components/custom-select/custom-select.component.html',
-  './custom-select.component.scss':
-    'src/app/shared/components/custom-select/custom-select.component.scss',
-  './modal-shell.component.html':
-    'src/app/shared/components/modal-shell/modal-shell.component.html',
-  './modal-shell.component.scss':
-    'src/app/shared/components/modal-shell/modal-shell.component.scss',
-  './deal-card.component.html':
-    'src/app/features/deal-monitor/components/deal-card/deal-card.component.html',
-  './deal-detail-modal.component.html':
-    'src/app/features/deal-monitor/components/deal-detail-modal/deal-detail-modal.component.html',
-  './deal-detail-modal.component.scss':
-    'src/app/features/deal-monitor/components/deal-detail-modal/deal-detail-modal.component.scss',
-  './watchlist-editor.component.html':
-    'src/app/features/deal-monitor/components/watchlist-editor/watchlist-editor.component.html',
-  './text-field.component.html': 'src/app/shared/components/text-field/text-field.component.html',
-  './text-field.component.scss': 'src/app/shared/components/text-field/text-field.component.scss',
-  './custom-checkbox.component.html':
-    'src/app/shared/components/custom-checkbox/custom-checkbox.component.html',
-  './custom-checkbox.component.scss':
-    'src/app/shared/components/custom-checkbox/custom-checkbox.component.scss',
-  './number-input.component.html':
-    'src/app/shared/components/number-input/number-input.component.html',
-  './number-input.component.scss':
-    'src/app/shared/components/number-input/number-input.component.scss',
-  './category-picker.component.html':
-    'src/app/shared/components/category-picker/category-picker.component.html',
-  './category-picker.component.scss':
-    'src/app/shared/components/category-picker/category-picker.component.scss',
-  './attribute-picker.component.html':
-    'src/app/shared/components/attribute-picker/attribute-picker.component.html',
-  './attribute-picker.component.scss':
-    'src/app/shared/components/attribute-picker/attribute-picker.component.scss',
+const sampleTime = new Date('2026-11-22T21:31:00Z');
+const running: PersonalFeed = {
+  id: 'feed-1',
+  workspace_id: 'workspace-1',
+  title: 'Ralph Lauren',
+  catalog_id: null,
+  brand: null,
+  brand_id: 88,
+  search_text: null,
+  price_from: null,
+  price_to: null,
+  condition: null,
+  audience: null,
+  sizes: [],
+  is_active: true,
+  started_at: sampleTime.toISOString(),
+};
+const item: FeedItem = {
+  id: 'item-1',
+  title: 'Ralph Lauren',
+  url: 'https://www.vinted.de/items/100',
+  image_urls: [],
+  item_price: 10,
+  total_price: 12,
+  currency: 'EUR',
+  brand: null,
+  size: null,
+  condition: null,
+  is_hidden: false,
+  first_seen_at: sampleTime.toISOString(),
+  catalog_id: null,
+  category_path: null,
 };
 
-const mockFeedItem = (id: string, size: string | null = null): FeedItem => ({
-  id,
-  title: `Item ${id}`,
-  url: 'https://www.vinted.de/items/1',
-  image_urls: [],
-  item_price: 15,
-  total_price: 18,
-  currency: 'EUR',
-  brand: 'Nike',
-  size,
-  condition: 'Sehr gut',
-  is_hidden: false,
-  first_seen_at: '2026-09-14T12:00:00Z',
-  catalog_id: 1,
-  category_path: 'Herren > Kleidung',
-});
-
-describe('DealFeedSearchComponent', () => {
-  beforeAll(async () => {
-    await ɵresolveComponentResources((url) => {
-      const resourcePath = componentResources[url];
-      if (!resourcePath) {
-        throw new Error(`Unbekannte Komponenten-Ressource: ${url}`);
-      }
-      return readFile(resolve(resourcePath), 'utf8');
-    });
-
-    registerSignalInputs(
-      CustomSearchInputComponent,
-      ['id', 'variant', 'size', 'ariaLabel', 'placeholder', 'value', 'maxLength'],
-      ['searched'],
-    );
-    registerSignalInputs(PageHeaderComponent, ['title', 'subtitle', 'badge', 'icon']);
-    registerSignalInputs(
-      ButtonComponent,
-      [
-        'variant',
-        'size',
-        'disabled',
-        'loading',
-        'icon',
-        'fullWidth',
-        'iconOnly',
-        'href',
-        'ariaLabel',
-        'ariaPressed',
-        'ariaControls',
-        'title',
-        'target',
-      ],
-      ['clicked'],
-    );
-    registerSignalInputs(CardComponent, ['variant', 'padding', 'rounded', 'overflowVisible']);
-    registerSignalInputs(BadgeComponent, ['tone']);
-    registerSignalInputs(
-      CustomSelectComponent,
-      [
-        'options',
-        'label',
-        'placeholder',
-        'triggerId',
-        'ariaLabel',
-        'searchable',
-        'variant',
-        'value',
-      ],
-      ['valueChange'],
-    );
-    registerSignalInputs(
-      NumberInputComponent,
-      [
-        'id',
-        'ariaLabel',
-        'ariaDescribedby',
-        'ariaInvalid',
-        'showStepper',
-        'min',
-        'step',
-        'unit',
-        'value',
-      ],
-      ['valueChange'],
-    );
-    const numberMetadata = (NumberInputComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp;
-    numberMetadata.outputs = { ...numberMetadata.outputs, valueChange: 'value' };
-    selectValueChangeDescriptor = Object.getOwnPropertyDescriptor(
-      CustomSelectComponent.prototype,
-      'valueChange',
-    );
-    Object.defineProperty(CustomSelectComponent.prototype, 'valueChange', {
-      configurable: true,
-      value: new EventEmitter<string | null>(),
-    });
-    registerSignalInputs(CustomCheckboxComponent, [
-      'presentation',
-      'size',
-      'label',
-      'ariaLabel',
-      'checked',
-    ]);
-    registerSignalInputs(DealCardComponent, ['item', 'allowAiSearch'], ['inspect', 'aiSearch']);
-    registerSignalInputs(DealDetailModalComponent, ['item'], ['closed']);
-    registerSignalInputs(CategoryPickerComponent, ['id', 'label', 'source', 'placeholder']);
-    registerSignalInputs(
-      AttributePickerComponent,
-      [
-        'id',
-        'label',
-        'placeholder',
-        'multiple',
-        'allowCustom',
-        'clearable',
-        'clearOptionLabel',
-        'options',
-      ],
-      ['queryChange'],
-    );
-    registerSignalInputs(WatchlistEditorComponent, ['watchlist', 'categories', 'saving']);
-  });
-
-  afterAll(() => {
-    for (const [component, snapshot] of snapshots) {
-      const metadata = (component as { ɵcmp: AngularInputMetadata }).ɵcmp;
-      metadata.inputs = snapshot.inputs;
-      metadata.declaredInputs = snapshot.declaredInputs;
-      metadata.outputs = snapshot.outputs;
-    }
-    if (selectValueChangeDescriptor) {
-      Object.defineProperty(
-        CustomSelectComponent.prototype,
-        'valueChange',
-        selectValueChangeDescriptor,
-      );
-    } else {
-      Reflect.deleteProperty(CustomSelectComponent.prototype, 'valueChange');
-    }
-  });
-
-  let comp: DealFeedSearchComponent;
-  let currentWorkspace: ReturnType<typeof signal<{ id: string; name: string } | null>>;
-  const updateListeners: (() => void)[] = [];
-  const stopUpdates = vi.fn();
-  const mockUpdates = {
-    watch: vi.fn((_workspace: string, onUpdate: () => void) => {
-      updateListeners.push(onUpdate);
-      return stopUpdates;
-    }),
-  };
-
-  const mockApi = {
-    searchBrands: vi.fn((_workspace: string, term: string) =>
-      Promise.resolve(term.toLowerCase().startsWith('carh') ? ['Carhartt'] : ['Nike', 'Adidas']),
-    ),
-    supportedBrands: vi.fn().mockResolvedValue(['Nike', 'Adidas']),
-    feedBots: vi.fn().mockResolvedValue([
-      { id: 'bot-1', title: 'Carhartt Fleecejacken' },
-      { id: 'bot-2', title: 'Herren Kleidung' },
-    ]),
-    watchlists: vi.fn().mockResolvedValue([
-      {
-        id: 'wl-1',
-        workspace_id: 'ws-1',
-        title: 'Nike Hoodies',
-        catalog_id: 1,
-        brand: 'Nike',
-        search_text: null,
-        price_from: null,
-        price_to: 50,
-        condition: null,
-        legacy_brand_id: null,
-        audience: null,
-        sizes: [],
-      },
-    ]),
-    categories: vi.fn().mockResolvedValue([]),
-    collectedCategoryIds: vi.fn().mockResolvedValue([]),
-    feed: vi.fn().mockResolvedValue({
-      items: [
-        mockFeedItem('1', 'XL'),
-        mockFeedItem('2', 'L'),
-        mockFeedItem('3', 'XXL / 54'),
-        mockFeedItem('4', 'M'),
-        mockFeedItem('5', null),
-      ],
-      covered: true,
-      reported_at: '2026-09-14T12:00:00Z',
-    }),
-    save: vi.fn().mockResolvedValue(undefined),
-    delete: vi.fn().mockResolvedValue(undefined),
-  };
+describe('Artikel eines persönlichen Vinted-Feeds', () => {
+  const cleanup = vi.fn();
+  const api = { feed: vi.fn() };
+  const updates = { watch: vi.fn() };
+  const now = signal(sampleTime);
 
   beforeEach(() => {
-    TestBed.resetTestingModule();
-    updateListeners.length = 0;
-    mockUpdates.watch.mockClear();
-    stopUpdates.mockClear();
-    currentWorkspace = signal<{ id: string; name: string } | null>({
-      id: 'ws-1',
-      name: 'Vintage Studio',
-    });
-
+    vi.resetAllMocks();
+    now.set(sampleTime);
+    api.feed.mockResolvedValue({ items: [item], covered: true, reported_at: item.first_seen_at });
+    updates.watch.mockReturnValue(cleanup);
     TestBed.configureTestingModule({
       providers: [
-        {
-          provide: PlatformOperatorService,
-          useValue: { operator: signal(false), isOperator: vi.fn().mockResolvedValue(false) },
-        },
         DealFeedSearchComponent,
-        { provide: DealFavoritesService, useValue: createDealFavoritesFixture() },
-        { provide: DealMonitorService, useValue: mockApi },
-        { provide: DealFeedUpdatesService, useValue: mockUpdates },
-        { provide: WorkspaceService, useValue: { currentWorkspace } },
-        { provide: ElementRef, useValue: new ElementRef(document.createElement('div')) },
+        { provide: DealMonitorService, useValue: api },
+        { provide: DealFeedUpdatesService, useValue: updates },
+        { provide: DealFavoritesService, useValue: {} },
+        { provide: FeedClockService, useValue: { now } },
+        { provide: PageLayoutService, useValue: { widescreen: signal(false) } },
       ],
     });
-    comp = TestBed.inject(DealFeedSearchComponent);
+    TestBed.overrideComponent(DealFeedSearchComponent, { set: { template: '', imports: [] } });
   });
 
-  afterEach(() => {
-    TestBed.resetTestingModule();
-    vi.restoreAllMocks();
-    vi.useRealTimers();
-  });
+  afterEach(() => TestBed.resetTestingModule());
 
-  it('lädt private Hinweise mit den aktuellen Filtern und erhält pausierte Artikel und Favoriten', async () => {
-    TestBed.flushEffects();
-    await Promise.resolve();
-    expect(mockUpdates.watch).toHaveBeenCalledWith('ws-1', expect.any(Function));
-    comp.brand.setValue('Nike');
-    TestBed.flushEffects();
-    await Promise.resolve();
-    const visible = comp.feedItems();
-    await comp.favorites.add(mockFeedItem('saved-favorite'));
-    const favorites = comp.favorites.favorites();
-    comp.state.pause();
-    mockApi.feed.mockResolvedValueOnce({
-      items: [mockFeedItem('new-arrival'), ...visible],
-      covered: true,
-      reported_at: '2026-10-29T20:00:00Z',
+  function open(feed: PersonalFeed) {
+    const fixture = TestBed.createComponent(DealFeedSearchComponent);
+    Object.assign(fixture.componentInstance, {
+      workspaceId: signal(feed.workspace_id),
+      feed: signal(feed),
     });
-    updateListeners[0]?.();
+    fixture.detectChanges();
+    return fixture;
+  }
+
+  it('lädt nur den ausgewählten aktiven Feed und lässt seine Karten nach zehn Minuten altern', async () => {
+    const fixture = open(running);
     await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', brand: 'Nike' }),
-    );
-    expect(comp.feedItems()).toEqual(visible);
-    expect(comp.state.newCount()).toBe(1);
-    expect(comp.favorites.favorites()).toEqual(favorites);
-  });
-
-  it('beendet das alte Abonnement beim Workspacewechsel und das aktuelle beim Verlassen', () => {
-    TestBed.flushEffects();
-    expect(mockUpdates.watch).toHaveBeenCalledTimes(1);
-    currentWorkspace.set({ id: 'ws-2', name: 'Zweiter Arbeitsbereich' });
-    TestBed.flushEffects();
-    expect(stopUpdates).toHaveBeenCalledTimes(1);
-    expect(mockUpdates.watch).toHaveBeenLastCalledWith('ws-2', expect.any(Function));
-    TestBed.resetTestingModule();
-    expect(stopUpdates).toHaveBeenCalledTimes(2);
-  });
-
-  it('ignoriert Hinweise im Hintergrund und vom vorherigen Workspace vor dem Aufräumen', async () => {
-    TestBed.flushEffects();
-    await Promise.resolve();
-    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
-    const calls = mockApi.feed.mock.calls.length;
-    updateListeners[0]();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    hidden.mockReturnValue(false);
-    currentWorkspace.set({ id: 'ws-2', name: 'Zweiter Arbeitsbereich' });
-    updateListeners[0]();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-  });
-
-  it('behält Polling bei Verbindungsausfall und die zehnsekündige Fehlerpause trotz weiterer Hinweise', async () => {
-    vi.useFakeTimers();
-    vi.spyOn(document, 'hidden', 'get').mockReturnValue(false);
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.detectChanges();
-    await Promise.resolve();
-    const feed = fixture.componentInstance;
-    mockApi.feed.mockRejectedValueOnce(new Error('offline'));
-    await vi.advanceTimersByTimeAsync(2_000);
-    expect(feed.state.error()).toBe('offline');
-    const calls = mockApi.feed.mock.calls.length;
-    updateListeners.at(-1)?.();
-    await Promise.resolve();
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    await vi.advanceTimersByTimeAsync(9_999);
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-    await vi.advanceTimersByTimeAsync(1);
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls + 1);
-    expect(feed.state.error()).toBeNull();
+    expect(api.feed).toHaveBeenCalledWith({ workspace: 'workspace-1', watchlist: 'feed-1' });
+    expect(fixture.componentInstance.feedItems()).toEqual([item]);
+    now.set(new Date(sampleTime.getTime() + FEED_WINDOW_MS));
+    expect(fixture.componentInstance.feedItems()).toEqual([]);
     fixture.destroy();
+    expect(cleanup).toHaveBeenCalledOnce();
   });
 
-  it('setzt die Titelsuche nach Entprellung serverseitig und beim Zurücksetzen zurück', async () => {
-    TestBed.flushEffects();
-    comp.searchChanged('Vintage');
-    await new Promise((resolve) => setTimeout(resolve, 280));
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ titleQuery: 'Vintage' }),
-    );
-    comp.resetFilters();
-    TestBed.flushEffects();
-    expect(comp.searchEntry()).toBe('');
-    expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ titleQuery: '' }));
-  });
-
-  it('initializes size filter and options', () => {
-    expect(comp.sizes.value).toBe('');
-    expect(comp.sizeOptions).toEqual(expect.arrayContaining(['XL', 'XXL']));
-  });
-
-  it('requests the selected size, category and Vinted bot from the full saved feed', async () => {
-    TestBed.flushEffects();
-    await comp.state.refresh();
-    expect(comp.feedItems().length).toBe(5);
-    comp.sizes.setValue('XXL · M');
-    comp.category.setValue('1858');
-    comp.selectedBot.set('bot-1');
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        workspace: 'ws-1',
-        botId: 'bot-1',
-        sizes: ['xxl', 'm'],
-        categoryId: 1858,
-        audience: null,
-      }),
-    );
-  });
-
-  it('passes price limits to the feed and rejects an inverted range', () => {
-    TestBed.flushEffects();
-    comp.minPrice.set(10);
-    comp.maxPrice.set(20);
-    TestBed.flushEffects();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ minPrice: 10, maxPrice: 20 }),
-    );
-    const calls = mockApi.feed.mock.calls.length;
-    comp.minPrice.set(30);
-    TestBed.flushEffects();
-    expect(comp.priceError()).toContain('Mindestpreis');
-    expect(mockApi.feed).toHaveBeenCalledTimes(calls);
-  });
-
-  it('shows labeled price inputs above the saved finds', async () => {
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('label[for="feed-min-price"]')?.textContent).toContain('Min. Preis');
-    expect(host.querySelector('label[for="feed-max-price"]')?.textContent).toContain('Max. Preis');
-    expect(host.querySelector<HTMLInputElement>('#feed-min-price')?.getAttribute('step')).toBe(
-      '0.01',
-    );
-    const minInput = host.querySelector<HTMLInputElement>('#feed-min-price')!;
-    minInput.value = '12';
-    minInput.dispatchEvent(new Event('input'));
-    fixture.detectChanges();
-    TestBed.flushEffects();
-    expect(fixture.componentInstance.minPrice()).toBe(12);
-    expect(mockApi.feed).toHaveBeenLastCalledWith(expect.objectContaining({ minPrice: 12 }));
-    await fixture.whenStable();
-    fixture.detectChanges();
-    expect(host.querySelector('#feed-finds-grid')).not.toBeNull();
-    expect(host.textContent).not.toContain('Letzte 3 Tage');
-    expect(host.textContent).not.toContain('Kompakt');
-    expect((await axe.run(host)).violations).toEqual([]);
-    fixture.destroy();
-  });
-
-  it('uses the toolbar search field and a searchable brand picker', async () => {
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const search = fixture.debugElement.query(By.directive(CustomSearchInputComponent))
-      .componentInstance as CustomSearchInputComponent;
-    expect([search.variant(), search.size()]).toEqual(['toolbar', 'sm']);
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('input#feed-brand[role=combobox]')).not.toBeNull();
-    fixture.destroy();
-  });
-
-  it('merkt sich den langsamen Modus und bietet ihn in der Filterleiste an', async () => {
-    localStorage.setItem('flipbase:vinted-feed:slow-mode', 'true');
-    try {
-      const fixture = TestBed.createComponent(DealFeedSearchComponent);
-      fixture.detectChanges();
-      await fixture.whenStable();
-      fixture.detectChanges();
-      const feed = fixture.componentInstance;
-      const host = fixture.nativeElement as HTMLElement;
-      expect(feed.slowMode()).toBe(true);
-      expect(
-        host.querySelector('aside[aria-label="Feed filtern"] [data-feed-slow-mode]'),
-      ).not.toBeNull();
-      const checkbox = fixture.debugElement.query(By.directive(CustomCheckboxComponent))
-        .componentInstance as CustomCheckboxComponent;
-      expect(checkbox.checked()).toBe(true);
-      expect(feed.cardMotion()).toContain('starting:-translate-x-12');
-      expect((await axe.run(host)).violations).toEqual([]);
-
-      feed.slowModeChanged(false);
-      fixture.detectChanges();
-      expect(feed.slowMode()).toBe(false);
-      expect(checkbox.checked()).toBe(false);
-      expect(localStorage.getItem('flipbase:vinted-feed:slow-mode')).toBe('false');
-      expect(feed.cardMotion()).toContain('starting:-translate-x-3');
-      fixture.destroy();
-    } finally {
-      localStorage.removeItem('flipbase:vinted-feed:slow-mode');
-    }
-  });
-
-  it('groups feed filters and resets every active choice from the right edge', async () => {
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    const filterCard = host.querySelector('app-card[data-feed-filters]');
-    expect(filterCard).not.toBeNull();
-    expect(filterCard?.classList.contains('overflow-visible')).toBe(true);
-    const reset = host.querySelector<HTMLButtonElement>('[data-feed-filter-reset] button');
-    expect(reset).not.toBeNull();
-    expect(reset?.disabled).toBe(true);
-
-    const feed = fixture.componentInstance;
-    feed.selected.set('wl-1');
-    feed.selectedBot.set('bot-1');
-    feed.brand.setValue('Nike');
-    feed.sizes.setValue('XXL · M');
-    feed.category.setValue('1858');
-    feed.minPrice.set(30);
-    feed.maxPrice.set(20);
-    fixture.detectChanges();
-    expect(host.querySelector('#feed-audience')).toBeNull();
-    expect(host.querySelector('#feed-bot')).not.toBeNull();
-    expect(feed.filtersActive()).toBe(true);
-    expect(feed.priceError()).toContain('Mindestpreis');
-
-    expect(reset?.disabled).toBe(false);
-    expect(reset?.getAttribute('aria-label')).toBe('Filter zurücksetzen');
-    expect(reset?.closest('.ml-auto')).not.toBeNull();
-    reset?.click();
-    TestBed.flushEffects();
-    fixture.detectChanges();
-
-    expect([
-      feed.selected(),
-      feed.selectedBot(),
-      feed.brand.value,
-      feed.sizes.value,
-      feed.category.value,
-    ]).toEqual([null, null, '', '', null]);
-    expect([feed.minPrice(), feed.maxPrice()]).toEqual([null, null]);
-    expect(feed.priceError()).toBeNull();
-    expect(feed.filtersActive()).toBe(false);
-    expect(reset?.disabled).toBe(true);
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        watchlist: null,
-        botId: null,
-        brand: null,
-        size: null,
-        minPrice: null,
-        maxPrice: null,
-      }),
-    );
-    expect((await axe.run(host)).violations).toEqual([]);
-    fixture.destroy();
-  });
-
-  it('offers feed brands and active Vinted bots and clears a selected brand via X button', async () => {
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const feed = fixture.componentInstance;
-    const host = fixture.nativeElement as HTMLElement;
-
-    expect(feed.brands()).toEqual(['Nike', 'Adidas']);
-    expect(feed.bots()).toEqual([
-      { id: 'bot-1', title: 'Carhartt Fleecejacken' },
-      { id: 'bot-2', title: 'Herren Kleidung' },
-    ]);
-    feed.searchBrand('Carh');
-    await new Promise((resolve) => setTimeout(resolve, 280));
-    expect(mockApi.searchBrands).toHaveBeenCalledWith('ws-1', 'Carh');
-    expect(feed.brands()).toEqual(['Carhartt']);
-
-    feed.brand.setValue('Carhartt');
-    TestBed.flushEffects();
-    fixture.detectChanges();
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', brand: 'Carhartt' }),
-    );
-    const clearBrand = host.querySelector<HTMLButtonElement>('[aria-label="Marke entfernen"]');
-    expect(clearBrand).not.toBeNull();
-    clearBrand!.click();
-    TestBed.flushEffects();
-    fixture.detectChanges();
-    expect(feed.brand.value).toBe('');
-    expect(mockApi.feed).toHaveBeenLastCalledWith(
-      expect.objectContaining({ workspace: 'ws-1', brand: null }),
-    );
-    fixture.destroy();
-  });
-
-  it('füllt im Widescreen-Modus die Breite und trennt die IDs weiterer Suchen', async () => {
-    registerSignalInputs(
-      DealFeedSearchComponent,
-      ['searchNumber', 'widescreen', 'canAddSearch', 'removable', 'categorySource'],
-      ['addSearch', 'remove'],
-    );
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.componentRef.setInput('searchNumber', 2);
-    fixture.componentRef.setInput('widescreen', true);
-    fixture.componentRef.setInput('canAddSearch', true);
-    fixture.componentRef.setInput('removable', true);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('#feed-min-price-2')).not.toBeNull();
-    expect(host.querySelector('label[for="feed-min-price-2"]')).not.toBeNull();
-    expect(host.querySelector('#feed-min-price')).toBeNull();
-    const grid = host.querySelector('#feed-finds-grid-2');
-    expect(grid?.className).toContain('grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]');
-    expect(grid?.className).not.toContain('@min-[78rem]:grid-cols-5');
-
-    const added = vi.fn();
-    const removed = vi.fn();
-    fixture.componentInstance.addSearch.subscribe(added);
-    fixture.componentInstance.remove.subscribe(removed);
-    host.querySelector<HTMLButtonElement>('[data-feed-add-search] button')?.click();
-    host.querySelector<HTMLButtonElement>('[data-feed-remove-search] button')?.click();
-    expect([added.mock.calls.length, removed.mock.calls.length]).toEqual([1, 1]);
-    expect(host.querySelector('[data-feed-remove-search] button')?.getAttribute('aria-label')).toBe(
-      'Suche 2 entfernen',
-    );
-    expect((await axe.run(host)).violations).toEqual([]);
-    fixture.destroy();
-  });
-
-  it('zeigt ohne Widescreen das bisherige Raster ohne Suchaktionen', async () => {
-    const fixture = TestBed.createComponent(DealFeedSearchComponent);
-    fixture.detectChanges();
-    await fixture.whenStable();
-    fixture.detectChanges();
-    const host = fixture.nativeElement as HTMLElement;
-    expect(host.querySelector('#feed-finds-grid')?.className).toContain('@min-[78rem]:grid-cols-5');
-    expect(host.querySelector('[data-feed-search-actions]')).toBeNull();
-    fixture.destroy();
-  });
-
-  it('manages selected deal for detail modal inspection', () => {
-    expect(comp.selectedDeal()).toBeNull();
-
-    const item = mockFeedItem('test-deal');
-    comp.selectedDeal.set(item);
-    expect(comp.selectedDeal()).toEqual(item);
-
-    comp.selectedDeal.set(null);
-    expect(comp.selectedDeal()).toBeNull();
+  it('öffnet für einen gestoppten Feed weder Livekanal noch Abruf', () => {
+    open({ ...running, is_active: false });
+    expect(api.feed).not.toHaveBeenCalled();
+    expect(updates.watch).not.toHaveBeenCalled();
   });
 });

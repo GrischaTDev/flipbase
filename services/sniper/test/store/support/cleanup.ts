@@ -8,14 +8,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * ein Rauchtest deshalb 22 statt einer Abfrage gepollt und 77 Prozent des
  * Minutenbudgets verbraucht, bevor er zur eigentlichen Abfrage kam.
  *
- * Erkennungsmerkmal ist ausschliesslich das Praefix `test|` im Abfrage-
- * schluessel. Echte Profile tragen es nicht und bleiben unberuehrt.
+ * Testabfragen tragen `test|` vor oder nach dem Präfix für persönliche Feeds.
  */
 export async function removeTestRows(client: SupabaseClient): Promise<void> {
   const { data, error } = await client
     .from('sniper_queries')
     .select('id')
-    .like('query_key', 'test|%');
+    .or('query_key.like.test|%,query_key.like.vinted-source|category|99%');
 
   if (error) {
     throw new Error(`finding test queries failed: ${error.message}`);

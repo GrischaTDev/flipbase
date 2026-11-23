@@ -1,66 +1,180 @@
 import '@angular/compiler';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DealMonitorComponent, MAX_FEED_SEARCHES } from './deal-monitor.component';
-import { PageLayoutService } from '../../core/services/page-layout.service';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AuthService } from '../../core/services/auth.service';
+import { SupabaseService } from '../../core/services/supabase.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
+import { VintedBrandSearchService } from '../../core/services/vinted-brand-search.service';
+import { VintedCategoryService } from '../../core/services/vinted-category.service';
+import { DealMonitorComponent } from './deal-monitor.component';
+import { PersonalFeed } from './models/deal-monitor.model';
+import { DealMonitorService } from './services/deal-monitor.service';
 
-describe('DealMonitorComponent', () => {
+const pausedFeed: PersonalFeed = {
+  id: 'feed-1',
+  workspace_id: 'workspace-1',
+  title: 'Ralph Lauren',
+  catalog_id: null,
+  brand: 'Ralph Lauren',
+  brand_id: 88,
+  search_text: null,
+  price_from: null,
+  price_to: 20,
+  condition: null,
+  audience: null,
+  sizes: [],
+  is_active: false,
+  started_at: null,
+};
+
+describe('Persönliche Vinted-Feeds', () => {
+  const workspace = signal<{ id: string } | null>(null);
+  const currentUser = signal({ id: 'user-1' });
+  const api = {
+    personalFeeds: vi.fn(),
+    save: vi.fn(),
+    setActive: vi.fn(),
+    delete: vi.fn(),
+  };
+  const confirm = vi.fn();
   let page: DealMonitorComponent;
-  let layout: PageLayoutService;
 
   beforeEach(() => {
-    localStorage.removeItem('flipbase_widescreen');
-    TestBed.resetTestingModule();
+    vi.resetAllMocks();
+    workspace.set({ id: 'workspace-1' });
+    currentUser.set({ id: 'user-1' });
     TestBed.configureTestingModule({
       providers: [
         DealMonitorComponent,
-        { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'ws-1' }) } },
+        { provide: AuthService, useValue: { currentUser } },
+        { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
+        { provide: DealMonitorService, useValue: api },
+        { provide: ConfirmDialogService, useValue: { frage: confirm } },
       ],
     });
-    // Hier zählt nur die Spaltenlogik; die Suchen selbst prüft ihr eigener Test.
     TestBed.overrideComponent(DealMonitorComponent, { set: { template: '', imports: [] } });
-    layout = TestBed.inject(PageLayoutService);
     page = TestBed.inject(DealMonitorComponent);
   });
 
-  afterEach(() => {
-    localStorage.removeItem('flipbase_widescreen');
-    TestBed.resetTestingModule();
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('startet leer und wählt einen neu gespeicherten gestoppten Feed aus', async () => {
+    api.personalFeeds.mockResolvedValueOnce([]);
+    TestBed.tick();
+    await Promise.resolve();
+    expect(page.selectedFeed()).toBeUndefined();
+
+    page.openEditor();
+    api.save.mockResolvedValue(pausedFeed.id);
+    api.personalFeeds.mockResolvedValueOnce([pausedFeed]);
+    const { workspace_id, is_active, started_at, ...draft } = pausedFeed;
+    await page.save({ ...draft, id: null });
+
+    expect(api.save).toHaveBeenCalledWith(workspace_id, { ...draft, id: null });
+    expect(page.editorOpen()).toBe(false);
+    expect(page.selectedFeed()).toEqual({ ...pausedFeed, is_active, started_at });
   });
 
-  it('bietet weitere Suchen nur im Widescreen-Modus an', () => {
-    expect(page.canAddSearch()).toBe(false);
-    page.addSearch();
-    expect(page.searches()).toEqual([1]);
+  it('startet und stoppt den ausgewählten Feed serverseitig', async () => {
+    api.personalFeeds.mockResolvedValueOnce([pausedFeed]);
+    TestBed.tick();
+    await Promise.resolve();
+    const running = { ...pausedFeed, is_active: true, started_at: '2026-11-22T21:31:00Z' };
+    api.personalFeeds.mockResolvedValueOnce([running]).mockResolvedValueOnce([pausedFeed]);
 
-    layout.setWidescreen(true);
-    expect(page.canAddSearch()).toBe(true);
-    page.addSearch();
-    expect(page.searches()).toEqual([1, 2]);
-    expect(page.searchColumns()).toBe('repeat(2, minmax(0, 1fr))');
+    await page.toggle(pausedFeed);
+    expect(page.selectedFeed()).toEqual(running);
+    await page.toggle(running);
+
+    expect(api.setActive.mock.calls).toEqual([
+      ['workspace-1', pausedFeed.id, true],
+      ['workspace-1', pausedFeed.id, false],
+    ]);
+    expect(page.selectedFeed()).toEqual(pausedFeed);
   });
 
-  it('teilt die Breite bis zur Höchstzahl und behält Nummern beim Entfernen', () => {
-    layout.setWidescreen(true);
-    for (let i = 0; i < MAX_FEED_SEARCHES + 2; i++) page.addSearch();
-    expect(page.searches()).toHaveLength(MAX_FEED_SEARCHES);
-    expect(page.canAddSearch()).toBe(false);
+  it('löscht nur einen bestätigten eigenen Feed', async () => {
+    api.personalFeeds.mockResolvedValueOnce([pausedFeed]);
+    TestBed.tick();
+    await Promise.resolve();
+    confirm.mockResolvedValueOnce(false).mockResolvedValueOnce(true);
 
-    page.removeSearch(2);
-    page.removeSearch(1);
-    expect(page.searches()).toEqual([1, 3, 4]);
-    page.addSearch();
-    expect(page.searches()).toEqual([1, 3, 4, 5]);
+    await page.remove(pausedFeed);
+    expect(api.delete).not.toHaveBeenCalled();
+    api.personalFeeds.mockResolvedValueOnce([]);
+    await page.remove(pausedFeed);
+    expect(api.delete).toHaveBeenCalledOnce();
+    expect(api.delete).toHaveBeenCalledWith('workspace-1', pausedFeed.id);
+    expect(page.selectedFeed()).toBeUndefined();
   });
 
-  it('zeigt nach dem Ausschalten wieder nur die erste Suche', () => {
-    layout.setWidescreen(true);
-    page.addSearch();
-    layout.setWidth('full');
-    expect(layout.widescreen()).toBe(false);
-    expect(page.searches()).toEqual([1]);
-    expect(page.searchColumns()).toBe('repeat(1, minmax(0, 1fr))');
+  it('verwirft die verspätete Feed-Liste des vorherigen Arbeitsbereichs', async () => {
+    let finish!: (value: PersonalFeed[]) => void;
+    api.personalFeeds
+      .mockImplementationOnce(
+        () =>
+          new Promise<PersonalFeed[]>((resolve) => {
+            finish = resolve;
+          }),
+      )
+      .mockResolvedValueOnce([]);
+    TestBed.tick();
+    workspace.set({ id: 'workspace-2' });
+    TestBed.tick();
+    finish([pausedFeed]);
+    await Promise.resolve();
+    expect(page.feeds()).toEqual([]);
+  });
+
+  it('lädt die persönlichen Feeds bei einem Benutzerwechsel im gleichen Arbeitsbereich neu', async () => {
+    api.personalFeeds.mockResolvedValueOnce([pausedFeed]).mockResolvedValueOnce([]);
+    TestBed.tick();
+    await Promise.resolve();
+    expect(page.selectedFeed()).toEqual(pausedFeed);
+    currentUser.set({ id: 'user-2' });
+    TestBed.tick();
+    await Promise.resolve();
+    expect(api.personalFeeds).toHaveBeenCalledTimes(2);
+    expect(page.selectedFeed()).toBeUndefined();
+  });
+});
+
+describe('Live-Abruf eines persönlichen Feeds', () => {
+  afterEach(() => TestBed.resetTestingModule());
+
+  it('übergibt beim inkrementellen Abruf alle Parameter der aktuellen RPC-Signatur', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { items: [] }, error: null });
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: SupabaseService, useValue: { client: { rpc } } },
+        { provide: VintedBrandSearchService, useValue: {} },
+        { provide: VintedCategoryService, useValue: {} },
+      ],
+    });
+    const afterTime = '2026-11-22T21:30:00.000Z';
+    await TestBed.inject(DealMonitorService).feed({
+      workspace: 'workspace-1',
+      watchlist: 'feed-1',
+      afterTime,
+    });
+    expect(rpc).toHaveBeenCalledWith('sniper_feed_search', {
+      p_workspace_id: 'workspace-1',
+      p_watchlist_id: 'feed-1',
+      p_brand: null,
+      p_size: null,
+      p_min_price: null,
+      p_max_price: null,
+      p_before_time: null,
+      p_before_id: null,
+      p_limit: 100,
+      p_title_query: '',
+      p_catalog_id: null,
+      p_audience: null,
+      p_sizes: [],
+      p_query_id: null,
+      p_after_time: afterTime,
+    });
   });
 });

@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
-import { VintedBrandSearchService } from '../../platform-admin/services/vinted-brand-search.service';
+import { VintedBrandSearchService } from '../../../core/services/vinted-brand-search.service';
 import { listingCurrentContentFixture } from '../../../../../services/marketplace-worker/test/fixtures/vinted-listing-current-content';
 import { parseMarketplacePage } from '../models/marketplace-response';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';

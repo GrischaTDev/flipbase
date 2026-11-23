@@ -42,14 +42,7 @@ const routes: Routes = [
       { path: 'system/:area', component: TestPageComponent },
       { path: 'applications', component: TestPageComponent },
       { path: 'users', component: TestPageComponent },
-      {
-        path: 'vinted-bot',
-        children: [
-          { path: 'queries', component: TestPageComponent },
-          { path: 'operation', component: TestPageComponent },
-          { path: 'categories', component: TestPageComponent },
-        ],
-      },
+      { path: 'users/:userId', component: TestPageComponent },
     ],
   },
 ];
@@ -138,7 +131,6 @@ describe('SidebarComponent', () => {
       'Systemzustand',
       'Bewerbungen',
       'Nutzer',
-      'Vinted Bot',
       'Vinted-Katalog',
       'Server-Speicher',
       'Referenzbibliothek',
@@ -148,7 +140,6 @@ describe('SidebarComponent', () => {
       '/admin/system',
       '/admin/applications',
       '/admin/users',
-      '/admin/vinted-bot',
       '/admin/vinted-catalog',
       '/admin/server-storage',
       '/tools/brand-labels/admin',
@@ -176,23 +167,13 @@ describe('SidebarComponent', () => {
         link.getAttribute('aria-current'),
       );
     const applications = await renderAt('/admin/applications');
-    expect(current(applications.element)).toEqual([
-      null,
-      null,
-      'page',
-      null,
-      null,
-      null,
-      null,
-      null,
-    ]);
+    expect(current(applications.element)).toEqual([null, null, 'page', null, null, null, null]);
     expect(applications.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
 
     TestBed.resetTestingModule();
-    // Tiefer liegende Bot-Seiten gehoeren zum Punkt "Vinted Bot".
-    const operation = await renderAt('/admin/vinted-bot/operation');
-    expect(current(operation.element)).toEqual([null, null, null, null, 'page', null, null, null]);
-    expect(operation.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+    const userDetails = await renderAt('/admin/users/example');
+    expect(current(userDetails.element)).toEqual([null, null, null, 'page', null, null, null]);
+    expect(userDetails.element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
   it('klappt unter Systemzustand die Fehlerprotokolle je Bereich auf', async () => {
@@ -296,7 +277,7 @@ describe('SidebarComponent', () => {
   });
 
   it('klappt die Unterpunkte fuer Vinted-Bot auf und hebt die aktive Seite hervor', async () => {
-    const { element, subLinks } = await renderAt('/vinted-bot/filters', false);
+    const { element, subLinks } = await renderAt('/vinted-bot/favorites', false);
 
     expect(
       element.querySelector('[data-navigation-group="tools"] > ul > li > a[href="/vinted-bot"]'),
@@ -305,17 +286,12 @@ describe('SidebarComponent', () => {
       element.querySelector('[data-navigation-group="marketplaces"] a[href="/vinted-bot"]'),
     ).toBeNull();
 
-    expect(subLinks.map((link) => link.textContent?.trim())).toEqual([
-      'Vinted Feed',
-      'Suchfilter',
-      'Favoriten',
-    ]);
+    expect(subLinks.map((link) => link.textContent?.trim())).toEqual(['Vinted Feed', 'Favoriten']);
     expect(subLinks.map((link) => link.getAttribute('href'))).toEqual([
       '/vinted-bot',
-      '/vinted-bot/filters',
       '/vinted-bot/favorites',
     ]);
-    expect(subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page', null]);
+    expect(subLinks.map((link) => link.getAttribute('aria-current'))).toEqual([null, 'page']);
     expect(element.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
   });
 
@@ -417,7 +393,7 @@ describe('SidebarComponent', () => {
   });
 
   it('hat keine automatisch erkennbaren schwerwiegenden Barrieren', async () => {
-    const { element } = await renderAt('/admin/vinted-bot/queries');
+    const { element } = await renderAt('/admin/applications');
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
 
     expect(

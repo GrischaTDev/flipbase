@@ -1,0 +1,119 @@
+<form
+  id="personal-vinted-feed"
+  [formGroup]="form"
+  (ngSubmit)="submit()"
+  [attr.aria-label]="feed() ? 'Feed bearbeiten' : 'Neuer Feed'"
+  class="flex flex-col gap-4"
+>
+  <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
+    <div class="h-8 overflow-auto text-sm text-fb-text-danger">
+      @if (saveError(); as error) {
+        <p role="alert">{{ error }}</p>
+      }
+    </div>
+    <app-text-field
+      label="Name des Feeds"
+      formControlName="title"
+      placeholder="Zum Beispiel Nike-Sneaker"
+      [error]="
+        submitAttempted() && form.controls.title.invalid
+          ? 'Bitte gib einen Namen mit höchstens 100 Zeichen ein.'
+          : null
+      "
+    />
+    <div>
+      <div class="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+        <app-text-field
+          label="Vinted-Suchlink"
+          type="url"
+          [formControl]="feedLink"
+          [disabled]="importingLink()"
+          [ariaDescribedby]="linkError() ? 'vinted-feed-import-status' : ''"
+          [ariaInvalid]="!!linkError()"
+        />
+        <app-button [loading]="importingLink()" [disabled]="saving()" (clicked)="importLink()"
+          >Link übernehmen</app-button
+        >
+      </div>
+      <p id="vinted-feed-import-status" role="status" class="h-10 overflow-auto text-xs">
+        @if (linkError(); as error) {
+          <span class="text-fb-text-danger">{{ error }}</span>
+        } @else if (linkImported()) {
+          <span>Filter übernommen.</span>
+        }
+      </p>
+    </div>
+    <app-category-picker
+      label="Kategorie"
+      placeholder="Alle Kategorien"
+      [source]="categorySource()"
+      formControlName="catalog_id"
+    />
+    <div class="flex h-9 items-center gap-2 overflow-auto text-sm">
+      @if (categoryError()) {
+        <span role="alert" class="text-fb-text-danger"
+          >Kategorien konnten nicht geladen werden.</span
+        >
+        <app-button size="slim" variant="secondary" (clicked)="loadCategories()"
+          >Erneut laden</app-button
+        >
+      }
+    </div>
+    <div class="grid gap-4 sm:grid-cols-2">
+      <app-attribute-picker
+        label="Marke"
+        placeholder="Marke suchen"
+        [clearable]="true"
+        [allowCustom]="false"
+        clearOptionLabel="Alle Marken"
+        [options]="brandOptions()"
+        [error]="brandError()"
+        formControlName="brand"
+        (queryChange)="brandQueries.next($event)"
+      />
+      <app-attribute-picker
+        label="Größen"
+        placeholder="Alle Größen"
+        [multiple]="true"
+        [allowCustom]="false"
+        [options]="sizeOptions"
+        formControlName="sizes"
+      />
+      <app-text-field
+        label="Suchbegriff"
+        formControlName="search_text"
+        placeholder="Wort oder Wortfolge"
+      />
+      <app-custom-select
+        label="Zustand"
+        ariaLabel="Zustand"
+        formControlName="condition"
+        [options]="conditionOptions"
+      />
+      <app-number-input
+        label="Mindestpreis in EUR"
+        formControlName="price_from"
+        [min]="0"
+        [step]="0.01"
+        [asCurrency]="true"
+      />
+      <app-number-input
+        label="Höchstpreis in EUR"
+        formControlName="price_to"
+        [min]="0"
+        [step]="0.01"
+        [asCurrency]="true"
+        [error]="
+          submitAttempted() && form.hasError('priceRange')
+            ? 'Der Höchstpreis darf nicht unter dem Mindestpreis liegen.'
+            : null
+        "
+      />
+    </div>
+    <div class="h-8 overflow-auto text-sm text-fb-text-danger">
+      @if (submitAttempted() && form.invalid && !form.hasError('priceRange')) {
+        <p role="alert">Bitte prüfe deine Angaben.</p>
+      }
+    </div>
+  </fieldset>
+</form>

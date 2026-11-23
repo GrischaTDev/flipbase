@@ -130,6 +130,8 @@ export interface CycleReport {
   newListings: number;
   seeded: number;
   failed: number;
+  /** Quellen mit neuen sichtbaren Treffern; nur deren Feeds bekommen einen Hinweis. */
+  updatedQueryIds?: string[];
   originPause?: { reason: string; until: string | null };
 }
 
@@ -182,6 +184,7 @@ export class QueryScheduler {
       newListings: 0,
       seeded: 0,
       failed: 0,
+      updatedQueryIds: [],
     };
 
     const origin = this.origin;
@@ -361,6 +364,7 @@ export class QueryScheduler {
       if (completed.accepted) {
         if (completed.seeded) report.seeded += 1;
         else report.newListings += completed.created;
+        if (!completed.seeded && completed.created > 0) report.updatedQueryIds?.push(query.id);
       } else {
         this.deps.log.info('outdated_search_filter_response_discarded', { queryId: query.id });
       }
@@ -688,6 +692,7 @@ export class QueryScheduler {
           accepted = true;
           if (completed.seeded) report.seeded += 1;
           else report.newListings += completed.created;
+          if (!completed.seeded && completed.created > 0) report.updatedQueryIds?.push(query.id);
           // Jede Revision und Teilabfrage behält ihren eigenen bestätigten Stand.
           // Ein schneller anderer Filter kann diesen Ausschnitt nicht vorziehen.
           this.previousConsumerSourceIds.delete(window.checkpointKey);

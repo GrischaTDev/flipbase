@@ -119,8 +119,8 @@ export class ListingStore {
     return data;
   }
 
-  async notifyFeedUpdates(): Promise<void> {
-    const { error } = await this.client.rpc('sniper_notify_feed_updates');
+  async notifyFeedUpdates(queryId: string): Promise<void> {
+    const { error } = await this.client.rpc('sniper_notify_feed_updates', { p_query_id: queryId });
     if (error) throw new Error('Feed-Hinweis konnte nicht gesendet werden.');
   }
 }

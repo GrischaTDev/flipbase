@@ -195,16 +195,19 @@ describe('QueryStore database operations', () => {
 });
 
 describe('QueryStore.dueQueries', () => {
-  it('loads legacy blocked queries so the forbidden backoff can recover them', async () => {
+  it('loads blocked collections so the forbidden backoff can recover them', async () => {
     // Nach dem Fix vom 17.09.2026 sammelten Nike und adidas wieder, der am
     // 16.09. gesperrte Filter "Ralph Lauren" blieb aber stehen: Die Abfrage
     // sortierte 'blocked' schon in der Datenbank aus, bevor isDue greifen konnte.
     const params: URLSearchParams[] = [];
+    const paths: string[] = [];
     const client = createClient('https://unit.example.test', 'unit-service-role', {
       auth: { persistSession: false, autoRefreshToken: false },
       global: {
         fetch: async (input) => {
-          params.push(new URL(String(input)).searchParams);
+          const url = new URL(String(input));
+          paths.push(url.pathname);
+          params.push(url.searchParams);
           return new Response(
             JSON.stringify([
               {
@@ -240,6 +243,7 @@ describe('QueryStore.dueQueries', () => {
     const due = await new QueryStore(client).dueQueries(new Date('2026-09-17T07:00:00.000Z'));
 
     expect(params[0]?.getAll('run_state')).toEqual(['neq.invalid']);
+    expect(paths).toEqual(['/rest/v1/sniper_active_feed_sources']);
     expect(due.map((query) => query.id)).toEqual(['q-ralph']);
   });
 

@@ -343,7 +343,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
   }
 
   private async fetchSerial(input: string | URL, init?: RequestInit): Promise<Response> {
-    if (this.manual) throw new Error('Die Botsitzung wird gerade manuell bedient.');
+    if (this.manual) throw new Error('Die Prüfsitzung wird gerade manuell bedient.');
     if (this.needsRestart) throw new Error('Der Feed-Browser muss neu gestartet werden.');
     const url = this.validateUrl(input, true);
     if (init?.method && init.method.toUpperCase() !== 'GET')
@@ -502,12 +502,12 @@ export class ChromeVintedBrowser implements VintedBrowser {
   }
 
   async captureFrame(): Promise<Uint8Array> {
-    if (!this.manual) throw new Error('Keine manuelle Botsitzung geöffnet.');
+    if (!this.manual) throw new Error('Keine manuelle Prüfsitzung geöffnet.');
     return this.desktop.capture();
   }
 
   async input(command: BrowserInput): Promise<void> {
-    if (!this.manual) throw new Error('Keine manuelle Botsitzung geöffnet.');
+    if (!this.manual) throw new Error('Keine manuelle Prüfsitzung geöffnet.');
     await this.desktop.input(command);
   }
 

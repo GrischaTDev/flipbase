@@ -1,18 +1,27 @@
 import 'dotenv/config';
 import { randomUUID } from 'node:crypto';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { loadConfig } from '../../src/config.js';
 import { createSupabaseClient } from '../../src/store/supabase.js';
 import { removeTestRows } from './support/cleanup.js';
 import { QueryStore } from '../../src/store/query.store.js';
 
 const client = createSupabaseClient(loadConfig(process.env));
+let userId: string;
+let workspaceId: string;
+
+// Testquellen nutzen Kategorienummern weit außerhalb des Vinted-Bereichs.
+function testCatalogId(): number {
+  return 990_000_000 + Math.floor(Math.random() * 9_000_000);
+}
 
 async function insertQuery(overrides: Record<string, unknown> = {}): Promise<string> {
+  const catalogId = testCatalogId();
+  const key = `vinted-source|category|${catalogId}`;
   const { data, error } = await client
     .from('sniper_queries')
     .insert({
-      query_key: `test|${randomUUID()}`,
+      query_key: key,
       search_text: 'nike air max',
       poll_interval_ms: 60000,
       ...overrides,
@@ -21,12 +30,48 @@ async function insertQuery(overrides: Record<string, unknown> = {}): Promise<str
     .single();
 
   if (error) throw new Error(error.message);
-  return data!.id as string;
+  const id = data!.id as string;
+  if (!overrides['query_key']) {
+    const { error: feedError } = await client.from('sniper_watchlists').insert({
+      workspace_id: workspaceId,
+      user_id: userId,
+      title: 'Testfeed',
+      is_active: true,
+      started_at: new Date().toISOString(),
+      catalog_id: catalogId,
+    });
+    if (feedError) throw new Error(feedError.message);
+  }
+  return id;
 }
 
 describe('QueryStore', () => {
+  beforeAll(async () => {
+    const { data, error } = await client.auth.admin.createUser({
+      email: `sniper-${randomUUID()}@flipbase.test`,
+      email_confirm: true,
+    });
+    if (error || !data.user) throw new Error(error?.message ?? 'Testkonto fehlt');
+    userId = data.user.id;
+    const membership = await client
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', userId)
+      .single();
+    if (membership.error) throw new Error(membership.error.message);
+    workspaceId = membership.data.workspace_id as string;
+  });
+
   afterAll(async () => {
+    if (userId) {
+      const { error } = await client.from('sniper_watchlists').delete().eq('user_id', userId);
+      if (error) throw new Error(error.message);
+    }
     await removeTestRows(client);
+    if (userId) {
+      const { error } = await client.auth.admin.deleteUser(userId);
+      if (error) throw new Error(error.message);
+    }
   });
 
   it('returns a query that has never been polled', async () => {
@@ -64,6 +109,18 @@ describe('QueryStore', () => {
 
     const due = await store.dueQueries(new Date());
 
+    expect(due.map((query) => query.id)).not.toContain(id);
+  });
+
+  it('omits an old administrative collector even if it is still active', async () => {
+    const id = await insertQuery({ query_key: `test|${randomUUID()}`, is_active: true });
+    const due = await new QueryStore(client).dueQueries(new Date());
+    expect(due.map((query) => query.id)).not.toContain(id);
+  });
+
+  it('omits a source with no active feed demand', async () => {
+    const id = await insertQuery({ query_key: `vinted-source|category|${testCatalogId()}` });
+    const due = await new QueryStore(client).dueQueries(new Date());
     expect(due.map((query) => query.id)).not.toContain(id);
   });
 

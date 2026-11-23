@@ -43,9 +43,9 @@ test('Verkaufsartikel kopieren wählt Verkaufs- und Editorfälle ohne fachfremde
   assert.equal(plan.pwa, false);
 });
 
-test('Vinted-KI-Funktion und ihre Tests aktivieren die verbindlichen Edge-Prüfungen', () => {
-  for (const file of ['index.ts', 'analysis.ts', 'index.test.ts']) {
-    const path = 'supabase/functions/vinted-ai-search/' + file;
+test('Vinted-Fotomaskenfunktion und ihre Tests aktivieren die verbindlichen Edge-Prüfungen', () => {
+  for (const file of ['index.ts', 'provider.ts', 'index.test.ts']) {
+    const path = 'supabase/functions/vinted-photo-background-mask/' + file;
     const plan = selectAffectedTests([path], { ...files, [path]: '' });
     assert.equal(plan.checks.marketplace, true);
   }
@@ -1456,4 +1456,27 @@ test('freie Einkäufe und Shop-Einstellungen wählen ihren gemeinsamen Bedienabl
     const plan = selectAffectedTests([path], sources);
     assert.ok(selectedFeatureBrowserFiles(plan).includes('e2e/optional-shop.spec.ts'));
   }
+});
+
+test('Systemzustand wählt die datenbankfreie Vinted-Zugriffsprüfung aus', () => {
+  const card =
+    'src/app/features/platform-admin/components/vinted-feed-sources-card/vinted-feed-sources-card.component';
+  const page = 'src/app/features/platform-admin/pages/platform-system/platform-system.component';
+  const browserFile = 'e2e/platform-system-vinted-access.spec.ts';
+  const sources = {
+    [card + '.ts']: 'export class VintedFeedSourcesCardComponent {}',
+    [card + '.angular.spec.ts']: "import './vinted-feed-sources-card.component';",
+    [page + '.ts']:
+      "import '../../components/vinted-feed-sources-card/vinted-feed-sources-card.component';",
+    [browserFile]: 'test.use({ storageState: { cookies: [], origins: [] } });',
+    'e2e/beta-registration.spec.ts': '',
+    'e2e/beta-access-lifecycle.spec.ts': '',
+  };
+  for (const changed of [card + '.ts', page + '.ts']) {
+    const plan = selectAffectedTests([changed], sources);
+    assert.ok(plan.uiBrowserFiles.includes(browserFile), changed);
+    assert.ok(!plan.browserFiles.includes(browserFile), changed);
+  }
+  const changedSpec = selectAffectedTests([browserFile], sources);
+  assert.deepEqual(changedSpec.changedUiBrowserFiles, [browserFile]);
 });

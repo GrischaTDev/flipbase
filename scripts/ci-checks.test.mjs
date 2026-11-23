@@ -5,10 +5,6 @@ import { tmpdir } from 'node:os';
 import { delimiter, dirname, join } from 'node:path';
 import test from 'node:test';
 import { runInNewContext } from 'node:vm';
-import {
-  assertComparisonSafetyResult,
-  runComparisonSafetyTest,
-} from '../supabase/test-support/vinted-comparison-safeupdate.mjs';
 import { executeCheckCommand, getCheckCommands, runCiCheck } from './ci-checks.mjs';
 import {
   assertParserTemporaryDirectory,
@@ -45,38 +41,6 @@ test('Workflowverträge und Push-Prüfung erhalten auch ohne Schemaänderung das
     };
     assert.equal(runInNewContext(expression, { needs: { changes: { outputs } } }), expected);
   }
-});
-
-test('Vergleichsbestand verlangt den echten SQL-Schutz samt vollständigem pgTAP-Ergebnis', () => {
-  const valid =
-    'ok 1 - Der Produktionsschutz gegen unbedingte Updates bleibt eingeschaltet\nok 2 - Claim erfolgreich\n1..2\n';
-  assertComparisonSafetyResult(valid);
-  for (const invalid of [
-    '',
-    valid.replace('ok 2', 'not ok 2'),
-    valid.replace('1..2', '1..3'),
-    valid.replace('Produktionsschutz', 'fehlende Schutzprüfung'),
-    valid + '1..2\n',
-  ])
-    assert.throws(() => assertComparisonSafetyResult(invalid));
-  let command;
-  runComparisonSafetyTest('supabase_db_flipbase-safety', (executable, args, options) => {
-    command = { executable, args, options };
-    return valid;
-  });
-  assert.equal(command.executable, 'docker');
-  assert.ok(command.args.includes('supabase_admin'));
-  assert.ok(command.args.includes('COMPARISON_SAFEUPDATE=1'));
-  assert.match(command.options.input, /load 'safeupdate'/u);
-  for (const container of [undefined, '', 'supabase-db', 'production; command'])
-    assert.throws(() => runComparisonSafetyTest(container));
-  assert.ok(
-    getCheckCommands('database').some(
-      ({ args, env }) =>
-        args.includes('supabase/test-support/vinted-comparison-safeupdate.mjs') &&
-        env?.COMPARISON_TEST_DB_CONTAINER === 'supabase_db_flipbase-supabase',
-    ),
-  );
 });
 
 test('manueller Produktionswiederanlauf behält Vollprüfung und gemeinsame Deploymentsperre', async () => {
@@ -117,22 +81,6 @@ test('manueller Produktionswiederanlauf behält Vollprüfung und gemeinsame Depl
   assert.ok(deploy.indexOf('Refuse an outdated deployment') < deploy.indexOf('Set up SSH'));
   const marketplace = workflow.split('  marketplace-release:')[1].split('  release:')[0];
   assert.ok(!marketplace.includes("github.event_name == 'workflow_dispatch'"));
-});
-
-test('registriert alle Artikelanalyse-Verträge im Edge-Prüflauf', async () => {
-  const tests = (
-    await readdir(new URL('../supabase/functions/vinted-ai-search/', import.meta.url))
-  ).filter((name) => name.endsWith('.test.ts'));
-  const commands = getCheckCommands('marketplace');
-  const registered = commands.flatMap(({ command, args }) =>
-    command === 'deno' && args[0] === 'test' ? args : [],
-  );
-  assert.ok(tests.length > 0);
-  for (const name of tests)
-    assert.ok(
-      registered.includes(`supabase/functions/vinted-ai-search/${name}`),
-      `${name} fehlt im CI-Prüflauf`,
-    );
 });
 
 test('Pushrelease liefert Functions, Ratelimit und Digest vor der kompatiblen App', async () => {

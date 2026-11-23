@@ -1,4 +1,4 @@
-export interface Watchlist {
+export interface PersonalFeed {
   id: string;
   workspace_id: string;
   title: string;
@@ -8,12 +8,17 @@ export interface Watchlist {
   price_from: number | null;
   price_to: number | null;
   condition: string | null;
-  legacy_brand_id: number | null;
+  brand_id: number | null;
   audience: string | null;
   sizes: string[];
+  is_active: boolean;
+  started_at: string | null;
 }
 
-export type WatchlistDraft = Omit<Watchlist, 'id' | 'workspace_id' | 'legacy_brand_id'> & {
+export type PersonalFeedDraft = Omit<
+  PersonalFeed,
+  'id' | 'workspace_id' | 'is_active' | 'started_at'
+> & {
   id: string | null;
 };
 export interface FeedItem {
@@ -32,10 +37,6 @@ export interface FeedItem {
   catalog_id: number | null;
   category_path: string | null;
 }
-export interface FeedBot {
-  id: string;
-  title: string;
-}
 export interface FeedPage {
   items: FeedItem[];
   covered: boolean;
@@ -43,18 +44,16 @@ export interface FeedPage {
 }
 export interface FeedRequest {
   workspace: string;
-  watchlist: string | null;
-  botId?: string | null;
-  brand: string | null;
-  size: string | null;
-  minPrice: number | null;
-  maxPrice: number | null;
-  sizes?: string[];
-  categoryId?: number | null;
-  audience?: string | null;
-  titleQuery?: string;
-  cursor?: { time: string; id: string };
+  watchlist: string;
   afterTime?: string;
+}
+export const FEED_ITEM_LIMIT = 100;
+export const FEED_WINDOW_MS = 10 * 60_000;
+
+export function recentFeedItems(items: readonly FeedItem[], now: number): FeedItem[] {
+  return items
+    .filter(({ first_seen_at }) => Date.parse(first_seen_at) > now - FEED_WINDOW_MS)
+    .slice(0, FEED_ITEM_LIMIT);
 }
 export const FEED_CLOTHING_SIZES = [
   { value: 'xs', label: 'XS' },
@@ -66,17 +65,28 @@ export const FEED_CLOTHING_SIZES = [
   { value: '3xl', label: '3XL+' },
 ];
 
-export const WATCHLIST_AUDIENCES = [
-  { value: null, label: 'Alle Zielgruppen' },
-  { value: 'women', label: 'Damen' },
-  { value: 'men', label: 'Herren' },
-  { value: 'both', label: 'Damen und Herren' },
-];
-
-export function watchlistSizeLabels(sizes: readonly string[]): string {
+export function feedSizeLabels(sizes: readonly string[]): string {
   return sizes
     .flatMap((size) => FEED_CLOTHING_SIZES.find((option) => option.value === size)?.label ?? [])
     .join(' · ');
+}
+
+/**
+ * Bildet einen Vinted-Größentitel wie „M / 38 / 10“, „XXXL“ oder „3XL“ auf eine
+ * Feed-Größe ab. Unbekannte Angaben ergeben null.
+ */
+export function feedSizeFromVintedTitle(title: string): string | null {
+  const letters = (title.split('/')[0] ?? '').replace(/\s+/g, '').replace(/\+$/, '').toUpperCase();
+  if (letters === 'XS' || letters === 'S' || letters === 'M' || letters === 'L') {
+    return letters.toLowerCase();
+  }
+  const numbered = /^([1-9])XL$/.exec(letters);
+  const repeated = /^(X+)L$/.exec(letters);
+  const xCount = numbered ? Number(numbered[1]) : repeated ? repeated[1].length : 0;
+  if (xCount === 1) return 'xl';
+  if (xCount === 2) return 'xxl';
+  if (xCount >= 3) return '3xl';
+  return null;
 }
 
 export function feedSizeValues(selection: string): string[] {

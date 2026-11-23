@@ -1,35 +1,104 @@
 <section class="mx-auto flex w-full min-w-0 flex-col gap-4">
-  <app-page-header
-    title="Vinted Feed"
-    subtitle="Neue Vinted-Artikel entdecken und für später merken."
-    [icon]="pageIcon"
-  />
-  @if (!workspace()) {
-    <p role="status">Bitte einen Arbeitsbereich auswählen.</p>
-  }
-  @if (categoryError()) {
-    <p role="alert">
-      Kategorien konnten nicht geladen werden.
-      <app-button (clicked)="loadCategories()">Erneut laden</app-button>
-    </p>
-  }
+  <app-page-header title="Vinted Feed" [icon]="icons.feed">
+    <app-button
+      header-actions
+      [icon]="icons.add"
+      [disabled]="!workspaceId() || editorOpen() || isSaving()"
+      (clicked)="openEditor()"
+      >Neuer Feed</app-button
+    >
+  </app-page-header>
 
-  <!-- Im Widescreen-Modus teilen sich mehrere Suchen die Breite zu gleichen Teilen. -->
-  <div
-    data-feed-searches
-    class="grid min-w-0 gap-6"
-    [style.grid-template-columns]="searchColumns()"
-  >
-    @for (searchNumber of searches(); track searchNumber; let last = $last) {
-      <app-deal-feed-search
-        [categorySource]="categorySource()"
-        [searchNumber]="searchNumber"
-        [widescreen]="widescreen()"
-        [canAddSearch]="last && canAddSearch()"
-        [removable]="searchNumber !== 1"
-        (addSearch)="addSearch()"
-        (remove)="removeSearch(searchNumber)"
-      />
+  <div class="flex h-11 flex-wrap items-center gap-2 overflow-auto text-sm">
+    <p role="status">
+      {{ loadingFeeds() && feeds().length === 0 ? 'Feeds werden geladen …' : message() }}
+    </p>
+    @if (error(); as text) {
+      <span role="alert" class="text-fb-text-danger">{{ text }}</span>
+      <app-button size="slim" variant="secondary" (clicked)="loadFeeds()">Erneut laden</app-button>
     }
   </div>
+
+  @if (workspaceId(); as workspace) {
+    @if (selectedFeed(); as feed) {
+      <section aria-label="Persönliche Feeds" class="flex flex-wrap items-end gap-2">
+        <app-custom-select
+          class="w-full sm:w-64"
+          label="Feed"
+          ariaLabel="Feed"
+          [options]="feedOptions()"
+          [value]="feed.id"
+          [disabled]="isSaving()"
+          (valueChange)="selectedId.set($event)"
+        />
+        <app-button
+          class="min-w-32"
+          [fullWidth]="true"
+          [icon]="feed.is_active ? icons.stop : icons.start"
+          [loading]="pending() === 'toggle'"
+          [disabled]="isSaving()"
+          (clicked)="toggle(feed)"
+          >{{ feed.is_active ? 'Feed stoppen' : 'Feed starten' }}</app-button
+        >
+        <app-button
+          variant="secondary"
+          [icon]="icons.edit"
+          [disabled]="isSaving()"
+          (clicked)="openEditor(feed)"
+          >Feed bearbeiten</app-button
+        >
+        <app-button
+          variant="destructive"
+          [icon]="icons.delete"
+          [disabled]="isSaving()"
+          ariaLabel="Feed löschen"
+          (clicked)="remove(feed)"
+        />
+      </section>
+      @if (feed.is_active) {
+        <app-deal-feed-search [workspaceId]="workspace" [feed]="feed" />
+      } @else {
+        <div class="rounded-lg border border-fb-border bg-fb-surface p-5">
+          <h2 class="text-base font-semibold">Feed gestoppt</h2>
+        </div>
+      }
+    } @else if (!loadingFeeds() && !error()) {
+      <div class="rounded-lg border border-dashed border-fb-border bg-fb-surface p-5">
+        <h2 class="text-base font-semibold">Noch keine Feeds</h2>
+      </div>
+    }
+    @if (editorOpen()) {
+      <app-modal-shell
+        [title]="editing() ? 'Feed bearbeiten' : 'Neuer Feed'"
+        size="lg"
+        [hasFooter]="false"
+        (closed)="closeEditor()"
+      >
+        <div header-actions class="flex gap-2">
+          <app-button variant="secondary" [disabled]="isSaving()" (clicked)="closeEditor()"
+            >Abbrechen</app-button
+          >
+          <app-button
+            type="submit"
+            formId="personal-vinted-feed"
+            variant="primary"
+            [class.invisible]="!hasUnsavedChanges() && pending() !== 'save'"
+            [disabled]="feedEditor.importingLink()"
+            [loading]="pending() === 'save'"
+            >Feed speichern</app-button
+          >
+        </div>
+        <app-personal-feed-editor
+          #feedEditor
+          [feed]="editing()"
+          [workspaceId]="workspace"
+          [saving]="pending() === 'save'"
+          [saveError]="editorError()"
+          (saved)="save($event)"
+        />
+      </app-modal-shell>
+    }
+  } @else {
+    <p role="status">Bitte einen Arbeitsbereich auswählen.</p>
+  }
 </section>

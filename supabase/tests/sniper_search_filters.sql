@@ -24,7 +24,11 @@ select throws_ok($$select public.complete_sniper_search_filter_run(null,1,0,'[]'
 reset role;
 select set_config('request.jwt.claim.sub','e1000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
+select throws_ok($$select public.save_sniper_search_filter(null,'Test',9100002,'[]','{}','all',20000,null,null)$$, '42501', null, 'Auch Betreiber können keine zentralen Filter speichern');
+select throws_ok($$update public.sniper_queries set title='Direkt'$$,'42501',null,'Direktes Schreiben bleibt gesperrt');
+reset role;
 
+-- Historische Filter werden für den Sammlervertrag mit dem lokalen Datenbankkonto eingerichtet.
 select lives_ok($$select public.save_sniper_search_filter(null,'TEST category',9100002,'[]','{}','all',20000,null,null)$$, 'Kategorie ohne Marke ist möglich');
 select lives_ok($$select public.save_sniper_search_filter(null,'TEST parent',9100001,'[]','{}','all',20000,null,null)$$, 'Oberkategorie ist auswählbar');
 select lives_ok($$select public.save_sniper_search_filter(null,'TEST title',null,'[]',array['Vintage'],'all',20000,null,null)$$, 'Titelbegriff ohne Marke oder Kategorie ist möglich');
@@ -47,16 +51,11 @@ select throws_ok($$select public.save_sniper_search_filter(null,'Gleich',9100002
 select throws_ok($$select public.save_sniper_search_filter(null,'Ein Begriff',null,'[]',array[' VINTAGE '],'any',20000,null,null)$$,'23505',null,'UND und ODER sind bei einem Begriff identisch');
 select throws_ok($$select public.save_sniper_search_filter((select id from public.sniper_queries where title='TEST category'),'Fremde Änderung',9100002,'[]','{}','all',20000,null,0)$$,'40001',null,'Veraltete Formularrevision kann nicht überschreiben');
 select throws_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where title='TEST category'),true)$$,'55000',null,'Alter Abrufdienst kann neue Suchfilter nicht aktivieren');
-select throws_ok($$update public.sniper_queries set title='Direkt'$$,'42501',null,'Direktes Schreiben bleibt für Administratoren gesperrt');
-reset role;
 update public.sniper_runtime_status set search_filter_version=1, search_filter_reported_at=now();
-set local role authenticated;
 select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where title='TEST category'),true)$$,'Neue Version kann Kategorie-Filter aktivieren');
 select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where title='TEST rotating'),true)$$,'Neue Version kann Mehrfachfilter aktivieren');
 select lives_ok($$select public.set_sniper_query_active((select id from public.sniper_queries where title='TEST parent'),true)$$,'Neue Version kann Oberkategorie aktivieren');
 select is((select filter_revision from public.sniper_queries where title='TEST category'),2,'Aktivieren invalidiert alte Abrufe');
-reset role;
-
 set local role service_role;
 select throws_ok($$insert into public.sniper_listings(marketplace,external_id,title,url,item_price,total_price,currency,discovered_by_query_id)
  values ('vinted','unverified','Falscher Titel','https://www.vinted.de/items/unverified',10,11,'EUR',(select id from public.sniper_queries where title='TEST rotating'))$$,
@@ -87,7 +86,6 @@ select lives_ok($$select public.complete_sniper_search_filter_run((select id fro
 select is((select catalog_id from public.sniper_listings where external_id='parent-article'),null::integer,'Oberkategorie wird nicht als genaue Preisvergleichsgruppe ausgegeben');
 reset role;
 
-set local role authenticated;
 select lives_ok($$select public.save_sniper_search_filter((select id from public.sniper_queries where title='TEST category'),'TEST category',9100002,'[]','{}','all',30000,'Nur eine Notiz',2)$$,'Nur Name, Notiz oder Intervall lassen sich ohne Neueinlesen ändern');
 select is((select request_cursor from public.sniper_queries where title='TEST category'),1,'Metadatenänderung behält den Fortschritt');
 select is((select is_active from public.sniper_queries where title='TEST category'),true,'Metadatenänderung pausiert nicht unnötig');
@@ -96,13 +94,12 @@ select is((select is_active from public.sniper_queries where title='TEST categor
 select is((select request_cursor from public.sniper_queries where title='TEST category'),0,'Inhaltliche Änderung setzt den Einlesestand zurück');
 select is((select is_seeded from public.sniper_queries where title='TEST category'),false,'Neue Bedingungen brauchen einen neuen stummen Einleselauf');
 select is((select catalog_id from public.sniper_listings where external_id='filter-article-1'),9100002,'Historischer Fund wird nicht umkategorisiert');
-select lives_ok($$select public.upsert_sniper_query(null,'TEST legacy brand',88,20000,null)$$,'Alter Markenweg bleibt für alte Clients bestehen');
+select lives_ok($$select public.upsert_sniper_query(null,'TEST legacy brand',88,20000,null)$$,'Historischer Markenfilter wird eingerichtet');
 select throws_ok($$select public.save_sniper_search_filter(null,'TEST duplicate brand',null,'[{"id":88,"name":"Ralph Lauren"}]','{}','all',20000,null,null)$$,'23505',null,'Neuer Markenfilter dupliziert keinen vorhandenen alten Markenfilter');
 select lives_ok($$select public.save_sniper_search_filter((select id from public.sniper_queries where title='TEST legacy brand'),'TEST legacy brand',null,'[{"id":88,"name":"Ralph Lauren"}]','{}','all',20000,null,1)$$,'Alter Markenfilter wird ohne neue Identität bearbeitet');
 select throws_ok($$select public.upsert_sniper_query((select id from public.sniper_queries where title='TEST legacy brand'),'Alter Client',88,20000,null)$$,'P0001',null,'Alter Client kann einen neuen Filter nicht ohne Revision überschreiben');
 select lives_ok($$select public.delete_sniper_query((select id from public.sniper_queries where title='TEST rotating'))$$,'Löschen beendet den zentralen Filter');
 select is((select count(*) from public.sniper_listings where external_id='filter-article-1'),1::bigint,'Löschen erhält Funde');
-reset role;
 set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='TEST rotating'),2,5,'[]')->>'accepted')::boolean,false,'Gelöschter Filter übernimmt keine verspätete Antwort');
 reset role;
@@ -152,11 +149,5 @@ select is(public.complete_sniper_search_filter_run('e1000000-0000-4000-8000-0000
 select is((select count(*) from public.sniper_query_matches where query_id='e1000000-0000-4000-8000-000000000003'),
     2::bigint, 'Historische Zuordnung und neuer Treffer bleiben gespeichert');
 reset role;
-set local role authenticated;
-select is((select listing_count from public.sniper_query_listing_counts()
-    where query_id='e1000000-0000-4000-8000-000000000003'), 1::bigint,
-    'Die Funde des zentralen Filters zählen ab dem Neustart');
-reset role;
-
 select * from finish();
 rollback;

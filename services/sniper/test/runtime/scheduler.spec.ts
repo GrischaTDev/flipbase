@@ -291,6 +291,23 @@ describe('QueryScheduler', () => {
     expect(report.newListings).toBe(1);
   });
 
+  it('names only sources with new visible listings for feed notifications', async () => {
+    const visible = build(makeQuery({ filterFormatVersion: 1 }), {
+      listings: { completeRun: async () => ({ accepted: true, created: 2, seeded: false }) },
+    });
+    expect((await visible.scheduler.runOnce(NOW)).updatedQueryIds).toEqual(['q1']);
+
+    const seeding = build(makeQuery({ filterFormatVersion: 1 }), {
+      listings: { completeRun: async () => ({ accepted: true, created: 5, seeded: true }) },
+    });
+    expect((await seeding.scheduler.runOnce(NOW)).updatedQueryIds).toEqual([]);
+
+    const empty = build(makeQuery({ filterFormatVersion: 1 }), {
+      listings: { completeRun: async () => ({ accepted: true, created: 0, seeded: false }) },
+    });
+    expect((await empty.scheduler.runOnce(NOW)).updatedQueryIds).toEqual([]);
+  });
+
   it('reports nothing as new during the seeding run', async () => {
     const { scheduler, queries, listings } = build(makeQuery({ isSeeded: false }));
 
@@ -471,6 +488,7 @@ describe('QueryScheduler', () => {
         newListings: 0,
         seeded: 0,
         failed: 1,
+        updatedQueryIds: [],
       });
       expect(collector.collect).not.toHaveBeenCalled();
       expect(log.error).toHaveBeenCalledWith('due_queries_failed', {

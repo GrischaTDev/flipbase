@@ -17,7 +17,7 @@ import { VintedListingScheduleDialogComponent } from '../vinted-listing-schedule
 import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-listing-category-fixture';
 import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
+import { VintedBrandSearchService } from '../../../../core/services/vinted-brand-search.service';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';

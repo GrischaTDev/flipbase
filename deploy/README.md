@@ -429,29 +429,7 @@ zusammengehören:
    Er wird mit den übrigen Funktionsordnern übertragen; zusätzliche Schlüssel
    oder öffentliche Storage-Buckets sind nicht erforderlich.
 
-   Die Admin-Suche im Vinted-Feed benötigt zusätzlich `vinted-ai-search`
-   einschließlich `analysis.ts` und `_shared/limited-request-body.ts`. Vor der
-   Freischaltung zuerst die zugehörige Migration anwenden und anschließend die
-   Funktionsordner wie oben übertragen. Die Funktion prüft Adminrolle und
-   Arbeitsbereich selbst und verwendet denselben vorhandenen Serverzugang wie
-   die Foto-/EAN-Suche. Keine neuen Schlüssel anlegen oder in den Browser geben.
-   Vor dem Neustart `python3 deploy/configure-vinted-ai-runtime.py` auf dem Server
-   ausführen: Der bekannte zentrale Router erhält ausschließlich für
-   `vinted-ai-search` 145 Sekunden Laufzeit; die übrigen Functions behalten ihr
-   bestehendes Limit. Die bisherige 95-Sekunden-Ausnahme wird ebenfalls erkannt.
-   Das Werkzeug sichert den Originalstand, ist wiederholbar
-   und lehnt unbekannte Routerfassungen ab. Damit kann die auf 130 Sekunden
-   begrenzte Recherche ihren Verbrauch noch sicher abschließend speichern.
-
-   Das vorhandene Envoy-Gateway begrenzt Funktionsanfragen auf 150 Sekunden;
-   die Browserwartezeit beträgt 155 Sekunden. Die Kostenreservierung bleibt
-   drei Minuten gesperrt. Diese Grenzen müssen zusammenpassen. Das aktuell
-   installierte Edge-Runtime-Image v1.74.0 startet ohne zusätzliche
-   Request-Idle-Begrenzung; bei einer späteren Runtime-/Proxyänderung diese
-   äußere Grenze erneut prüfen. Die Migration zur längeren Reservierung muss
-   vor der aktualisierten Funktion angewendet sein.
-
-   Für `barcode-ai-search` und `vinted-ai-search` muss `OPENAI_API_KEY` in `/opt/supabase/.env`
+   Für `barcode-ai-search` muss `OPENAI_API_KEY` in `/opt/supabase/.env`
    stehen. `deploy/docker-compose.barcode-ai.yml` reicht den Schlüssel nur an
    den Funktionsdienst durch. Die Datei gehört nach `/opt/supabase/` und als
    letzter Eintrag in `COMPOSE_FILE`; ein Eintrag in `.env` allein reicht nicht.

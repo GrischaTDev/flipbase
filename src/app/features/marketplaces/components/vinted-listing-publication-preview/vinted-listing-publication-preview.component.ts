@@ -17,8 +17,8 @@ import { CardComponent } from '../../../../shared/components/card/card.component
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
-import { VintedBrandSearchService } from '../../../platform-admin/services/vinted-brand-search.service';
-import type { VintedBrand } from '../../../platform-admin/models/vinted-brand.model';
+import { VintedBrandSearchService } from '../../../../core/services/vinted-brand-search.service';
+import type { VintedBrand } from '../../../../core/models/vinted-brand.model';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import type { VintedListingCategoryFields } from '../../models/vinted-listing-category-fields';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';

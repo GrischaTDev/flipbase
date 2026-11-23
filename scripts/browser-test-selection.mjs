@@ -62,6 +62,7 @@ export const uiBrowserFiles = [
   'vinted-negotiation',
   'vinted-listing-drafts',
   'vinted-listing-edge-cases',
+  'platform-system-vinted-access',
 ].map((name) => `e2e/${name}.spec.ts`);
 
 // Gemeinsame Controls: gezielte Verbraucher mit Maus/Touch und Hell/Dunkel.

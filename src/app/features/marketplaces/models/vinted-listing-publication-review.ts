@@ -1,4 +1,4 @@
-import type { VintedBrand } from '../../platform-admin/models/vinted-brand.model';
+import type { VintedBrand } from '../../../core/models/vinted-brand.model';
 import { validVintedListingBrand } from './vinted-listing-brand-selection';
 import {
   parseVintedListingCategoryFields,

@@ -2,7 +2,7 @@
 
 begin;
 
-select plan(12);
+select plan(15);
 
 -- Spalten von vinted_categories
 do $$
@@ -107,6 +107,18 @@ select throws_ok(
   'anon darf den Auffrischungsstand nicht einmal lesen'
 );
 
+reset role;
+
+set local role authenticated;
+select lives_ok('select count(*) from public.vinted_categories',
+  'Angemeldete Nutzer können Kategorien für ihren Feed lesen');
+select lives_ok('select category_count from public.vinted_category_syncs where id = 1',
+  'Angemeldete Nutzer können die Vollständigkeit des Baums prüfen');
+update public.vinted_category_syncs set requested_at = now() where id = 1;
+reset role;
+select is((select requested_at from public.vinted_category_syncs where id = 1), null,
+  'Nur die Administration kann den Kategorieabruf anfordern');
+set local role authenticated;
 reset role;
 
 -- Der Elternverweis zeigt auf dieselbe Tabelle

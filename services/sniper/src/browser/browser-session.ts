@@ -23,7 +23,11 @@ interface BrowserSessionDependencies {
   onVerificationEnd?: () => void;
   browser: VintedBrowser;
   originState: OriginStateStoreLike;
-  queries: { activeQueries(): Promise<SniperQuery[]> };
+  queries: {
+    activeQueries(): Promise<SniperQuery[]>;
+    /** Hauptquelle für die Prüfung, auch wenn gerade kein Feed läuft. */
+    accessCheckQuery?(): Promise<SniperQuery | null>;
+  };
   collector: {
     collect(query: SniperQuery, options: { allowRetries: boolean }): Promise<MarketplaceListing[]>;
   };
@@ -90,7 +94,7 @@ export class BrowserSessionController implements BrowserSession {
       lease.id !== sessionId ||
       this.now() >= lease.expiresAt
     )
-      throw new BrowserSessionError(409, 'Deine Botsitzung ist abgelaufen oder nicht verfügbar.');
+      throw new BrowserSessionError(409, 'Deine Prüfsitzung ist abgelaufen oder nicht verfügbar.');
     return lease;
   }
 
@@ -120,15 +124,19 @@ export class BrowserSessionController implements BrowserSession {
 
   private async activeQuery(queryId?: string): Promise<SniperQuery> {
     const queries = await this.deps.queries.activeQueries();
-    const query = queryId
+    let query = queryId
       ? queries.find((candidate) => candidate.id === queryId)
       : queries.sort(
           (left, right) =>
             (left.lastPolledAt ?? '').localeCompare(right.lastPolledAt ?? '') ||
             left.id.localeCompare(right.id),
         )[0];
-    if (!query?.isActive)
-      throw new BrowserSessionError(409, 'Du brauchst einen aktiven Suchauftrag für die Prüfung.');
+    // Ohne laufenden Feed prüft der Dienst den Zugriff über eine Hauptquelle.
+    if (!query?.isActive && this.deps.queries.accessCheckQuery) {
+      const fallback = await this.deps.queries.accessCheckQuery();
+      if (fallback && (!queryId || fallback.id === queryId)) query = fallback;
+    }
+    if (!query) throw new BrowserSessionError(409, 'Für die Prüfung fehlt eine Vinted-Quelle.');
     if (
       query.filterFormatVersion !== 1 ||
       !Number.isSafeInteger(query.filterRevision) ||
@@ -162,7 +170,7 @@ export class BrowserSessionController implements BrowserSession {
   async open(owner: string): Promise<BrowserStatus> {
     return this.exclusive(async () => {
       await this.expire();
-      if (this.lease) throw new BrowserSessionError(409, 'Die Botsitzung wird bereits bedient.');
+      if (this.lease) throw new BrowserSessionError(409, 'Die Prüfsitzung wird bereits bedient.');
       if (this.unavailable)
         throw new BrowserSessionError(
           503,
@@ -260,7 +268,10 @@ export class BrowserSessionController implements BrowserSession {
         this.requireLease(owner, sessionId);
         const result = await this.deps.listings.completeRun(collected, query);
         if (!result.accepted)
-          throw new BrowserSessionError(409, 'Der Suchauftrag wurde während der Prüfung geändert.');
+          throw new BrowserSessionError(
+            409,
+            'Die Vinted-Quelle wurde während der Prüfung geändert.',
+          );
         this.requireLease(owner, sessionId);
         const current = await this.activeQuery(lease.queryId);
         if (current.filterRevision !== lease.revision)

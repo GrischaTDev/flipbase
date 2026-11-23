@@ -1,0 +1,182 @@
+<app-card variant="section" title="Vinted-Quellen" data-vinted-feed-sources>
+  <div class="space-y-5 text-sm text-fb-text-secondary">
+    @if (loadError(); as message) {
+      <p role="alert" class="text-fb-critical">{{ message }}</p>
+    }
+
+    @if (capacity(); as current) {
+      <dl class="grid gap-3 sm:grid-cols-3" data-vinted-feed-metrics>
+        <div>
+          <dt class="text-fb-text-muted">Kategoriequellen</dt>
+          <dd class="tabular-nums text-fb-text-primary" data-metric="category-sources">
+            {{ current.activeCategorySources }} / {{ current.maxCategorySources }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-fb-text-muted">Laufende Feeds</dt>
+          <dd class="tabular-nums text-fb-text-primary" data-metric="active-feeds">
+            {{ current.activeFeeds }}
+          </dd>
+        </div>
+        <div>
+          <dt class="text-fb-text-muted">Abrufe letzte Minute</dt>
+          <dd class="tabular-nums text-fb-text-primary" data-metric="requests">
+            {{ current.requestsLastMinute ?? '—' }} / {{ current.requestBudget ?? '—' }}
+          </dd>
+        </div>
+      </dl>
+    }
+
+    <app-data-table
+      ariaLabel="Vinted-Quellen"
+      [embedded]="true"
+      [toolbarVisible]="false"
+      [loading]="loading() && !capacity()"
+      [hasRows]="sources().length > 0"
+      loadingText="Vinted-Quellen werden geladen …"
+      emptyTitle="Keine aktiven Quellen"
+    >
+      <div table-content class="hidden overflow-x-auto md:block">
+        <table class="linear-table min-w-[720px]" data-vinted-feed-sources-table>
+          <caption class="sr-only">
+            Gemeinsame Abrufquellen der persönlichen Feeds
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col" class="w-32">Art</th>
+              <th scope="col" class="min-w-56">Kategorie</th>
+              <th scope="col" class="w-20">Feeds</th>
+              <th scope="col" class="w-40">Letzter Abruf</th>
+              <th scope="col" class="w-48">Abdeckung</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (source of sources(); track source.key) {
+              @let state = coverage(source);
+              <tr [attr.data-source]="source.key">
+                <td>{{ kindLabel(source) }}</td>
+                <td class="text-fb-text-primary">{{ source.categoryPath ?? '—' }}</td>
+                <td class="tabular-nums">{{ source.feedCount }}</td>
+                <td class="tabular-nums whitespace-nowrap">
+                  @if (source.lastSuccessAt; as lastSuccess) {
+                    <time [attr.datetime]="lastSuccess">{{ age(source) }}</time>
+                  } @else {
+                    —
+                  }
+                </td>
+                <td>
+                  <app-badge [tone]="state.tone" size="sm">{{ state.label }}</app-badge>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      <ul table-mobile class="divide-y divide-fb-line md:hidden" data-vinted-feed-sources-list>
+        @for (source of sources(); track source.key) {
+          @let state = coverage(source);
+          <li class="space-y-1 px-4 py-3">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium text-fb-text-primary">{{
+                source.categoryPath ?? kindLabel(source)
+              }}</span>
+              <app-badge [tone]="state.tone" size="sm">{{ state.label }}</app-badge>
+            </div>
+            <p class="text-xs tabular-nums">
+              {{ kindLabel(source) }} · {{ source.feedCount }} Feeds · {{ age(source) }}
+            </p>
+          </li>
+        }
+      </ul>
+    </app-data-table>
+
+    <form
+      [formGroup]="settingsForm"
+      (ngSubmit)="saveSettings()"
+      aria-label="Einstellungen der Kategoriequellen"
+      class="flex flex-wrap items-start gap-4"
+      data-vinted-feed-settings
+    >
+      <app-number-input
+        class="min-w-48 flex-1"
+        label="Grenze für Kategorien"
+        formControlName="maxCategorySources"
+        [min]="limits.maxCategorySources.min"
+        [max]="limits.maxCategorySources.max"
+        [step]="1"
+        [error]="fieldError('maxCategorySources')"
+      />
+      <app-number-input
+        class="min-w-48 flex-1"
+        label="Takt der Kategorien (Sekunden)"
+        formControlName="categoryPollIntervalSeconds"
+        [min]="limits.categoryPollIntervalSeconds.min"
+        [max]="limits.categoryPollIntervalSeconds.max"
+        [step]="1"
+        [error]="fieldError('categoryPollIntervalSeconds')"
+      />
+      <app-button
+        class="self-end"
+        type="submit"
+        variant="primary"
+        [loading]="saving()"
+        [disabled]="saving() || settingsForm.pristine"
+      >
+        Speichern
+      </app-button>
+      @if (saveError(); as message) {
+        <p role="alert" class="w-full text-fb-critical">{{ message }}</p>
+      }
+    </form>
+
+    <div class="space-y-2 border-t border-fb-line pt-4" data-vinted-category-sync>
+      <h3 class="text-[13px] font-semibold text-fb-text-primary">Kategorien</h3>
+      @if (categorySync(); as sync) {
+        <dl class="grid gap-3 sm:grid-cols-3">
+          <div>
+            <dt class="text-fb-text-muted">Gespeicherte Kategorien</dt>
+            <dd class="tabular-nums text-fb-text-primary">{{ sync.categoryCount }}</dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-muted">Zuletzt eingelesen</dt>
+            <dd class="tabular-nums text-fb-text-primary">
+              @if (sync.refreshedAt) {
+                <time [attr.datetime]="sync.refreshedAt">{{
+                  sync.refreshedAt | date: 'dd.MM.yyyy, HH:mm'
+                }}</time>
+              } @else {
+                Noch nie
+              }
+            </dd>
+          </div>
+          <div>
+            <dt class="text-fb-text-muted">Letzter Fehler</dt>
+            <dd class="break-words text-fb-text-primary" data-category-sync-error>
+              {{ sync.lastError ?? '—' }}
+            </dd>
+          </div>
+        </dl>
+      }
+      @if (syncError(); as message) {
+        <p role="alert" class="text-fb-critical">{{ message }}</p>
+      }
+      <div class="flex flex-wrap items-center gap-3">
+        <app-button
+          size="slim"
+          [loading]="requestingRefresh()"
+          [disabled]="requestingRefresh() || pendingRefresh() !== null"
+          (clicked)="requestCategoryRefresh()"
+        >
+          Neu einlesen
+        </app-button>
+        <p role="status" class="text-xs">
+          @if (pendingRefresh(); as requestedAt) {
+            Angefordert am
+            <time [attr.datetime]="requestedAt">{{ requestedAt | date: 'dd.MM.yyyy, HH:mm' }}</time>
+          }
+        </p>
+      </div>
+    </div>
+  </div>
+</app-card>

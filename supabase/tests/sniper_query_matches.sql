@@ -18,7 +18,7 @@ insert into public.sniper_runtime_status(id,reported_at,requests_last_minute,rej
  values (1,now(),0,0,24,1,now());
 
 select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000001',true);
-set local role authenticated;
+-- Historische Filter werden mit dem lokalen Datenbankkonto als Sammler-Fixtures eingerichtet.
 select lives_ok($$select public.save_sniper_search_filter(null,'MATCH broad',9200001,'[]','{}','all',1000,null,null)$$,'Ein Sekundenwunsch ist zulässig, ohne Abrufleistung zu versprechen');
 select lives_ok($$select public.save_sniper_search_filter(null,'MATCH narrow',9200001,'[]',array['Pufferjacke'],'all',1000,null,null,null,null,null,array['Weste','Defekt'])$$,'Titelbegriffe und Ausschlüsse lassen sich kombinieren');
 select is((select excluded_title_keywords from public.sniper_queries where title='MATCH narrow'),array['defekt','weste'],'Ausschlüsse sind normalisiert und sortiert');
@@ -28,7 +28,6 @@ select throws_ok($$select public.save_sniper_search_filter(null,'Doppelt',920000
 select throws_ok($$select public.save_sniper_search_filter(null,'Tempo',9200001,'[]','{}','all',999,null,null)$$,'22023',null,'Unter einer Sekunde wird der Wunsch abgewiesen');
 select public.set_sniper_query_active((select id from public.sniper_queries where title='MATCH broad'),true);
 select public.set_sniper_query_active((select id from public.sniper_queries where title='MATCH narrow'),true);
-reset role;
 
 set local role service_role;
 select is(public.sniper_title_contains_keyword(null,'weste'),false,'Fehlender Titel ist kein Treffer');
@@ -74,16 +73,12 @@ select is((public.complete_sniper_search_filter_run((select id from public.snipe
  {"external_id":"packet-duplicate","title":"Jacke","url":"https://www.vinted.de/items/duplicate","item_price":10,"total_price":11,"currency":"EUR"}]')->>'created')::integer,1,'Doppelte Rohartikel werden dedupliziert');
 reset role;
 
-set local role authenticated;
-select is((select listing_count from public.sniper_query_listing_counts() where query_id=(select id from public.sniper_queries where title='MATCH narrow')),1::bigint,'Zähler berücksichtigt den zweiten passenden Filter');
 select lives_ok($$select public.save_sniper_search_filter(null,'MATCH seed-only',null,'[]',array['Pufferjacke'],'all',1000,null,null)$$,'Zusätzlicher Titel-Filter ist unabhängig');
 select public.set_sniper_query_active((select id from public.sniper_queries where title='MATCH seed-only'),true);
-reset role;
 set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='MATCH seed-only'),2,0,
  '[{"external_id":"multi-match","title":"Pufferjacke","url":"https://www.vinted.de/items/multi-match","item_price":10,"total_price":11,"currency":"EUR","brand":"Testbrand"}]')->>'seeded')::boolean,true,'Zusätzlicher Filter startet mit stillem Bestand');
 reset role;
-set local role authenticated;
 select lives_ok($$select public.save_sniper_search_filter((select id from public.sniper_queries where title='MATCH narrow'),'MATCH narrow',9200001,'[]',array['Pufferjacke'],'all',1000,null,2,null,null,null,array['Weste','Kaputt'])$$,'Ausschlüsse lassen sich revidieren');
 select is((select filter_revision from public.sniper_queries where title='MATCH narrow'),3,'Ausschlussänderung invalidiert alte Revision');
 select is((select is_active from public.sniper_queries where title='MATCH narrow'),false,'Ausschlussänderung pausiert den Filter');
@@ -91,19 +86,14 @@ select is((select request_cursor from public.sniper_queries where title='MATCH n
 select is((select coverage_status from public.sniper_queries where title='MATCH narrow'),'unknown','Neue Bedingungen haben keine alte Abdeckungszusage');
 select is((select count(*) from public.sniper_query_matches where query_id=(select id from public.sniper_queries where title='MATCH narrow')),1::bigint,'Historische Zuordnung bleibt erhalten');
 select public.set_sniper_query_active((select id from public.sniper_queries where title='MATCH narrow'),true);
-reset role;
 set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='MATCH narrow'),2,2,'[]')->>'accepted')::boolean,false,'Vor Bearbeitung gestartete Antwort wird verworfen');
 reset role;
-set local role authenticated;
 select public.set_sniper_query_active((select id from public.sniper_queries where title='MATCH narrow'),false);
-reset role;
 set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='MATCH narrow'),5,0,'[]')->>'accepted')::boolean,false,'Pausierter Filter übernimmt keine Antwort');
 reset role;
-set local role authenticated;
 select public.delete_sniper_query((select id from public.sniper_queries where title='MATCH narrow'));
-reset role;
 set local role service_role;
 select is((public.complete_sniper_search_filter_run((select id from public.sniper_queries where title='MATCH narrow'),6,0,'[]')->>'accepted')::boolean,false,'Gelöschter Filter übernimmt keine Antwort');
 reset role;
@@ -112,7 +102,7 @@ select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000002'
 set local role authenticated;
 select is((select count(*) from public.sniper_query_matches),0::bigint,'Mitglieder lesen keine Filterzuordnungen; das bleibt der Administration vorbehalten');
 select throws_ok($$insert into public.sniper_query_matches(query_id,listing_id,filter_revision,is_seed) values (null,null,1,false)$$,'42501',null,'Web-App darf keine Zuordnungen schreiben');
-select throws_ok($$select public.sniper_notify_feed_updates()$$,'42501',null,'Web-App darf Feed-Hinweise nicht auslösen');
+select throws_ok($$select public.sniper_notify_feed_updates((select id from public.sniper_queries where title='MATCH broad'))$$,'42501',null,'Web-App darf Feed-Hinweise nicht auslösen');
 reset role;
 select set_config('request.jwt.claim.sub','e2000000-0000-4000-8000-000000000003',true);
 set local role authenticated;
@@ -120,13 +110,21 @@ select is((select count(*) from public.sniper_query_matches),0::bigint,'Fremde F
 reset role;
 set local role anon;
 select throws_ok($$select * from public.sniper_query_matches$$,'42501',null,'Anonyme lesen keine Zuordnungen');
-select throws_ok($$select public.sniper_notify_feed_updates()$$,'42501',null,'Anonyme dürfen keine Hinweise senden');
+select throws_ok($$select public.sniper_notify_feed_updates(null)$$,'42501',null,'Anonyme dürfen keine Hinweise senden');
 reset role;
 
+insert into public.sniper_queries(query_key,title,catalog_id,filter_format_version)
+    values ('vinted-source|main|1904','Vinted-Hauptquelle',1904,1);
+insert into public.sniper_watchlists(workspace_id,user_id,title,is_active,started_at,audience,brand)
+    values ('e2000000-0000-4000-8000-000000000004','e2000000-0000-4000-8000-000000000002',
+        'Aktiver Feed',true,now(),'women','Nike');
+
 set local role service_role;
-select lives_ok($$select public.sniper_notify_feed_updates()$$,'Dienst sendet gebündelte Hinweise');
+select lives_ok($$select public.sniper_notify_feed_updates((select id from public.sniper_queries where query_key='vinted-source|main|1904'))$$,'Dienst benachrichtigt die Feeds einer Quelle');
+select lives_ok($$select public.sniper_notify_feed_updates((select id from public.sniper_queries where title='MATCH broad'))$$,'Eine Quelle ohne Feed sendet keinen Hinweis');
 reset role;
 select is((select count(*) from realtime.messages where event='feed_updated' and topic='workspace:e2000000-0000-4000-8000-000000000004:sniper_feed'),1::bigint,'Genau ein Hinweis je Workspace');
+select is((select count(*) from realtime.messages where event='feed_updated' and topic='workspace:e2000000-0000-4000-8000-000000000005:sniper_feed'),0::bigint,'Arbeitsbereich ohne aktiven Feed erhält keinen Hinweis');
 select ok((select bool_and(private and payload - 'id'=jsonb_build_object('refresh',true)) from realtime.messages where event='feed_updated'),'Hinweise sind privat und enthalten keine Artikel');
 -- Realtime prüft den Beitritt mit einer temporären Zeile aus Thema und Erweiterung.
 insert into realtime.messages (id,topic,extension) values
@@ -155,7 +153,7 @@ select is((select count(*) from realtime.messages where id='e2000000-0000-4000-8
 reset role;
 
 select ok(not has_function_privilege('authenticated','public.complete_sniper_search_filter_run(uuid,integer,integer,jsonb,jsonb)','execute'),'Defaultrechte öffnen keinen Dienst-Schreibweg');
-select ok(not has_function_privilege('authenticated','public.sniper_notify_feed_updates()','execute'),'Defaultrechte öffnen keinen Broadcast-Schreibweg');
+select ok(not has_function_privilege('authenticated','public.sniper_notify_feed_updates(uuid)','execute'),'Defaultrechte öffnen keinen Broadcast-Schreibweg');
 select ok(not has_table_privilege('authenticated','public.sniper_query_matches','insert'),'Defaultrechte erlauben keine direkte Zuordnung');
 select ok(not has_table_privilege('authenticated','public.sniper_query_matches','update'),'Defaultrechte erlauben keine Zuordnungsänderung');
 select ok(not has_table_privilege('authenticated','public.sniper_query_matches','delete'),'Defaultrechte erlauben keine Zuordnungslöschung');

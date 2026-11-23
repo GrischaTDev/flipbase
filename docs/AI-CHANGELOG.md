@@ -1,5 +1,38 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - Persönliche Vinted-Feeds aus gemeinsamen Quellen
+
+**Anlass:** Der Entwurf „Persönliche Vinted-Feeds“ (vorher nur unversioniert im
+Arbeitsordner `flipbase-personal-vinted-feeds`) ließ jede unterschiedliche
+Filterkombination eine eigene Vinted-Abfrage starten. Eine globale Grenze gab
+es nicht. Bei rund 20 Abrufen pro Minute wäre der Feed ab etwa 60–150
+verschiedenen Filtern leer oder veraltet gewesen und hätte trotzdem
+„abgedeckt“ gemeldet. Vier lesende Prüfungen und eine Nachmessung bei Vintz
+(Engine `shared_v2`, 15 Minuten Aufbewahrung, 120 Karten je Feed) lagen dem
+Umbau zugrunde.
+
+**Änderung:**
+
+- **Quellen statt Einzelabfragen:** Feeds ohne Kategorie lesen aus den
+  Hauptquellen Damen (1904) oder Herren (5), Feeds mit Kategorie aus einer
+  Kategoriequelle. Marke, Suchtext, Größe, Zustand und Preis filtert die
+  Datenbank.
+- **Einstellbare Grenze:** Die Grenze für gleichzeitig laufende
+  Kategoriequellen und deren Takt stellt die Administration unter
+  Systemzustand → Vinted-Quellen ein (Standard 10 und 90 s). Über der Grenze
+  wird ein Feed mit neuer Kategorie beim Start abgelehnt.
+- **Ehrliche Abdeckung:** „Abgedeckt“ meldet ein Feed nur, wenn seine Quellen
+  laufen, aufholen und kürzlich erfolgreich waren.
+- **Gezielte Hinweise:** Live-Hinweise gehen nur an Arbeitsbereiche, deren
+  Feeds an einer Quelle mit neuen Treffern hängen.
+- **Rückbau auf Entscheidung des Nutzers:** KI-Suche und Preisvergleich
+  entfallen samt Daten. Alte gespeicherte Suchfilter werden gelöscht, die
+  bisherigen zentralen Sammelaufträge gestoppt.
+- **Migration:** Sie holt alle Sniper-Sperren vorab ohne Warten, wie nach dem
+  Deadlock vom 31.10.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-23 - Juna - Vinted-Inserate direkt löschen, Kleiderschrank nach dem Löschen aktuell, Statusbalken in Flipbase-Gelb
 
 **Anlass:** Die Messung aus PR 724 hat am 23.11.2026 bei einer echten Preisänderung und einer echten Löschung den Aufbau beider Vinted-Aufrufe erfasst. Löschen ist `POST /api/v2/items/:id/delete` ohne Inhalt (Antwort 200). Die Preisänderung ist `PUT /api/v2/item_upload/items/:id` mit dem vollständigen Inserat einschließlich Fotos, Merkmalen und Formularkennungen (`temp_uuid`, `upload_session_id`). Außerdem verschwand ein gelöschtes Inserat erst nach manuellem Aktualisieren aus dem Kleiderschrank. Der graue Statusbalken auf den Karten soll im Flipbase-Gelb besser hervorstechen.

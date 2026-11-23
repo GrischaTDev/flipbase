@@ -33,6 +33,22 @@ Deno.serve(
       );
     },
     search: searchVintedBrands,
+    async canUseFeed(_userId, token, workspaceId) {
+      const { data, error } = await userClient(token).rpc('sniper_can_access_workspace', {
+        p_workspace_id: workspaceId,
+      });
+      if (error) throw error;
+      return data === true;
+    },
+    async isFeedEnabled(token) {
+      const { data, error } = await userClient(token)
+        .from('platform_feature_switches')
+        .select('enabled')
+        .eq('feature_key', 'vinted_feed')
+        .maybeSingle();
+      if (error) throw error;
+      return data ? data.enabled === true : true;
+    },
     async canManageWorkspace(_userId, token, workspaceId) {
       const { data, error } = await userClient(token).rpc('marketplace_can_manage', {
         p_workspace_id: workspaceId,

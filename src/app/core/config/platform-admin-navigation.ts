@@ -23,11 +23,7 @@ const SYSTEM_HEALTH_NAVIGATION: readonly SubNavigationItem[] = [
 
 /**
  * Die Seiten der Administration. Im Admin-Bereich ersetzt diese Liste die
- * Hauptnavigation der Seitenleiste, wie es die Marktplaetze mit ihrem eigenen
- * Menue tun. Die Reihenfolge hier ist die Reihenfolge im Menue.
- *
- * Alles rund um den Bot steht gebuendelt unter "Vinted Bot"; dessen
- * Unterseiten waehlt man dort im Seitenmenue, nicht hier.
+ * Hauptnavigation der Seitenleiste. Die Reihenfolge hier ist die Reihenfolge im Menü.
  */
 export const PLATFORM_ADMIN_SIDEBAR_NAVIGATION: readonly PlatformAdminNavigationItem[] = [
   { label: 'Übersicht', path: '/admin/overview', icon: 'dashboard' },
@@ -39,7 +35,6 @@ export const PLATFORM_ADMIN_SIDEBAR_NAVIGATION: readonly PlatformAdminNavigation
   },
   { label: 'Bewerbungen', path: '/admin/applications', icon: 'userPlus' },
   { label: 'Nutzer', path: '/admin/users', icon: 'users' },
-  { label: 'Vinted Bot', path: '/admin/vinted-bot', icon: 'bot' },
   { label: 'Vinted-Katalog', path: '/admin/vinted-catalog', icon: 'tag' },
   { label: 'Server-Speicher', path: '/admin/server-storage', icon: 'hardDrive' },
   { label: 'Referenzbibliothek', path: '/tools/brand-labels/admin', icon: 'bookOpen' },
