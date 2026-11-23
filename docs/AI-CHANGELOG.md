@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - Vinted-Katalog vor Veröffentlichung und Relist prüfen
+
+Die gemeinsame Auftragsannahme prüft Kategorie, Pflichtgröße, Größengruppe und katalogisierte Pflichtwerte. Flipbase zeigt konkrete Katalogfehler, bevor ein Relist eingereiht wird. Die Migration ordnet die belegte alte Vinted-Kategorie für Tücher und Schals einmalig neu zu. Sie überspringt Entwürfe mit laufenden oder offenen Aufträgen und ergänzt eine Zielgruppe nur bei ausdrücklichem Hinweis im gespeicherten Kategoriepfad.
+
 ## 2026-11-22 - Juna - Vinted-Änderungen werden über Vinteds Antwort bestätigt und blockieren keinen Relist mehr dauerhaft
 
 **Anlass und lesende Produktionsdiagnose:** Ein Relist der Puma-Trainingsjacke (`listing:10789520736`, Auftrag 78) stand ab 16:38 Uhr stundenlang als „Wird vorbereitet“ in der Warteschlange, obwohl Worker und Browser frei waren. Zwei Minuten vorher war eine Preisänderung (36,90 € → 29,99 €) nach 28 Sekunden als `unconfirmed` und damit `outcome_unknown` geendet. Bei Vinted war der Preis tatsächlich gespeichert. Seit dem 15.11. wurden nur 12 von 20 Preisänderungen sofort bestätigt; die übrigen waren gespeichert, blieben aber bis zu 6,5 Stunden ungeklärt. Vier unabhängige Prüfberichte (Code, Architektur, Produktionszahlen, Wartezeiten) ergaben: Das Fundament aus dauerhafter Warteschlange, Anfragekennungen, Profil und IP je Konto trägt. Unklar wurden Speicherungen, weil Flipbase Vinteds eigene Antwort auf den Speicheraufruf nicht auswertete, das Nachlesen an einem einzigen unbekannten Nebenfeld scheiterte, nach dem Klick nach 12–30 Sekunden aufgab oder währenddessen neu lud, und weil einzelne Verbindungsaussetzer den Worker oder den Browser beendeten. Die harte Sperre auf ein ungeklärtes Ergebnis hielt danach auch Aufträge zurück, die sich selbst absichern.

@@ -178,7 +178,9 @@ export function listingResponse(result: {
             : 'request_failed',
       result.error.code === '23505'
         ? 'Eine Vorlage mit diesem Namen gibt es bereits. Wähle einen anderen Namen.'
-        : undefined,
+        : result.error.code === 'PV001'
+          ? result.error.message
+          : undefined,
     );
   return result.data;
 }

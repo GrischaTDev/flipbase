@@ -220,6 +220,25 @@ describe('Vinted-Inseratauftragservice', () => {
       TestBed.resetTestingModule();
     }
   });
+  it('zeigt die konkrete Katalogmeldung der Auftragsannahme, aber keine anderen Datenbanktexte', async () => {
+    const catalog = 'Wähle eine Vinted-Größe für diese Kategorie.';
+    let rpc = vi.fn().mockResolvedValue({ data: null, error: { code: 'PV001', message: catalog } });
+    await expect(api(rpc).enqueue(draft, intent)).rejects.toMatchObject({
+      code: 'request_failed',
+      message: catalog,
+    });
+    TestBed.resetTestingModule();
+    rpc = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: 'P0001', message: 'interner Datenbanktext' },
+    });
+    const error = await api(rpc)
+      .enqueue(draft, intent)
+      .catch((reason: unknown) => reason);
+    expect(error).toMatchObject({ code: 'request_failed' });
+    expect((error as Error).message).not.toContain('interner Datenbanktext');
+  });
+
   it('erhält Versionskonflikte beim Abbrechen und akzeptiert keinen anderen Auftrag', async () => {
     const rpc = vi
       .fn()
