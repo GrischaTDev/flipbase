@@ -158,6 +158,11 @@ export class VintedListingDetailComponent {
   });
   readonly connectionId = computed(() => this.params().get('connectionId') ?? '');
   readonly entryId = computed(() => this.params().get('entryId') ?? '');
+  /** Neuer Preis, solange die Preisänderung noch zu Vinted übertragen wird. */
+  readonly pendingPrice = computed(() => {
+    const entry = this.entry();
+    return entry ? this.operations.pendingPrice(entry) : null;
+  });
   private readonly queryParams = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
   });

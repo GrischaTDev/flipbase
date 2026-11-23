@@ -100,8 +100,16 @@ export function createVintedListingPriceEditor(options: {
       open.set(false);
       options.closed();
       try {
-        await operations.changePrice(entry!, () =>
-          options.store.saveListingPrice(entry!.connectionId, entry!.id, expectedPriceCents, cents),
+        await operations.changePrice(
+          entry!,
+          () =>
+            options.store.saveListingPrice(
+              entry!.connectionId,
+              entry!.id,
+              expectedPriceCents,
+              cents,
+            ),
+          cents,
         );
         if (!current()) return;
         options.priceRead(cents / 100);

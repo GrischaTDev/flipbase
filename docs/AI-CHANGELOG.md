@@ -1,5 +1,17 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - Vinted-Abläufe: Protokolle bleiben über Updates erhalten, neuer Preis erscheint sofort
+
+**Anlass:** Stufe 3 des Plans zur Vinted-Zuverlässigkeit. Die Ursachen der Fehler vom 15. bis 17.11. ließen sich nicht mehr klären, weil das Container-Protokoll des Workers bei jedem Update mit dem alten Container verschwindet. Bei Preisänderungen zeigte die Oberfläche bis zur Bestätigung den alten Preis.
+
+**Änderung:**
+
+- **Tagesprotokolle im Datenordner (`worker-log-archive.ts`):** Der Worker schreibt alle Ausgaben zusätzlich nach `<Datenordner>/worker-logs/worker-JJJJ-MM-TT.log`. Auf dem Server liegt das unter `/opt/flipbase-marketplace/chromium-worker/worker-logs`. Gespeichert werden 14 Tage, zusammen höchstens 200 MB. Die Zeilen sind dieselben festen Ereignisse wie im Container-Protokoll, ohne Anbieterantworten oder Zugangsdaten. Ein Dateifehler schaltet nur die Kopie ab. Das Update-Skript auf dem Server ist ein fest installiertes Paket; deshalb liegt die Lösung im Worker-Abbild und wirkt ohne Betreiberschritt.
+- **Preis sofort sichtbar:** Während einer Preisänderung zeigen Kleiderschrank (Raster und Liste) und Detailansicht den neuen Preis mit „wird übertragen“. Der Status heißt „Neuer Preis wird übertragen“. Schlägt die Änderung fehl, steht wieder der bisherige Preis da.
+- **Nicht umgesetzt: warmer Browser für Kontoaktionen.** Für Nachrichten, Angebote und Inseratschreibvorgänge hält der Worker den Browser bereits bis zu 2 Minuten offen. Preis-, Inhalts- und Löschaktionen haben dagegen je Auftrag eine eigene Datenbank-Lease. Sie zusammenzulegen würde das Sicherheitsmodell der Leases verändern und nur rund 4 Sekunden Browserstart je Aktion sparen.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-23 - Juna - Vinted-Katalog vor Veröffentlichung und Relist prüfen
 
 Die gemeinsame Auftragsannahme prüft Kategorie, Pflichtgröße, Größengruppe und katalogisierte Pflichtwerte. Flipbase zeigt konkrete Katalogfehler, bevor ein Relist eingereiht wird. Die Migration ordnet die belegte alte Vinted-Kategorie für Tücher und Schals einmalig neu zu. Sie überspringt Entwürfe mit laufenden oder offenen Aufträgen und ergänzt eine Zielgruppe nur bei ausdrücklichem Hinweis im gespeicherten Kategoriepfad.

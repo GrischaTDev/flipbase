@@ -1380,8 +1380,15 @@ for (const width of [390, 1440])
         await expect(dialog).not.toBeVisible();
         await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toHaveCount(1);
         await expect(
-          wardrobe.getByRole('status').filter({ hasText: 'Preis wird geändert' }),
+          wardrobe.getByRole('status').filter({ hasText: 'Neuer Preis wird übertragen' }),
         ).toBeVisible();
+        // Der neue Preis steht schon während der Übertragung in der Zeile.
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toContainText(
+          '22,00',
+        );
+        await expect(wardrobe.locator('[data-listing-row][aria-busy="true"]')).toContainText(
+          'wird übertragen',
+        );
         await screenshot(page, `vinted-price-running-list-${width}-${theme}`, wardrobe);
         await wardrobe.getByRole('button', { name: 'Rasteransicht', exact: true }).click();
         // Die Tabellenzeile bleibt bis zum Rendern der Rasterkarte kurz im DOM.

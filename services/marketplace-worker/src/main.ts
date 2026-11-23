@@ -11,6 +11,7 @@ import { SupabaseMarketplaceNegotiationStore } from './supabase-marketplace-nego
 import { GoLoginCloudBrowser } from './gologin-cloud-browser.ts';
 import { GoLoginProfileProvisioner } from './gologin-profile-provisioner.ts';
 import { join } from 'node:path';
+import { installWorkerLogArchive } from './worker-log-archive.ts';
 import { ChromiumAccountProfileRegistry } from './chromium-account-profile-registry.ts';
 import { ChromiumBoundProfileStore } from './chromium-bound-profile-store.ts';
 import { ChromiumBrokerClient } from './chromium-broker-client.ts';
@@ -62,6 +63,9 @@ import { SupabaseMarketplaceListingStore } from './supabase-marketplace-listing-
 
 async function main(): Promise<void> {
   const config = marketplaceBrowserServerConfig(process.env);
+  // Das Containerprotokoll endet mit jedem Update; die Tageskopie im Datenordner bleibt.
+  if (config.serverProfileRoot)
+    installWorkerLogArchive({ directory: join(config.serverProfileRoot, 'worker-logs') });
   const isolatedLauncher =
     config.provider !== 'local'
       ? await ChromiumBrokerClient.create(

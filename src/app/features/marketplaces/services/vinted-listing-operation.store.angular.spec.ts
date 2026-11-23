@@ -90,3 +90,30 @@ it('meldet auch sofort abgeschlossene Serveraktionen genau einmal und zeigt nach
   });
   expect(toast).not.toHaveBeenCalled();
 });
+
+it('zeigt den neuen Preis sofort und nach einem Fehler wieder den bisherigen', async () => {
+  const jacket = entry('c', 'Trainingsjacke');
+  let fail: (error: Error) => void = () => undefined;
+  const saving = store.changePrice(
+    jacket,
+    () => new Promise<void>((_resolve, reject) => (fail = reject)),
+    2999,
+  );
+  expect(store.pendingPrice(jacket)).toBe(29.99);
+  expect(store.runningLabel(jacket)).toBe('Neuer Preis wird übertragen');
+  expect(store.pendingPrice(entry('d', 'Andere Jacke'))).toBeNull();
+  fail(new Error('Der neue Preis wurde nicht gespeichert.'));
+  await saving.catch(() => undefined);
+  expect(store.pendingPrice(jacket)).toBeNull();
+
+  let finish: () => void = () => undefined;
+  const saved = store.changePrice(
+    jacket,
+    () => new Promise<void>((resolve) => (finish = resolve)),
+    2500,
+  );
+  expect(store.pendingPrice(jacket)).toBe(25);
+  finish();
+  await saved;
+  expect(store.pendingPrice(jacket)).toBeNull();
+});
