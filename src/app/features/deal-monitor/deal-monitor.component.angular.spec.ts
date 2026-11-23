@@ -3,6 +3,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../core/services/auth.service';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { SupabaseService } from '../../core/services/supabase.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
@@ -32,6 +33,7 @@ const pausedFeed: PersonalFeed = {
 describe('Persönliche Vinted-Feeds', () => {
   const workspace = signal<{ id: string } | null>(null);
   const currentUser = signal({ id: 'user-1' });
+  const widescreen = signal(false);
   const api = {
     personalFeeds: vi.fn(),
     save: vi.fn(),
@@ -43,13 +45,16 @@ describe('Persönliche Vinted-Feeds', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
     workspace.set({ id: 'workspace-1' });
     currentUser.set({ id: 'user-1' });
+    widescreen.set(false);
     TestBed.configureTestingModule({
       providers: [
         DealMonitorComponent,
         { provide: AuthService, useValue: { currentUser } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
+        { provide: PageLayoutService, useValue: { widescreen } },
         { provide: DealMonitorService, useValue: api },
         { provide: ConfirmDialogService, useValue: { frage: confirm } },
       ],
@@ -138,6 +143,30 @@ describe('Persönliche Vinted-Feeds', () => {
     await Promise.resolve();
     expect(api.personalFeeds).toHaveBeenCalledTimes(2);
     expect(page.selectedFeed()).toBeUndefined();
+  });
+
+  it('merkt sich den zuletzt gewählten Feed und zeigt im Widescreen aktive Feeds als Spalten', async () => {
+    const second: PersonalFeed = {
+      ...pausedFeed,
+      id: 'feed-2',
+      title: 'Test 1',
+      is_active: true,
+      started_at: '2026-11-23T22:00:00Z',
+    };
+    const firstActive: PersonalFeed = {
+      ...pausedFeed,
+      is_active: true,
+      started_at: '2026-11-23T22:00:00Z',
+    };
+    localStorage.setItem('flipbase:vinted-feed:selected:workspace-1', 'feed-2');
+    api.personalFeeds.mockResolvedValueOnce([firstActive, second]);
+    widescreen.set(true);
+    TestBed.tick();
+    await Promise.resolve();
+    expect(page.selectedFeed()?.id).toBe('feed-2');
+    expect(page.showColumns()).toBe(true);
+    page.selectFeed(firstActive);
+    expect(localStorage.getItem('flipbase:vinted-feed:selected:workspace-1')).toBe('feed-1');
   });
 });
 

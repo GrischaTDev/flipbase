@@ -131,7 +131,7 @@ describe('DealCardComponent', () => {
     ]);
     expect(card.querySelectorAll('dl app-badge')).toHaveLength(3);
     expect(card.querySelector('time')?.getAttribute('datetime')).toBe(item.first_seen_at);
-    expect(card.querySelectorAll('app-button')).toHaveLength(3);
+    expect(card.querySelectorAll('app-button')).toHaveLength(2);
     expect(card.textContent).not.toContain('Käuferschutz');
     expect((await axe.run(card)).violations).toEqual([]);
   });

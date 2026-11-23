@@ -24,8 +24,8 @@ create index sniper_watchlists_active_source_idx on public.sniper_watchlists(cat
 create table public.sniper_feed_settings (
     id integer primary key default 1 check (id = 1),
     max_category_sources integer not null default 10 check (max_category_sources between 0 and 500),
-    category_poll_interval_seconds integer not null default 90
-        check (category_poll_interval_seconds between 15 and 3600),
+    category_poll_interval_seconds integer not null default 5
+        check (category_poll_interval_seconds between 5 and 3600),
     updated_at timestamptz not null default now(),
     updated_by uuid references auth.users(id) on delete set null
 );
@@ -208,12 +208,12 @@ begin
             case when v_kind = 'brand' then array[v_target_id] else '{}'::integer[] end,
             case when v_kind = 'brand' then array[v_brand_name] else '{}'::text[] end,
             1,
-            case when v_kind = 'main' then 5000 else coalesce(v_interval, 90000) end,
+            case when v_kind = 'main' then 5000 else coalesce(v_interval, 5000) end,
             true, now()
         ) on conflict (query_key) do nothing;
         update public.sniper_queries
         set is_active = true, deleted_at = null, next_attempt_at = coalesce(next_attempt_at, now()),
-            poll_interval_ms = case when v_kind = 'main' then 5000 else coalesce(v_interval, 90000) end,
+            poll_interval_ms = case when v_kind = 'main' then 5000 else coalesce(v_interval, 5000) end,
             brand_names = case
                 when v_kind = 'brand' and cardinality(brand_ids) = 1 then array[v_brand_name]
                 else brand_names
@@ -446,6 +446,7 @@ declare
     v_audience integer[];
     v_saved_audience integer[];
     v_window_start timestamptz;
+    v_last_checked_at timestamptz;
     v_rows jsonb := '[]';
     v_reported_at timestamptz;
 begin
@@ -469,26 +470,26 @@ begin
         raise exception 'Ungültige Suchanfrage.' using errcode = '22023';
     end if;
     if p_watchlist_id is null then
-        return jsonb_build_object('items', v_rows, 'covered', false, 'reported_at', null);
+        return jsonb_build_object('items', v_rows, 'covered', false, 'reported_at', null, 'last_checked_at', null);
     end if;
     select * into v_feed from public.sniper_watchlists
     where id = p_watchlist_id and workspace_id = p_workspace_id and user_id = v_user;
     if not found then raise exception 'Feed nicht gefunden.' using errcode = '42501'; end if;
     if not v_feed.is_active then
-        return jsonb_build_object('items', v_rows, 'covered', false, 'reported_at', null);
+        return jsonb_build_object('items', v_rows, 'covered', false, 'reported_at', null, 'last_checked_at', null);
     end if;
 
     -- Abgedeckt ist ein Feed nur, wenn jede Quelle läuft, aufholt und kürzlich erfolgreich war.
-    select array_agg(query.id), count(*),
+    select array_agg(query.id), count(*), max(query.last_success_at),
         coalesce(bool_and(query.is_active and query.deleted_at is null and query.run_state <> 'invalid'
             and query.coverage_status <> 'limited'
             and query.last_success_at >= now() - make_interval(secs => greatest(60, query.poll_interval_ms * 2 / 1000) + 30)
         ), false)
-    into v_source_ids, v_source_count, v_covered
+    into v_source_ids, v_source_count, v_last_checked_at, v_covered
     from public.sniper_queries as query
     where query.query_key = any(public.sniper_watchlist_source_keys(v_feed.catalog_id, v_feed.audience, v_feed.brand_id));
     if v_source_count = 0 then
-        return jsonb_build_object('items', v_rows, 'covered', false, 'reported_at', null);
+        return jsonb_build_object('items', v_rows, 'covered', false, 'reported_at', null, 'last_checked_at', null);
     end if;
 
     if nullif(btrim(p_title_query), '') is not null then
@@ -505,7 +506,7 @@ begin
         when 'both' then array[1904, 5] end;
     v_saved_audience := case v_feed.audience when 'women' then array[1904] when 'men' then array[5]
         when 'both' then array[1904, 5] end;
-    v_window_start := greatest(v_feed.started_at, now() - interval '10 minutes');
+    v_window_start := now() - interval '10 minutes';
 
     with recursive category_tree(root_id, id) as (
         select root, root from unnest(array_remove(
@@ -579,7 +580,7 @@ begin
     )
     select coalesce(jsonb_agg(to_jsonb(page) order by first_seen_at desc, id desc), '[]'::jsonb) into v_rows from page;
     select reported_at into v_reported_at from public.sniper_runtime_status where id = 1;
-    return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at);
+    return jsonb_build_object('items', v_rows, 'covered', v_covered, 'reported_at', v_reported_at, 'last_checked_at', v_last_checked_at);
 end;
 $$;
 
@@ -805,7 +806,7 @@ begin
     end if;
     if p_max_category_sources is null or p_max_category_sources not between 0 and 500
         or p_category_poll_interval_seconds is null
-        or p_category_poll_interval_seconds not between 15 and 3600 then
+        or p_category_poll_interval_seconds not between 5 and 3600 then
         raise exception 'Ungültige Feed-Einstellungen.' using errcode = '22023';
     end if;
     perform public.lock_sniper_feed_changes();

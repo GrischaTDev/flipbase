@@ -424,10 +424,10 @@ for (const theme of ['light', 'dark'] as const) {
           await page.getByRole('button', { name: 'Neuer Feed', exact: true }).click();
           const dialog = page.getByRole('dialog', { name: 'Neuer Feed', exact: true });
           const save = dialog.getByRole('button', { name: 'Feed speichern', exact: true });
-          await expect(save).toBeHidden();
+          await expect(save).toBeDisabled();
           await dialog.getByRole('textbox', { name: 'Name des Feeds' }).fill('Meine Nike-Suche');
           await dialog
-            .getByRole('textbox', { name: 'Vinted-Suchlink' })
+            .getByRole('textbox', { name: /Vinted-Suchlink/ })
             .fill('https://www.vinted.de/catalog?brand_ids[]=53&price_to=40');
           await dialog.getByRole('button', { name: 'Link übernehmen' }).click();
           await expect(dialog.getByText(/übernommen/i)).toBeVisible();
@@ -486,13 +486,14 @@ for (const theme of ['light', 'dark'] as const) {
 
           await page.getByRole('button', { name: 'Feed bearbeiten', exact: true }).click();
           const edit = page.getByRole('dialog', { name: 'Feed bearbeiten', exact: true });
-          await expect(edit.getByRole('button', { name: 'Feed speichern' })).toBeHidden();
+          await expect(edit.getByRole('button', { name: 'Feed speichern' })).toBeDisabled();
           await edit.getByRole('textbox', { name: 'Name des Feeds' }).fill('Umbenannt');
           await edit.getByRole('button', { name: 'Abbrechen', exact: true }).click();
           await page.getByRole('button', { name: 'Verwerfen', exact: true }).click();
           await expect(edit).toHaveCount(0);
-          await expect(page.getByRole('combobox', { name: 'Feed', exact: true })).toContainText(
-            'Meine Nike-Suche',
+          await expect(page.getByRole('tab', { name: /Meine Nike-Suche/ })).toHaveAttribute(
+            'aria-selected',
+            'true',
           );
 
           await page.getByRole('button', { name: 'Feed löschen', exact: true }).click();

@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  DOCUMENT,
   computed,
   effect,
   inject,
@@ -11,30 +12,35 @@ import {
 } from '@angular/core';
 import {
   LucideBot,
+  LucideColumns3,
   LucideEdit2,
+  LucideLayoutGrid,
   LucidePause,
   LucidePlay,
   LucidePlus,
   LucideTrash2,
 } from '@lucide/angular';
 import { AuthService } from '../../core/services/auth.service';
+import { PageLayoutService } from '../../core/services/page-layout.service';
 import { WorkspaceService } from '../../core/services/workspace.service';
+import { BadgeComponent } from '../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { ConfirmDialogService } from '../../shared/components/confirm-dialog/confirm-dialog.service';
-import { CustomSelectComponent } from '../../shared/components/custom-select/custom-select.component';
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { UnsavedEntryPage } from '../../shared/guards/unsaved-entry.guard';
 import { DealFeedSearchComponent } from './components/deal-feed-search/deal-feed-search.component';
 import { PersonalFeedEditorComponent } from './components/personal-feed-editor/personal-feed-editor.component';
-import { PersonalFeed, PersonalFeedDraft } from './models/deal-monitor.model';
+import { PersonalFeed, PersonalFeedDraft, feedSizeLabels } from './models/deal-monitor.model';
 import { DealMonitorService } from './services/deal-monitor.service';
+
+const SELECTED_FEED_STORAGE_PREFIX = 'flipbase:vinted-feed:selected:';
 
 @Component({
   selector: 'app-deal-monitor',
   imports: [
+    BadgeComponent,
     ButtonComponent,
-    CustomSelectComponent,
     DealFeedSearchComponent,
     ModalShellComponent,
     PageHeaderComponent,
@@ -47,10 +53,13 @@ export class DealMonitorComponent implements UnsavedEntryPage {
   private readonly api = inject(DealMonitorService);
   private readonly confirm = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
+  private readonly document = inject(DOCUMENT);
   private readonly workspace = inject(WorkspaceService).currentWorkspace;
   private readonly currentUser = inject(AuthService).currentUser;
+  private readonly layout = inject(PageLayoutService);
   private readonly editor = viewChild(PersonalFeedEditorComponent);
   readonly workspaceId = computed(() => (this.currentUser() && this.workspace()?.id) || null);
+  readonly widescreen = this.layout.widescreen;
   readonly icons = {
     feed: LucideBot,
     add: LucidePlus,
@@ -58,17 +67,21 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     start: LucidePlay,
     stop: LucidePause,
     delete: LucideTrash2,
+    columns: LucideColumns3,
+    single: LucideLayoutGrid,
   };
   readonly feeds = signal<PersonalFeed[]>([]);
   readonly selectedId = signal<string | null>(null);
   readonly selectedFeed = computed(() => this.feeds().find(({ id }) => id === this.selectedId()));
-  readonly feedOptions = computed(() =>
-    this.feeds().map(({ id, title }) => ({ value: id, label: title })),
-  );
+  readonly activeFeeds = computed(() => this.feeds().filter(({ is_active }) => is_active));
+  readonly viewMode = signal<'columns' | 'single'>('columns');
+  readonly canShowColumns = computed(() => this.widescreen() && this.activeFeeds().length >= 2);
+  readonly showColumns = computed(() => this.canShowColumns() && this.viewMode() === 'columns');
   readonly loadingFeeds = signal(false);
   readonly editorOpen = signal(false);
   readonly editing = signal<PersonalFeed | null>(null);
   readonly pending = signal<'save' | 'toggle' | 'delete' | null>(null);
+  readonly pendingFeedId = signal<string | null>(null);
   readonly error = signal<string | null>(null);
   readonly editorError = signal<string | null>(null);
   readonly message = signal('');
@@ -88,10 +101,12 @@ export class DealMonitorComponent implements UnsavedEntryPage {
         this.editorOpen.set(false);
         this.editing.set(null);
         this.pending.set(null);
+        this.pendingFeedId.set(null);
         this.error.set(null);
         this.editorError.set(null);
         this.message.set('');
-        if (user && workspaceId) void this.loadFeeds(workspaceId);
+        if (user && workspaceId)
+          void this.loadFeeds(workspaceId, this.readStoredFeedId(workspaceId));
       });
     });
   }
@@ -104,6 +119,29 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     return this.pending() !== null;
   }
 
+  selectFeed(feed: PersonalFeed): void {
+    this.selectedId.set(feed.id);
+    const workspaceId = this.workspaceId();
+    if (workspaceId) this.storeSelectedFeedId(workspaceId, feed.id);
+    if (!feed.is_active && this.showColumns()) this.viewMode.set('single');
+  }
+
+  feedBadges(feed: PersonalFeed): string[] {
+    const badges: string[] = [];
+    if (feed.brand) badges.push(feed.brand);
+    if (feed.search_text) badges.push(`„${feed.search_text}“`);
+    if (feed.sizes.length) badges.push(feedSizeLabels(feed.sizes));
+    if (feed.condition) badges.push(feed.condition);
+    if (feed.price_from !== null && feed.price_to !== null) {
+      badges.push(`${feed.price_from}–${feed.price_to} €`);
+    } else if (feed.price_from !== null) {
+      badges.push(`ab ${feed.price_from} €`);
+    } else if (feed.price_to !== null) {
+      badges.push(`bis ${feed.price_to} €`);
+    }
+    return badges;
+  }
+
   async loadFeeds(workspaceId = this.workspaceId(), selectId = this.selectedId()): Promise<void> {
     if (!workspaceId) return;
     const generation = ++this.listGeneration;
@@ -113,9 +151,9 @@ export class DealMonitorComponent implements UnsavedEntryPage {
       const rows = await this.api.personalFeeds(workspaceId);
       if (this.destroyRef.destroyed || generation !== this.listGeneration) return;
       this.feeds.set(rows);
-      this.selectedId.set(
-        rows.some(({ id }) => id === selectId) ? selectId : (rows[0]?.id ?? null),
-      );
+      const nextId = rows.some(({ id }) => id === selectId) ? selectId : (rows[0]?.id ?? null);
+      this.selectedId.set(nextId);
+      if (nextId) this.storeSelectedFeedId(workspaceId, nextId);
     } catch {
       if (generation === this.listGeneration && !this.destroyRef.destroyed)
         this.error.set('Deine Feeds konnten nicht geladen werden.');
@@ -175,6 +213,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     const generation = this.workspaceGeneration;
     const active = !feed.is_active;
     this.pending.set('toggle');
+    this.pendingFeedId.set(feed.id);
     this.error.set(null);
     this.message.set('');
     try {
@@ -193,7 +232,10 @@ export class DealMonitorComponent implements UnsavedEntryPage {
           error instanceof Error ? error.message : 'Feed konnte nicht umgeschaltet werden.',
         );
     } finally {
-      if (this.isCurrent(generation)) this.pending.set(null);
+      if (this.isCurrent(generation)) {
+        this.pending.set(null);
+        this.pendingFeedId.set(null);
+      }
     }
   }
 
@@ -210,6 +252,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     });
     if (!confirmed || !this.isCurrent(generation) || this.isSaving()) return;
     this.pending.set('delete');
+    this.pendingFeedId.set(feed.id);
     this.error.set(null);
     this.message.set('');
     try {
@@ -222,7 +265,33 @@ export class DealMonitorComponent implements UnsavedEntryPage {
       if (this.isCurrent(generation))
         this.error.set(error instanceof Error ? error.message : 'Löschen fehlgeschlagen.');
     } finally {
-      if (this.isCurrent(generation)) this.pending.set(null);
+      if (this.isCurrent(generation)) {
+        this.pending.set(null);
+        this.pendingFeedId.set(null);
+      }
+    }
+  }
+
+  private readStoredFeedId(workspaceId: string): string | null {
+    try {
+      return (
+        this.document.defaultView?.localStorage.getItem(
+          SELECTED_FEED_STORAGE_PREFIX + workspaceId,
+        ) ?? null
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  private storeSelectedFeedId(workspaceId: string, feedId: string): void {
+    try {
+      this.document.defaultView?.localStorage.setItem(
+        SELECTED_FEED_STORAGE_PREFIX + workspaceId,
+        feedId,
+      );
+    } catch {
+      // Ohne Browserspeicher gilt die Auswahl nur für die laufende Sitzung.
     }
   }
 

@@ -112,31 +112,18 @@
       </dl>
 
       <div class="mt-auto flex flex-wrap items-center justify-end gap-2">
-        <div class="flex shrink-0 items-center gap-1.5">
+        @if (link(); as href) {
           <app-button
-            variant="secondary"
-            [icon]="icons.share"
-            [iconOnly]="true"
-            ariaLabel="Artikel teilen"
-            title="Artikel teilen"
-            (clicked)="share()"
-          />
-          @if (link(); as href) {
-            <app-button
-              variant="brand-hover"
-              [href]="href"
-              target="_blank"
-              [icon]="icons.external"
-              iconPosition="end"
-              [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
-              >Vinted</app-button
-            >
-          }
-        </div>
+            variant="brand-hover"
+            [href]="href"
+            target="_blank"
+            [icon]="icons.external"
+            iconPosition="end"
+            [ariaLabel]="item().title + ' – auf Vinted ansehen (neuer Tab)'"
+            >Vinted</app-button
+          >
+        }
       </div>
-      @if (shareMessage(); as message) {
-        <p role="status" class="text-xs text-fb-text-secondary">{{ message }}</p>
-      }
     </div>
   </article>
 </app-card>

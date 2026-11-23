@@ -17,7 +17,6 @@ import {
   LucideExternalLink,
   LucideHeart,
   LucideRuler,
-  LucideShare2,
   LucideSparkles,
   LucideTag,
 } from '@lucide/angular';
@@ -28,7 +27,6 @@ import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-mon
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { FeedClockService } from '../../services/feed-clock.service';
 import { discoveryDate } from '../../utils/discovery-date';
-import { shareVintedListing } from '../../utils/share-vinted-listing';
 
 @Component({
   selector: 'app-deal-detail-modal',
@@ -51,7 +49,6 @@ export class DealDetailModalComponent {
   readonly favoritesService = inject(DealFavoritesService);
 
   readonly activeImageIndex = signal<number>(0);
-  readonly shareMessage = signal<string | null>(null);
   private readonly failedImages = signal<ReadonlySet<string>>(new Set());
 
   readonly validImages = computed(() =>
@@ -81,7 +78,6 @@ export class DealDetailModalComponent {
     discovered: LucideClock,
     external: LucideExternalLink,
     heart: LucideHeart,
-    share: LucideShare2,
     eye: LucideEye,
     prev: LucideChevronLeft,
     next: LucideChevronRight,
@@ -109,16 +105,5 @@ export class DealDetailModalComponent {
 
   toggleFavorite(): void {
     void this.favoritesService.toggle(this.item());
-  }
-
-  async share(): Promise<void> {
-    const result = await shareVintedListing(this.item());
-    this.shareMessage.set(
-      result === 'copied'
-        ? 'Link kopiert.'
-        : result === 'unavailable'
-          ? 'Teilen ist hier nicht verfügbar.'
-          : null,
-    );
   }
 }

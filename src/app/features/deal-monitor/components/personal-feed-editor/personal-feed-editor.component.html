@@ -6,11 +6,15 @@
   class="flex flex-col gap-4"
 >
   <fieldset [disabled]="saving()" class="flex min-w-0 flex-col gap-4">
-    <div class="h-8 overflow-auto text-sm text-fb-text-danger">
-      @if (saveError(); as error) {
-        <p role="alert">{{ error }}</p>
-      }
-    </div>
+    @if (saveError(); as error) {
+      <p
+        role="alert"
+        class="rounded-lg border border-fb-critical/30 bg-fb-critical/10 px-3 py-2 text-sm text-fb-text-danger"
+      >
+        {{ error }}
+      </p>
+    }
+
     <app-text-field
       label="Name des Feeds"
       formControlName="title"
@@ -21,45 +25,57 @@
           : null
       "
     />
-    <div>
+
+    <div class="flex flex-col gap-1.5">
       <div class="grid items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
         <app-text-field
-          label="Vinted-Suchlink"
+          label="Vinted-Suchlink (optional)"
           type="url"
+          placeholder="https://www.vinted.de/catalog?…"
           [formControl]="feedLink"
           [disabled]="importingLink()"
-          [ariaDescribedby]="linkError() ? 'vinted-feed-import-status' : ''"
+          [ariaDescribedby]="linkError() || linkImported() ? 'vinted-feed-import-status' : ''"
           [ariaInvalid]="!!linkError()"
         />
-        <app-button [loading]="importingLink()" [disabled]="saving()" (clicked)="importLink()"
+        <app-button
+          variant="secondary"
+          [loading]="importingLink()"
+          [disabled]="saving()"
+          (clicked)="importLink()"
           >Link übernehmen</app-button
         >
       </div>
-      <p id="vinted-feed-import-status" role="status" class="h-10 overflow-auto text-xs">
-        @if (linkError(); as error) {
-          <span class="text-fb-text-danger">{{ error }}</span>
-        } @else if (linkImported()) {
-          <span>Filter übernommen.</span>
-        }
-      </p>
-    </div>
-    <app-category-picker
-      label="Kategorie"
-      placeholder="Alle Kategorien"
-      [source]="categorySource()"
-      formControlName="catalog_id"
-    />
-    <div class="flex h-9 items-center gap-2 overflow-auto text-sm">
-      @if (categoryError()) {
-        <span role="alert" class="text-fb-text-danger"
-          >Kategorien konnten nicht geladen werden.</span
-        >
-        <app-button size="slim" variant="secondary" (clicked)="loadCategories()"
-          >Erneut laden</app-button
-        >
+      @if (linkError(); as error) {
+        <p id="vinted-feed-import-status" role="status" class="text-xs text-fb-text-danger">
+          {{ error }}
+        </p>
+      } @else if (linkImported()) {
+        <p id="vinted-feed-import-status" role="status" class="text-xs text-fb-text-secondary">
+          Filter übernommen.
+        </p>
       }
     </div>
-    <div class="grid gap-4 sm:grid-cols-2">
+
+    <div class="flex flex-col gap-1.5">
+      <app-category-picker
+        label="Kategorie"
+        placeholder="Alle Kategorien"
+        [source]="categorySource()"
+        formControlName="catalog_id"
+      />
+      @if (categoryError()) {
+        <div class="flex items-center gap-2 text-xs">
+          <span role="alert" class="text-fb-text-danger"
+            >Kategorien konnten nicht geladen werden.</span
+          >
+          <app-button size="slim" variant="secondary" (clicked)="loadCategories()"
+            >Erneut laden</app-button
+          >
+        </div>
+      }
+    </div>
+
+    <div class="grid gap-3.5 sm:grid-cols-2">
       <app-attribute-picker
         label="Marke"
         placeholder="Marke suchen"
@@ -110,10 +126,9 @@
         "
       />
     </div>
-    <div class="h-8 overflow-auto text-sm text-fb-text-danger">
-      @if (submitAttempted() && form.invalid && !form.hasError('priceRange')) {
-        <p role="alert">Bitte prüfe deine Angaben.</p>
-      }
-    </div>
+
+    @if (submitAttempted() && form.invalid && !form.hasError('priceRange')) {
+      <p role="alert" class="text-sm text-fb-text-danger">Bitte prüfe deine Angaben.</p>
+    }
   </fieldset>
 </form>

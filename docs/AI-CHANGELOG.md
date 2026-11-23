@@ -1,5 +1,25 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-23 - Juna - 5-Sekunden-Takt, Sofort-Start, Live-Filter und aufgeräumte Feed-Oberfläche
+
+**Anlass:** Nach dem Umbau auf persönliche Feeds hingen Unterkategorien und Markenquellen noch am 90-Sekunden-Standardtakt aus PR #726 und zeigten beim Start erst nach einem stillen Einleselauf und 90 Sekunden Wartezeit einen Schwung Artikel an. Zudem war die neue Feed-Oberfläche unübersichtlich (Select-Box ohne gemerkte Auswahl, übergroßer Start-/Stopp-Button, nicht zentriertes Lösch-Icon, Leerabstände und doppeltes „Abbrechen“ im Editor-Modal, überflüssige Funktionen „Langsamer Modus“ und „Artikel teilen“, keine Live-Filterung im laufenden Feed).
+
+**Änderung:**
+
+- **5-Sekunden-Takt & Sofort-Start (`403_sniper_personal_feeds.sql`, Migration `20261123235200_vinted_feed_fast_polling_and_instant_start.sql`):**
+  - Standard- und Mindesttakt für Kategorie- und Markenquellen auf 5 Sekunden gesenkt (bestehende Einstellungen und Quellen in der Datenbank direkt umgestellt).
+  - `sniper_feed_search` liefert beim Start eines Feeds sofort frische Treffer der letzten 10 Minuten aus laufenden Quellen sowie `last_checked_at` für den Live-Status („Live · geprüft vor X s“ bzw. „Feed startet …“).
+- **Aufgeräumte Feed-Ansicht (`deal-monitor`, `deal-feed-search`, `deal-feed-updates.service.ts`):**
+  - Tab-Leiste mit Statuspunkten statt Select-Box; gewählter Feed wird je Arbeitsbereich im Browser gespeichert.
+  - Im Widescreen-Modus laufen mehrere aktive Feeds als Spalten nebeneinander (mit Umschalter zur Einzelansicht); `DealFeedUpdatesService` verteilt Realtime-Updates über einen gemeinsamen Kanal an alle offenen Feed-Spalten.
+  - Kompakte Steuerbuttons ohne `fullWidth` und sauber zentriertes Lösch-Icon (`iconOnly`).
+  - Live-Filterleiste direkt im Feed (Suche, Größen-Chips, Min/Max € unter strikter Wahrung der im Feed festgelegten Grenzen).
+- **Modal & Bereinigung (`personal-feed-editor`, `deal-card`, `deal-detail-modal`):**
+  - Editor-Modal ohne feste Leer-Platzhalter, mit Standard-Footer („Abbrechen“ und „Feed speichern“ unten) und nur dem Schließen-`X` oben rechts.
+  - „Langsamer Modus“ und „Artikel teilen“ entfernt.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-23 - Juna - Sniper-Durchsatz und geteilte Markenquellen für persönliche Feeds
 
 **Anlass:** Die Analyse des produktiven Stufentests nach PR #726 (Deckel bei rund 25 Seiten/min trotz 1,0 s Abstand) und der Vinted-Katalogabrufe zeigte zwei konkrete Bremsen: Erstens erzwang der Dienst nach jedem 15. Abruf einen vollständigen Tab-Wechsel samt Dokument-Navigation und begrenzte jeden Sammeltakt auf einen einzelnen Abruf (`maxRequestsPerCycle = 1`), wodurch vor und nach jeder einzelnen Seite mehrere Datenbank-Rundreisen außerhalb des Takts anfielen. Zweitens liefern reine Hauptquellen (Damen `1904` / Herren `5`) zu Stoßzeiten über 1.000 Artikel/min über alle Marken hinweg — in einer Live-Stichprobe fehlten 8 von 10 frischen Ralph-Lauren-Artikeln auf Seite 1 der Hauptquellen, und frühe Vinted-Vorschauen erscheinen nur bei Abfragen mit Marken- oder Suchwortbezug.

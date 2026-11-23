@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DealFeedState, SLOW_MODE_STEP_MS } from './deal-feed-state';
+import { DealFeedState } from './deal-feed-state';
 import {
   FEED_ITEM_LIMIT,
   FEED_WINDOW_MS,
@@ -27,10 +27,11 @@ const item = (id: string): FeedItem => ({
   catalog_id: 1,
   category_path: 'Schuhe',
 });
-const page = (items: FeedItem[]): FeedPage => ({
+const page = (items: FeedItem[], lastCheckedAt = '2026-09-12T12:00:00Z'): FeedPage => ({
   items,
   covered: true,
   reported_at: '2026-09-12T12:00:00Z',
+  last_checked_at: lastCheckedAt,
 });
 const context: FeedRequest = { workspace: 'a', watchlist: 'feed-a' };
 const settle = async () => {
@@ -44,67 +45,17 @@ const seenAt = (id: string, minute: number): FeedItem => ({
 });
 const ids = (items: FeedItem[]) => items.map((entry) => entry.id);
 
-describe('DealFeedState im langsamen Modus', () => {
-  it('schiebt neue Funde einzeln nach, ältester zuerst', async () => {
-    vi.useFakeTimers();
-    try {
-      const fetch = vi
-        .fn()
-        .mockResolvedValueOnce(page([seenAt('old', 1)]))
-        .mockResolvedValue(
-          page([seenAt('c', 4), seenAt('b', 3), seenAt('a', 2), seenAt('old', 1)]),
-        );
-      const state = new DealFeedState(fetch);
-      state.setSlowMode(true);
-      state.setContext(context);
-      await settle();
-      await state.refresh();
-      expect(ids(state.items())).toEqual(['old']);
-      expect(ids(state.queued())).toEqual(['c', 'b', 'a']);
-      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
-      expect(ids(state.items())).toEqual(['a', 'old']);
-      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
-      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
-      expect(ids(state.items())).toEqual(['c', 'b', 'a', 'old']);
-      expect(state.queued()).toEqual([]);
-      // Ein erneuter Abruf derselben Seite stellt nichts doppelt an.
-      await state.refresh();
-      expect(state.queued()).toEqual([]);
-      expect(ids(state.items())).toEqual(['c', 'b', 'a', 'old']);
-      state.destroy();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('verwirft wartende Funde beim Filterwechsel und zeigt den ersten Stand sofort', async () => {
-    vi.useFakeTimers();
-    try {
-      const fetch = vi
-        .fn()
-        .mockResolvedValueOnce(page([seenAt('old', 1)]))
-        .mockResolvedValueOnce(page([seenAt('a', 2), seenAt('old', 1)]))
-        .mockResolvedValue(page([seenAt('other', 5), seenAt('x', 4)]));
-      const state = new DealFeedState(fetch);
-      state.setSlowMode(true);
-      state.setContext(context);
-      await settle();
-      await state.refresh();
-      expect(ids(state.queued())).toEqual(['a']);
-      state.setContext({ ...context, watchlist: 'feed-b' });
-      await settle();
-      expect(state.queued()).toEqual([]);
-      expect(ids(state.items())).toEqual(['other', 'x']);
-      vi.advanceTimersByTime(SLOW_MODE_STEP_MS);
-      expect(ids(state.items())).toEqual(['other', 'x']);
-      state.destroy();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-});
-
 describe('DealFeedState', () => {
+  it('übernimmt last_checked_at aus der Antwort und setzt es beim Kontextwechsel zurück', async () => {
+    const fetch = vi.fn().mockResolvedValueOnce(page([seenAt('a', 1)], '2026-09-12T12:01:05Z'));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    expect(state.lastCheckedAt()).toBe('2026-09-12T12:01:05Z');
+    state.setContext(null);
+    expect(state.lastCheckedAt()).toBeNull();
+    state.destroy();
+  });
   it('ergänzt neue Funde mit gleichem Zeitstempel und behält unveränderte Karten', async () => {
     const existing = [seenAt('b', 2), seenAt('a', 1)];
     const arrival = seenAt('c', 2);

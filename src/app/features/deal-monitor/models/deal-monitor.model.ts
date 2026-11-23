@@ -41,6 +41,13 @@ export interface FeedPage {
   items: FeedItem[];
   covered: boolean;
   reported_at: string | null;
+  last_checked_at?: string | null;
+}
+export interface LiveFeedFilter {
+  query: string;
+  sizes: string[];
+  minPrice: number | null;
+  maxPrice: number | null;
 }
 export interface FeedRequest {
   workspace: string;
@@ -54,6 +61,72 @@ export function recentFeedItems(items: readonly FeedItem[], now: number): FeedIt
   return items
     .filter(({ first_seen_at }) => Date.parse(first_seen_at) > now - FEED_WINDOW_MS)
     .slice(0, FEED_ITEM_LIMIT);
+}
+
+/** Preisgrenzen eines Feeds, innerhalb derer Live-Filter nur weiter einschränken dürfen. */
+export function effectiveFeedPriceBounds(feed: Pick<PersonalFeed, 'price_from' | 'price_to'>): {
+  min: number;
+  max: number | null;
+} {
+  return {
+    min: feed.price_from ?? 0,
+    max: feed.price_to ?? null,
+  };
+}
+
+/** Größen, die im Live-Filter sinnvoll auswählbar sind (begrenzt durch den Feed selbst). */
+export function availableLiveSizes(feed: Pick<PersonalFeed, 'sizes'>) {
+  return feed.sizes.length > 0
+    ? FEED_CLOTHING_SIZES.filter((option) => feed.sizes.includes(option.value))
+    : FEED_CLOTHING_SIZES;
+}
+
+/** Filtert bereits geladene Live-Karten lokal weiter ein, ohne Feed-Grenzen aufzuweichen. */
+export function filterLiveFeedItems(
+  items: readonly FeedItem[],
+  feed: Pick<PersonalFeed, 'price_from' | 'price_to' | 'sizes'>,
+  filter: LiveFeedFilter,
+): FeedItem[] {
+  const words = filter.query.trim().toLowerCase().split(/\s+/u).filter(Boolean);
+  const allowedSizes =
+    feed.sizes.length > 0 ? filter.sizes.filter((size) => feed.sizes.includes(size)) : filter.sizes;
+  const effectiveMin =
+    filter.minPrice !== null && Number.isFinite(filter.minPrice)
+      ? Math.max(feed.price_from ?? 0, filter.minPrice)
+      : null;
+  const effectiveMax =
+    filter.maxPrice !== null && Number.isFinite(filter.maxPrice)
+      ? feed.price_to !== null
+        ? Math.min(feed.price_to, filter.maxPrice)
+        : filter.maxPrice
+      : null;
+
+  if (
+    words.length === 0 &&
+    allowedSizes.length === 0 &&
+    effectiveMin === null &&
+    effectiveMax === null
+  ) {
+    return [...items];
+  }
+
+  return items.filter((item) => {
+    if (words.length > 0) {
+      const haystack = `${item.title} ${item.brand ?? ''}`.toLowerCase();
+      if (!words.every((word) => haystack.includes(word))) return false;
+    }
+    if (allowedSizes.length > 0) {
+      const normalized = item.size ? feedSizeFromVintedTitle(item.size) : null;
+      if (!normalized || !allowedSizes.includes(normalized)) return false;
+    }
+    if (effectiveMin !== null && (item.currency !== 'EUR' || item.item_price < effectiveMin)) {
+      return false;
+    }
+    if (effectiveMax !== null && (item.currency !== 'EUR' || item.item_price > effectiveMax)) {
+      return false;
+    }
+    return true;
+  });
 }
 export const FEED_CLOTHING_SIZES = [
   { value: 'xs', label: 'XS' },
