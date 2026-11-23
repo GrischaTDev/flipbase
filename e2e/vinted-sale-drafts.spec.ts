@@ -5,6 +5,48 @@ import { createFinalizedPurchase } from './support/sample-data';
 
 const soldTitle = 'Vinted-Pullover';
 
+type AdminClient = ReturnType<typeof createLocalAdminClient>;
+
+/**
+ * Veröffentlichungsaufträge prüfen seit dem Katalogabgleich die Vinted-Kategorie.
+ * Der gesäte Verkaufsbaum liefert dafür eine Endkategorie ohne Pflichtgröße und
+ * Pflichtmarke; übrige Pflichtfelder erhalten ihren ersten gültigen Wert.
+ */
+async function publishableCatalogContent(admin: AdminClient): Promise<Record<string, unknown>> {
+  const keys: Record<string, string> = {
+    condition: 'conditionId',
+    package: 'packageSizeId',
+    accessory_department: 'accessory_department',
+  };
+  const leaves = await admin
+    .from('vinted_listing_categories')
+    .select('id')
+    .eq('is_leaf', true)
+    .order('id')
+    .limit(50);
+  if (leaves.error) throw leaves.error;
+  for (const leaf of leaves.data ?? []) {
+    const fields = await admin
+      .from('vinted_listing_category_fields')
+      .select('field_code, required, option_ids')
+      .eq('category_id', leaf.id)
+      .eq('required', true);
+    if (fields.error) throw fields.error;
+    const required = fields.data ?? [];
+    if (required.some((field) => !(field.field_code in keys) || !field.option_ids?.length))
+      continue;
+    const content: Record<string, unknown> = { categoryId: leaf.id, attributes: {} };
+    for (const field of required) {
+      const value = String(field.option_ids![0]);
+      if (field.field_code === 'accessory_department')
+        (content['attributes'] as Record<string, string>)[keys[field.field_code]!] = value;
+      else content[keys[field.field_code]!] = value;
+    }
+    return content;
+  }
+  throw new Error('Der gesäte Vinted-Katalog enthält keine passende Endkategorie.');
+}
+
 for (const shopEnabled of [true, false]) {
   test.describe(shopEnabled ? 'Shop aktiv' : 'Shop aus', () => {
     test.use({
@@ -70,7 +112,7 @@ for (const shopEnabled of [true, false]) {
           external_account_id: sellerId,
           execution_mode: 'cloud',
           action: 'publish',
-          snapshot: { inventoryItemId },
+          snapshot: { inventoryItemId, content: await publishableCatalogContent(admin) },
           state: 'confirmed',
           external_id: itemId,
           provider_state: 'active',
