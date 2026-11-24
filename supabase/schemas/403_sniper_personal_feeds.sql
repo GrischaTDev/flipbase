@@ -258,7 +258,7 @@ begin
 
     v_search := nullif(btrim(regexp_replace(lower(v_feed.search_text), '[[:space:]]+', ' ', 'g')), '');
     if v_feed.catalog_id is not null and not exists (
-        select 1 from public.vinted_categories where id = v_feed.catalog_id
+        select 1 from public.vinted_listing_categories where id = v_feed.catalog_id
     ) then
         raise exception 'Bitte wähle eine verfügbare Vinted-Kategorie.' using errcode = '22023';
     end if;
@@ -320,7 +320,7 @@ begin
     if p_brand_id is not null and p_brand is null then
         raise exception 'Bitte wähle die Marke aus.' using errcode = '22023';
     end if;
-    if p_catalog_id is not null and not exists (select 1 from public.vinted_categories where id = p_catalog_id) then
+    if p_catalog_id is not null and not exists (select 1 from public.vinted_listing_categories where id = p_catalog_id) then
         raise exception 'Bitte wähle eine verfügbare Vinted-Kategorie.' using errcode = '22023';
     end if;
     if p_audience not in ('women', 'men', 'both') or p_sizes is null or cardinality(p_sizes) > 7
@@ -513,7 +513,7 @@ begin
             array[p_catalog_id, v_feed.catalog_id] || v_audience || v_saved_audience, null)) as root
         union
         select tree.root_id, child.id from category_tree as tree
-        join public.vinted_categories as child on child.parent_id = tree.id
+        join public.vinted_listing_categories as child on child.parent_id = tree.id
     ), matched as (
         select matched.listing_id, min(source.catalog_id) as source_catalog_id
         from public.sniper_query_matches as matched
@@ -526,11 +526,15 @@ begin
         select listing.id, listing.title, listing.url, listing.image_urls, listing.item_price,
             listing.total_price, listing.currency, listing.brand, listing.size, listing.condition,
             listing.is_hidden, listing.first_seen_at, listing.catalog_id, listing.country_code,
-            category.path as category_path,
+            case
+                when category.id is null then null
+                when category.path = '' then category.title
+                else category.path || ' > ' || category.title
+            end as category_path,
             coalesce(listing.catalog_id, matched.source_catalog_id) as effective_catalog_id
         from matched
         join public.sniper_listings as listing on listing.id = matched.listing_id
-        left join public.vinted_categories as category on category.id = listing.catalog_id
+        left join public.vinted_listing_categories as category on category.id = listing.catalog_id
         where listing.first_seen_at >= v_window_start
           and not listing.is_initial_stock
           and (v_feed.brand is null or lower(btrim(listing.brand)) = lower(btrim(v_feed.brand)))
@@ -774,16 +778,30 @@ begin
                 'kind', split_part(query.query_key, '|', 2),
                 'catalog_id', query.catalog_id,
                 'brand_id', query.brand_id,
-                'category_path', coalesce(category.path, query.brand_names[1]),
+                'category_path', coalesce(
+                    case
+                        when category.id is null then null
+                        when category.path = '' then category.title
+                        else category.path || ' > ' || category.title
+                    end,
+                    query.brand_names[1]
+                ),
                 'feed_count', needed.feed_count,
                 'last_success_at', query.last_success_at,
                 'coverage_status', query.coverage_status,
                 'run_state', query.run_state,
                 'last_status', query.last_status
-            ) order by split_part(query.query_key, '|', 2), coalesce(category.path, query.brand_names[1]))
+            ) order by split_part(query.query_key, '|', 2), coalesce(
+                case
+                    when category.id is null then null
+                    when category.path = '' then category.title
+                    else category.path || ' > ' || category.title
+                end,
+                query.brand_names[1]
+            ))
             from public.sniper_queries as query
             join public.sniper_needed_feed_sources as needed on needed.key = query.query_key
-            left join public.vinted_categories as category on category.id = query.catalog_id
+            left join public.vinted_listing_categories as category on category.id = query.catalog_id
             where query.is_active and query.deleted_at is null
         ), '[]'::jsonb)
     ) into v_result

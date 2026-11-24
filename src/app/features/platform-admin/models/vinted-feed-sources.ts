@@ -31,15 +31,6 @@ export interface VintedFeedSettings {
   categoryPollIntervalSeconds: number;
 }
 
-/** Stand des gespeicherten Vinted-Kategoriebaums. */
-export interface VintedCategorySyncStatus {
-  refreshedAt: string | null;
-  requestedAt: string | null;
-  lastAttemptAt: string | null;
-  categoryCount: number;
-  lastError: string | null;
-}
-
 export const VINTED_FEED_SETTING_LIMITS = {
   maxCategorySources: { min: 0, max: 500 },
   categoryPollIntervalSeconds: { min: 5, max: 3600 },
@@ -136,18 +127,4 @@ export function sourceAgeLabel(timestamp: string | null, now: number): string {
     hour: '2-digit',
     minute: '2-digit',
   }).format(time);
-}
-
-/**
- * Zeitpunkt einer noch nicht abgearbeiteten Neu-Einlese-Anforderung, sonst null.
- * Abgearbeitet heißt: Der Dienst hat es seither versucht, gelungen oder gescheitert.
- */
-export function pendingCategoryRefresh(status: VintedCategorySyncStatus | null): string | null {
-  const requestedAt = status?.requestedAt ?? null;
-  if (status === null || requestedAt === null) return null;
-  const handled = Math.max(
-    status.refreshedAt === null ? 0 : Date.parse(status.refreshedAt),
-    status.lastAttemptAt === null ? 0 : Date.parse(status.lastAttemptAt),
-  );
-  return Date.parse(requestedAt) > handled ? requestedAt : null;
 }

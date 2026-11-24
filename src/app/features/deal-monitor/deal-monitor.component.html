@@ -62,6 +62,9 @@
               aria-hidden="true"
             ></span>
             <span>{{ item.title }}</span>
+            @if (hasOutdatedCategory(item)) {
+              <app-badge tone="caution" size="sm">Kategorie prüfen</app-badge>
+            }
           </button>
         }
       </div>
@@ -74,7 +77,7 @@
               ? 'grid-cols-2'
               : activeFeeds().length === 3
                 ? 'grid-cols-3'
-                : 'grid-flow-col auto-cols-[minmax(24rem,1fr)] overflow-x-auto pb-2'
+                : 'grid-flow-col auto-cols-[minmax(34rem,1fr)] overflow-x-auto pb-2'
           "
         >
           @for (columnFeed of activeFeeds(); track columnFeed.id) {
@@ -94,8 +97,11 @@
                     </h2>
                   </div>
                   @let badges = feedBadges(columnFeed);
-                  @if (badges.length) {
+                  @if (badges.length || hasOutdatedCategory(columnFeed)) {
                     <div class="mt-1.5 flex flex-wrap gap-1">
+                      @if (hasOutdatedCategory(columnFeed)) {
+                        <app-badge tone="caution" size="sm">Kategorie prüfen</app-badge>
+                      }
                       @for (badge of badges; track badge) {
                         <app-badge tone="neutral" size="sm">{{ badge }}</app-badge>
                       }
@@ -155,6 +161,9 @@
               aria-hidden="true"
             ></span>
             <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ feed.title }}</h2>
+            @if (hasOutdatedCategory(feed)) {
+              <app-badge tone="caution" size="sm">Kategorie prüfen</app-badge>
+            }
             @for (badge of feedBadges(feed); track badge) {
               <app-badge tone="neutral" size="sm">{{ badge }}</app-badge>
             }
@@ -189,6 +198,25 @@
             />
           </div>
         </div>
+
+        @if (hasOutdatedCategory(feed)) {
+          <div
+            role="status"
+            class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-fb-text-primary"
+          >
+            <span>
+              Bitte prüfe die Kategorie dieses Feeds – bei Vinted gab es Änderungen im
+              Kategoriebaum.
+            </span>
+            <app-button
+              size="slim"
+              variant="secondary"
+              [disabled]="isSaving()"
+              (clicked)="openEditor(feed)"
+              >Kategorie wählen</app-button
+            >
+          </div>
+        }
 
         @if (feed.is_active) {
           <app-deal-feed-search [workspaceId]="workspace" [feed]="feed" />

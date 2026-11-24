@@ -6,59 +6,84 @@ import { VintedCategoryService } from './vinted-category.service';
 describe('complete Vinted category snapshots', () => {
   beforeEach(() => TestBed.resetTestingModule());
   afterEach(() => TestBed.resetTestingModule());
-  const parent = { id: 1, parent_id: null, title: 'Herren', path: 'untrusted old path' };
-  const child = { id: 2, parent_id: 1, title: 'Jacken', path: 'untrusted old path' };
-  function snapshotClient(
-    pages: Record<string, unknown>[][],
-    versions = ['2026-10-05', '2026-10-05'],
-  ) {
-    const single = vi.fn(async () => ({
-      data: { refreshed_at: versions[single.mock.calls.length - 1], category_count: 2 },
-      error: null,
-    }));
+  const parent = {
+    id: 1,
+    parent_id: null,
+    title: 'Herren',
+    path: '',
+    tree_observed_at: '2026-11-23T10:00:00Z',
+  };
+  const child = {
+    id: 2,
+    parent_id: 1,
+    title: 'Jacken',
+    path: 'Herren',
+    tree_observed_at: '2026-11-23T12:00:00Z',
+  };
+  function snapshotClient(pages: Record<string, unknown>[][]) {
     const range = vi.fn(async () => ({
       data: pages[range.mock.calls.length - 1] ?? [],
       error: null,
     }));
-    const from = (table: string) =>
-      table === 'vinted_category_syncs'
-        ? { select: () => ({ eq: () => ({ single }) }) }
-        : { select: () => ({ order: () => ({ order: () => ({ range }) }) }) };
+    const from = vi.fn((table: string) => {
+      expect(table).toBe('vinted_listing_categories');
+      return { select: () => ({ order: () => ({ order: () => ({ range }) }) }) };
+    });
     TestBed.configureTestingModule({
       providers: [
         VintedCategoryService,
         { provide: SupabaseService, useValue: { client: { from } } },
       ],
     });
-    return { service: TestBed.inject(VintedCategoryService), range };
+    return { service: TestBed.inject(VintedCategoryService), range, from };
   }
-  it('includes parents and fetches every page even below the requested server limit', async () => {
-    const { service, range } = snapshotClient([[parent], [child], []]);
+  it('reads from vinted_listing_categories and builds verified full paths', async () => {
+    const { service, range } = snapshotClient([[parent, child]]);
     const snapshot = await service.readSnapshot();
     expect(snapshot.categories).toEqual([
       { id: 1, parentId: null, title: 'Herren', path: 'Herren' },
       { id: 2, parentId: 1, title: 'Jacken', path: 'Herren > Jacken' },
     ]);
-    expect(range.mock.calls).toHaveLength(3);
+    expect(snapshot.status).toEqual({
+      refreshedAt: '2026-11-23T12:00:00Z',
+      categoryCount: 2,
+    });
+    expect(range.mock.calls).toHaveLength(1);
   });
-  it('rejects a partial snapshot instead of presenting it as the whole category tree', async () => {
-    await expect(snapshotClient([[parent], []]).service.readSnapshot()).rejects.toThrow(
-      'unvollständig',
-    );
+  it('fetches additional pages when a page fills the PostgREST limit', async () => {
+    const firstPage = [
+      parent,
+      ...Array.from({ length: 999 }, (_, index) => ({
+        id: index + 10,
+        parent_id: 1,
+        title: `Kat ${index + 10}`,
+        path: 'Herren',
+        tree_observed_at: '2026-11-23T10:00:00Z',
+      })),
+    ];
+    const { service, range } = snapshotClient([firstPage, [child]]);
+    const snapshot = await service.readSnapshot();
+    expect(snapshot.categories).toHaveLength(1001);
+    expect(range.mock.calls).toHaveLength(2);
   });
-  it('rejects mixed synchronization generations', async () => {
-    await expect(
-      snapshotClient([[parent, child], []], ['first', 'second']).service.readSnapshot(),
-    ).rejects.toThrow('aktualisiert');
+  it('rejects an empty category table', async () => {
+    await expect(snapshotClient([[]]).service.readSnapshot()).rejects.toThrow('nicht geladen');
   });
   it('rejects orphaned categories instead of treating them as roots', async () => {
     await expect(
-      snapshotClient([[parent, { ...child, parent_id: 999 }], []]).service.readSnapshot(),
+      snapshotClient([[parent, { ...child, parent_id: 999 }]]).service.readSnapshot(),
     ).rejects.toThrow();
   });
   it('rejects repeated server pages before the pagination loop can continue indefinitely', async () => {
-    const { service, range } = snapshotClient([[parent], [parent], [parent], []]);
-    await expect(service.readSnapshot()).rejects.toThrow();
+    const fullPage = Array.from({ length: 1000 }, (_, index) => ({
+      id: index + 1,
+      parent_id: index === 0 ? null : 1,
+      title: `Kat ${index + 1}`,
+      path: index === 0 ? '' : 'Kat 1',
+      tree_observed_at: '2026-11-23T10:00:00Z',
+    }));
+    const { service, range } = snapshotClient([fullPage, fullPage, []]);
+    await expect(service.readSnapshot()).rejects.toThrow('wiederholte Einträge');
     expect(range.mock.calls).toHaveLength(2);
   });
 });

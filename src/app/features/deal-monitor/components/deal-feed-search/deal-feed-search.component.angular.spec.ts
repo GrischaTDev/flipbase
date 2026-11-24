@@ -96,4 +96,16 @@ describe('Artikel eines persönlichen Vinted-Feeds', () => {
     expect(api.feed).not.toHaveBeenCalled();
     expect(updates.watch).not.toHaveBeenCalled();
   });
+
+  it('zeigt in Nebeneinander-Spalten mindestens drei Kacheln und wächst mit dem Platz', () => {
+    const fixture = TestBed.createComponent(DealFeedSearchComponent);
+    Object.assign(fixture.componentInstance, {
+      workspaceId: signal(running.workspace_id),
+      feed: signal(running),
+      compact: signal(true),
+    });
+    fixture.detectChanges();
+    expect(fixture.componentInstance.gridColumns()).toContain('grid-cols-3');
+    expect(fixture.componentInstance.gridColumns()).toContain('repeat(auto-fill');
+  });
 });

@@ -1,5 +1,21 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-24 - Juna - Einheitlicher Vinted-Kategoriebaum und dynamisches Feed-Spalten-Grid
+
+**Anlass:** Die Anwendung pflegte bisher zwei getrennte Vinted-Kategorie-Stellen (einen öffentlichen Startseiten-Abruf im Sniper unter _Systemzustand → Vinted-Quellen_ sowie den zentralen _Vinted-Katalog_ für Inserate). Außerdem zeigten im Widescreen-Modus nebeneinander laufende Feeds maximal zwei Artikelkarten je Zeile statt mindestens drei Kacheln und wuchsen bei größeren Fenstern nicht mit. Zudem fehlte im Feed ein sichtbarer Hinweis, wenn sich eine gespeicherte Vinted-Kategorie nach einer Katalog-Aktualisierung geändert hat.
+
+**Änderung:**
+
+- **Einheitlicher Vinted-Kategoriebaum (`VintedCategoryService`, `403_sniper_personal_feeds.sql`, Migration `20261124192000_sniper_feeds_use_vinted_listing_categories.sql`, `services/sniper/src/index.ts`):**
+  - Persönliche Vinted-Feeds, `VintedCategoryService` sowie `sniper_feed_search`, `save_sniper_watchlist`, `set_sniper_watchlist_active` und `sniper_feed_capacity` lesen ausschließlich aus dem zentralen `vinted_listing_categories`-Baum.
+  - Der Sniper ruft die Vinted-Startseite nicht mehr gesondert für einen zweiten Kategoriebaum ab.
+  - In _Administration → Systemzustand → Vinted-Quellen_ entfällt der doppelte „Kategorien / Neu einlesen“-Bereich zugunsten eines direkten Verweises auf die einzige zentrale Seite _Administration → Vinted-Katalog_.
+  - Feeds, deren gespeicherte Kategorie-ID im aktualisierten Katalog nicht mehr existiert, erhalten in Tab, Kopfleiste und Banner einen klaren Prüfhinweis („Kategorie prüfen“) mit direktem Knopf zum Bearbeiten.
+- **Dynamisches Karten-Grid in Widescreen-Spalten (`deal-feed-search`, `deal-monitor`):**
+  - Feed-Spalten erhalten `@container` und zeigen nun mindestens drei Kacheln pro Zeile (`grid-cols-3`) sowie bei wachsender Breite automatisch mehr Kacheln (`repeat(auto-fill, minmax(13.5rem, 1fr))`), sodass die Kartengröße stabil bleibt.
+
+**Prüfung:** siehe PR.
+
 ## 2026-11-24 - Juna - Verkaufsentwürfe für Vinted und eBay zusammenführen
 
 Vinted-Entwürfe öffnen die gespeicherte Anzeige in Flipbase. Ausgewählte Bestandsartikel sind farblich hervorgehoben. Die Verkaufsliste zeigt vorhandene Artikelbilder auf Desktop und Mobilgeräten.

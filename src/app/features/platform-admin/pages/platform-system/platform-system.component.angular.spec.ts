@@ -110,15 +110,7 @@ describe('PlatformSystemComponent', () => {
                 ],
               }),
             ),
-            categorySync: vi.fn(async () => ({
-              refreshedAt: recent,
-              requestedAt: null,
-              lastAttemptAt: recent,
-              categoryCount: 2500,
-              lastError: null,
-            })),
             saveSettings: vi.fn(),
-            requestCategoryRefresh: vi.fn(),
           },
         },
         {

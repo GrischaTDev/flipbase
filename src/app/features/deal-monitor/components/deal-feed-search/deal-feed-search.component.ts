@@ -107,9 +107,11 @@ export class DealFeedSearchComponent {
   });
 
   readonly gridColumns = computed(() => {
-    if (this.compact()) return 'grid-cols-1 @min-[28rem]:grid-cols-2';
+    if (this.compact()) {
+      return 'grid-cols-3 @min-[42rem]:grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))]';
+    }
     return this.widescreen()
-      ? 'grid-cols-[repeat(auto-fill,minmax(15rem,1fr))]'
+      ? 'grid-cols-1 @min-[28rem]:grid-cols-2 @min-[42rem]:grid-cols-[repeat(auto-fill,minmax(13.5rem,1fr))]'
       : 'grid-cols-1 @min-[30rem]:grid-cols-2 @min-[46rem]:grid-cols-3 @min-[62rem]:grid-cols-4 @min-[78rem]:grid-cols-5';
   });
 

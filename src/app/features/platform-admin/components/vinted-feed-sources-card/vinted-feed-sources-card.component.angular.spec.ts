@@ -1,5 +1,6 @@
 import '@angular/compiler';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import axe from 'axe-core';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
@@ -60,19 +61,11 @@ describe('VintedFeedSourcesCardComponent', () => {
   async function render() {
     const api = {
       capacity: vi.fn(async () => parseVintedFeedCapacity(capacityResponse)),
-      categorySync: vi.fn(async () => ({
-        refreshedAt: recent,
-        requestedAt: null as string | null,
-        lastAttemptAt: recent,
-        categoryCount: 2500,
-        lastError: 'Seitenformat geändert' as string | null,
-      })),
       saveSettings: vi.fn(async () => undefined),
-      requestCategoryRefresh: vi.fn(async () => undefined),
     };
     await TestBed.configureTestingModule({
       imports: [VintedFeedSourcesCardComponent],
-      providers: [{ provide: VintedFeedSourcesService, useValue: api }],
+      providers: [provideRouter([]), { provide: VintedFeedSourcesService, useValue: api }],
     }).compileComponents();
     const fixture = TestBed.createComponent(VintedFeedSourcesCardComponent);
     fixture.detectChanges();
@@ -87,7 +80,7 @@ describe('VintedFeedSourcesCardComponent', () => {
     };
   }
 
-  it('zeigt Kennzahlen, Quellen und den Kategorienstand barrierefrei', async () => {
+  it('zeigt Kennzahlen, Quellen und den Verweis zum zentralen Vinted-Katalog barrierefrei', async () => {
     const { element } = await render();
     const metric = (name: string) =>
       element.querySelector(`[data-metric="${name}"]`)?.textContent?.trim();
@@ -100,8 +93,8 @@ describe('VintedFeedSourcesCardComponent', () => {
     expect(rows[0].textContent).toContain('Aktuell');
     expect(rows[1].textContent).toContain('Herren > Jacken');
     expect(rows[1].textContent).toContain('Kommt nicht hinterher');
-    expect(element.querySelector('[data-category-sync-error]')?.textContent).toContain(
-      'Seitenformat geändert',
+    expect(element.querySelector('a[href="/admin/vinted-catalog"]')?.textContent).toContain(
+      'Zum Vinted-Katalog',
     );
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
@@ -143,20 +136,6 @@ describe('VintedFeedSourcesCardComponent', () => {
     card.settingsForm.setValue({ maxCategorySources: 5, categoryPollIntervalSeconds: 60 });
     await card.saveSettings();
     expect(card.saveError()).toBe('Die Einstellungen konnten nicht gespeichert werden.');
-  });
-
-  it('fordert das Neu-Einlesen an und lädt den Stand neu', async () => {
-    const { card, api } = await render();
-    api.categorySync.mockResolvedValueOnce({
-      refreshedAt: recent,
-      requestedAt: new Date().toISOString(),
-      lastAttemptAt: recent,
-      categoryCount: 2500,
-      lastError: null,
-    });
-    await card.requestCategoryRefresh();
-    expect(api.requestCategoryRefresh).toHaveBeenCalledOnce();
-    expect(card.pendingRefresh()).not.toBeNull();
   });
 
   it('aktualisiert regelmäßig und hört nach dem Zerstören auf', async () => {
@@ -204,18 +183,5 @@ describe('VintedFeedSourcesService', () => {
     await expect(TestBed.inject(VintedFeedSourcesService).capacity()).rejects.toThrow(
       'Die Vinted-Quellen konnten nicht geladen werden.',
     );
-  });
-
-  it('setzt für das Neu-Einlesen nur requested_at', async () => {
-    const eq = vi.fn().mockResolvedValue({ error: null });
-    const update = vi.fn((_values: Record<string, unknown>) => ({ eq }));
-    const from = vi.fn(() => ({ update }));
-    TestBed.configureTestingModule({
-      providers: [{ provide: SupabaseService, useValue: { client: { from } } }],
-    });
-    await TestBed.inject(VintedFeedSourcesService).requestCategoryRefresh();
-    expect(from).toHaveBeenCalledWith('vinted_category_syncs');
-    expect(Object.keys(update.mock.calls[0][0])).toEqual(['requested_at']);
-    expect(eq).toHaveBeenCalledWith('id', 1);
   });
 });
