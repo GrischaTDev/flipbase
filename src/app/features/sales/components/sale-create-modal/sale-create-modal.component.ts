@@ -579,6 +579,32 @@ export class SaleCreateModalComponent {
     this.formValue();
     return this.lines.controls.some((line) => !!line.controls.target.value);
   });
+  readonly freePurchaseLines = computed(() => {
+    this.formValue();
+    return this.externalDraft() ? [] : this.lines.controls.filter((line) => this.isFreeLine(line));
+  });
+  readonly purchaseSummary = computed(() => {
+    this.formValue();
+    const references = this.purchaseReferences();
+    const sale = this.sale();
+    const hasLinkedPurchase =
+      !!sale?.lines?.some(
+        (line) => line.purchase_id || line.catalog_product_id || line.inventory_item_id,
+      ) ||
+      !!sale?.inventory_item_id ||
+      this.lines.controls.some((line) => {
+        const target = line.controls.target.value;
+        return this.isFreeLine(line)
+          ? !!references.get(line)
+          : /^(inventory|catalog):.+/.test(target);
+      });
+
+    if (!this.shopActive()) return hasLinkedPurchase ? 'linked' : 'hidden';
+    const hasUnlinkedVintedLine =
+      this.showVintedStockLinks() &&
+      this.lines.controls.some((line) => !line.controls.target.value);
+    return hasLinkedPurchase && !hasUnlinkedVintedLine ? 'linked' : 'unlinked';
+  });
   readonly versandAuswahl = computed<SelectOption<ShippingFormMode>[]>(() => {
     this.formValue();
     const options: SelectOption<ShippingFormMode>[] = [...this.versandOptionen];

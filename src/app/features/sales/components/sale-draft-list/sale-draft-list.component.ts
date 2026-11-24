@@ -11,6 +11,7 @@ import { LucidePencil, LucideTrash2 } from '@lucide/angular';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
+import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { isVintedSaleDraftCancelled, type SaleDraft } from '../../models/sale-draft.models';
@@ -19,8 +20,9 @@ import { SaleDraftService } from '../../services/sale-draft.service';
 /** Offene Verkaufsentwürfe in der Verkaufsübersicht; sie zählen noch nicht als Verkauf. */
 @Component({
   selector: 'app-sale-draft-list',
-  imports: [CurrencyPipe, DatePipe, CardComponent, TableActionButtonComponent],
+  imports: [CurrencyPipe, DatePipe, CardComponent, DataTableComponent, TableActionButtonComponent],
   templateUrl: './sale-draft-list.component.html',
+  host: { class: 'block empty:hidden' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SaleDraftListComponent {

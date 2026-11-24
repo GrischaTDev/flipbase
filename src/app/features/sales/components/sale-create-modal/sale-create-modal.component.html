@@ -115,15 +115,6 @@
                                   validationAttempted() && line.controls.target.invalid
                                 "
                               />
-                              @if (!externalDraft()) {
-                                <app-custom-select
-                                  label="Einkauf"
-                                  ariaLabel="Einkauf zuordnen"
-                                  [options]="purchaseOptions()"
-                                  [value]="purchaseReferences().get(line) || ''"
-                                  (valueChange)="setPurchaseReference(line, $event)"
-                                />
-                              }
                             } @else if (
                               !legacyReconciliation() &&
                               !istBearbeitung() &&
@@ -626,67 +617,20 @@
               {{ grossRevenue() | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
             </dd>
           </div>
-          <div class="flex items-baseline justify-between gap-4">
-            <dt class="text-fb-text-secondary" [title]="salesHelp.purchaseCosts">
-              {{ salesLabels.purchaseCosts }}
-            </dt>
-            <dd class="min-w-0 text-right">
-              <span class="tabular-nums">
-                @if (metrics.costOfGoods === null) {
+          @if (purchaseSummary() !== 'hidden') {
+            <div class="flex items-baseline justify-between gap-4" data-sale-purchase-summary>
+              <dt class="text-fb-text-secondary" [title]="salesHelp.purchaseCosts">Einkauf</dt>
+              <dd class="min-w-0 text-right tabular-nums">
+                @if (purchaseSummary() === 'unlinked') {
+                  Noch nicht verknüpft
+                } @else if (metrics.costOfGoods === null) {
                   Kosten prüfen
                 } @else {
                   {{ metrics.costOfGoods | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
                 }
-              </span>
-              @if (showVintedStockLinks()) {
-                <div class="mt-1 space-y-2">
-                  @for (line of lines.controls; track line; let index = $index) {
-                    @let hasTargetError = validationAttempted() && line.controls.target.invalid;
-                    <div
-                      role="group"
-                      [attr.aria-label]="'Bestandszuordnung für ' + articleTitle(line)"
-                      [attr.aria-describedby]="hasTargetError ? 'target-error-' + index : null"
-                    >
-                      @if (lines.length > 1) {
-                        <p class="break-words text-xs text-fb-text-secondary">
-                          {{ articleTitle(line) }}
-                        </p>
-                      }
-                      <app-button
-                        variant="plain"
-                        size="slim"
-                        [ariaLabel]="
-                          line.controls.target.value
-                            ? 'Verknüpfung ändern – ' + articleTitle(line)
-                            : 'Artikel verknüpfen – ' + articleTitle(line)
-                        "
-                        [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
-                        [attr.data-sale-target-invalid]="hasTargetError"
-                        (clicked)="openArticlePicker(index)"
-                      >
-                        {{
-                          line.controls.target.value ? 'Verknüpfung ändern' : 'Artikel verknüpfen'
-                        }}
-                      </app-button>
-                      @if (hasTargetError) {
-                        <p
-                          [id]="'target-error-' + index"
-                          role="alert"
-                          class="text-xs text-fb-critical"
-                        >
-                          {{
-                            line.controls.target.value
-                              ? 'Der verknüpfte Bestandsartikel ist nicht verfügbar.'
-                              : 'Bestandsartikel für die Buchung fehlt.'
-                          }}
-                        </p>
-                      }
-                    </div>
-                  }
-                </div>
-              }
-            </dd>
-          </div>
+              </dd>
+            </div>
+          }
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-fb-text-secondary" [title]="salesHelp.sellingCosts">
               {{ salesLabels.sellingCosts }}
@@ -725,6 +669,77 @@
           </div>
         </dl>
       </app-card>
+
+      @if (showVintedStockLinks() || freePurchaseLines().length) {
+        <app-card
+          title="Einkauf zuordnen"
+          padding="md"
+          rounded="xl"
+          [overflowVisible]="true"
+          data-sale-purchase-assignment
+          role="region"
+          aria-label="Einkauf zuordnen"
+        >
+          <div class="space-y-3">
+            @if (showVintedStockLinks()) {
+              <p class="fb-field-label">Bestandsartikel (Pflichtfeld)</p>
+              @for (line of lines.controls; track line; let index = $index) {
+                @let hasTargetError = validationAttempted() && line.controls.target.invalid;
+                <div
+                  role="group"
+                  [attr.aria-label]="
+                    'Bestandszuordnung für ' + articleTitle(line) + ' (Pflichtfeld)'
+                  "
+                  [attr.aria-describedby]="hasTargetError ? 'target-error-' + index : null"
+                >
+                  @if (lines.length > 1) {
+                    <p class="break-words text-xs text-fb-text-secondary">
+                      {{ articleTitle(line) }}
+                    </p>
+                  }
+                  <app-button
+                    variant="secondary"
+                    size="slim"
+                    [ariaLabel]="
+                      line.controls.target.value
+                        ? 'Verknüpfung ändern – ' + articleTitle(line)
+                        : 'Artikel verknüpfen – ' + articleTitle(line)
+                    "
+                    [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
+                    [attr.data-sale-target-invalid]="hasTargetError"
+                    (clicked)="openArticlePicker(index)"
+                  >
+                    {{ line.controls.target.value ? 'Verknüpfung ändern' : 'Artikel verknüpfen' }}
+                  </app-button>
+                  @if (hasTargetError) {
+                    <p [id]="'target-error-' + index" role="alert" class="text-xs text-fb-critical">
+                      {{
+                        line.controls.target.value
+                          ? 'Der verknüpfte Bestandsartikel ist nicht verfügbar.'
+                          : 'Bestandsartikel für die Buchung fehlt.'
+                      }}
+                    </p>
+                  }
+                </div>
+              }
+            } @else {
+              @for (line of freePurchaseLines(); track line; let index = $index) {
+                @let label =
+                  lines.length > 1
+                    ? 'Einkauf für ' + (freeTitle(line) || 'Position ' + (index + 1))
+                    : 'Einkauf';
+                <app-custom-select
+                  [label]="label"
+                  [ariaLabel]="lines.length > 1 ? label : 'Einkauf zuordnen'"
+                  [options]="purchaseOptions()"
+                  [value]="purchaseReferences().get(line) || ''"
+                  (valueChange)="setPurchaseReference(line, $event)"
+                />
+              }
+            }
+          </div>
+        </app-card>
+      }
 
       <app-card title="Verkaufsdetails" padding="md" rounded="xl" [overflowVisible]="true">
         <div class="space-y-4">

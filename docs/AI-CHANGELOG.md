@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-24 - Juna - Einkaufszuordnung und Tabelle für Verkaufsentwürfe
+
+Die Einkaufszuordnung steht in einer eigenen Box unter der Verkaufsübersicht. Ohne Shop ist ein Einkauf optional und die Kennzahl erscheint ab der Verknüpfung. Mit Shop zeigt der Vinted-Entwurf den fehlenden Einkauf direkt an und die Box kennzeichnet den Bestandsartikel als Pflichtfeld. Die Entwürfe haben eine eigene Tabelle mit Abstand zur Verkaufstabelle.
+
 ## 2026-11-24 - Juna - Artikelzuordnung im Vinted-Verkaufsentwurf
 
 Die Aktion zum Verknüpfen eines Bestandsartikels steht bei den Einkaufskosten. Fehlt die Zuordnung beim Buchen, erscheint der Hinweis direkt bei der Aktion und der Fokus springt dorthin. Bei mehreren Positionen zeigt jede Aktion den zugehörigen Artikelnamen. Die bestehende Bestandsprüfung beim Buchen bleibt erhalten.

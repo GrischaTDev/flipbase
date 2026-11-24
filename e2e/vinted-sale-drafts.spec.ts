@@ -148,9 +148,20 @@ for (const shopEnabled of [true, false]) {
       for (const imported of imports) expect(imported.error).toBeNull();
 
       await page.goto('/sales');
-      const draft = page.locator('[data-sale-draft]').filter({ hasText: soldTitle });
+      const draftsTable = page.getByRole('table', { name: 'Verkaufsentwürfe' });
+      const draft = draftsTable.getByRole('row').filter({ hasText: soldTitle });
       await expect(draft).toHaveCount(1);
       await expect(draft).toContainText(/24,50\s*€/u);
+      const salesTable = page.getByRole('region', { name: 'Verkäufe', exact: true });
+      await expect
+        .poll(async () => {
+          const draftBounds = await page.locator('app-sale-draft-list').boundingBox();
+          const salesBounds = await salesTable.boundingBox();
+          return draftBounds && salesBounds
+            ? salesBounds.y - draftBounds.y - draftBounds.height
+            : 0;
+        })
+        .toBeGreaterThan(0);
       await draft.getByRole('link', { name: `${soldTitle} weiter bearbeiten` }).click();
       await expect(page).toHaveURL(/\/sales\/new\?draft=/u);
       await expect(page.getByRole('heading', { name: 'Verkauf erfassen' })).toBeVisible();
@@ -163,14 +174,15 @@ for (const shopEnabled of [true, false]) {
       await expect(page.getByRole('spinbutton', { name: 'Preis je Stück (€)' })).toHaveValue(
         /24[,.]5(?:0)?/u,
       );
+      const assignment = page.getByRole('region', { name: 'Einkauf zuordnen' });
       if (shopEnabled) {
+        await expect(assignment.getByText('Bestandsartikel (Pflichtfeld)')).toBeVisible();
         await expect(
-          page
-            .getByRole('region', { name: 'Kennzahlen zum Verkauf' })
-            .getByRole('button', { name: `Verknüpfung ändern – ${soldTitle}` }),
+          assignment.getByRole('button', { name: `Verknüpfung ändern – ${soldTitle}` }),
         ).toBeVisible();
       } else {
         await expect(page.getByRole('textbox', { name: 'Artikelname' })).toHaveValue(soldTitle);
+        await expect(assignment.getByRole('combobox', { name: 'Einkauf zuordnen' })).toBeVisible();
       }
 
       await page.getByRole('button', { name: 'Verkauf abschließen', exact: true }).click();
