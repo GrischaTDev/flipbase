@@ -1589,11 +1589,28 @@ describe('SaleCreateModalComponent', () => {
 
           const host = fixture.nativeElement as HTMLElement;
           const summary = host.querySelector('[data-sale-summary]');
-          const link = summary?.querySelector<HTMLButtonElement>(
+          const assignment = host.querySelector('[data-sale-purchase-assignment]');
+          const purchaseSummary = () => summary?.querySelector('[data-sale-purchase-summary]');
+          const link = assignment?.querySelector<HTMLButtonElement>(
             'button[aria-label="Artikel verknüpfen – Vinted-Pullover"]',
           );
+          expect(assignment).toBeTruthy();
+          expect(summary?.nextElementSibling).toBe(assignment);
           if (!shopEnabled) {
             expect(link).toBeNull();
+            expect(assignment?.querySelector('[role="combobox"]')?.getAttribute('aria-label')).toBe(
+              'Einkauf zuordnen',
+            );
+            expect(purchaseSummary()).toBeNull();
+
+            component.setPurchaseReference(component.lines.at(0), 'purchase-1');
+            fixture.detectChanges();
+            expect(purchaseSummary()?.querySelector('dt')?.textContent).toBe('Einkauf');
+            expect(purchaseSummary()?.textContent).toContain('Kosten prüfen');
+
+            component.setPurchaseReference(component.lines.at(0), null);
+            fixture.detectChanges();
+            expect(purchaseSummary()).toBeNull();
             await component.onSubmit();
             expect(salesService.recordSale).toHaveBeenCalledWith(
               expect.objectContaining({
@@ -1603,15 +1620,17 @@ describe('SaleCreateModalComponent', () => {
             return;
           }
 
-          expect(summary?.textContent).toContain('Einkaufskosten');
+          expect(purchaseSummary()?.querySelector('dt')?.textContent).toBe('Einkauf');
+          expect(purchaseSummary()?.textContent).toContain('Noch nicht verknüpft');
+          expect(assignment?.textContent).toContain('Bestandsartikel (Pflichtfeld)');
           expect(link?.disabled).toBe(false);
-          expect(summary?.querySelector('#target-error-0')).toBeNull();
+          expect(assignment?.querySelector('#target-error-0')).toBeNull();
           await component.onSubmit();
           fixture.detectChanges();
           await fixture.whenStable();
           expect(salesService.recordSale).not.toHaveBeenCalled();
           expect(document.activeElement).toBe(link);
-          expect(summary?.querySelector('#target-error-0')?.textContent).toContain(
+          expect(assignment?.querySelector('#target-error-0')?.textContent).toContain(
             'Bestandsartikel für die Buchung fehlt.',
           );
           expect(host.querySelector('[data-sale-line-errors] #target-error-0')).toBeNull();
@@ -1625,7 +1644,8 @@ describe('SaleCreateModalComponent', () => {
           expect(component.lines.at(0).controls.target.value).toBe('inventory:available-item');
           expect(component.lines.at(0).controls.unitSalePrice.value).toBe(25);
           expect(component.liveMetrics().costOfGoods).toBe(10);
-          expect(summary?.querySelector('#target-error-0')).toBeNull();
+          expect(purchaseSummary()?.textContent).toMatch(/10,00\s*€/u);
+          expect(assignment?.querySelector('#target-error-0')).toBeNull();
         },
       );
 

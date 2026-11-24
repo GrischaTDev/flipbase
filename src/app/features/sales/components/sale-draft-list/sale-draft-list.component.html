@@ -1,38 +1,60 @@
 @if (drafts.loadError(); as error) {
   <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
 }
-@if (visibleDrafts().length) {
-  <app-card title="Entwürfe" variant="section">
-    <ul class="divide-y divide-fb-line" aria-label="Verkaufsentwürfe">
-      @for (draft of visibleDrafts(); track draft.id) {
-        <li data-sale-draft class="flex items-center gap-3 py-2.5">
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-[13px] font-medium text-fb-text-primary">{{ draft.title }}</p>
-            <p class="text-xs text-fb-text-secondary">
-              Zuletzt bearbeitet {{ draft.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}
-              @if (isVintedSaleDraftCancelled(draft.vintedSource)) {
-                · Storniert
-              }
-            </p>
-          </div>
-          <span class="text-[13px] tabular-nums text-fb-text-primary">{{
-            (draftAmount(draft) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de') ?? '–'
-          }}</span>
-          <app-table-action-button
-            [icon]="editIcon"
-            [label]="draft.title + ' weiter bearbeiten'"
-            link="/sales/new"
-            [queryParams]="{ draft: draft.id }"
-          />
-          <app-table-action-button
-            [icon]="deleteIcon"
-            [label]="draft.title + ' löschen'"
-            tone="critical"
-            [loading]="deletingId() === draft.id"
-            (clicked)="remove(draft)"
-          />
-        </li>
-      }
-    </ul>
+@let saleDrafts = visibleDrafts();
+@if (saleDrafts.length) {
+  <app-card title="Entwürfe" variant="section" padding="none">
+    <app-data-table class="mt-3" [embedded]="true" [hasRows]="true">
+      <div table-content class="overflow-x-auto" tabindex="0" role="region" aria-label="Entwürfe">
+        <table
+          aria-label="Verkaufsentwürfe"
+          class="linear-table w-full min-w-[32rem] text-left text-sm"
+        >
+          <thead>
+            <tr>
+              <th scope="col">Entwurf</th>
+              <th scope="col">Zuletzt bearbeitet</th>
+              <th scope="col" class="text-right">Betrag</th>
+              <th scope="col" class="text-right">Aktionen</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (draft of saleDrafts; track draft.id) {
+              <tr data-sale-draft>
+                <td class="font-medium">
+                  {{ draft.title }}
+                  @if (isVintedSaleDraftCancelled(draft.vintedSource)) {
+                    <span class="block text-xs font-normal text-fb-text-secondary">Storniert</span>
+                  }
+                </td>
+                <td class="whitespace-nowrap text-fb-text-secondary">
+                  {{ draft.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}
+                </td>
+                <td class="whitespace-nowrap text-right tabular-nums">
+                  {{ (draftAmount(draft) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de') ?? '-' }}
+                </td>
+                <td>
+                  <div class="flex justify-end gap-2">
+                    <app-table-action-button
+                      [icon]="editIcon"
+                      [label]="draft.title + ' weiter bearbeiten'"
+                      link="/sales/new"
+                      [queryParams]="{ draft: draft.id }"
+                    />
+                    <app-table-action-button
+                      [icon]="deleteIcon"
+                      [label]="draft.title + ' löschen'"
+                      tone="critical"
+                      [loading]="deletingId() === draft.id"
+                      (clicked)="remove(draft)"
+                    />
+                  </div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    </app-data-table>
   </app-card>
 }
