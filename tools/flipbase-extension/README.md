@@ -1,6 +1,11 @@
 # Flipbase Listing-Assistent
 
-## Aktuell: Version 1.14.8
+## Aktuell: Version 1.14.9
+
+Vinted-Bildnachrichten werden anhand der Antwort auf den Versand bestätigt,
+auch wenn der Gesprächsverlauf noch nicht aktualisiert ist.
+
+## Version 1.14.8
 
 Die Erweiterung erkennt die neue Kontokennung auf „Meine Anzeigen“ und kann
 den Anzeigenbestand vor dem erneuten Inserieren wieder prüfen.

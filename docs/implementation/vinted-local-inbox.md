@@ -159,21 +159,20 @@ und keinen echten Versand. Die vollständige Historie wird weiterhin nicht
 behauptet; der kompakte Synchronisierungsstatus nennt den letzten übernommenen
 Stand. Fragen-/Verhandlungsfilter nutzen vorhandene Text- und Statusmerkmale.
 
-Der Bildversand hat noch keinen im Echtkonto belegten Bestätigungsvertrag.
-Nach einem einzelnen Versandversuch bleibt das Ergebnis deshalb gegebenenfalls
-`outcome_unknown`; die Oberfläche weist vor dem Senden darauf hin. Nach dem
-Rollout prüfen wir eine bewusst freigegebene Text-/Bildnachricht und den
-Lesestatus beim bewussten Öffnen eines ungelesenen Gesprächs.
+Cloud und Erweiterung ab Version 1.14.9 werten die Antwort auf den konkreten
+Versand aus. Enthält sie eine neue eigene Nachricht mit bestätigtem Bild,
+übernimmt Flipbase deren Nachrichtenkennung. Bei fehlendem Beleg bleibt der
+Versand unklar. Ältere unklare Versandeinträge lassen sich nach Sichtprüfung
+im Browser ausblenden.
 
 Am 08.10.2026 um 23:52 Uhr wurde ein ausdrücklich freigegebenes Flipbase-Testlogo
 von Maike Vintage an wiehenvintage genau einmal über Cloud versendet. Text und
 Bild sind beim Empfänger auf Vinted sichtbar. Der Cloudauftrag bleibt dennoch
 `outcome_unknown` / `reply_unconfirmed`; er wurde nicht wiederholt. Die beobachtete
 `legacy_reply` enthält Bildadressen in `data.entity.photos`, aber keine temporäre
-Uploadkennung. Der Cloudimport übernimmt diese Foto-Entity jetzt in das bestehende
-`imageUrls`-Feld, auch bei reinen Bildnachrichten. Diese Importkorrektur ist noch
-nicht veröffentlicht. Der sichtbare Empfang ersetzt weiterhin keinen automatischen
-Nachweis der Zuordnung zum konkreten Upload.
+Uploadkennung. Der Cloudimport übernimmt die Fotos in das bestehende
+`imageUrls`-Feld, auch bei reinen Bildnachrichten. Der spätere Verlauf kann allein
+keinen konkreten alten Bildauftrag bestätigen.
 
 Die folgenden Abschnitte dokumentieren den vorherigen lesenden Pilot 1.2.0.
 

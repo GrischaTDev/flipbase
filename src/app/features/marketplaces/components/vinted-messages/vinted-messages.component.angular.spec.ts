@@ -1141,6 +1141,13 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
           text: 'Hier das Bild',
           imageUrls: ['https://images.example.org/message.jpg'],
         },
+        {
+          id: 'message-image-only',
+          title: 'Message',
+          text: null,
+          messageType: 'message',
+          imageUrls: ['https://images.example.org/image-only.jpg'],
+        },
       ]),
     );
     const fixture = await render();
@@ -1163,6 +1170,12 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(
       fixture.nativeElement.querySelector('img[src="https://images.example.org/message.jpg"]'),
     ).not.toBeNull();
+    const imageOnly = fixture.nativeElement.querySelector(
+      '[data-message-row="message-image-only"]',
+    );
+    expect(imageOnly.querySelector('img')).not.toBeNull();
+    expect(imageOnly.textContent).not.toContain('Message');
+    expect(fixture.nativeElement.textContent).toContain('Hier das Bild');
   });
   it('sucht in echten Gesprächsdaten und filtert ungelesene Gespräche', async () => {
     const fixture = await render();
@@ -1282,6 +1295,64 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('[data-queue-state="sent"]')).not.toBeNull();
   });
+  it('lädt den Verlauf nach der Bestätigung zweier Bilder einmal und ersetzt die Versandplätze', async () => {
+    api.listConnections.mockResolvedValue({
+      canManage: true,
+      connections: [{ ...accounts[0], executionMode: 'local' }],
+    });
+    let imported = false;
+    api.readPage.mockImplementation(async (scope: AccountScope) =>
+      messages(
+        scope,
+        imported
+          ? ['81', '82'].map((id) => ({
+              id: `image-${id}`,
+              externalId: id,
+              title: 'Message',
+              direction: 'outbound',
+              text: null,
+              messageType: 'message',
+              imageUrls: [`https://images.example.org/${id}.jpg`],
+            }))
+          : [],
+      ),
+    );
+    const fixture = await render();
+    button(fixture, 'Anfrage zum Schal').click();
+    await settle(fixture);
+    local.openInboxConversation.mockImplementation(async () => {
+      imported = true;
+      return detailResult;
+    });
+    const queued = ['81', '82'].map((id): LocalQueuedMessage => ({
+      id: `queue-${id}`,
+      requestId: `request-${id}`,
+      conversationId: 'conversation-1',
+      text: null,
+      state: 'sending',
+      createdAt: '2026-11-24T12:00:00Z',
+      updatedAt: '2026-11-24T12:00:05Z',
+      externalMessageId: null,
+      errorCode: null,
+      attachment: { name: `bild-${id}.png`, mimeType: 'image/png' },
+    }));
+    messaging.messages.set(queued);
+    await settle(fixture);
+    expect(fixture.nativeElement.querySelectorAll('[data-queue-state="sending"]')).toHaveLength(2);
+    messaging.messages.set(
+      queued.map((message, index) => ({
+        ...message,
+        state: 'sent',
+        externalMessageId: String(81 + index),
+      })),
+    );
+    await settle(fixture);
+    expect(local.openInboxConversation).toHaveBeenCalledTimes(2);
+    expect(
+      fixture.nativeElement.querySelectorAll('a[aria-label="Nachrichtenbild öffnen"]'),
+    ).toHaveLength(2);
+    expect(fixture.nativeElement.querySelectorAll('[data-queue-state]')).toHaveLength(0);
+  });
   it('zeigt eine bereits im Verlauf stehende Nachricht nicht zusätzlich als wartend an', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,
@@ -1375,7 +1446,7 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     expect(dialog.frage).not.toHaveBeenCalled();
     expect(messaging.retry).not.toHaveBeenCalled();
   });
-  it('begrenzt den Dateinamen und erklärt vor dem Senden die fehlende Bildbestätigung', async () => {
+  it('begrenzt den Dateinamen und zeigt die Bildvorschau vor dem Senden', async () => {
     api.listConnections.mockResolvedValue({
       canManage: true,
       connections: [{ ...accounts[0], executionMode: 'local' }],
@@ -1395,9 +1466,9 @@ describe('Kompakter gespeicherter Vinted-Gesprächsbereich', () => {
     await settle(fixture);
     expect([...(fixture.componentInstance.attachment()?.name ?? '')]).toHaveLength(120);
     expect(fixture.componentInstance.attachment()?.name).toMatch(/\.png$/u);
-    expect(fixture.nativeElement.querySelector('[role="note"]')?.textContent).toContain(
-      'nicht zuverlässig bestätigt',
-    );
+    expect(
+      fixture.nativeElement.querySelector('img[alt="Bildvorschau vor dem Senden"]'),
+    ).not.toBeNull();
     expect(messaging.send).not.toHaveBeenCalled();
   });
   it('weist überlange Texte ab und verwirft Entwürfe bei Kontowechsel', async () => {

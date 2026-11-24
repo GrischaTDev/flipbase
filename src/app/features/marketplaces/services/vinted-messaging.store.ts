@@ -17,6 +17,7 @@ export class VintedMessagingStore {
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly storedMessages = signal<readonly LocalQueuedMessage[]>([]);
+  private readonly dismissedImageIds = signal<readonly string[]>([]);
   private readonly sending = signal(false);
   private readonly failure = signal<string | null>(null);
   private readonly readFailure = signal<string | null>(null);
@@ -52,6 +53,9 @@ export class VintedMessagingStore {
     this.current()
       ? this.storedMessages().filter(
           (message) =>
+            !(
+              message.state === 'outcome_unknown' && this.dismissedImageIds().includes(message.id)
+            ) &&
             !(
               message.state === 'cancelled' &&
               ['retried', 'original_sent'].includes(message.errorCode ?? '')
@@ -94,6 +98,7 @@ export class VintedMessagingStore {
         this.readRevision++;
         this.loadedContext.set(context);
         this.storedMessages.set([]);
+        this.dismissedImageIds.set(this.readDismissedImages(context));
         this.sending.set(false);
         this.failure.set(null);
         this.readFailure.set(null);
@@ -125,6 +130,42 @@ export class VintedMessagingStore {
       this.intents.clear();
     });
   }
+  dismissUnconfirmedImage(messageId: string): void {
+    const context = this.context();
+    if (
+      !context ||
+      !this.current() ||
+      !this.messages().some(
+        (message) =>
+          message.id === messageId && message.attachment && message.state === 'outcome_unknown',
+      )
+    )
+      return;
+    const ids = [...this.readDismissedImages(context), ...this.dismissedImageIds(), messageId];
+    const dismissed = [...new Set(ids)].slice(-100);
+    this.dismissedImageIds.set(dismissed);
+    try {
+      localStorage.setItem(
+        `flipbase:vinted:dismissed-image-sends:${context}`,
+        JSON.stringify(dismissed),
+      );
+    } catch {
+      // Die Anzeige funktioniert auch bei blockiertem Browserspeicher für diese Sitzung.
+    }
+  }
+
+  private readDismissedImages(context: string | null): string[] {
+    if (!context) return [];
+    try {
+      const ids: unknown = JSON.parse(
+        localStorage.getItem(`flipbase:vinted:dismissed-image-sends:${context}`) ?? '[]',
+      );
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
   private matches(scope: AccountScope, conversationId: string): boolean {
     const account = this.accounts.selectedConnection();
     return (
@@ -215,14 +256,7 @@ export class VintedMessagingStore {
         ...messages.filter((message) => message.id !== queued.id),
         queued,
       ]);
-      // Ein Wecksignal bestätigt nur den Auftrag; es ersetzt keine Versandbestätigung.
-      if (
-        this.accounts.selectedConnection()?.executionMode === 'local' &&
-        this.local.canUseBrowserProfile()
-      )
-        void this.bridge
-          .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
-          .catch(() => undefined);
+      this.wakeLocalDispatcher(scope, conversationId, attachment !== null, valid);
       return true;
     } catch {
       if (valid())
@@ -270,13 +304,7 @@ export class VintedMessagingStore {
         ...messages.filter((entry) => entry.id !== messageId && entry.id !== queued.id),
         queued,
       ]);
-      if (
-        this.accounts.selectedConnection()?.executionMode === 'local' &&
-        this.local.canUseBrowserProfile()
-      )
-        void this.bridge
-          .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
-          .catch(() => undefined);
+      this.wakeLocalDispatcher(scope, conversationId, message.attachment !== null, valid);
       return true;
     } catch {
       if (valid())
@@ -288,6 +316,34 @@ export class VintedMessagingStore {
       if (valid()) this.sending.set(false);
     }
   }
+  private wakeLocalDispatcher(
+    scope: AccountScope,
+    conversationId: string,
+    refreshAfterSend: boolean,
+    isCurrent: () => boolean,
+  ): void {
+    if (
+      this.accounts.selectedConnection()?.executionMode !== 'local' ||
+      !this.local.canUseBrowserProfile()
+    )
+      return;
+    void this.bridge
+      .request('FLIPBASE_VINTED_LOCAL_MESSAGES_SEND', scope)
+      .then((result) => {
+        // Auch nach Rückmeldung der Erweiterung gilt der gespeicherte Versandstatus.
+        if (
+          refreshAfterSend &&
+          isCurrent() &&
+          result &&
+          typeof result === 'object' &&
+          'outcome' in result
+        )
+          return this.load(scope, conversationId);
+        return undefined;
+      })
+      .catch(() => undefined);
+  }
+
   private async ensureSendPermission(
     scope: AccountScope,
     isCurrent: () => boolean,

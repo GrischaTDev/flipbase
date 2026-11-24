@@ -483,27 +483,45 @@
                     >{{ queued.createdAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</time
                   >
                 </p>
-                @if (canRetryMessage(queued)) {
-                  <app-button
-                    bubble-action
-                    class="shrink-0"
-                    size="slim"
-                    [icon]="retryIcon"
-                    [iconOnly]="true"
-                    [ariaLabel]="
-                      queued.state === 'outcome_unknown'
-                        ? 'Versand prüfen und wiederholen'
-                        : 'Nachricht erneut senden'
-                    "
-                    [title]="
-                      queued.state === 'outcome_unknown'
-                        ? 'Versand prüfen und wiederholen'
-                        : 'Nachricht erneut senden'
-                    "
-                    [loading]="retryingMessageId() === queued.id"
-                    [disabled]="messaging.busy() || local.busy() || retryingMessageId() !== null"
-                    (clicked)="retryMessage(queued)"
-                  />
+                @if (queued.attachment || canRetryMessage(queued)) {
+                  <div bubble-action class="flex shrink-0 gap-1">
+                    <app-button
+                      size="slim"
+                      [class.invisible]="!canRetryMessage(queued)"
+                      [icon]="retryIcon"
+                      [iconOnly]="true"
+                      [ariaLabel]="
+                        queued.state === 'outcome_unknown'
+                          ? 'Versand prüfen und wiederholen'
+                          : 'Nachricht erneut senden'
+                      "
+                      [title]="
+                        queued.state === 'outcome_unknown'
+                          ? 'Versand prüfen und wiederholen'
+                          : 'Nachricht erneut senden'
+                      "
+                      [loading]="retryingMessageId() === queued.id"
+                      [disabled]="
+                        !canRetryMessage(queued) ||
+                        messaging.busy() ||
+                        local.busy() ||
+                        retryingMessageId() !== null
+                      "
+                      (clicked)="retryMessage(queued)"
+                    />
+                    @if (queued.attachment) {
+                      <app-button
+                        size="slim"
+                        [class.invisible]="!canDismissImageSend(queued)"
+                        [icon]="dismissIcon"
+                        [iconOnly]="true"
+                        ariaLabel="Unklaren Versandeintrag ausblenden"
+                        title="Unklaren Versandeintrag ausblenden"
+                        [disabled]="!canDismissImageSend(queued) || retryingMessageId() !== null"
+                        (clicked)="dismissImageSend(queued)"
+                      />
+                    }
+                  </div>
                 }
               </app-vinted-chat-pending-bubble>
             }
@@ -559,16 +577,6 @@
               @if (messaging.error() ?? composerError(); as error) {
                 <p role="alert" class="text-[13px] text-fb-text-secondary">{{ error }}</p>
               }
-              @if (hasPendingMessages()) {
-                <p role="status" class="text-xs text-fb-text-secondary">
-                  Deine Nachricht wartet auf den Versand.
-                  @if (store.selectedConnection()?.executionMode === 'cloud') {
-                    Die Cloud sendet sie beim nächsten Durchlauf.
-                  } @else {
-                    Die Erweiterung sendet sie beim nächsten Durchlauf.
-                  }
-                </p>
-              }
               @if (attachmentPreview(); as preview) {
                 <div class="flex items-center gap-3">
                   <img
@@ -587,10 +595,6 @@
                     (clicked)="clearAttachment()"
                   />
                 </div>
-                <p class="text-xs text-fb-text-secondary" role="note">
-                  Der Bildversand kann derzeit nicht zuverlässig bestätigt werden. Prüfe danach auf
-                  Vinted, ob Dein Bild angekommen ist, bevor Du es erneut sendest.
-                </p>
               }
               <div class="flex items-end gap-2">
                 <input

@@ -1764,7 +1764,7 @@ test('Website bridge checks source and origin, preserves request correlation and
   assert.equal(replies.at(-1).origin, appOrigin);
   assert.ok(!JSON.stringify(replies).includes(secret));
   const announcement = replies.findLast(({ reply }) => reply.type === 'FLIPBASE_EXTENSION_STATUS');
-  assert.equal(announcement.reply.version, '1.14.8');
+  assert.equal(announcement.reply.version, '1.14.9');
   assert.equal(announcement.reply.localAccount.boundUsername, 'maike');
   assert.equal(announcement.reply.localAccount.boundConnectionId, connectionId);
 });
@@ -1972,7 +1972,7 @@ test('Manifest narrows application and provider access and keeps Kleinanzeigen a
     script.matches.includes('https://www.vinted.de/*'),
   );
   assert.equal(vintedContent.js.at(-1), 'vinted-local-account.js');
-  assert.equal(manifest.version, '1.14.8');
+  assert.equal(manifest.version, '1.14.9');
   assert.ok(
     manifest.content_scripts.some(
       (script) =>
@@ -4034,6 +4034,54 @@ test('Image send validates binary signature and uploads and posts at most once',
   );
   assert.deepEqual(writes, ['/api/v2/photos', '/api/v2/conversations/51/replies']);
   assert.equal(result.outcome, 'outcome_unknown');
+});
+
+test('Two image replies are confirmed by their own reply IDs while the conversation still lags', async () => {
+  const attachment = {
+    name: 'test.png',
+    mimeType: 'image/png',
+    base64: 'iVBORw0KGgo=',
+  };
+  let replied = 0;
+  let detailReads = 0;
+  const adapter = {
+    csrf: 'synthetic-token',
+    read: async (path) => {
+      if (path.endsWith('/current')) return profile;
+      detailReads++;
+      return { conversation: { id: 51, messages: [] } };
+    },
+    write: async (path) => {
+      if (path === '/api/v2/photos') return { photo_temp_uuid: anotherId };
+      assert.equal(path, '/api/v2/conversations/51/replies');
+      replied++;
+      return {
+        code: 0,
+        data: {
+          entity_type: 'message',
+          entity: {
+            id: 60 + replied,
+            user_id: 123,
+            body: '',
+            photos: [
+              { id: 90 + replied, url: 'https://images.vinted.net/test.jpg', temp_uuid: null },
+            ],
+          },
+        },
+      };
+    },
+  };
+  const command = { externalConversationId: '51', text: null, attachment };
+  assert.deepEqual(await messages.send(adapter, '123', command), {
+    outcome: 'sent',
+    externalMessageId: '61',
+  });
+  assert.deepEqual(await messages.send(adapter, '123', command), {
+    outcome: 'sent',
+    externalMessageId: '62',
+  });
+  assert.equal(replied, 2);
+  assert.equal(detailReads, 2);
 });
 
 test('Background recreates missing Chrome alarm on startup and uses automatic scoped requests', async () => {

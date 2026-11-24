@@ -4,6 +4,10 @@
 
 Die Live-Suche und beide Preisfilter verwenden die gemeinsamen Formularbausteine. Titel- und Markensuche, Preisgrenzen und das Zurücksetzen greifen weiterhin direkt auf die geöffneten Feed-Karten zu.
 
+## 2026-11-24 - Juna - Versandstatus von Vinted-Bildern korrigieren
+
+Cloud und Browser-Erweiterung bestätigen Bildnachrichten anhand der Vinted-Antwort auf den konkreten Versand. Flipbase lädt danach den geöffneten Verlauf bei Bedarf nach und zeigt bestätigte Bilder nur einmal. Reine Bildnachrichten zeigen keinen Ersatztitel. Ältere unklare Bildversandeinträge lassen sich nach Sichtprüfung im jeweiligen Browser ausblenden.
+
 ## 2026-11-24 - Juna - Einheitlicher Vinted-Kategoriebaum und dynamisches Feed-Spalten-Grid
 
 **Anlass:** Die Anwendung pflegte bisher zwei getrennte Vinted-Kategorie-Stellen (einen öffentlichen Startseiten-Abruf im Sniper unter _Systemzustand → Vinted-Quellen_ sowie den zentralen _Vinted-Katalog_ für Inserate). Außerdem zeigten im Widescreen-Modus nebeneinander laufende Feeds maximal zwei Artikelkarten je Zeile statt mindestens drei Kacheln und wuchsen bei größeren Fenstern nicht mit. Zudem fehlte im Feed ein sichtbarer Hinweis, wenn sich eine gespeicherte Vinted-Kategorie nach einer Katalog-Aktualisierung geändert hat.

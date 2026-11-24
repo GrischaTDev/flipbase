@@ -101,6 +101,66 @@ describe('Vinted-Versandzustand', () => {
     expect(approve).toHaveBeenCalledOnce();
     expect(store.messages()[0].state).toBe('queued');
   });
+  it('liest den gespeicherten Bildversand gleich nach Abschluss in der Erweiterung', async () => {
+    const attachment = { name: 'test.png', mimeType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+    const queued = { id: 'image-send', conversationId, attachment, state: 'queued' };
+    const sent = { ...queued, externalMessageId: '81', state: 'sent' };
+    const request = vi.mocked(TestBed.inject(VintedLocalExtensionBridge).request);
+    let finish: (result: unknown) => void = () => undefined;
+    request.mockReturnValue(
+      new Promise((resolve) => {
+        finish = resolve;
+      }),
+    );
+    api.enqueue.mockResolvedValue(queued);
+    TestBed.tick();
+    await store.load(scope, conversationId);
+    expect(await store.send(scope, conversationId, '', attachment)).toBe(true);
+    expect(store.messages()).toEqual([queued]);
+    api.read.mockResolvedValue([sent]);
+    finish({ outcome: 'sent' });
+    await vi.waitFor(() => expect(store.messages()).toEqual([sent]));
+  });
+  it('blendet genau einen unklaren Bildversand für denselben Nutzer auch nach dem Neuladen aus', async () => {
+    const image = {
+      id: 'dismissed-image',
+      requestId: 'image-request',
+      conversationId,
+      text: null,
+      state: 'outcome_unknown',
+      createdAt: '2026-11-24T12:00:00Z',
+      updatedAt: '2026-11-24T12:00:05Z',
+      externalMessageId: null,
+      errorCode: 'reply_unconfirmed',
+      attachment: { name: 'test.png', mimeType: 'image/png' },
+    } satisfies LocalQueuedMessage;
+    const second = { ...image, id: 'second-image' };
+    api.read.mockResolvedValue([image, second]);
+    try {
+      TestBed.tick();
+      await vi.waitFor(() => expect(store.messages()).toEqual([image, second]));
+      store.dismissUnconfirmedImage(image.id);
+      expect(store.messages()).toEqual([second]);
+      user.set({ id: 'other-user' });
+      TestBed.tick();
+      await vi.waitFor(() => expect(store.messages()).toEqual([image, second]));
+      user.set({ id: 'user' });
+      TestBed.tick();
+      await vi.waitFor(() => expect(store.messages()).toEqual([second]));
+      expect(api.retry).not.toHaveBeenCalled();
+    } finally {
+      localStorage.removeItem(
+        `flipbase:vinted:dismissed-image-sends:${JSON.stringify([
+          'user',
+          scope.workspaceId,
+          scope.connectionId,
+          'local',
+          null,
+          conversationId,
+        ])}`,
+      );
+    }
+  });
   it('erlaubt Cloudversand beim bewussten Senden ohne weiteren Dialog und weckt keine Erweiterung', async () => {
     account.set({
       ...scope,

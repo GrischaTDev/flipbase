@@ -217,19 +217,48 @@ export async function sendVintedMessage(
       temporaryPhotos = [temporaryId];
     }
     await identity();
-    await request(`/api/v2/conversations/${command.externalConversationId}/replies`, { csrf });
+    const reply = record(
+      await request(`/api/v2/conversations/${command.externalConversationId}/replies`, { csrf }),
+    );
     replyAccepted = true;
     await identity();
+    if (command.attachment) {
+      // Die Antwort auf diesen POST bindet die Bildnachricht an den Auftrag.
+      // Im späteren Verlauf fehlt die temporäre Uploadkennung.
+      const data = record(reply.data);
+      const entity = record(data.entity);
+      const id = identifier(data.id) ?? identifier(entity.id);
+      if (
+        (reply.code === undefined || reply.code === 0) &&
+        id &&
+        !baseline.has(id) &&
+        identifier(entity.user_id) === accountId &&
+        (entity.body ?? '') === command.text &&
+        entity.is_hidden !== true &&
+        Array.isArray(entity.photos) &&
+        entity.photos.some((value: unknown) => {
+          const photo = record(value);
+          return (
+            identifier(photo.id) &&
+            typeof photo.url === 'string' &&
+            photo.url.startsWith('https://') &&
+            photo.is_hidden !== true &&
+            photo.hidden_at == null
+          );
+        })
+      )
+        return { outcome: 'sent', externalMessageId: id };
+      return { outcome: 'outcome_unknown', errorCode: 'reply_unconfirmed' };
+    }
     const matches = (await messages()).flatMap((message) => {
       const row = record(message);
       const entity = record(row.entity);
       const id = identifier(row.id) ?? identifier(entity.id);
-      // Ohne belegten Bildbezug ist ein passender Text kein Versandnachweis für den Anhang.
       return id &&
         !baseline.has(id) &&
         identifier(entity.user_id) === accountId &&
         entity.body === command.text &&
-        !command.attachment
+        !(Array.isArray(entity.photos) && entity.photos.length)
         ? [id]
         : [];
     });
