@@ -27,6 +27,7 @@ import { PurchaseService } from '../../../../core/services/purchase.service';
 import { SyncStatusService } from '../../../../core/services/sync-status.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { MarketplacePlatformIdentityComponent } from '../../../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
@@ -894,6 +895,10 @@ describe('SaleCreateModalComponent', () => {
         'overflowVisible',
       ]);
       bridgeInputMetadata(
+        (MarketplacePlatformIdentityComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
+        ['platform', 'iconOnly'],
+      );
+      bridgeInputMetadata(
         (CustomSelectComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
         [
           'options',
@@ -1565,7 +1570,8 @@ describe('SaleCreateModalComponent', () => {
             updatedAt: '2026-11-24',
             vintedSource: {
               saleState: 'sold',
-              title: 'Vinted-Pullover',
+              title: 'Vinted-Originaltitel',
+              listingUrl: 'https://www.vinted.de/items/7123',
               amount: 25,
               currency: 'EUR',
               isBundle: false,
@@ -1622,7 +1628,9 @@ describe('SaleCreateModalComponent', () => {
 
           expect(purchaseSummary()?.querySelector('dt')?.textContent).toBe('Einkauf');
           expect(purchaseSummary()?.textContent).toContain('Noch nicht verknüpft');
-          expect(assignment?.textContent).toContain('Bestandsartikel (Pflichtfeld)');
+          expect(assignment?.querySelector('#sale-stock-assignment-required')?.textContent).toMatch(
+            /Bestandsartikel\s*\*/u,
+          );
           expect(link?.disabled).toBe(false);
           expect(assignment?.querySelector('#target-error-0')).toBeNull();
           await component.onSubmit();
@@ -1646,6 +1654,11 @@ describe('SaleCreateModalComponent', () => {
           expect(component.liveMetrics().costOfGoods).toBe(10);
           expect(purchaseSummary()?.textContent).toMatch(/10,00\s*€/u);
           expect(assignment?.querySelector('#target-error-0')).toBeNull();
+          const source = host.querySelector('[data-vinted-sale-source]');
+          expect(source?.textContent).toContain('Vinted-Originaltitel');
+          expect(source?.querySelector('a')?.getAttribute('href')).toBe(
+            'https://www.vinted.de/items/7123',
+          );
         },
       );
 

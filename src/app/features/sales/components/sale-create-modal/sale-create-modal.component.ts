@@ -35,6 +35,7 @@ import {
 } from '@angular/forms';
 import { toSignal } from '@angular/core/rxjs-interop';
 import {
+  LucideExternalLink as ExternalLink,
   LucidePlus as Plus,
   LucideSearch as Search,
   LucideTrendingUp as TrendingUp,
@@ -63,6 +64,7 @@ import {
 import { DatePickerComponent } from '../../../../shared/components/date-picker/date-picker.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { MarketplacePlatformIdentityComponent } from '../../../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { TableActionButtonComponent } from '../../../../shared/components/table-action-button/table-action-button.component';
 import { TwoColumnLayoutComponent } from '../../../../shared/components/two-column-layout/two-column-layout.component';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
@@ -106,6 +108,7 @@ type ShippingFormMode = ShippingMode | 'unknown';
     DatePickerComponent,
     ButtonComponent,
     CardComponent,
+    MarketplacePlatformIdentityComponent,
     TableActionButtonComponent,
     TwoColumnLayoutComponent,
     NumberInputComponent,
@@ -145,6 +148,7 @@ export class SaleCreateModalComponent {
     this.purchaseReferences.update((current) => new Map(current).set(line, value ?? ''));
     this.form.markAsDirty();
   }
+  readonly externalLinkIcon = ExternalLink;
   readonly salesLabels = SALES_LABELS;
   readonly salesHelp = SALES_HELP;
   readonly saleTarget = input<SaleTarget | null>(null);

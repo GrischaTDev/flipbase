@@ -60,7 +60,50 @@ export class SaleDraftService {
       .eq('id', id)
       .maybeSingle();
     if (error) throw new Error('Der Verkaufsentwurf konnte nicht geladen werden.');
-    return data ? toSaleDraft(data) : null;
+    const draft = data ? toSaleDraft(data) : null;
+    const source = draft?.vintedSource;
+    if (!draft || !source || source.isBundle || !draft.snapshot.externalOrderId) return draft;
+
+    const listingUrl = await this.findVintedListingUrl(
+      draft.workspaceId,
+      draft.snapshot.externalOrderId,
+      source.title,
+    );
+    return listingUrl ? { ...draft, vintedSource: { ...source, listingUrl } } : draft;
+  }
+
+  private async findVintedListingUrl(
+    workspaceId: string,
+    transactionId: string,
+    sourceTitle: string,
+  ): Promise<string | null> {
+    const { data, error } = await this.supabase.client
+      .from('marketplace_account_entries')
+      .select('body,marketplace_connections!inner(marketplace)')
+      .eq('workspace_id', workspaceId)
+      .eq('marketplace_connections.marketplace', 'vinted')
+      .eq('kind', 'sale')
+      .eq('external_id', transactionId)
+      .maybeSingle();
+
+    const sale = data?.body;
+    if (error || !sale || typeof sale !== 'object' || Array.isArray(sale)) return null;
+    const title = sale['title'];
+    const itemIds = sale['itemIds'];
+    if (
+      typeof title !== 'string' ||
+      title.trim().slice(0, 500) !== sourceTitle ||
+      sale['isBundle'] === true ||
+      sale['itemCount'] !== 1 ||
+      !Array.isArray(itemIds) ||
+      itemIds.length !== 1
+    )
+      return null;
+
+    const [itemId] = itemIds;
+    return typeof itemId === 'string' && /^[1-9][0-9]{0,31}$/.test(itemId)
+      ? 'https://www.vinted.de/items/' + itemId
+      : null;
   }
 
   async save(input: {

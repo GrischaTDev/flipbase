@@ -27,6 +27,26 @@
   }
   <app-two-column-layout ratio="2-1" data-testid="sale-entry-workspace">
     <div main class="space-y-4" data-testid="sale-entry-main">
+      @if (vintedSource(); as source) {
+        <app-card padding="sm" rounded="xl" data-vinted-sale-source>
+          <div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+            <div class="flex min-w-0 items-center gap-2">
+              <app-marketplace-platform-identity platform="vinted" [iconOnly]="true" />
+              <span class="min-w-0 break-words text-[13px] font-medium">{{ source.title }}</span>
+            </div>
+            @if (source.listingUrl; as listingUrl) {
+              <app-button
+                variant="plain"
+                size="slim"
+                [icon]="externalLinkIcon"
+                [href]="listingUrl"
+                target="_blank"
+                >Originalanzeige öffnen</app-button
+              >
+            }
+          </div>
+        </app-card>
+      }
       <app-card title="Verkaufspositionen" padding="md" rounded="xl">
         @if (selectionError(); as error) {
           <div class="mb-4 space-y-2">
@@ -682,15 +702,19 @@
         >
           <div class="space-y-3">
             @if (showVintedStockLinks()) {
-              <p class="fb-field-label">Bestandsartikel (Pflichtfeld)</p>
+              <p id="sale-stock-assignment-required" class="fb-field-label">
+                Bestandsartikel <span aria-hidden="true" class="text-fb-primary">*</span
+                ><span class="sr-only">, erforderlich</span>
+              </p>
               @for (line of lines.controls; track line; let index = $index) {
                 @let hasTargetError = validationAttempted() && line.controls.target.invalid;
                 <div
                   role="group"
-                  [attr.aria-label]="
-                    'Bestandszuordnung für ' + articleTitle(line) + ' (Pflichtfeld)'
+                  [attr.aria-label]="'Bestandszuordnung für ' + articleTitle(line)"
+                  [attr.aria-describedby]="
+                    'sale-stock-assignment-required' +
+                    (hasTargetError ? ' target-error-' + index : '')
                   "
-                  [attr.aria-describedby]="hasTargetError ? 'target-error-' + index : null"
                 >
                   @if (lines.length > 1) {
                     <p class="break-words text-xs text-fb-text-secondary">
@@ -820,6 +844,7 @@
     [loading]="selectionLoading() && !selectionError()"
     [errorMessage]="selectionError()"
     [selectionMode]="articlePickerLineIndex() === null ? 'multiple' : 'single'"
+    [skipSingleEntryGroup]="true"
     variantHint="Wähle die konkrete Variante oder das Einzelstück. Nur verfügbarer Bestand kann verkauft werden."
     (selected)="onArticlesSelected($event)"
     (closed)="closeArticlePicker()"

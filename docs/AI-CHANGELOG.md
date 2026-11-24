@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-24 - Juna - Vinted-Quelle in Verkaufsentwürfen anzeigen
+
+Die Entwurfstabelle verwendet „Beschreibung“ als Spaltenname und verzichtet auf eine eigene Suche. Die Bestandszuordnung kennzeichnet Pflichtangaben mit einem Stern. Einzelne verfügbare Bestandsartikel lassen sich direkt in der Artikelliste auswählen.
+
+Über den Verkaufspositionen bleibt der ursprüngliche Vinted-Titel sichtbar. Bei einer eindeutig zuordenbaren Artikelkennung aus dem Import führt ein Link zur Originalanzeige.
+
 ## 2026-11-24 - Juna - Artikelrabatte für Vinted-Favoritennachrichten
 
 Der Textbaustein `{discountPercent}` setzt den wirksamen Rabatt in Standard- und Regeltexte ein. Beim Anlegen, Bearbeiten und im Kleiderschrank lässt sich für aktivierte Favoritennachrichten ein Rabatt pro Inserat festlegen, ausgehend vom aktuellen Formularpreis oder dem zuletzt übernommenen Vinted-Preis. Ein leeres Feld verwendet den Kontostandard.

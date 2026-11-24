@@ -42,6 +42,7 @@ export interface VintedSaleDraftSource {
   readonly amount: number | null;
   readonly currency: string | null;
   readonly isBundle: boolean;
+  readonly listingUrl?: string;
 }
 
 export function isVintedSaleDraftCancelled(source: VintedSaleDraftSource | undefined): boolean {

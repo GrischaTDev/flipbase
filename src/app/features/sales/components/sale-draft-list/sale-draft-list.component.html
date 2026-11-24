@@ -4,7 +4,7 @@
 @let saleDrafts = visibleDrafts();
 @if (saleDrafts.length) {
   <app-card title="Entwürfe" variant="section" padding="none">
-    <app-data-table class="mt-3" [embedded]="true" [hasRows]="true">
+    <app-data-table class="mt-3" [embedded]="true" [toolbarVisible]="false" [hasRows]="true">
       <div table-content class="overflow-x-auto" tabindex="0" role="region" aria-label="Entwürfe">
         <table
           aria-label="Verkaufsentwürfe"
@@ -12,7 +12,7 @@
         >
           <thead>
             <tr>
-              <th scope="col">Entwurf</th>
+              <th scope="col">Beschreibung</th>
               <th scope="col">Zuletzt bearbeitet</th>
               <th scope="col" class="text-right">Betrag</th>
               <th scope="col" class="text-right">Aktionen</th>

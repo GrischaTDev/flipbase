@@ -4,6 +4,7 @@ import { createLocalAdminClient } from './support/local-supabase';
 import { createFinalizedPurchase } from './support/sample-data';
 
 const soldTitle = 'Vinted-Pullover';
+const stockTitle = 'Pullover aus dem Bestand';
 
 type AdminClient = ReturnType<typeof createLocalAdminClient>;
 
@@ -79,7 +80,7 @@ for (const shopEnabled of [true, false]) {
         await createFinalizedPurchase(workspace, {
           title: 'Vinted-Bestand',
           purchaseDate: '2026-10-01',
-          items: [{ title: soldTitle, price: 10 }],
+          items: [{ title: stockTitle, price: 10 }],
         });
         const inventory = await workspace.client
           .from('inventory_items')
@@ -149,6 +150,8 @@ for (const shopEnabled of [true, false]) {
 
       await page.goto('/sales');
       const draftsTable = page.getByRole('table', { name: 'Verkaufsentwürfe' });
+      await expect(draftsTable.getByRole('columnheader', { name: 'Beschreibung' })).toBeVisible();
+      await expect(page.locator('app-sale-draft-list [data-data-table-toolbar]')).toHaveCount(0);
       const draft = draftsTable.getByRole('row').filter({ hasText: soldTitle });
       await expect(draft).toHaveCount(1);
       await expect(draft).toContainText(/24,50\s*€/u);
@@ -174,12 +177,28 @@ for (const shopEnabled of [true, false]) {
       await expect(page.getByRole('spinbutton', { name: 'Preis je Stück (€)' })).toHaveValue(
         /24[,.]5(?:0)?/u,
       );
+      const source = page.locator('[data-vinted-sale-source]');
+      await expect(source).toContainText(soldTitle);
+      await expect(source.getByRole('link', { name: 'Originalanzeige öffnen' })).toHaveAttribute(
+        'href',
+        'https://www.vinted.de/items/' + itemId,
+      );
       const assignment = page.getByRole('region', { name: 'Einkauf zuordnen' });
       if (shopEnabled) {
-        await expect(assignment.getByText('Bestandsartikel (Pflichtfeld)')).toBeVisible();
-        await expect(
-          assignment.getByRole('button', { name: `Verknüpfung ändern – ${soldTitle}` }),
-        ).toBeVisible();
+        await expect(assignment.locator('#sale-stock-assignment-required')).toContainText(
+          /Bestandsartikel\s*\*/u,
+        );
+        await assignment
+          .getByRole('button', { name: 'Verknüpfung ändern – ' + stockTitle })
+          .click();
+        const picker = page.getByRole('dialog', { name: 'Artikel auswählen' });
+        const stock = picker.locator('[data-product-group]').filter({ hasText: stockTitle });
+        await stock.click();
+        await expect(stock).toHaveAttribute('aria-pressed', 'true');
+        await expect(picker).toBeVisible();
+        await picker.getByRole('button', { name: 'Hinzufügen (1)' }).click();
+        await expect(source).toContainText(soldTitle);
+        await expect(page.locator('[data-sale-line]')).toContainText(stockTitle);
       } else {
         await expect(page.getByRole('textbox', { name: 'Artikelname' })).toHaveValue(soldTitle);
         await expect(assignment.getByRole('combobox', { name: 'Einkauf zuordnen' })).toBeVisible();
@@ -205,7 +224,7 @@ for (const shopEnabled of [true, false]) {
           {
             position_kind: shopEnabled ? 'stock' : 'free',
             inventory_item_id: inventoryItemId,
-            title_snapshot: shopEnabled ? `${soldTitle} · Gebraucht` : soldTitle,
+            title_snapshot: shopEnabled ? stockTitle + ' · Gebraucht' : soldTitle,
           },
         ],
       });

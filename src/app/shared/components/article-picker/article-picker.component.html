@@ -140,10 +140,14 @@
       class="max-h-[min(28rem,45dvh)] divide-y divide-fb-line overflow-y-auto overscroll-contain"
     >
       @for (group of filteredGroups(); track group.id) {
+        @let entry = singleEntry(group);
+        @let selected = entry && selection().has(entry.id) && isSelectable(entry);
         <button
           type="button"
           [attr.data-product-group]="group.id"
-          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60"
+          [attr.aria-pressed]="entry ? !!selected : null"
+          [disabled]="entry ? !isSelectable(entry) : false"
+          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
           (click)="openGroup(group.id)"
         >
           <app-product-thumbnail
@@ -153,12 +157,25 @@
           <span class="min-w-0 flex-1 text-[13px]">
             <span class="block break-words font-medium">{{ group.title }}</span>
             <span class="block text-fb-text-muted">
-              {{ group.entries.length }}
-              {{ group.entries.length === 1 ? 'Variante' : 'Varianten / Einzelstücke' }} ·
+              @if (!entry) {
+                {{ group.entries.length }}
+                {{ group.entries.length === 1 ? 'Variante' : 'Varianten / Einzelstücke' }} ·
+              }
               {{ group.brand || 'Keine Marke' }}
+              @if (entry?.size; as size) {
+                · Größe {{ size }}
+              }
+              @if (entry?.color; as color) {
+                · {{ color }}
+              }
+              @if (entry?.disabledReason; as reason) {
+                · {{ reason }}
+              }
             </span>
           </span>
-          <span class="text-[13px] text-fb-text-secondary">Auswählen</span>
+          <span class="text-[13px] text-fb-text-secondary">
+            {{ selected ? 'Ausgewählt' : 'Auswählen' }}
+          </span>
         </button>
       } @empty {
         <p class="py-6 text-center text-sm text-fb-text-muted">Keine passenden Artikel gefunden.</p>
