@@ -46,10 +46,12 @@ import {
   LucideShoppingCart,
 } from '@lucide/angular';
 import { SalesService } from '../../core/services/sales.service';
+import { MediaService } from '../../core/services/media.service';
+import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
 import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
-import { Sale } from '../../core/models/flipbase.models';
+import { CatalogProductSaleMedia, Sale, SaleLine } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { CompanyDocumentError } from '../../core/models/company-document.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
@@ -92,6 +94,7 @@ function validatedSaleTargetId(value: string | null): string | null {
   selector: 'app-sales',
   imports: [
     SaleDraftListComponent,
+    ProductThumbnailComponent,
     EbaySaleDraftsComponent,
     CardComponent,
     SummaryMetricComponent,
@@ -122,6 +125,7 @@ function validatedSaleTargetId(value: string | null): string | null {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class SalesComponent {
+  private readonly media = inject(MediaService);
   readonly salePlatformAppearance = marketplacePlatformAppearance;
   readonly salesLabels = SALES_LABELS;
   readonly salesHelp = SALES_HELP;
@@ -545,6 +549,52 @@ export class SalesComponent {
 
   saleMetrics(sale: Sale): SaleMetrics {
     return this.salesService.metricsForSale(sale);
+  }
+
+  saleImagePath(sale: Sale, line: SaleLine | undefined): string | null {
+    const item =
+      line?.inventory_item ??
+      (!line || line.inventory_item_id === sale.inventory_item_id
+        ? sale.inventory_item
+        : undefined);
+    const images = (item?.media ?? []).filter(
+      (media) => !media.mime_type || media.mime_type.startsWith('image/'),
+    );
+    return (
+      images.find((media) => media.is_primary)?.storage_path ??
+      images.sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))[0]
+        ?.storage_path ??
+      this.catalogSaleImagePath(line?.catalog_product) ??
+      this.catalogSaleImagePath(item?.purchase_line?.catalog_product) ??
+      null
+    );
+  }
+
+  private catalogSaleImagePath(product: CatalogProductSaleMedia | null | undefined): string | null {
+    const media = [...(product?.catalog_product_media ?? [])].sort(
+      (left, right) =>
+        Number(right.is_primary) - Number(left.is_primary) ||
+        left.sort_order - right.sort_order ||
+        (left.created_at ?? '').localeCompare(right.created_at ?? '') ||
+        left.id.localeCompare(right.id),
+    );
+    return media[0]?.storage_path ?? null;
+  }
+
+  firstSaleImagePath(sale: Sale): string | null {
+    for (const line of sale.lines ?? []) {
+      const path = this.saleImagePath(sale, line);
+      if (path) return path;
+    }
+    return this.saleImagePath(sale, undefined);
+  }
+
+  saleThumbnail(path: string): string | null {
+    return this.media.getProductThumbnailUrl(path) || null;
+  }
+
+  onSaleThumbnailFailed(path: string): void {
+    this.media.reportProductThumbnailFailure(path);
   }
 
   saleTitle(sale: Sale): string {

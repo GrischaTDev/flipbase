@@ -34,14 +34,9 @@
               <app-marketplace-platform-identity platform="vinted" [iconOnly]="true" />
               <span class="min-w-0 break-words text-[13px] font-medium">{{ source.title }}</span>
             </div>
-            @if (source.listingUrl; as listingUrl) {
-              <app-button
-                variant="plain"
-                size="slim"
-                [icon]="externalLinkIcon"
-                [href]="listingUrl"
-                target="_blank"
-                >Originalanzeige öffnen</app-button
+            @if (source.listingLink; as listingLink) {
+              <app-button variant="plain" size="slim" [icon]="externalLinkIcon" [link]="listingLink"
+                >Anzeige in Flipbase öffnen</app-button
               >
             }
           </div>
@@ -130,7 +125,6 @@
                                 [disabled]="!!externalDraft()"
                                 [value]="freeTitle(line)"
                                 (valueChange)="setFreeTitle(line, $event)"
-                                [ariaRequired]="true"
                                 [ariaInvalid]="
                                   validationAttempted() && line.controls.target.invalid
                                 "
@@ -363,47 +357,29 @@
                   formControlName="shippingMode"
                 />
               </div>
-              @if (showPlatformFee()) {
-                <div>
-                  <label for="platform-fee" class="mb-1.5 block text-[13px] font-semibold"
-                    >Plattformgebühr{{ externalDraft() ? ' – bitte bestätigen' : '' }}</label
-                  >
-                  <app-number-input
-                    id="platform-fee"
-                    [min]="0"
-                    [step]="0.01"
-                    unit="€"
-                    formControlName="platformFee"
-                    [ariaLabel]="
-                      externalDraft() ? 'Plattformgebühr, erforderlich' : 'Plattformgebühr'
-                    "
-                    [placeholder]="externalDraft() ? 'Betrag bestätigen' : ''"
-                    [ariaInvalid]="
-                      form.controls.platformFee.touched && form.controls.platformFee.invalid
-                    "
-                    [ariaDescribedby]="
-                      (externalDraft() ? 'platform-fee-help' : '') +
-                      (form.controls.platformFee.touched && form.controls.platformFee.invalid
-                        ? ' platform-fee-error'
-                        : '')
-                    "
-                  />
-                  @if (externalDraft()) {
-                    <p id="platform-fee-help" class="mt-1 text-xs text-fb-text-muted">
-                      Trage die bestätigte Gebühr ein. Sind keine Gebühren entstanden, bestätige mit
-                      0.
-                    </p>
-                  }
-                  @if (form.controls.platformFee.touched && form.controls.platformFee.invalid) {
-                    <p id="platform-fee-error" role="alert" class="mt-1 text-xs text-fb-critical">
-                      @if (externalDraft()) {
-                        Gib eine bestätigte Plattformgebühr von mindestens 0 € ein.
-                      } @else {
-                        Die Plattformgebühr darf nicht negativ sein.
-                      }
-                    </p>
-                  }
-                </div>
+              @if (showPlatformFee() && !externalDraft()) {
+                <app-number-input
+                  id="platform-fee"
+                  label="Plattformgebühr"
+                  ariaLabel="Plattformgebühr"
+                  [min]="0"
+                  [step]="0.01"
+                  unit="€"
+                  formControlName="platformFee"
+                  [ariaInvalid]="
+                    form.controls.platformFee.touched && form.controls.platformFee.invalid
+                  "
+                  [ariaDescribedby]="
+                    form.controls.platformFee.touched && form.controls.platformFee.invalid
+                      ? 'platform-fee-error'
+                      : ''
+                  "
+                />
+                @if (form.controls.platformFee.touched && form.controls.platformFee.invalid) {
+                  <p id="platform-fee-error" role="alert" class="text-xs text-fb-critical">
+                    Die Plattformgebühr darf nicht negativ sein.
+                  </p>
+                }
               }
               @if (showShippingAmounts()) {
                 <div>
@@ -444,52 +420,42 @@
                     </p>
                   }
                 </div>
-                <div>
-                  <label for="shipping-cost" class="mb-1.5 block text-[13px] font-semibold"
-                    >Tatsächliche Versandkosten{{
-                      externalDraft() ? ' – bitte bestätigen' : ''
-                    }}</label
-                  >
-                  <app-number-input
-                    id="shipping-cost"
-                    [min]="0"
-                    [step]="0.01"
-                    unit="€"
-                    formControlName="shippingCost"
-                    [ariaLabel]="
-                      externalDraft()
-                        ? 'Tatsächliche Versandkosten, erforderlich'
-                        : 'Tatsächliche Versandkosten'
-                    "
-                    [placeholder]="externalDraft() ? 'Betrag bestätigen' : ''"
-                    [ariaInvalid]="
-                      form.controls.shippingCost.touched && form.controls.shippingCost.invalid
-                    "
-                    [ariaDescribedby]="
-                      'shipping-cost-help' +
-                      (form.controls.shippingCost.touched && form.controls.shippingCost.invalid
-                        ? ' shipping-cost-error'
-                        : '')
-                    "
-                  />
-                  <p id="shipping-cost-help" class="mt-1 text-xs text-fb-text-muted">
-                    @if (externalDraft()) {
-                      Trage deine tatsächlichen Kosten für Porto oder Versandetikett ein. Falls
-                      keine entstanden sind, bestätige mit 0.
-                    } @else {
+                @if (!externalDraft()) {
+                  <div>
+                    <label for="shipping-cost" class="mb-1.5 block text-[13px] font-semibold"
+                      >Tatsächliche Versandkosten</label
+                    >
+                    <app-number-input
+                      id="shipping-cost"
+                      [min]="0"
+                      [step]="0.01"
+                      unit="€"
+                      formControlName="shippingCost"
+                      ariaLabel="Tatsächliche Versandkosten"
+                      [ariaInvalid]="
+                        form.controls.shippingCost.touched && form.controls.shippingCost.invalid
+                      "
+                      [ariaDescribedby]="
+                        'shipping-cost-help' +
+                        (form.controls.shippingCost.touched && form.controls.shippingCost.invalid
+                          ? ' shipping-cost-error'
+                          : '')
+                      "
+                    />
+                    <p id="shipping-cost-help" class="mt-1 text-xs text-fb-text-muted">
                       Aufwand für Porto oder Versandetikett.
-                    }
-                  </p>
-                  @if (form.controls.shippingCost.touched && form.controls.shippingCost.invalid) {
-                    <p id="shipping-cost-error" role="alert" class="mt-1 text-xs text-fb-critical">
-                      @if (externalDraft()) {
-                        Gib bestätigte Versandkosten von mindestens 0 € ein.
-                      } @else {
-                        Die tatsächlichen Versandkosten dürfen nicht negativ sein.
-                      }
                     </p>
-                  }
-                </div>
+                    @if (form.controls.shippingCost.touched && form.controls.shippingCost.invalid) {
+                      <p
+                        id="shipping-cost-error"
+                        role="alert"
+                        class="mt-1 text-xs text-fb-critical"
+                      >
+                        Die tatsächlichen Versandkosten dürfen nicht negativ sein.
+                      </p>
+                    }
+                  </div>
+                }
               }
             </div>
           }
@@ -505,6 +471,38 @@
         >
           Kosten hinzufügen
         </app-button>
+        @if (externalDraft()) {
+          <div class="mb-4 grid gap-4 sm:grid-cols-2">
+            <app-number-input
+              id="platform-fee"
+              label="Plattformgebühr"
+              ariaLabel="Plattformgebühr, erforderlich"
+              [min]="0"
+              [step]="0.01"
+              unit="€"
+              formControlName="platformFee"
+              [error]="
+                form.controls.platformFee.touched && form.controls.platformFee.invalid
+                  ? 'Gib die tatsächliche Plattformgebühr ein.'
+                  : null
+              "
+            />
+            <app-number-input
+              id="shipping-cost"
+              label="Tatsächliche Versandkosten"
+              ariaLabel="Tatsächliche Versandkosten, erforderlich"
+              [min]="0"
+              [step]="0.01"
+              unit="€"
+              formControlName="shippingCost"
+              [error]="
+                form.controls.shippingCost.touched && form.controls.shippingCost.invalid
+                  ? 'Gib die tatsächlichen Versandkosten ein.'
+                  : null
+              "
+            />
+          </div>
+        }
         <div formArrayName="additionalCosts" class="space-y-4">
           @for (cost of additionalCosts.controls; track cost; let index = $index) {
             <div
@@ -612,7 +610,9 @@
               </div>
             </div>
           } @empty {
-            <p class="text-[13px] text-fb-text-muted">Noch keine zusätzlichen Kosten erfasst.</p>
+            @if (!externalDraft()) {
+              <p class="text-[13px] text-fb-text-muted">Noch keine zusätzlichen Kosten erfasst.</p>
+            }
           }
         </div>
       </app-card>

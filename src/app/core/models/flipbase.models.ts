@@ -339,6 +339,10 @@ export interface InventoryItem {
   readonly archived_by?: string | null;
   readonly stock_removed_at?: string | null;
   purchase?: Purchase;
+  purchase_line?: {
+    purchase_id: string;
+    catalog_product?: CatalogProductSaleMedia | null;
+  } | null;
   costs?: ItemCost[];
   media?: ItemMedia[];
   sale?: Sale;
@@ -519,6 +523,13 @@ export interface CatalogProductMedia {
   readonly created_at?: string;
 }
 
+export interface CatalogProductSaleMedia {
+  readonly catalog_product_media: readonly Pick<
+    CatalogProductMedia,
+    'storage_path' | 'is_primary' | 'sort_order' | 'created_at' | 'id'
+  >[];
+}
+
 export interface PurchaseLine {
   position_kind?: 'stock' | 'free';
   is_package?: boolean;
@@ -581,6 +592,7 @@ export interface SaleLine {
   purchase_id?: string | null;
   position_kind?: 'stock' | 'free';
   inventory_item?: InventoryItem;
+  catalog_product?: CatalogProductSaleMedia | null;
   lot_allocations?: SaleLineLotAllocation[];
   id: string;
   sale_id: string;

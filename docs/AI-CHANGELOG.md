@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-24 - Juna - Verkaufsentwürfe für Vinted und eBay zusammenführen
+
+Vinted-Entwürfe öffnen die gespeicherte Anzeige in Flipbase. Ausgewählte Bestandsartikel sind farblich hervorgehoben. Die Verkaufsliste zeigt vorhandene Artikelbilder auf Desktop und Mobilgeräten.
+
+eBay-Entwürfe stehen in derselben Tabelle wie Vinted-Entwürfe und öffnen die Verkaufserfassung mit den übernommenen Bestelldaten. Belegte Gebühren werden unter „Zusätzliche Kosten“ vorausgefüllt und einmal berechnet. Fehlende tatsächliche Kosten bleiben offen.
+
 ## 2026-11-24 - Juna - Vinted-Quelle in Verkaufsentwürfen anzeigen
 
 Die Entwurfstabelle verwendet „Beschreibung“ als Spaltenname und verzichtet auf eine eigene Suche. Die Bestandszuordnung kennzeichnet Pflichtangaben mit einem Stern. Einzelne verfügbare Bestandsartikel lassen sich direkt in der Artikelliste auswählen.

@@ -1,5 +1,5 @@
 import { WorkspaceService } from '../../../../core/services/workspace.service';
-import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
+
 import {
   ChangeDetectionStrategy,
   Component,
@@ -9,35 +9,30 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
-import {
-  EbaySaleActivityStore,
-  ebayDraftStateLabel,
-  ebaySourceIssueLabel,
-} from '../../services/ebay-sale-activity.store';
+import { EbaySaleActivityStore } from '../../services/ebay-sale-activity.store';
 import { InventoryService } from '../../../../core/services/inventory.service';
 import { StockService } from '../../../../core/services/stock.service';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+
 import { ModalShellComponent } from '../../../../shared/components/modal-shell/modal-shell.component';
 import { TextFieldComponent } from '../../../../shared/components/text-field/text-field.component';
 import { CustomCheckboxComponent } from '../../../../shared/components/custom-checkbox/custom-checkbox.component';
 @Component({
   selector: 'app-ebay-sale-drafts',
   imports: [
-    DataTableComponent,
-    DatePipe,
     ReactiveFormsModule,
     CardComponent,
     ButtonComponent,
-    ProductThumbnailComponent,
+
     ModalShellComponent,
     TextFieldComponent,
     CustomCheckboxComponent,
   ],
   templateUrl: './ebay-sale-drafts.component.html',
+  host: { class: 'block empty:hidden' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class EbaySaleDraftsComponent {
@@ -45,8 +40,7 @@ export class EbaySaleDraftsComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly inventory = inject(InventoryService);
   private readonly stock = inject(StockService);
-  readonly sourceIssueLabel = ebaySourceIssueLabel;
-  readonly stateLabel = ebayDraftStateLabel;
+
   readonly selectedReservation = signal<string | null>(null);
   readonly resolution = new FormGroup({
     reason: new FormControl('', {

@@ -74,6 +74,16 @@ for (const shopEnabled of [true, false]) {
         status: 'connected',
       });
       expect(connection.error).toBeNull();
+      const listingId = randomUUID();
+      const listing = await admin.from('marketplace_account_entries').insert({
+        id: listingId,
+        workspace_id: workspace.id,
+        connection_id: connectionId,
+        kind: 'publication',
+        external_id: itemId,
+        body: { title: soldTitle, price: 24.5, currency: 'EUR' },
+      });
+      expect(listing.error).toBeNull();
 
       let inventoryItemId: string | null = null;
       if (shopEnabled) {
@@ -179,10 +189,9 @@ for (const shopEnabled of [true, false]) {
       );
       const source = page.locator('[data-vinted-sale-source]');
       await expect(source).toContainText(soldTitle);
-      await expect(source.getByRole('link', { name: 'Originalanzeige öffnen' })).toHaveAttribute(
-        'href',
-        'https://www.vinted.de/items/' + itemId,
-      );
+      await expect(
+        source.getByRole('link', { name: 'Anzeige in Flipbase öffnen' }),
+      ).toHaveAttribute('href', '/marketplaces/vinted/listings/' + connectionId + '/' + listingId);
       const assignment = page.getByRole('region', { name: 'Einkauf zuordnen' });
       if (shopEnabled) {
         await expect(assignment.locator('#sale-stock-assignment-required')).toContainText(

@@ -196,7 +196,7 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
     .click();
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/orders$/);
   await expect(
-    page.getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true }),
+    page.getByRole('link', { name: `eBay-Verkauf öffnen: ${order.orderId}`, exact: true }),
   ).toBeVisible();
   await expect(page.getByText('Noch nicht gebucht', { exact: true })).toBeVisible();
   const requestedOrders = page.waitForRequest(
@@ -234,23 +234,29 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
   await page.goBack();
   await expect(page).toHaveURL(/\/marketplaces\/ebay\/orders$/);
   await expect(
-    page.getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true }),
+    page.getByRole('link', { name: `eBay-Verkauf öffnen: ${order.orderId}`, exact: true }),
   ).toBeVisible();
   releaseOrders();
   await page.unroute('**/functions/v1/ebay-account');
 
   await page
-    .getByRole('link', { name: `Bestellung prüfen: ${order.orderId}`, exact: true })
+    .getByRole('link', { name: `eBay-Verkauf öffnen: ${order.orderId}`, exact: true })
     .click();
-  await expect(
-    page.getByRole('heading', { name: 'eBay-Bestellung prüfen', exact: true }),
-  ).toBeVisible();
-  const book = page.getByRole('button', { name: 'Verkauf buchen', exact: true });
+  await expect(page.getByRole('heading', { name: 'Verkauf erfassen', exact: true })).toBeVisible();
+  const book = page.getByRole('button', { name: 'Verkauf abschließen', exact: true });
   await expect(book).toBeDisabled();
   await page.reload();
   await expect(book).toBeDisabled();
   await expect(page.locator('[data-sale-article-label]')).toContainText('eBay-Testartikel');
-  await page.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' }).fill('0');
+  const additionalCosts = page.locator('app-card').filter({
+    has: page.getByRole('heading', { name: 'Zusätzliche Kosten', exact: true }),
+  });
+  await expect(
+    additionalCosts.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' }),
+  ).toHaveValue('0');
+  await expect(
+    additionalCosts.getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' }),
+  ).toHaveValue('');
   await expect(book).toBeDisabled();
   await page
     .getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' })
@@ -287,7 +293,7 @@ test('imports an eBay order exactly once @core-smoke', async ({ page, workspace 
   if (expiryError) throw expiryError;
   await book.click();
   await expect(page.getByRole('alert').first()).toContainText('Prüfung ist abgelaufen');
-  await page.getByRole('button', { name: 'Bestellung erneut prüfen', exact: true }).click();
+  await page.getByRole('button', { name: 'eBay-Daten aktualisieren', exact: true }).click();
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(page.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' })).toHaveValue(
     '0',
@@ -490,9 +496,7 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toBeVisible();
   // Der Beleg erscheint vor dem erneuten Anbieterabruf. Erst nach dessen Abschluss
   // die Testquelle ändern, damit der laufende Abruf sie nicht wieder überschreibt.
-  await expect(
-    page.getByRole('heading', { name: 'Bestellung bei eBay', exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('[data-ebay-sale-source]')).toContainText(order.orderId);
   const { data: sales } = await workspace.client
     .from('sales')
     .select('id')
@@ -588,8 +592,11 @@ test('prepares a new linked eBay sale with owned reservation and personal bell @
   if (feeUpdate.error) throw feeUpdate.error;
   await openDashboard(page);
   await page.goto('/sales');
-  const drafts = page.getByRole('region', { name: 'eBay-Entwürfe', exact: true });
-  await expect(drafts.getByText('Kosten ergänzen', { exact: true })).toBeVisible();
+  const drafts = page.getByRole('table', { name: 'Verkaufsentwürfe', exact: true });
+  const draftRow = drafts.getByRole('row').filter({ hasText: 'eBay-Testartikel' });
+  await expect(
+    draftRow.getByRole('link', { name: 'eBay-Testartikel weiter bearbeiten' }),
+  ).toHaveAttribute('href', order.route + '?from=sales');
   await expect(page.getByTestId('sales-result-kpi')).toContainText('0,00');
   await page.getByRole('button', { name: /Benachrichtigungen/ }).click();
   await expect(page.locator('#header-notification-menu img[alt="eBay"]')).toBeVisible();
@@ -599,16 +606,21 @@ test('prepares a new linked eBay sale with owned reservation and personal bell @
   await expect(notification).toHaveAttribute('href', order.route);
   await notification.click();
   await expect(
-    page.getByText('Der Bestand ist für diesen Entwurf reserviert', { exact: false }),
+    page.getByText('Bestand für diesen Entwurf reserviert.', { exact: true }),
   ).toBeVisible();
   await expect(page.locator('[data-sale-article-label]')).toContainText('eBay-Testartikel');
-  await expect(page.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' })).toHaveValue(
-    '2',
-  );
+  const additionalCosts = page.locator('app-card').filter({
+    has: page.getByRole('heading', { name: 'Zusätzliche Kosten', exact: true }),
+  });
   await expect(
-    page.getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' }),
+    additionalCosts.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' }),
+  ).toHaveValue('2');
+  await expect(
+    additionalCosts.getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' }),
   ).toHaveValue('');
-  await expect(page.getByRole('button', { name: 'Verkauf buchen', exact: true })).toBeDisabled();
+  await expect(
+    page.getByRole('button', { name: 'Verkauf abschließen', exact: true }),
+  ).toBeDisabled();
   await page
     .getByRole('spinbutton', { name: 'Tatsächliche Versandkosten, erforderlich' })
     .fill('0');
@@ -621,7 +633,9 @@ test('prepares a new linked eBay sale with owned reservation and personal bell @
     .eq('order_id', order.orderId);
   if (changedFee.error) throw changedFee.error;
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Verkauf buchen', exact: true })).toBeEnabled();
+  await expect(
+    page.getByRole('button', { name: 'Verkauf abschließen', exact: true }),
+  ).toBeEnabled();
   await expect(page.getByRole('spinbutton', { name: 'Plattformgebühr, erforderlich' })).toHaveValue(
     '2',
   );
@@ -686,7 +700,11 @@ test('prepares a new linked eBay sale with owned reservation and personal bell @
     page.getByRole('heading', { name: 'Reservierter eBay-Bestand', exact: true }),
   ).toBeVisible();
   await expect(page.getByText(order.orderId, { exact: false })).toHaveCount(0);
-  await expect(page.getByRole('region', { name: 'eBay-Entwürfe', exact: true })).toHaveCount(0);
+  await expect(
+    page
+      .getByRole('table', { name: 'Verkaufsentwürfe', exact: true })
+      .getByText('eBay-Testartikel'),
+  ).toHaveCount(0);
   await page.getByRole('button', { name: 'Reservierung klären', exact: true }).click();
   const clarification = page.getByRole('dialog', { name: 'Reservierung bewusst freigeben' });
   await clarification

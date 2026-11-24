@@ -42,7 +42,7 @@ export interface VintedSaleDraftSource {
   readonly amount: number | null;
   readonly currency: string | null;
   readonly isBundle: boolean;
-  readonly listingUrl?: string;
+  readonly listingLink?: string;
 }
 
 export function isVintedSaleDraftCancelled(source: VintedSaleDraftSource | undefined): boolean {

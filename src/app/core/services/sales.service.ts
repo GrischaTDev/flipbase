@@ -178,11 +178,29 @@ export class SalesService {
           inventory_item:inventory_items(
             *,
             purchase:purchases(*, source:sources(*), supplier:suppliers(*)),
-            costs:item_costs(*)
+            costs:item_costs(*),
+            media:item_media(*),
+            purchase_line:purchase_lines!inventory_items_purchase_line_id_fkey(
+              purchase_id,
+              catalog_product:catalog_products!purchase_lines_catalog_product_id_fkey(
+                catalog_product_media(storage_path, is_primary, sort_order, created_at, id)
+              )
+            )
           ),
           sale_lines:sale_lines!sale_lines_sale_id_fkey(
             *,
-            inventory_item:inventory_items!sale_lines_inventory_item_id_fkey(*, purchase:purchases(*), costs:item_costs(*)),
+            inventory_item:inventory_items!sale_lines_inventory_item_id_fkey(
+              *, purchase:purchases(*), costs:item_costs(*), media:item_media(*),
+              purchase_line:purchase_lines!inventory_items_purchase_line_id_fkey(
+                purchase_id,
+                catalog_product:catalog_products!purchase_lines_catalog_product_id_fkey(
+                  catalog_product_media(storage_path, is_primary, sort_order, created_at, id)
+                )
+              )
+            ),
+            catalog_product:catalog_products!sale_lines_catalog_product_id_fkey(
+              catalog_product_media(storage_path, is_primary, sort_order, created_at, id)
+            ),
             lot_allocations:sale_line_lot_allocations!sale_line_lot_allocations_sale_line_id_fkey(*, stock_lot:stock_lots!sale_line_lot_allocations_stock_lot_id_fkey(*, purchase:purchases!stock_lots_purchase_id_fkey(*))),
             stock_movements:stock_movements!stock_movements_sale_line_id_fkey(*)
           ),

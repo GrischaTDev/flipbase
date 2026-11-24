@@ -251,10 +251,18 @@
                             @if (sale.lines?.length) {
                               @for (line of sale.lines; track line.id) {
                                 <span
-                                  class="block truncate text-xs text-fb-text-primary"
-                                  [title]="line.title_snapshot"
-                                  >{{ line.title_snapshot }}</span
+                                  class="flex min-w-0 items-center gap-2 text-xs text-fb-text-primary"
                                 >
+                                  @if (saleImagePath(sale, line); as path) {
+                                    <app-product-thumbnail
+                                      [src]="saleThumbnail(path)"
+                                      (imageFailed)="onSaleThumbnailFailed(path)"
+                                    />
+                                  }
+                                  <span class="min-w-0 truncate" [title]="line.title_snapshot">{{
+                                    line.title_snapshot
+                                  }}</span>
+                                </span>
                               }
                             } @else {
                               <a
@@ -405,6 +413,12 @@
                   </span>
                 </div>
                 <div class="flex items-center gap-1.5">
+                  @if (firstSaleImagePath(sale); as path) {
+                    <app-product-thumbnail
+                      [src]="saleThumbnail(path)"
+                      (imageFailed)="onSaleThumbnailFailed(path)"
+                    />
+                  }
                   <h3
                     class="min-w-0 text-xs font-semibold text-fb-text-primary line-clamp-1 font-sans"
                     [title]="saleTitle(sale)"
