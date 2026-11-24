@@ -7,6 +7,7 @@ export interface ExternalSaleEntryLine {
   readonly positionKind?: 'stock' | 'free';
   readonly sourceLineId: string;
   readonly title: string;
+  readonly imageUrl?: string | null;
   readonly quantity: number;
   readonly unitSalePrice: number;
   readonly target: SaleTarget | null;

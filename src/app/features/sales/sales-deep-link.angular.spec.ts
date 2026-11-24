@@ -25,6 +25,8 @@ import { SupabaseService } from '../../core/services/supabase.service';
 import { mergeSalePlatforms } from '../../core/models/sale-platforms';
 import { EbaySaleActivityStore } from './services/ebay-sale-activity.store';
 import { SaleDraftService } from './services/sale-draft.service';
+import { MediaService } from '../../core/services/media.service';
+import { ProductThumbnailComponent } from '../../shared/components/product-thumbnail/product-thumbnail.component';
 import { SyncStatusService } from '../../core/services/sync-status.service';
 import { calculateStoredSaleMetrics } from '../../core/utils/sale-metrics';
 import { WorkspaceService } from '../../core/services/workspace.service';
@@ -322,6 +324,13 @@ beforeEach(() => {
       },
       { provide: WorkspaceService, useValue: { currentWorkspace: signal(workspace) } },
       {
+        provide: MediaService,
+        useValue: {
+          getProductThumbnailUrl: (path: string) => 'https://example.test/' + path,
+          reportProductThumbnailFailure: vi.fn(),
+        } satisfies Pick<MediaService, 'getProductThumbnailUrl' | 'reportProductThumbnailFailure'>,
+      },
+      {
         provide: ReturnService,
         useValue: { returns: signal([]), processReturn: vi.fn() },
       },
@@ -345,6 +354,25 @@ beforeEach(() => {
 });
 
 describe('SalesComponent – verlinkter Verkauf', () => {
+  it('zeigt das gespeicherte Artikelbild in Desktop-Tabelle und Mobilansicht', () => {
+    registerSignalInputs(ProductThumbnailComponent, ['src', 'alt']);
+    const lines = linkedSale.lines ?? [];
+    sales.set([
+      {
+        ...linkedSale,
+        lines: lines.map((line) => ({
+          ...line,
+          catalog_product: { primary_media_path: 'tasse.webp' },
+        })),
+      },
+    ]);
+    const fixture = TestBed.createComponent(SalesComponent);
+    fixture.detectChanges();
+    const host = fixture.nativeElement as HTMLElement;
+    const thumbnail = 'img[src="https://example.test/tasse.webp"]';
+    expect(host.querySelector('#sale-desktop-sale-1 ' + thumbnail)).toBeTruthy();
+    expect(host.querySelector('#sale-mobile-sale-1 ' + thumbnail)).toBeTruthy();
+  });
   it('zeigt fehlende Rechnungsangaben mit einem direkten Weg zu den Einstellungen', async () => {
     const invoiceService = TestBed.inject(InvoiceService);
     vi.mocked(invoiceService.generateInvoiceForSale).mockResolvedValue({

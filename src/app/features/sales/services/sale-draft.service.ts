@@ -64,22 +64,22 @@ export class SaleDraftService {
     const source = draft?.vintedSource;
     if (!draft || !source || source.isBundle || !draft.snapshot.externalOrderId) return draft;
 
-    const listingUrl = await this.findVintedListingUrl(
+    const listingLink = await this.findVintedListingLink(
       draft.workspaceId,
       draft.snapshot.externalOrderId,
       source.title,
     );
-    return listingUrl ? { ...draft, vintedSource: { ...source, listingUrl } } : draft;
+    return listingLink ? { ...draft, vintedSource: { ...source, listingLink } } : draft;
   }
 
-  private async findVintedListingUrl(
+  private async findVintedListingLink(
     workspaceId: string,
     transactionId: string,
     sourceTitle: string,
   ): Promise<string | null> {
     const { data, error } = await this.supabase.client
       .from('marketplace_account_entries')
-      .select('body,marketplace_connections!inner(marketplace)')
+      .select('connection_id,body,marketplace_connections!inner(marketplace)')
       .eq('workspace_id', workspaceId)
       .eq('marketplace_connections.marketplace', 'vinted')
       .eq('kind', 'sale')
@@ -87,7 +87,7 @@ export class SaleDraftService {
       .maybeSingle();
 
     const sale = data?.body;
-    if (error || !sale || typeof sale !== 'object' || Array.isArray(sale)) return null;
+    if (error || !data || !sale || typeof sale !== 'object' || Array.isArray(sale)) return null;
     const title = sale['title'];
     const itemIds = sale['itemIds'];
     if (
@@ -101,8 +101,19 @@ export class SaleDraftService {
       return null;
 
     const [itemId] = itemIds;
-    return typeof itemId === 'string' && /^[1-9][0-9]{0,31}$/.test(itemId)
-      ? 'https://www.vinted.de/items/' + itemId
+    if (typeof itemId !== 'string' || !/^[1-9][0-9]{0,31}$/.test(itemId)) return null;
+
+    const { data: listing, error: listingError } = await this.supabase.client
+      .from('marketplace_account_entries')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('connection_id', data.connection_id)
+      .eq('kind', 'publication')
+      .eq('external_id', itemId)
+      .maybeSingle();
+
+    return !listingError && listing
+      ? '/marketplaces/vinted/listings/' + data.connection_id + '/' + listing.id
       : null;
   }
 

@@ -7,6 +7,7 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { LOCALE_ID, signal, ɵresolveComponentResources } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
 import { FormArray, FormControl, FormGroup, Validators } from '@angular/forms';
 import { readFile, readdir } from 'node:fs/promises';
 import { resolve } from 'node:path';
@@ -1039,6 +1040,7 @@ describe('SaleCreateModalComponent', () => {
       TestBed.configureTestingModule({
         imports: [SaleCreateModalComponent],
         providers: [
+          provideRouter([]),
           { provide: LOCALE_ID, useValue: 'de' },
           ...saleSourceProviders(shopEnabled),
           { provide: SalesService, useValue: salesService },
@@ -1571,7 +1573,7 @@ describe('SaleCreateModalComponent', () => {
             vintedSource: {
               saleState: 'sold',
               title: 'Vinted-Originaltitel',
-              listingUrl: 'https://www.vinted.de/items/7123',
+              listingLink: '/marketplaces/vinted/listings/account-1/listing-1',
               amount: 25,
               currency: 'EUR',
               isBundle: false,
@@ -1657,7 +1659,7 @@ describe('SaleCreateModalComponent', () => {
           const source = host.querySelector('[data-vinted-sale-source]');
           expect(source?.textContent).toContain('Vinted-Originaltitel');
           expect(source?.querySelector('a')?.getAttribute('href')).toBe(
-            'https://www.vinted.de/items/7123',
+            '/marketplaces/vinted/listings/account-1/listing-1',
           );
         },
       );

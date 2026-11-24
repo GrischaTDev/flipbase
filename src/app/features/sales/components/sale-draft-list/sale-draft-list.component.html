@@ -1,7 +1,7 @@
 @if (drafts.loadError(); as error) {
   <p role="alert" class="text-sm text-fb-critical">{{ error }}</p>
 }
-@let saleDrafts = visibleDrafts();
+@let saleDrafts = entries();
 @if (saleDrafts.length) {
   <app-card title="Entwürfe" variant="section" padding="none">
     <app-data-table class="mt-3" [embedded]="true" [toolbarVisible]="false" [hasRows]="true">
@@ -19,35 +19,58 @@
             </tr>
           </thead>
           <tbody>
-            @for (draft of saleDrafts; track draft.id) {
+            @for (entry of saleDrafts; track entry.id) {
               <tr data-sale-draft>
                 <td class="font-medium">
-                  {{ draft.title }}
-                  @if (isVintedSaleDraftCancelled(draft.vintedSource)) {
-                    <span class="block text-xs font-normal text-fb-text-secondary">Storniert</span>
-                  }
+                  <div class="flex items-center gap-2">
+                    @if (entry.imageUrl; as imageUrl) {
+                      <app-product-thumbnail [src]="imageUrl" />
+                    }
+                    <div>
+                      <div class="flex items-center gap-2">
+                        @if (entry.platform; as platform) {
+                          <app-marketplace-platform-identity
+                            [platform]="platform"
+                            [iconOnly]="true"
+                          />
+                        }
+                        <span>{{ entry.title }}</span>
+                      </div>
+                      @if (entry.note) {
+                        <span class="block text-xs font-normal text-fb-text-secondary">{{
+                          entry.note
+                        }}</span>
+                      }
+                    </div>
+                  </div>
                 </td>
                 <td class="whitespace-nowrap text-fb-text-secondary">
-                  {{ draft.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}
+                  {{ entry.updatedAt | date: 'dd.MM.yyyy, HH:mm' }}
                 </td>
                 <td class="whitespace-nowrap text-right tabular-nums">
-                  {{ (draftAmount(draft) | currency: 'EUR' : 'symbol' : '1.2-2' : 'de') ?? '-' }}
+                  @if (entry.currency && entry.amount !== null) {
+                    {{ entry.amount | currency: entry.currency : 'symbol' : '1.2-2' : 'de' }}
+                  } @else {
+                    –
+                  }
                 </td>
                 <td>
                   <div class="flex justify-end gap-2">
                     <app-table-action-button
                       [icon]="editIcon"
-                      [label]="draft.title + ' weiter bearbeiten'"
-                      link="/sales/new"
-                      [queryParams]="{ draft: draft.id }"
+                      [label]="entry.title + ' weiter bearbeiten'"
+                      [link]="entry.link"
+                      [queryParams]="entry.queryParams"
                     />
-                    <app-table-action-button
-                      [icon]="deleteIcon"
-                      [label]="draft.title + ' löschen'"
-                      tone="critical"
-                      [loading]="deletingId() === draft.id"
-                      (clicked)="remove(draft)"
-                    />
+                    @if (entry.removableDraft; as draft) {
+                      <app-table-action-button
+                        [icon]="deleteIcon"
+                        [label]="entry.title + ' löschen'"
+                        tone="critical"
+                        [loading]="deletingId() === draft.id"
+                        (clicked)="remove(draft)"
+                      />
+                    }
                   </div>
                 </td>
               </tr>

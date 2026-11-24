@@ -339,6 +339,10 @@ export interface InventoryItem {
   readonly archived_by?: string | null;
   readonly stock_removed_at?: string | null;
   purchase?: Purchase;
+  purchase_line?: {
+    purchase_id: string;
+    catalog_product?: Pick<CatalogProduct, 'primary_media_path'> | null;
+  } | null;
   costs?: ItemCost[];
   media?: ItemMedia[];
   sale?: Sale;
@@ -581,6 +585,7 @@ export interface SaleLine {
   purchase_id?: string | null;
   position_kind?: 'stock' | 'free';
   inventory_item?: InventoryItem;
+  catalog_product?: Pick<CatalogProduct, 'primary_media_path'> | null;
   lot_allocations?: SaleLineLotAllocation[];
   id: string;
   sale_id: string;

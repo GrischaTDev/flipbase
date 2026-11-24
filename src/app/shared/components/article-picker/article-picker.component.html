@@ -41,7 +41,7 @@
           [attr.data-product-option]="entry.id"
           [attr.aria-pressed]="selection().has(entry.id) && isSelectable(entry)"
           [disabled]="!isSelectable(entry)"
-          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
+          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover aria-pressed:bg-fb-primary/20 aria-pressed:inset-ring-2 aria-pressed:inset-ring-fb-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
           (click)="toggle(entry.id)"
         >
           <span
@@ -147,7 +147,7 @@
           [attr.data-product-group]="group.id"
           [attr.aria-pressed]="entry ? !!selected : null"
           [disabled]="entry ? !isSelectable(entry) : false"
-          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
+          class="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-3 text-left hover:bg-fb-surface-hover aria-pressed:bg-fb-primary/20 aria-pressed:inset-ring-2 aria-pressed:inset-ring-fb-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fb-primary/60 disabled:cursor-not-allowed disabled:opacity-60"
           (click)="openGroup(group.id)"
         >
           <app-product-thumbnail

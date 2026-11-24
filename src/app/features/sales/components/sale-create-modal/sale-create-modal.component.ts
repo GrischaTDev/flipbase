@@ -932,7 +932,8 @@ export class SaleCreateModalComponent {
     const entry = this.saleArticleEntries().find(
       (candidate) => candidate.id === line.controls.target.value,
     );
-    return entry ? (this.articleImageUrls()[entry.imageKey] ?? null) : null;
+    const source = this.externalDraft()?.lines[this.lines.controls.indexOf(line)];
+    return (entry && this.articleImageUrls()[entry.imageKey]) || source?.imageUrl || null;
   }
 
   onArticleImageFailed(imageKey: string): void {
@@ -1562,6 +1563,9 @@ export class SaleCreateModalComponent {
     this.form.controls.platformFee.enable({ emitEvent: false });
     this.form.controls.shippingCost.setValidators([Validators.required, Validators.min(0)]);
     this.form.controls.shippingCost.enable({ emitEvent: false });
+    if (compatible && this.form.controls.platformFee.value === (previous?.platformFee ?? null)) {
+      this.form.controls.platformFee.setValue(draft.platformFee ?? null, { emitEvent: false });
+    }
     if (!compatible) {
       this.form.patchValue(
         {

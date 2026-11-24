@@ -9,7 +9,7 @@ import {
   untracked,
   viewChild,
 } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -21,7 +21,7 @@ import {
   ebaySourceIssueLabel,
 } from '../../services/ebay-sale-activity.store';
 import type { EbayOrderAssignment } from '../../../../../../supabase/functions/_shared/ebay-order-import-contracts';
-import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
+import { MarketplacePlatformIdentityComponent } from '../../../../shared/components/marketplace-platform-identity/marketplace-platform-identity.component';
 import { EntryPageLayoutComponent } from '../../../../shared/components/entry-page-layout/entry-page-layout.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -37,8 +37,7 @@ import { marketplacePlatformLabel } from '../../../../shared/models/marketplace-
 @Component({
   selector: 'app-ebay-sale-review',
   imports: [
-    DatePipe,
-    ProductThumbnailComponent,
+    MarketplacePlatformIdentityComponent,
     DecimalPipe,
     ReactiveFormsModule,
     EntryPageLayoutComponent,
@@ -63,6 +62,7 @@ export class EbaySaleReviewComponent {
   private readonly workspace = inject(WorkspaceService);
   private readonly router = inject(Router);
   private readonly route = inject(ActivatedRoute);
+  readonly fromSales = this.route.snapshot.queryParamMap?.get('from') === 'sales';
   private readonly activity = inject(EbaySaleActivityStore);
   private lastUserId: string | null = null;
   private readonly params = toSignal(this.route.paramMap, {
@@ -267,7 +267,7 @@ export class EbaySaleReviewComponent {
     if (this.hasUnsavedChanges() || this.isSaving()) event.preventDefault();
   }
   returnToEbay(): void {
-    void this.router.navigateByUrl('/marketplaces/ebay');
+    void this.router.navigateByUrl(this.fromSales ? '/sales' : '/marketplaces/ebay');
   }
   openManualDialog(mode: 'mark' | 'clear'): void {
     if (this.isSaving() || this.store.outcomeUnknown()) return;

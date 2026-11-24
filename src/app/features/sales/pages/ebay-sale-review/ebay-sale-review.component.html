@@ -1,11 +1,9 @@
 <app-entry-page-layout
-  title="eBay-Bestellung prüfen"
-  subtitle="Ordne die Artikel zu und bestätige Deine tatsächlichen Kosten."
-  backLabel="Zurück zu eBay"
+  title="Verkauf erfassen"
+  [backLabel]="fromSales ? 'Zu Verkäufen' : 'Zurück zu eBay'"
   (cancelled)="returnToEbay()"
 >
   <div entry-header-actions class="flex flex-wrap justify-end gap-2">
-    <app-button [disabled]="isSaving()" (clicked)="returnToEbay()">Zurück zu eBay</app-button>
     @if (store.booking().status === 'unrecorded' && store.draft() && reviewMode() === 'new') {
       <app-button [disabled]="isSaving() || store.outcomeUnknown()" (clicked)="saveDraft()"
         >Entwurf speichern</app-button
@@ -15,7 +13,7 @@
         [loading]="isSaving()"
         [disabled]="!canSave()"
         (clicked)="save()"
-        >Verkauf buchen</app-button
+        >Verkauf abschließen</app-button
       >
     }
   </div>
@@ -31,7 +29,7 @@
         [loading]="store.loading()"
         [disabled]="isSaving()"
         (clicked)="store.refreshReview()"
-        >Bestellung erneut prüfen</app-button
+        >eBay-Daten aktualisieren</app-button
       >
     }
     @if (store.outcomeUnknown()) {
@@ -45,60 +43,25 @@
       </app-card>
     }
     @if (store.review(); as review) {
-      <app-card title="Bestellung bei eBay">
-        <dl class="grid gap-3 text-sm sm:grid-cols-2">
-          <div>
-            <dt class="text-fb-text-secondary">Bestellnummer</dt>
-            <dd class="break-all">{{ review.source.orderId }}</dd>
-          </div>
-          <div>
-            <dt class="text-fb-text-secondary">Zuletzt abgerufen</dt>
-            <dd>{{ review.source.observedAt | date: 'dd.MM.yyyy HH:mm' }}</dd>
-          </div>
-          <div>
-            <dt class="text-fb-text-secondary">Bestellt am</dt>
-            <dd>{{ review.source.createdAt | date: 'dd.MM.yyyy HH:mm' }}</dd>
-          </div>
-          <div>
-            <dt class="text-fb-text-secondary">Bestellsumme</dt>
+      <app-card padding="sm" rounded="xl" data-ebay-sale-source>
+        <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] font-medium">
+          <app-marketplace-platform-identity platform="ebay" [iconOnly]="true" />
+          <span class="break-all">Bestellung {{ review.source.orderId }}</span>
+        </div>
+        @if (store.reservations().length) {
+          <p role="status" class="mt-2 text-sm">Bestand für diesen Entwurf reserviert.</p>
+        }
+        @if (platformFeeDiffers()) {
+          @let sourceFee = review.source.platformFeeCents;
+          <dl class="mt-3 text-sm">
+            <dt class="text-fb-text-secondary">Aktuell von eBay belegte Gebühr</dt>
             <dd>
-              @if (review.source.totalCents !== null) {
-                {{ review.source.totalCents / 100 | number: '1.2-2' }} {{ review.source.currency }}
+              @if (sourceFee !== null && sourceFee !== undefined) {
+                {{ sourceFee / 100 | number: '1.2-2' }} €
               } @else {
-                Unklar
+                –
               }
             </dd>
-          </div>
-        </dl>
-        <ul class="mt-4 space-y-3">
-          @for (line of review.source.lines; track $index) {
-            <li class="flex items-center gap-3">
-              <app-product-thumbnail [src]="line.imageUrl ?? null" [alt]="line.title" /><span
-                >{{ line.quantity ?? '–' }} × {{ line.title }}</span
-              >
-            </li>
-          }
-        </ul>
-        @if (store.reservations().length) {
-          <p role="status" class="mt-3 text-sm">
-            Der Bestand ist für diesen Entwurf reserviert und bleibt bei der Prüfung auswählbar.
-          </p>
-        }
-        <dl class="mt-4 text-sm">
-          <dt class="text-fb-text-secondary">Aktuell von eBay belegte Gebühr</dt>
-          <dd>
-            @if (
-              review.source.platformFeeCents !== null &&
-              review.source.platformFeeCents !== undefined
-            ) {
-              {{ review.source.platformFeeCents / 100 | number: '1.2-2' }} €
-            } @else {
-              Noch nicht bekannt
-            }
-          </dd>
-        </dl>
-        @if (platformFeeDiffers()) {
-          <dl class="mt-3 text-sm">
             <dt class="text-fb-text-secondary">Gespeicherte Gebühr</dt>
             <dd>
               @if ((review.draft?.costs?.platformFeeCents ?? null) !== null) {
@@ -125,7 +88,7 @@
         }
       </app-card>
     } @else if (store.loading()) {
-      <p role="status">Bestellung wird geprüft …</p>
+      <p role="status">eBay-Bestellung wird geladen …</p>
     }
     @if (store.sourceIssues().length) {
       <app-card title="Storno oder Erstattung klären">

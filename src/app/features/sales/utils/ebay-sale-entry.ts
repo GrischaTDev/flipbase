@@ -49,6 +49,7 @@ export function buildEbaySaleEntryDraft(
       return splitEbayLineAmount(line.goodsCents, line.quantity).map((group) => ({
         sourceLineId: line.lineItemId as string,
         title: line.title,
+        imageUrl: line.imageUrl,
         quantity: group.quantity,
         unitSalePrice: group.unitCents / 100,
         positionKind: mapping && 'free' in mapping.target ? ('free' as const) : ('stock' as const),
