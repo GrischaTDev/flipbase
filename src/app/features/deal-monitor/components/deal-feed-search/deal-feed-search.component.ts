@@ -10,15 +10,13 @@ import {
   signal,
   untracked,
 } from '@angular/core';
-import {
-  LucideDynamicIcon,
-  LucideRotateCcw,
-  LucideSearch,
-  LucideSlidersHorizontal,
-} from '@lucide/angular';
+import { LucideDynamicIcon, LucideRotateCcw, LucideSlidersHorizontal } from '@lucide/angular';
 import { PageLayoutService } from '../../../../core/services/page-layout.service';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
+import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
+import { FormFieldComponent } from '../../../../shared/components/form-field/form-field.component';
+import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   FeedItem,
   PersonalFeed,
@@ -43,9 +41,12 @@ const RECONCILE_INTERVAL_MS = 15_000;
   imports: [
     ButtonComponent,
     CardComponent,
+    CustomSearchInputComponent,
     DealCardComponent,
     DealDetailModalComponent,
+    FormFieldComponent,
     LucideDynamicIcon,
+    NumberInputComponent,
   ],
   templateUrl: './deal-feed-search.component.html',
   host: { class: '@container block min-w-0' },
@@ -68,7 +69,6 @@ export class DealFeedSearchComponent {
   readonly selectedDeal = signal<FeedItem | null>(null);
   readonly icons = {
     filter: LucideSlidersHorizontal,
-    search: LucideSearch,
     reset: LucideRotateCcw,
   };
 
@@ -166,18 +166,6 @@ export class DealFeedSearchComponent {
     destroyRef.onDestroy(() => this.state.destroy());
   }
 
-  onQueryInput(event: Event): void {
-    this.liveQuery.set((event.target as HTMLInputElement).value);
-  }
-
-  onMinPriceInput(event: Event): void {
-    this.liveMinPrice.set(parsePriceInput((event.target as HTMLInputElement).value));
-  }
-
-  onMaxPriceInput(event: Event): void {
-    this.liveMaxPrice.set(parsePriceInput((event.target as HTMLInputElement).value));
-  }
-
   toggleLiveSize(size: string): void {
     this.liveSizes.update((current) =>
       current.includes(size) ? current.filter((entry) => entry !== size) : [...current, size],
@@ -190,11 +178,4 @@ export class DealFeedSearchComponent {
     this.liveMinPrice.set(null);
     this.liveMaxPrice.set(null);
   }
-}
-
-function parsePriceInput(raw: string): number | null {
-  const trimmed = raw.trim().replace(',', '.');
-  if (!trimmed) return null;
-  const value = Number(trimmed);
-  return Number.isFinite(value) && value >= 0 ? value : null;
 }

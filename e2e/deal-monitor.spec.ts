@@ -478,6 +478,24 @@ for (const theme of ['light', 'dark'] as const) {
           ).toBeVisible();
           await page.keyboard.press('Escape');
           await expect(preview).toBeFocused();
+
+          const feed = page.locator('app-deal-feed-search');
+          const search = feed.getByRole('searchbox', { name: 'Im Feed suchen' });
+          const minimum = feed.getByRole('spinbutton', { name: 'Min €' });
+          const maximum = feed.getByRole('spinbutton', { name: 'Max €' });
+          await search.fill('Nike 2');
+          await expect(items.getByRole('article')).toHaveCount(1);
+          await expect(items.getByRole('article', { name: 'Nike Sneaker 2' })).toBeVisible();
+          await search.clear();
+          await minimum.fill('20,50');
+          await maximum.fill('24');
+          await expect(items.getByRole('article')).toHaveCount(4);
+          await expect(maximum).toHaveAttribute('aria-valuemax', '40');
+          await feed.getByRole('button', { name: 'Zurücksetzen', exact: true }).click();
+          await expect(minimum).toBeEmpty();
+          await expect(maximum).toBeEmpty();
+          await expect(items.getByRole('article')).toHaveCount(8);
+
           expect(
             await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
           ).toBe(true);
