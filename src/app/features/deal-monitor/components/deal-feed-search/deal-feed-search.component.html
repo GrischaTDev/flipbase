@@ -79,68 +79,38 @@
       aria-label="Live-Filter für diesen Feed"
       class="flex flex-wrap items-end gap-x-3 gap-y-2.5 rounded-lg border border-fb-border bg-fb-surface/80 p-3"
     >
-      <div class="min-w-40 flex-1">
-        <label
-          [for]="'live-query-' + feed().id"
-          class="mb-1 block text-xs font-medium text-fb-text-secondary"
-          >Im Feed suchen</label
-        >
-        <div class="relative">
-          <svg
-            [lucideIcon]="icons.search"
-            class="pointer-events-none absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-fb-text-muted"
-            aria-hidden="true"
-          ></svg>
-          <input
-            [id]="'live-query-' + feed().id"
-            type="search"
-            [value]="liveQuery()"
-            (input)="onQueryInput($event)"
-            placeholder="Titel oder Marke …"
-            class="h-8 w-full rounded-md border border-fb-border bg-fb-bg pr-2.5 pl-8 text-xs text-fb-text-primary placeholder:text-fb-text-muted focus:border-fb-primary focus:outline-none"
-          />
-        </div>
-      </div>
+      <app-form-field
+        class="min-w-40 flex-1"
+        [controlId]="'live-query-' + feed().id"
+        label="Im Feed suchen"
+      >
+        <app-custom-search-input
+          [id]="'live-query-' + feed().id"
+          ariaLabel="Im Feed suchen"
+          placeholder="Titel oder Marke …"
+          [(value)]="liveQuery"
+        />
+      </app-form-field>
 
       <div class="flex items-end gap-2">
-        <div class="w-24">
-          <label
-            [for]="'live-min-' + feed().id"
-            class="mb-1 block text-xs font-medium text-fb-text-secondary"
-            >Min €</label
-          >
-          <input
-            [id]="'live-min-' + feed().id"
-            type="number"
-            inputmode="decimal"
-            step="1"
-            [min]="priceBounds().min"
-            [max]="priceBounds().max"
-            [value]="liveMinPrice() ?? ''"
-            [placeholder]="feed().price_from !== null ? '' + feed().price_from : '0'"
-            (input)="onMinPriceInput($event)"
-            class="h-8 w-full rounded-md border border-fb-border bg-fb-bg px-2.5 text-xs tabular-nums text-fb-text-primary placeholder:text-fb-text-muted focus:border-fb-primary focus:outline-none"
-          />
-        </div>
-        <div class="w-24">
-          <label
-            [for]="'live-max-' + feed().id"
-            class="mb-1 block text-xs font-medium text-fb-text-secondary"
-            >Max €</label
-          >
-          <input
-            [id]="'live-max-' + feed().id"
-            type="number"
-            inputmode="decimal"
-            step="1"
-            [min]="priceBounds().min"
-            [max]="priceBounds().max"
-            [value]="liveMaxPrice() ?? ''"
-            [placeholder]="feed().price_to !== null ? '' + feed().price_to : '∞'"
-            (input)="onMaxPriceInput($event)"
-            class="h-8 w-full rounded-md border border-fb-border bg-fb-bg px-2.5 text-xs tabular-nums text-fb-text-primary placeholder:text-fb-text-muted focus:border-fb-primary focus:outline-none"
-          />
-        </div>
+        <app-number-input
+          class="block w-24"
+          label="Min €"
+          [min]="priceBounds().min"
+          [max]="priceBounds().max"
+          [value]="liveMinPrice()"
+          [placeholder]="feed().price_from !== null ? '' + feed().price_from : '0'"
+          (valueChange)="liveMinPrice.set($event !== null && $event >= 0 ? $event : null)"
+        />
+        <app-number-input
+          class="block w-24"
+          label="Max €"
+          [min]="priceBounds().min"
+          [max]="priceBounds().max"
+          [value]="liveMaxPrice()"
+          [placeholder]="feed().price_to !== null ? '' + feed().price_to : '∞'"
+          (valueChange)="liveMaxPrice.set($event !== null && $event >= 0 ? $event : null)"
+        />
       </div>
 
       @if (showSizeFilter()) {
