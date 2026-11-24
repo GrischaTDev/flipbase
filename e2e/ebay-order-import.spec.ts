@@ -496,9 +496,7 @@ test('marks a manually recorded eBay order without changing stock @core-smoke', 
   await expect(page.getByRole('heading', { name: 'Bereits erfasst', exact: true })).toBeVisible();
   // Der Beleg erscheint vor dem erneuten Anbieterabruf. Erst nach dessen Abschluss
   // die Testquelle ändern, damit der laufende Abruf sie nicht wieder überschreibt.
-  await expect(
-    page.getByRole('heading', { name: 'Bestellung bei eBay', exact: true }),
-  ).toBeVisible();
+  await expect(page.locator('[data-ebay-sale-source]')).toContainText(order.orderId);
   const { data: sales } = await workspace.client
     .from('sales')
     .select('id')
