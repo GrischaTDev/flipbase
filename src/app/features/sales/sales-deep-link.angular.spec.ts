@@ -362,7 +362,12 @@ describe('SalesComponent – verlinkter Verkauf', () => {
         ...linkedSale,
         lines: lines.map((line) => ({
           ...line,
-          catalog_product: { primary_media_path: 'tasse.webp' },
+          catalog_product: {
+            catalog_product_media: [
+              { id: 'secondary', storage_path: 'seite.webp', is_primary: false, sort_order: 0 },
+              { id: 'primary', storage_path: 'tasse.webp', is_primary: true, sort_order: 1 },
+            ],
+          },
         })),
       },
     ]);

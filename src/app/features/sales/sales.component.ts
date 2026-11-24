@@ -51,7 +51,7 @@ import { ProductThumbnailComponent } from '../../shared/components/product-thumb
 import { InvoiceService } from '../../core/services/invoice.service';
 import { ReturnService } from '../../core/services/return.service';
 import { InvoiceModalComponent } from '../../shared/components/invoice-modal/invoice-modal.component';
-import { Sale, SaleLine } from '../../core/models/flipbase.models';
+import { CatalogProductSaleMedia, Sale, SaleLine } from '../../core/models/flipbase.models';
 import { Invoice } from '../../core/models/invoice.models';
 import { CompanyDocumentError } from '../../core/models/company-document.models';
 import { RestockAction, ReturnReason, ReturnRecord } from '../../core/models/return.models';
@@ -564,10 +564,21 @@ export class SalesComponent {
       images.find((media) => media.is_primary)?.storage_path ??
       images.sort((left, right) => (left.sort_order ?? 0) - (right.sort_order ?? 0))[0]
         ?.storage_path ??
-      line?.catalog_product?.primary_media_path ??
-      item?.purchase_line?.catalog_product?.primary_media_path ??
+      this.catalogSaleImagePath(line?.catalog_product) ??
+      this.catalogSaleImagePath(item?.purchase_line?.catalog_product) ??
       null
     );
+  }
+
+  private catalogSaleImagePath(product: CatalogProductSaleMedia | null | undefined): string | null {
+    const media = [...(product?.catalog_product_media ?? [])].sort(
+      (left, right) =>
+        Number(right.is_primary) - Number(left.is_primary) ||
+        left.sort_order - right.sort_order ||
+        (left.created_at ?? '').localeCompare(right.created_at ?? '') ||
+        left.id.localeCompare(right.id),
+    );
+    return media[0]?.storage_path ?? null;
   }
 
   firstSaleImagePath(sale: Sale): string | null {
