@@ -165,7 +165,9 @@ for (const shopEnabled of [true, false]) {
       );
       if (shopEnabled) {
         await expect(
-          page.getByRole('button', { name: `${soldTitle} – Artikel ändern` }),
+          page
+            .getByRole('region', { name: 'Kennzahlen zum Verkauf' })
+            .getByRole('button', { name: `Verknüpfung ändern – ${soldTitle}` }),
         ).toBeVisible();
       } else {
         await expect(page.getByRole('textbox', { name: 'Artikelname' })).toHaveValue(soldTitle);

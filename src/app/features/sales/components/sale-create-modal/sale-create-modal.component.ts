@@ -179,6 +179,14 @@ export class SaleCreateModalComponent {
     return this.draft?.()?.vintedSource;
   }
 
+  readonly showVintedStockLinks = computed(
+    () =>
+      !!this.vintedSource() &&
+      this.shopActive() &&
+      !this.istBearbeitung() &&
+      !this.legacyReconciliation(),
+  );
+
   vintedDraftCancelled(): boolean {
     return isVintedSaleDraftCancelled(this.vintedSource());
   }

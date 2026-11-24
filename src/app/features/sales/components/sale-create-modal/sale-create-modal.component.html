@@ -125,7 +125,10 @@
                                 />
                               }
                             } @else if (
-                              !legacyReconciliation() && !istBearbeitung() && shopActive()
+                              !legacyReconciliation() &&
+                              !istBearbeitung() &&
+                              shopActive() &&
+                              !showVintedStockLinks()
                             ) {
                               <app-button
                                 data-sale-article-label
@@ -173,7 +176,11 @@
                               </p>
                             }
                             <div data-sale-line-errors>
-                              @if (validationAttempted() && line.controls.target.invalid) {
+                              @if (
+                                validationAttempted() &&
+                                line.controls.target.invalid &&
+                                !showVintedStockLinks()
+                              ) {
                                 <p
                                   [id]="'target-error-' + index"
                                   role="alert"
@@ -623,11 +630,60 @@
             <dt class="text-fb-text-secondary" [title]="salesHelp.purchaseCosts">
               {{ salesLabels.purchaseCosts }}
             </dt>
-            <dd class="shrink-0 tabular-nums">
-              @if (metrics.costOfGoods === null) {
-                Kosten prüfen
-              } @else {
-                {{ metrics.costOfGoods | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+            <dd class="min-w-0 text-right">
+              <span class="tabular-nums">
+                @if (metrics.costOfGoods === null) {
+                  Kosten prüfen
+                } @else {
+                  {{ metrics.costOfGoods | currency: 'EUR' : 'symbol' : '1.2-2' : 'de' }}
+                }
+              </span>
+              @if (showVintedStockLinks()) {
+                <div class="mt-1 space-y-2">
+                  @for (line of lines.controls; track line; let index = $index) {
+                    @let hasTargetError = validationAttempted() && line.controls.target.invalid;
+                    <div
+                      role="group"
+                      [attr.aria-label]="'Bestandszuordnung für ' + articleTitle(line)"
+                      [attr.aria-describedby]="hasTargetError ? 'target-error-' + index : null"
+                    >
+                      @if (lines.length > 1) {
+                        <p class="break-words text-xs text-fb-text-secondary">
+                          {{ articleTitle(line) }}
+                        </p>
+                      }
+                      <app-button
+                        variant="plain"
+                        size="slim"
+                        [ariaLabel]="
+                          line.controls.target.value
+                            ? 'Verknüpfung ändern – ' + articleTitle(line)
+                            : 'Artikel verknüpfen – ' + articleTitle(line)
+                        "
+                        [disabled]="isSubmitting() || selectionLoading() || !!selectionError()"
+                        [attr.data-sale-target-invalid]="hasTargetError"
+                        (clicked)="openArticlePicker(index)"
+                      >
+                        {{
+                          line.controls.target.value ? 'Verknüpfung ändern' : 'Artikel verknüpfen'
+                        }}
+                      </app-button>
+                      @if (hasTargetError) {
+                        <p
+                          [id]="'target-error-' + index"
+                          role="alert"
+                          class="text-xs text-fb-critical"
+                        >
+                          {{
+                            line.controls.target.value
+                              ? 'Der verknüpfte Bestandsartikel ist nicht verfügbar.'
+                              : 'Bestandsartikel für die Buchung fehlt.'
+                          }}
+                        </p>
+                      }
+                    </div>
+                  }
+                </div>
               }
             </dd>
           </div>

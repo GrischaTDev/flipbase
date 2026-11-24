@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-24 - Juna - Artikelzuordnung im Vinted-Verkaufsentwurf
+
+Die Aktion zum Verknüpfen eines Bestandsartikels steht bei den Einkaufskosten. Fehlt die Zuordnung beim Buchen, erscheint der Hinweis direkt bei der Aktion und der Fokus springt dorthin. Bei mehreren Positionen zeigt jede Aktion den zugehörigen Artikelnamen. Die bestehende Bestandsprüfung beim Buchen bleibt erhalten.
+
+108 ausgewählte Angular-Fälle prüfen unter anderem die Verknüpfung, den Fokus bei fehlender Zuordnung und die Buchung ohne Shop. Format, Lint der geänderten Dateien und Produktionsbau wurden geprüft. Die Browserfälle für den Vinted-Abschluss sind registriert.
+
 ## 2026-11-23 - Juna - 5-Sekunden-Takt, Sofort-Start, Live-Filter und aufgeräumte Feed-Oberfläche
 
 **Anlass:** Nach dem Umbau auf persönliche Feeds hingen Unterkategorien und Markenquellen noch am 90-Sekunden-Standardtakt aus PR #726 und zeigten beim Start erst nach einem stillen Einleselauf und 90 Sekunden Wartezeit einen Schwung Artikel an. Zudem war die neue Feed-Oberfläche unübersichtlich (Select-Box ohne gemerkte Auswahl, übergroßer Start-/Stopp-Button, nicht zentriertes Lösch-Icon, Leerabstände und doppeltes „Abbrechen“ im Editor-Modal, überflüssige Funktionen „Langsamer Modus“ und „Artikel teilen“, keine Live-Filterung im laufenden Feed).
