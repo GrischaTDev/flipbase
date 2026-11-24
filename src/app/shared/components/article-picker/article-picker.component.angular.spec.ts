@@ -80,6 +80,7 @@ describe('Gemeinsame Artikel- und Variantenauswahl', () => {
         'errorMessage',
         'allowCreate',
         'allowVariantCreation',
+        'skipSingleEntryGroup',
         'detailsOpen',
         'variantHint',
         'selectionMode',
@@ -124,6 +125,8 @@ describe('Gemeinsame Artikel- und Variantenauswahl', () => {
 
   it('öffnet die Variantengruppe und übernimmt exakt die geklickte Größe', async () => {
     const fixture = await render([variant('size36', 1), variant('size37', 2)]);
+    fixture.componentRef.setInput('skipSingleEntryGroup', true);
+    fixture.detectChanges();
     const selected: string[][] = [];
     fixture.componentInstance.selected.subscribe((entries) =>
       selected.push(entries.map((entry) => entry.id)),
@@ -141,6 +144,25 @@ describe('Gemeinsame Artikel- und Variantenauswahl', () => {
     );
     confirm?.click();
     expect(selected).toEqual([['size36']]);
+  });
+
+  it('wählt einen einzelnen Bestandsartikel direkt in der Artikelliste aus', async () => {
+    const fixture = await render([variant('size36', 1)]);
+    fixture.componentRef.setInput('skipSingleEntryGroup', true);
+    fixture.componentRef.setInput('selectionMode', 'single');
+    fixture.detectChanges();
+
+    const host = fixture.nativeElement as HTMLElement;
+    const group = host.querySelector<HTMLButtonElement>('[data-product-group="nike"]');
+    group?.click();
+    fixture.detectChanges();
+
+    expect(group?.getAttribute('aria-pressed')).toBe('true');
+    expect(host.querySelector('[data-variant-heading]')).toBeNull();
+    expect(fixture.componentInstance.selectedEntries().map((entry) => entry.id)).toEqual([
+      'size36',
+    ]);
+    expect(fixture.componentInstance.canConfirm()).toBe(true);
   });
 
   it('zeigt eine ausverkaufte Variante, lässt sie aber nicht auswählen', async () => {

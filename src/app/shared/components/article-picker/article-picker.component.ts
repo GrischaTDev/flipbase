@@ -21,7 +21,7 @@ import { TextFieldComponent } from '../text-field/text-field.component';
 import { ButtonComponent } from '../button/button.component';
 import { ProductThumbnailComponent } from '../product-thumbnail/product-thumbnail.component';
 import { CustomSelectComponent, SelectOption } from '../custom-select/custom-select.component';
-import type { ArticlePickerEntry } from './article-picker.models';
+import type { ArticlePickerEntry, ArticlePickerGroup } from './article-picker.models';
 import {
   filterArticleGroups,
   groupArticles,
@@ -55,6 +55,7 @@ export class ArticlePickerComponent {
   readonly errorMessage = input<string | null>(null);
   readonly allowCreate = input(false);
   readonly allowVariantCreation = input(false);
+  readonly skipSingleEntryGroup = input(false);
   readonly detailsOpen = input(false);
   readonly variantHint = input('Wähle die Größe und Farbe für diese Position.');
   readonly selectionMode = input<'single' | 'multiple'>('multiple');
@@ -134,9 +135,21 @@ export class ArticlePickerComponent {
     return !this.loading() && !this.errorMessage() && isArticleSelectable(entry);
   }
 
+  singleEntry(group: ArticlePickerGroup): ArticlePickerEntry | undefined {
+    return this.skipSingleEntryGroup() && !this.allowVariantCreation() && group.entries.length === 1
+      ? group.entries[0]
+      : undefined;
+  }
+
   openGroup(id: string): void {
-    if (this.loading() || this.errorMessage() || !this.groups().some((group) => group.id === id))
+    if (this.loading() || this.errorMessage()) return;
+    const group = this.groups().find((candidate) => candidate.id === id);
+    if (!group) return;
+    const entry = this.singleEntry(group);
+    if (entry) {
+      this.toggle(entry.id);
       return;
+    }
     this.activeGroupId.set(id);
     this.focusAfterRender('[data-variant-heading]');
   }
