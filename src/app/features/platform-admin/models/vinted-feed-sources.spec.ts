@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseVintedFeedCapacity,
-  pendingCategoryRefresh,
   sourceAgeLabel,
   sourceCoverageStatus,
   sourceKindLabel,
@@ -78,19 +77,5 @@ describe('Vinted-Quellen', () => {
     expect(sourceAgeLabel('2026-11-23T09:57:00Z', now)).toBe('vor 3 min');
     expect(sourceAgeLabel('2026-11-23T07:00:00Z', now)).toBe('vor 3 h');
     expect(sourceAgeLabel(null, now)).toBe('—');
-  });
-
-  it('erkennt eine noch offene Neu-Einlese-Anforderung', () => {
-    const base = {
-      refreshedAt: '2026-11-23T09:00:00Z',
-      lastAttemptAt: '2026-11-23T09:00:00Z',
-      categoryCount: 1,
-      lastError: null,
-    };
-    expect(pendingCategoryRefresh({ ...base, requestedAt: '2026-11-23T09:30:00Z' })).toBe(
-      '2026-11-23T09:30:00Z',
-    );
-    expect(pendingCategoryRefresh({ ...base, requestedAt: '2026-11-23T08:30:00Z' })).toBeNull();
-    expect(pendingCategoryRefresh(null)).toBeNull();
   });
 });

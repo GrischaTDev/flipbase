@@ -168,6 +168,25 @@ describe('Persönliche Vinted-Feeds', () => {
     page.selectFeed(firstActive);
     expect(localStorage.getItem('flipbase:vinted-feed:selected:workspace-1')).toBe('feed-1');
   });
+
+  it('markiert Feeds mit geänderter oder entfernter Vinted-Kategorie als prüfbedürftig', async () => {
+    const outdated: PersonalFeed = { ...pausedFeed, id: 'feed-old', catalog_id: 999999 };
+    const valid: PersonalFeed = { ...pausedFeed, id: 'feed-ok', catalog_id: 2050 };
+    api.personalFeeds.mockResolvedValueOnce([outdated, valid]);
+    Object.assign(api, {
+      categories: vi
+        .fn()
+        .mockResolvedValue([
+          { id: 2050, parentId: 5, title: 'Kleidung', path: 'Herren > Kleidung' },
+        ]),
+    });
+    TestBed.tick();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(page.hasOutdatedCategory(outdated)).toBe(true);
+    expect(page.hasOutdatedCategory(valid)).toBe(false);
+    expect(page.feedBadges(valid)).toContain('Herren > Kleidung');
+  });
 });
 
 describe('Live-Abruf eines persönlichen Feeds', () => {

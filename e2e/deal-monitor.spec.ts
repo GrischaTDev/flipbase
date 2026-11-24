@@ -166,23 +166,33 @@ async function fixture(
           created_at: new Date().toISOString(),
         },
       ];
-    if (name === 'vinted_categories')
+    if (name === 'vinted_listing_categories')
       json =
         Number(url.searchParams.get('offset') ?? 0) === 0
           ? [
-              { id: 5, parent_id: null, title: 'Herren', path: 'Herren' },
-              { id: 69, parent_id: 5, title: 'Schuhe', path: 'Herren > Schuhe' },
+              {
+                id: 5,
+                parent_id: null,
+                title: 'Herren',
+                path: '',
+                tree_observed_at: '2026-11-19T12:00:00Z',
+              },
+              {
+                id: 69,
+                parent_id: 5,
+                title: 'Schuhe',
+                path: 'Herren',
+                tree_observed_at: '2026-11-19T12:00:00Z',
+              },
               {
                 id: 1049,
                 parent_id: 69,
                 title: 'Sneaker',
-                path: 'Herren > Schuhe > Sneaker',
-                is_leaf: true,
+                path: 'Herren > Schuhe',
+                tree_observed_at: '2026-11-19T12:00:00Z',
               },
             ]
           : [];
-    if (name === 'vinted_category_syncs')
-      json = { refreshed_at: '2026-11-19T12:00:00Z', category_count: 3 };
     if (name === 'sniper_watchlists') {
       const firstWorkspace = url.searchParams.get('workspace_id') === `eq.${workspace}`;
       json = firstWorkspace && Number(url.searchParams.get('offset') ?? 0) === 0 ? watchlists : [];

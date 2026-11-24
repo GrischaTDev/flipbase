@@ -12,9 +12,9 @@ insert into public.workspace_members(workspace_id,user_id,role) values
  ('c4030000-0000-4000-8000-000000000003','c4030000-0000-4000-8000-000000000001','owner'),
  ('c4030000-0000-4000-8000-000000000003','c4030000-0000-4000-8000-000000000002','member'),
  ('c4030000-0000-4000-8000-000000000004','c4030000-0000-4000-8000-000000000002','owner');
-insert into public.vinted_categories(id,title,slug,path,is_leaf) values
- (904030001,'Festkleidung','festkleidung','Festkleidung',false),
- (904030002,'Mäntel','maentel','Mäntel',false);
+insert into public.vinted_listing_categories(id,parent_id,title,full_title,path,position,is_leaf,tree_observed_at) values
+ (904030001,null,'Festkleidung','Festkleidung','',901,false,now()),
+ (904030002,null,'Mäntel','Mäntel','',902,false,now());
 insert into public.platform_operators(user_id) values ('c4030000-0000-4000-8000-000000000002');
 
 create function pg_temp.feed_workspace()

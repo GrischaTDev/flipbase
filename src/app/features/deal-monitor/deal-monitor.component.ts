@@ -71,6 +71,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     single: LucideLayoutGrid,
   };
   readonly feeds = signal<PersonalFeed[]>([]);
+  readonly knownCategories = signal<ReadonlyMap<number, string> | null>(null);
   readonly selectedId = signal<string | null>(null);
   readonly selectedFeed = computed(() => this.feeds().find(({ id }) => id === this.selectedId()));
   readonly activeFeeds = computed(() => this.feeds().filter(({ is_active }) => is_active));
@@ -105,8 +106,10 @@ export class DealMonitorComponent implements UnsavedEntryPage {
         this.error.set(null);
         this.editorError.set(null);
         this.message.set('');
-        if (user && workspaceId)
+        if (user && workspaceId) {
           void this.loadFeeds(workspaceId, this.readStoredFeedId(workspaceId));
+          void this.loadCategoryIndex();
+        }
       });
     });
   }
@@ -126,8 +129,16 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     if (!feed.is_active && this.showColumns()) this.viewMode.set('single');
   }
 
+  hasOutdatedCategory(feed: PersonalFeed): boolean {
+    const categories = this.knownCategories();
+    return feed.catalog_id !== null && categories !== null && !categories.has(feed.catalog_id);
+  }
+
   feedBadges(feed: PersonalFeed): string[] {
     const badges: string[] = [];
+    const categoryPath =
+      feed.catalog_id !== null ? this.knownCategories()?.get(feed.catalog_id) : undefined;
+    if (categoryPath) badges.push(categoryPath);
     if (feed.brand) badges.push(feed.brand);
     if (feed.search_text) badges.push(`„${feed.search_text}“`);
     if (feed.sizes.length) badges.push(feedSizeLabels(feed.sizes));
@@ -269,6 +280,17 @@ export class DealMonitorComponent implements UnsavedEntryPage {
         this.pending.set(null);
         this.pendingFeedId.set(null);
       }
+    }
+  }
+
+  private async loadCategoryIndex(): Promise<void> {
+    if (this.knownCategories() !== null || typeof this.api.categories !== 'function') return;
+    try {
+      const categories = await this.api.categories();
+      if (this.destroyRef.destroyed || !categories.length) return;
+      this.knownCategories.set(new Map(categories.map((entry) => [entry.id, entry.path])));
+    } catch {
+      // Katalog-Hinweis ist optional; der Feed bleibt ohne ihn normal nutzbar.
     }
   }
 

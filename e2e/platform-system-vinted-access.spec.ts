@@ -54,7 +54,6 @@ async function mockSystemPage(page: Page) {
     const request = route.request();
     const url = new URL(request.url());
     const name = url.pathname.split('/').at(-1) ?? '';
-    const single = (request.headers()['accept'] ?? '').includes('vnd.pgrst.object');
     let json: unknown = [];
     if (url.pathname.includes('/rest/v1/rpc/'))
       calls.push({ name, body: (request.postDataJSON() ?? {}) as Record<string, unknown> });
@@ -138,16 +137,6 @@ async function mockSystemPage(page: Page) {
       settings.category_poll_interval_seconds = body['p_category_poll_interval_seconds'];
       await route.fulfill({ status: 204 });
       return;
-    }
-    if (name === 'vinted_category_syncs') {
-      const row = {
-        refreshed_at: recent(),
-        requested_at: null,
-        last_attempt_at: recent(),
-        category_count: 2500,
-        last_error: null,
-      };
-      json = single ? row : [row];
     }
     await route.fulfill({ json });
   });

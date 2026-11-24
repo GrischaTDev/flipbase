@@ -11,20 +11,16 @@ import { RequestBudget } from './runtime/budget.js';
 import { RequestStartGuard } from './runtime/request-start-guard.js';
 import { pacedVintedFetch } from './runtime/paced-vinted-fetch.js';
 import { ListingRetention } from './runtime/listing-retention.js';
-import { refreshCategoriesIfDue } from './runtime/refresh-categories.js';
 import { QueryScheduler } from './runtime/scheduler.js';
 import { RequestMetrics } from './runtime/request-metrics.js';
 import { VintedConnectionState } from './runtime/vinted-connection-state.js';
-import { CategoryStore } from './store/category.store.js';
 import { ListingStore } from './store/listing.store.js';
 import { OriginStateStore } from './store/origin-state.store.js';
 import { QueryStore } from './store/query.store.js';
 import { createSupabaseClient } from './store/supabase.js';
 import { VintedCollector } from './vinted/collector.js';
-import { readVintedPage } from './vinted/response-body.js';
 import { preferIpv6 } from './vinted/network.js';
 import { sleep } from './vinted/session.js';
-import { ForbiddenError, RateLimitedError, parseRetryAfter } from './vinted/errors.js';
 import { FEED_SWITCHED_OFF_MESSAGE, FeedOperatorSwitch } from './runtime/feed-operator-switch.js';
 
 preferIpv6();
@@ -81,7 +77,6 @@ const vintedConnection = new VintedConnectionState();
 
 const queries = new QueryStore(client);
 const originState = new OriginStateStore(client, log);
-const categories = new CategoryStore(client);
 const listings = new ListingStore(client);
 const collector = new VintedCollector(sessionOptions, counted, sleep, vintedConnection);
 const browserSession = new BrowserSessionController({
@@ -182,13 +177,9 @@ while (!controller.signal.aborted) {
   try {
     const now = new Date();
 
-    // Vor dem Sammeln, nicht danach: Faellt das Einlesen aus, soll das Sammeln
-    // trotzdem laufen - und die Kategorien sind fuer den naechsten Takt aktuell.
-    // Das Abholen der Startseite geht ueber dieselbe gezaehlte fetch-Funktion
-    // wie alles andere, sonst zaehlt es nicht gegen das Budget - und es fragt
-    // vorher mit `hasCapacity()` um Erlaubnis, genau wie der Taktgeber vor
-    // jeder Abfrage. Nur mitzaehlen ohne fragen hiesse: Diese eine Anfrage
-    // laesst sich nie verweigern, verbraucht aber das Budget der anderen.
+    // Der zentrale Vinted-Kategoriebaum wird ueber den Vinted-Katalog
+    // (`vinted_listing_categories`) gepflegt; der Sniper fragt daher nur noch
+    // die aktiven Feed-Quellen ab.
     // Abgeschaltet: keine Vinted-Anfrage; Statusmeldung und Takt laufen weiter.
     const feedEnabled = await feedSwitch.isEnabled();
     const report = (await browserSession.runAutomatic(async () => {
@@ -201,56 +192,6 @@ while (!controller.signal.aborted) {
       ) {
         requestGuard.allowAutomatic();
       }
-      await refreshCategoriesIfDue(
-        {
-          store: categories,
-          originState: {
-            getState: async () => origin,
-            setCooldown: (name, until, reason) => originState.setCooldown(name, until, reason),
-            setBlocked: (name, reason, until) => originState.setBlocked(name, reason, until),
-          },
-          hasCapacity: () => budget.hasCapacity(),
-          fetchHomepage: async () => {
-            try {
-              const response = await counted(config.vintedBaseUrl);
-              const retryAfterSeconds = parseRetryAfter(response.headers.get('retry-after'));
-              if (response.status === 403 || response.headers.get('cf-mitigated') === 'challenge') {
-                throw new ForbiddenError('Vinted refused the category request', {
-                  status: response.status,
-                  challengeDetected: response.headers.get('cf-mitigated') === 'challenge',
-                  retryAfterSeconds,
-                });
-              }
-              if (response.status === 429)
-                throw new RateLimitedError(undefined, { retryAfterSeconds });
-              if (!response.ok) throw new Error(`HTTP ${response.status}`);
-              const html = await readVintedPage(response);
-              if (
-                html.includes('challenge-running') ||
-                html.includes('<title>Just a moment...</title>')
-              ) {
-                throw new ForbiddenError('Vinted category challenge detected', {
-                  status: response.status,
-                  phase: 'body',
-                  challengeDetected: true,
-                  retryAfterSeconds,
-                });
-              }
-              vintedConnection.recordSuccess();
-              return html;
-            } catch (error) {
-              vintedConnection.recordFailure();
-              throw error;
-            }
-          },
-          maxAgeMs: config.categoryMaxAgeMs,
-          log,
-          now: () => new Date(),
-          onOriginPause: () => requestGuard.pause(),
-        },
-        now,
-      );
-
       return scheduler.runOnce(now);
     })) ?? {
       polled: 0,

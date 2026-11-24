@@ -130,53 +130,19 @@
       }
     </form>
 
-    <div class="space-y-2 border-t border-fb-line pt-4" data-vinted-category-sync>
-      <h3 class="text-[13px] font-semibold text-fb-text-primary">Kategorien</h3>
-      @if (categorySync(); as sync) {
-        <dl class="grid gap-3 sm:grid-cols-3">
-          <div>
-            <dt class="text-fb-text-muted">Gespeicherte Kategorien</dt>
-            <dd class="tabular-nums text-fb-text-primary">{{ sync.categoryCount }}</dd>
-          </div>
-          <div>
-            <dt class="text-fb-text-muted">Zuletzt eingelesen</dt>
-            <dd class="tabular-nums text-fb-text-primary">
-              @if (sync.refreshedAt) {
-                <time [attr.datetime]="sync.refreshedAt">{{
-                  sync.refreshedAt | date: 'dd.MM.yyyy, HH:mm'
-                }}</time>
-              } @else {
-                Noch nie
-              }
-            </dd>
-          </div>
-          <div>
-            <dt class="text-fb-text-muted">Letzter Fehler</dt>
-            <dd class="break-words text-fb-text-primary" data-category-sync-error>
-              {{ sync.lastError ?? '—' }}
-            </dd>
-          </div>
-        </dl>
-      }
-      @if (syncError(); as message) {
-        <p role="alert" class="text-fb-critical">{{ message }}</p>
-      }
-      <div class="flex flex-wrap items-center gap-3">
-        <app-button
-          size="slim"
-          [loading]="requestingRefresh()"
-          [disabled]="requestingRefresh() || pendingRefresh() !== null"
-          (clicked)="requestCategoryRefresh()"
-        >
-          Neu einlesen
-        </app-button>
-        <p role="status" class="text-xs">
-          @if (pendingRefresh(); as requestedAt) {
-            Angefordert am
-            <time [attr.datetime]="requestedAt">{{ requestedAt | date: 'dd.MM.yyyy, HH:mm' }}</time>
-          }
-        </p>
-      </div>
+    <div
+      class="flex flex-wrap items-center justify-between gap-2 border-t border-fb-line pt-4 text-xs text-fb-text-secondary"
+    >
+      <span>
+        Der Vinted-Kategoriebaum wird zentral im Vinted-Katalog gepflegt und gilt für Inserate und
+        Feeds.
+      </span>
+      <a
+        routerLink="/admin/vinted-catalog"
+        class="font-medium text-fb-text-primary underline underline-offset-2 hover:text-fb-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+      >
+        Zum Vinted-Katalog
+      </a>
     </div>
   </div>
 </app-card>

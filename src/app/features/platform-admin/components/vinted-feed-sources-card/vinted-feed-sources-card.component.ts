@@ -1,4 +1,3 @@
-import { DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,6 +14,7 @@ import {
   ValidationErrors,
   Validators,
 } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
@@ -22,10 +22,8 @@ import { DataTableComponent } from '../../../../shared/components/data-table/dat
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   VINTED_FEED_SETTING_LIMITS,
-  VintedCategorySyncStatus,
   VintedFeedCapacity,
   VintedFeedSource,
-  pendingCategoryRefresh,
   sourceAgeLabel,
   sourceCoverageStatus,
   sourceKindLabel,
@@ -46,8 +44,8 @@ function limitValidators(limits: { min: number; max: number }) {
 @Component({
   selector: 'app-vinted-feed-sources-card',
   imports: [
-    DatePipe,
     ReactiveFormsModule,
+    RouterLink,
     BadgeComponent,
     ButtonComponent,
     CardComponent,
@@ -64,14 +62,11 @@ export class VintedFeedSourcesCardComponent {
 
   readonly limits = VINTED_FEED_SETTING_LIMITS;
   readonly capacity = signal<VintedFeedCapacity | null>(null);
-  readonly categorySync = signal<VintedCategorySyncStatus | null>(null);
   readonly loading = signal(false);
   readonly loadError = signal<string | null>(null);
-  readonly syncError = signal<string | null>(null);
   readonly saving = signal(false);
   readonly saveError = signal<string | null>(null);
   readonly saveAttempted = signal(false);
-  readonly requestingRefresh = signal(false);
   readonly now = signal(Date.now());
 
   readonly settingsForm = new FormGroup({
@@ -86,7 +81,6 @@ export class VintedFeedSourcesCardComponent {
   });
 
   readonly sources = computed(() => this.capacity()?.sources ?? []);
-  readonly pendingRefresh = computed(() => pendingCategoryRefresh(this.categorySync()));
 
   constructor() {
     void this.load();
@@ -94,7 +88,7 @@ export class VintedFeedSourcesCardComponent {
     this.destroyRef.onDestroy(() => clearInterval(timer));
   }
 
-  /** Lädt Quellen und Kategorienstand; parallele Aufrufe teilen sich eine Anfrage. */
+  /** Lädt Quellen und Auslastung; parallele Aufrufe teilen sich eine Anfrage. */
   load(): Promise<void> {
     if (this.loadRequest) return this.loadRequest;
     if (this.destroyRef.destroyed) return Promise.resolve();
@@ -106,30 +100,20 @@ export class VintedFeedSourcesCardComponent {
 
   private async readAll(): Promise<void> {
     this.loading.set(true);
-    const [capacity, sync] = await Promise.allSettled([
-      this.api.capacity(),
-      this.api.categorySync(),
-    ]);
-    if (this.destroyRef.destroyed) return;
-    this.now.set(Date.now());
-    if (capacity.status === 'fulfilled') {
-      this.capacity.set(capacity.value);
+    try {
+      const capacity = await this.api.capacity();
+      if (this.destroyRef.destroyed) return;
+      this.now.set(Date.now());
+      this.capacity.set(capacity);
       this.loadError.set(null);
-      if (this.settingsForm.pristine && !this.saving()) this.fillSettings(capacity.value);
-    } else {
-      this.loadError.set(
-        errorMessage(capacity.reason, 'Die Vinted-Quellen konnten nicht geladen werden.'),
-      );
+      if (this.settingsForm.pristine && !this.saving()) this.fillSettings(capacity);
+    } catch (error) {
+      if (this.destroyRef.destroyed) return;
+      this.now.set(Date.now());
+      this.loadError.set(errorMessage(error, 'Die Vinted-Quellen konnten nicht geladen werden.'));
+    } finally {
+      if (!this.destroyRef.destroyed) this.loading.set(false);
     }
-    if (sync.status === 'fulfilled') {
-      this.categorySync.set(sync.value);
-      this.syncError.set(null);
-    } else {
-      this.syncError.set(
-        errorMessage(sync.reason, 'Der Stand der Kategorien konnte nicht geladen werden.'),
-      );
-    }
-    this.loading.set(false);
   }
 
   private fillSettings(capacity: VintedFeedCapacity): void {
@@ -175,24 +159,6 @@ export class VintedFeedSourcesCardComponent {
         );
     } finally {
       if (!this.destroyRef.destroyed) this.saving.set(false);
-    }
-  }
-
-  async requestCategoryRefresh(): Promise<void> {
-    if (this.requestingRefresh()) return;
-    this.requestingRefresh.set(true);
-    this.syncError.set(null);
-    try {
-      await this.api.requestCategoryRefresh();
-      const sync = await this.api.categorySync();
-      if (!this.destroyRef.destroyed) this.categorySync.set(sync);
-    } catch (error) {
-      if (!this.destroyRef.destroyed)
-        this.syncError.set(
-          errorMessage(error, 'Das Neu-Einlesen konnte nicht angefordert werden.'),
-        );
-    } finally {
-      if (!this.destroyRef.destroyed) this.requestingRefresh.set(false);
     }
   }
 
