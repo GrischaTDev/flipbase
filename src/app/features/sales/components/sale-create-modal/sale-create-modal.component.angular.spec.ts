@@ -40,7 +40,7 @@ import type {
   ExternalSaleEntrySaveResult,
 } from '../../models/external-sale-entry.models';
 
-function saleSourceProviders() {
+function saleSourceProviders(shopEnabled?: boolean) {
   return [
     {
       provide: SalePlatformsService,
@@ -52,7 +52,10 @@ function saleSourceProviders() {
           SALE_PLATFORM_OPTIONS.find((entry) => entry.value === value)?.label ?? value,
       },
     },
-    { provide: WorkspaceService, useValue: { currentWorkspace: signal({ id: 'workspace-1' }) } },
+    {
+      provide: WorkspaceService,
+      useValue: { currentWorkspace: signal({ id: 'workspace-1', shop_enabled: shopEnabled }) },
+    },
     {
       provide: PurchaseService,
       useValue: {
@@ -880,7 +883,7 @@ describe('SaleCreateModalComponent', () => {
       );
       bridgeInputMetadata(
         (SaleCreateModalComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp,
-        ['saleTarget', 'legacyReconciliation', 'sale'],
+        ['saleTarget', 'legacyReconciliation', 'sale', 'draft'],
       );
       bridgeInputMetadata((CardComponent as unknown as { ɵcmp: AngularInputMetadata }).ɵcmp, [
         'title',
@@ -1020,7 +1023,7 @@ describe('SaleCreateModalComponent', () => {
       }
     });
 
-    async function erstelleGerendertenDialog(platform = 'ebay') {
+    async function erstelleGerendertenDialog(platform = 'ebay', shopEnabled?: boolean) {
       const items = signal<InventoryItem[]>([]);
       const positions = signal<StockPosition[]>([]);
       const salesService = {
@@ -1032,7 +1035,7 @@ describe('SaleCreateModalComponent', () => {
         imports: [SaleCreateModalComponent],
         providers: [
           { provide: LOCALE_ID, useValue: 'de' },
-          ...saleSourceProviders(),
+          ...saleSourceProviders(shopEnabled),
           { provide: SalesService, useValue: salesService },
           {
             provide: InventoryService,
@@ -1534,6 +1537,97 @@ describe('SaleCreateModalComponent', () => {
         );
         expect(host.textContent).toContain('Der Betrag darf nicht negativ sein.');
       });
+
+      it.each([true, false])(
+        'zeigt beim Vinted-Entwurf mit Shop $0 die passende Bestandszuordnung',
+        async (shopEnabled) => {
+          const { fixture, items, salesService } = await erstelleGerendertenDialog(
+            'vinted',
+            shopEnabled,
+          );
+          const component = fixture.componentInstance;
+          items.set([
+            {
+              id: 'available-item',
+              workspace_id: 'workspace-1',
+              title: 'Vinted-Pullover',
+              condition: 'used',
+              status: 'ready',
+              sale_state: 'no_active_sale',
+              allocated_purchase_cost: 10,
+            },
+          ]);
+          fixture.componentRef.setInput('draft', {
+            id: 'vinted-draft-1',
+            workspaceId: 'workspace-1',
+            title: 'Vinted-Pullover',
+            saleAmount: 25,
+            updatedAt: '2026-11-24',
+            vintedSource: {
+              saleState: 'sold',
+              title: 'Vinted-Pullover',
+              amount: 25,
+              currency: 'EUR',
+              isBundle: false,
+            },
+            snapshot: {
+              ...component.draftSnapshot(),
+              platform: 'vinted',
+              saleDate: '2026-11-24',
+              externalOrderId: '53621',
+              lines: [
+                {
+                  target: 'free:Vinted-Pullover',
+                  quantity: 1,
+                  unitSalePrice: 25,
+                  purchaseId: null,
+                },
+              ],
+            },
+          });
+          fixture.detectChanges();
+
+          const host = fixture.nativeElement as HTMLElement;
+          const summary = host.querySelector('[data-sale-summary]');
+          const link = summary?.querySelector<HTMLButtonElement>(
+            'button[aria-label="Artikel verknüpfen – Vinted-Pullover"]',
+          );
+          if (!shopEnabled) {
+            expect(link).toBeNull();
+            await component.onSubmit();
+            expect(salesService.recordSale).toHaveBeenCalledWith(
+              expect.objectContaining({
+                lines: [expect.objectContaining({ positionKind: 'free' })],
+              }),
+            );
+            return;
+          }
+
+          expect(summary?.textContent).toContain('Einkaufskosten');
+          expect(link?.disabled).toBe(false);
+          expect(summary?.querySelector('#target-error-0')).toBeNull();
+          await component.onSubmit();
+          fixture.detectChanges();
+          await fixture.whenStable();
+          expect(salesService.recordSale).not.toHaveBeenCalled();
+          expect(document.activeElement).toBe(link);
+          expect(summary?.querySelector('#target-error-0')?.textContent).toContain(
+            'Bestandsartikel für die Buchung fehlt.',
+          );
+          expect(host.querySelector('[data-sale-line-errors] #target-error-0')).toBeNull();
+
+          link?.click();
+          expect(component.articlePickerLineIndex()).toBe(0);
+          expect(component.articlePickerOpen()).toBe(true);
+          component.onArticlesSelected(component.articlePickerEntries());
+          fixture.detectChanges();
+
+          expect(component.lines.at(0).controls.target.value).toBe('inventory:available-item');
+          expect(component.lines.at(0).controls.unitSalePrice.value).toBe(25);
+          expect(component.liveMetrics().costOfGoods).toBe(10);
+          expect(summary?.querySelector('#target-error-0')).toBeNull();
+        },
+      );
 
       it('zeigt den fehlenden Verkaufspreis erst nach dem Absenden beim Artikel statt unter dem Preisfeld', async () => {
         const { fixture, items } = await erstelleGerendertenDialog();
