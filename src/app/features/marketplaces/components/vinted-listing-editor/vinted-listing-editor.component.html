@@ -55,6 +55,17 @@
     <ng-container [ngTemplateOutlet]="feedback" />
   </app-entry-page-layout>
 }
+<ng-template #favoriteDiscount>
+  @if (favoriteDiscountAccount(); as account) {
+    <app-vinted-favorite-discount-field
+      [accountOffer]="account.defaultOffer"
+      [priceCents]="favoriteDiscountPriceCents()"
+      [discountPercent]="favoriteDiscountPercent()"
+      [disabled]="saving() || imageEditing()"
+      (discountPercentChange)="changeFavoriteDiscount($event)"
+    />
+  }
+</ng-template>
 <ng-template #feedback>
   @if (publicationAnnouncement()) {
     <p data-publication-result role="status" class="sr-only">
@@ -100,6 +111,7 @@
             [maxLength]="categorySchema()?.descriptionMaxLength ?? 20000"
             formControlName="description"
           />
+          <ng-container [ngTemplateOutlet]="favoriteDiscount" />
           <section
             aria-labelledby="vinted-relist-photo-heading"
             class="space-y-4 border-t border-fb-border-subtle pt-5"
@@ -439,6 +451,7 @@
                   "
                   formControlName="price"
                 />
+                <ng-container [ngTemplateOutlet]="favoriteDiscount" />
                 @if (fieldSelection(); as selection) {
                   <app-vinted-listing-fields-dialog
                     [inline]="true"

@@ -207,6 +207,19 @@
         (clicked)="changePrice(entry, $event)"
       />
     }
+    @if (favoriteDiscountActionVisible(entry)) {
+      <app-button
+        variant="table-action"
+        tone="neutral"
+        size="slim"
+        [icon]="favoriteDiscountIcon"
+        [iconOnly]="true"
+        title="Rabatt anpassen"
+        [ariaLabel]="'Rabatt anpassen für ' + entry.title"
+        ariaHaspopup="dialog"
+        (clicked)="openFavoriteDiscount(entry)"
+      />
+    }
     @if (actionsVisible(entry)) {
       @if (!plan) {
         <app-button
@@ -289,6 +302,12 @@
       [error]="priceEditor.error()"
       (closed)="priceEditor.close()"
       (saved)="savePrice()"
+    />
+  }
+  @if (favoriteDiscountEntry(); as entry) {
+    <app-vinted-listing-favorite-discount-dialog
+      [entry]="entry"
+      (closed)="closeFavoriteDiscount()"
     />
   }
   @if (publications.nextCursor) {

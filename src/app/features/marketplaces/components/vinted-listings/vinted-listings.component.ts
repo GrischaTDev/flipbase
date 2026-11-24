@@ -28,6 +28,7 @@ import {
   LucideLayoutGrid,
   LucideList,
   LucideBadgeEuro,
+  LucideBadgePercent,
   LucideRotateCcw,
   LucideCopy,
   LucidePencil,
@@ -59,6 +60,8 @@ import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialo
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
+import { VintedListingFavoriteDiscountDialogComponent } from './vinted-listing-favorite-discount-dialog.component';
 
 @Component({
   selector: 'app-vinted-listings',
@@ -75,6 +78,7 @@ import { ToastService } from '../../../../shared/components/toast/toast.service'
     VintedListingMetricsComponent,
     VintedListingAgeComponent,
     VintedListingPriceDialogComponent,
+    VintedListingFavoriteDiscountDialogComponent,
     ModalShellComponent,
     VintedListingEditorComponent,
     LoadingIndicatorComponent,
@@ -89,6 +93,7 @@ export class VintedListingsComponent {
   readonly gridIcon = LucideLayoutGrid;
   readonly listIcon = LucideList;
   readonly priceIcon = LucideBadgeEuro;
+  readonly favoriteDiscountIcon = LucideBadgePercent;
   readonly relistIcon = LucideRotateCcw;
   readonly templateIcon = LucideCopy;
   readonly editIcon = LucidePencil;
@@ -141,6 +146,18 @@ export class VintedListingsComponent {
   }
   priceActionVisible(entry: MarketplaceEntry): boolean {
     return this.canManageEntry(entry) && entry.publicationState !== 'draft';
+  }
+  favoriteDiscountActionVisible(entry: MarketplaceEntry): boolean {
+    const account = this.store.selectedConnection();
+    const context = this.favoriteDiscountContext();
+    return (
+      context !== null &&
+      this.enabledFavoriteDiscountContext() === context &&
+      entry.workspaceId === account?.workspaceId &&
+      entry.connectionId === account.connectionId &&
+      !!entry.externalId &&
+      entry.publicationState !== 'draft'
+    );
   }
   actionsBlocked(entry: MarketplaceEntry): boolean {
     return (
@@ -197,6 +214,7 @@ export class VintedListingsComponent {
   readonly store = inject(MarketplaceAccountStore);
   readonly operations = inject(VintedListingOperationStore);
   readonly statistics = inject(MarketplaceListingStatisticsStore);
+  private readonly favoriteMessages = inject(VintedFavoriteMessageApiService);
   private readonly workspace = inject(WorkspaceService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
@@ -319,6 +337,23 @@ export class VintedListingsComponent {
   }
   readonly priceEntry = signal<MarketplaceEntry | null>(null);
   readonly savingPrice = signal(false);
+  private readonly openedFavoriteDiscount = signal<MarketplaceEntry | null>(null);
+  private readonly enabledFavoriteDiscountContext = signal<string | null>(null);
+  private readonly favoriteDiscountContext = computed(() => {
+    const account = this.store.selectedConnection();
+    return this.store.canManage() && account?.externalAccountId
+      ? JSON.stringify([
+          account.workspaceId,
+          account.connectionId,
+          account.externalAccountId,
+          this.store.selectionVersion(),
+        ])
+      : null;
+  });
+  readonly favoriteDiscountEntry = computed(() => {
+    const entry = this.openedFavoriteDiscount();
+    return entry && this.favoriteDiscountActionVisible(entry) ? entry : null;
+  });
   private readonly injector = inject(Injector);
   private readonly element = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
   private readonly priceContext = computed(() => {
@@ -354,6 +389,24 @@ export class VintedListingsComponent {
   );
 
   constructor() {
+    effect((onCleanup) => {
+      const context = this.favoriteDiscountContext();
+      untracked(() => {
+        this.closeFavoriteDiscount();
+        this.enabledFavoriteDiscountContext.set(null);
+        const account = this.store.selectedConnection();
+        if (!context || !account) return;
+        let current = true;
+        onCleanup(() => (current = false));
+        void this.favoriteMessages
+          .readListingDiscount(account)
+          .then(({ enabled }) => {
+            if (current && enabled && this.favoriteDiscountContext() === context)
+              this.enabledFavoriteDiscountContext.set(context);
+          })
+          .catch(() => undefined);
+      });
+    });
     effect(() => {
       const account = this.store.selectedConnection();
       const scope = account
@@ -492,6 +545,14 @@ export class VintedListingsComponent {
   async savePrice(): Promise<void> {
     const entry = this.priceEntry();
     if (entry && !this.actionsBlocked(entry)) await this.priceEditor.save();
+  }
+
+  openFavoriteDiscount(entry: MarketplaceEntry): void {
+    if (this.favoriteDiscountActionVisible(entry)) this.openedFavoriteDiscount.set(entry);
+  }
+
+  closeFavoriteDiscount(): void {
+    this.openedFavoriteDiscount.set(null);
   }
 
   private async selectLinkedConnection(connectionId: string, workspaceId: string): Promise<void> {

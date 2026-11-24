@@ -67,6 +67,7 @@ import { VintedListingMediaComponent } from './vinted-listing-media.component';
 import type { ListingImageDraft } from '../../../../shared/components/listing-image-editor/listing-image-draft';
 import type { VintedCategory } from '../../../../core/models/vinted-category.model';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -85,6 +86,11 @@ import {
   VintedListingStorageError,
   type VintedListingDraft,
 } from '../../models/vinted-listing-draft';
+import {
+  validateFavoriteOffer,
+  type ListingFavoriteDiscount,
+} from '../../models/vinted-favorite-messages';
+import { VintedFavoriteDiscountFieldComponent } from '../vinted-favorite-discount-field/vinted-favorite-discount-field.component';
 import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-panel/vinted-listing-template-panel.component';
 import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
 import { VintedListingFieldsDialogComponent } from '../vinted-listing-fields-dialog/vinted-listing-fields-dialog.component';
@@ -141,6 +147,7 @@ import {
     NoticeBannerComponent,
     CategoryPickerComponent,
     VintedListingMediaComponent,
+    VintedFavoriteDiscountFieldComponent,
     VintedListingTemplatePanelComponent,
     VintedListingBrandDialogComponent,
     VintedListingFieldsDialogComponent,
@@ -603,6 +610,7 @@ export class VintedListingEditorComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly api = inject(VintedListingDraftService);
+  private readonly favoriteMessageApi = inject(VintedFavoriteMessageApiService);
   private readonly imageApi = inject(VintedListingImageService);
   private readonly originals = inject(VintedListingOriginalPhotoService);
   private readonly liveCategoryApi = inject(VintedListingCategoryService);
@@ -644,6 +652,11 @@ export class VintedListingEditorComponent {
   });
   readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? null);
   readonly draft = signal<VintedListingDraft | null>(null);
+  private readonly favoriteDiscountLoadVersion = signal(0);
+  private readonly favoriteDiscountOverride = signal<number | null | undefined>(undefined);
+  private readonly favoriteDiscountSettings = signal<
+    (ListingFavoriteDiscount & { readonly scopeKey: string }) | null
+  >(null);
   /** Über die Entwurfsliste geöffnet; „Inserat erstellen“ behält seinen Titel auch nach dem Speichern. */
   readonly openedSavedDraft = computed(() => this.params().get('draftId') !== null);
   readonly loading = signal(true);
@@ -723,6 +736,61 @@ export class VintedListingEditorComponent {
   readonly accountIssue = computed(() =>
     vintedListingAccountIssue(this.selectedAccount(), this.workspaceId()),
   );
+  private readonly favoriteDiscountConnectionId = computed(() => {
+    const account = this.selectedAccount();
+    return account?.marketplace === 'vinted' && account.workspaceId === this.workspaceId()
+      ? account.connectionId
+      : null;
+  });
+  private readonly relistingDiscountItemId = computed(() => {
+    const source = this.source();
+    return source?.mode === 'relist'
+      ? (source.entry.externalId ?? undefined)
+      : (this.draft()?.relistExternalId ?? undefined);
+  });
+  private readonly favoriteDiscountScopeKey = computed(() => {
+    const context = this.context();
+    const connectionId = this.favoriteDiscountConnectionId();
+    return context &&
+      connectionId &&
+      !this.loading() &&
+      !this.loadError() &&
+      !this.preparingSource()
+      ? JSON.stringify([
+          context,
+          connectionId,
+          this.relistingDiscountItemId(),
+          this.favoriteDiscountLoadVersion(),
+        ])
+      : null;
+  });
+  readonly favoriteDiscountAccount = computed(() => {
+    const settings = this.favoriteDiscountSettings();
+    return settings?.enabled && settings.scopeKey === this.favoriteDiscountScopeKey()
+      ? settings
+      : null;
+  });
+  readonly favoriteDiscountPercent = computed(() => {
+    const override = this.favoriteDiscountOverride();
+    return override === undefined
+      ? (this.favoriteDiscountAccount()?.discountPercent ?? null)
+      : override;
+  });
+  readonly favoriteDiscountPriceCents = computed(() => {
+    this.changed();
+    try {
+      return parseVintedListingPrice(this.form.controls.price.value);
+    } catch {
+      return null;
+    }
+  });
+  private readonly hasInvalidFavoriteDiscount = computed(() => {
+    const value = this.favoriteDiscountOverride();
+    return value != null && !validateFavoriteOffer({ type: 'percentage', value });
+  });
+  private readonly hasVisibleInvalidFavoriteDiscount = computed(
+    () => this.favoriteDiscountAccount() !== null && this.hasInvalidFavoriteDiscount(),
+  );
   readonly categorySource = computed(() => {
     const connectionId = this.selectedAccount()?.connectionId;
     this.sellingCategories.clear();
@@ -787,6 +855,7 @@ export class VintedListingEditorComponent {
       !this.preparingPhotos() &&
       !this.preparingSource() &&
       !this.conflict() &&
+      !this.hasVisibleInvalidFavoriteDiscount() &&
       this.dirty(),
   );
   readonly canSelectBrand = computed(
@@ -938,7 +1007,11 @@ export class VintedListingEditorComponent {
     );
   });
   readonly canStartPublication = computed(
-    () => this.canSelectBrand() && !this.categoryLoading() && !this.publication(),
+    () =>
+      this.canSelectBrand() &&
+      !this.categoryLoading() &&
+      !this.publication() &&
+      !this.hasVisibleInvalidFavoriteDiscount(),
   );
   private readonly publicationScope = computed(() =>
     JSON.stringify([
@@ -996,6 +1069,28 @@ export class VintedListingEditorComponent {
       const context = this.context();
       untracked(() => void this.load(context));
     });
+    effect((onCleanup) => {
+      const scopeKey = this.favoriteDiscountScopeKey();
+      const workspaceId = this.workspaceId();
+      const connectionId = this.favoriteDiscountConnectionId();
+      const itemId = this.relistingDiscountItemId();
+      if (!scopeKey || !workspaceId || !connectionId) return;
+      let isCurrent = true;
+      onCleanup(() => {
+        isCurrent = false;
+      });
+      this.favoriteDiscountSettings.set(null);
+      void this.favoriteMessageApi.readListingDiscount({ workspaceId, connectionId }, itemId).then(
+        (settings) => {
+          if (isCurrent && this.favoriteDiscountScopeKey() === scopeKey)
+            this.favoriteDiscountSettings.set({ ...settings, scopeKey });
+        },
+        () => {
+          if (isCurrent && this.favoriteDiscountScopeKey() === scopeKey)
+            this.favoriteDiscountSettings.set(null);
+        },
+      );
+    });
     effect(() => {
       const source = this.source();
       const snapshot = this.store.snapshot();
@@ -1052,6 +1147,17 @@ export class VintedListingEditorComponent {
     this.publicationSchedule.set(null);
     void this.openPublication();
   }
+  changeFavoriteDiscount(percent: number | null): void {
+    if (
+      !this.favoriteDiscountAccount() ||
+      this.saving() ||
+      Object.is(this.favoriteDiscountPercent(), percent)
+    )
+      return;
+    this.favoriteDiscountOverride.set(percent);
+    this.changed.update((value) => value + 1);
+    this.dirty.set(true);
+  }
   async submitRelisting(): Promise<void> {
     if (this.preparingSource() || this.preparingPhotos() || this.saving() || this.publication())
       return;
@@ -1104,6 +1210,7 @@ export class VintedListingEditorComponent {
           schedule: this.publicationSchedule(),
           delaySeconds: this.relistTiming() === 'delay' ? this.relistMinutes() * 60 : 0,
           requestId: this.requestId,
+          favoriteDiscountPercent: this.favoriteDiscountForSave(),
         });
         this.preparingSource.set(true);
         this.closed.emit();
@@ -1350,6 +1457,7 @@ export class VintedListingEditorComponent {
       this.loadError() ||
       this.conflict() ||
       this.imageEditing() ||
+      this.hasVisibleInvalidFavoriteDiscount() ||
       !this.dirty()
     )
       return;
@@ -1379,6 +1487,7 @@ export class VintedListingEditorComponent {
       this.activeSave ||
       this.saving() ||
       this.imageEditing() ||
+      this.hasVisibleInvalidFavoriteDiscount() ||
       !this.canSelectBrand()
     )
       return;
@@ -1418,6 +1527,7 @@ export class VintedListingEditorComponent {
       this.photoBackgroundCalm.update(remapByPhotoKey);
       this.backgroundCalmError.set(null);
       this.closePublication();
+      this.favoriteDiscountOverride.set(this.favoriteDiscountForSave());
       this.draft.set(null);
       this.requestId = crypto.randomUUID();
       this.images.set(images);
@@ -1573,6 +1683,7 @@ export class VintedListingEditorComponent {
     this.publicationSchedule.set(null);
     this.planningPublication.set(false);
     const generation = ++this.generation;
+    this.favoriteDiscountLoadVersion.set(generation);
     this.activeSave = null;
     this.loading.set(true);
     this.publicationAttempted.set(false);
@@ -1598,6 +1709,8 @@ export class VintedListingEditorComponent {
     this.croppingPhotoFile.set(null);
     this.loadingCropPhoto.set(false);
     this.draft.set(null);
+    this.favoriteDiscountOverride.set(undefined);
+    this.favoriteDiscountSettings.set(null);
     this.images.set([]);
     this.categories.set([]);
     this.error.set(null);
@@ -1794,6 +1907,7 @@ export class VintedListingEditorComponent {
         const images = await this.imageApi.previews(draft);
         if (!this.current(generation, context)) return;
         this.draft.set(draft);
+        this.favoriteDiscountOverride.set(draft.favoriteDiscountPercent);
         this.referenceContent.set(draft.content);
         this.patch(draft.content, draft.connectionId);
         this.images.set(images);
@@ -1908,10 +2022,11 @@ export class VintedListingEditorComponent {
         throw new Error('Eine Eingabe ist zu lang. Kürze sie vor dem Speichern.');
       const content = this.contentSnapshot();
       const connectionId = this.form.controls.connectionId.value;
+      const favoriteDiscountPercent = this.favoriteDiscountForSave();
       const selection = [...this.images()];
       let draft = this.draft();
       draft = draft
-        ? await this.api.save(draft, content, connectionId)
+        ? await this.api.save(draft, content, connectionId, favoriteDiscountPercent)
         : this.source()?.mode === 'relist'
           ? await this.api.createRelisting(
               workspaceId,
@@ -1919,13 +2034,26 @@ export class VintedListingEditorComponent {
               connectionId!,
               this.requestId,
               this.source()!.entry.externalId!,
+              favoriteDiscountPercent,
             )
-          : await this.api.create(workspaceId, content, connectionId, this.requestId);
+          : await this.api.create(
+              workspaceId,
+              content,
+              connectionId,
+              this.requestId,
+              undefined,
+              favoriteDiscountPercent,
+            );
       if (!this.current(generation, context)) return;
       this.draft.set(draft);
       // Wiederholte Neuanlage liefert den bereits vorhandenen Stand; neue Eingaben benötigen eine neue Revision.
-      if (!same(draft.content, content) || draft.connectionId !== connectionId) {
-        draft = await this.api.save(draft, content, connectionId);
+      if (
+        !same(draft.content, content) ||
+        draft.connectionId !== connectionId ||
+        (favoriteDiscountPercent !== undefined &&
+          draft.favoriteDiscountPercent !== favoriteDiscountPercent)
+      ) {
+        draft = await this.api.save(draft, content, connectionId, favoriteDiscountPercent);
         if (!this.current(generation, context)) return;
         this.draft.set(draft);
       }
@@ -2018,6 +2146,8 @@ export class VintedListingEditorComponent {
         this.draft.set(draft);
       }
       this.referenceContent.set(content);
+      if (change === this.changed())
+        this.favoriteDiscountOverride.set(draft.favoriteDiscountPercent);
       this.dirty.set(change !== this.changed());
     } catch (error) {
       if (!this.current(generation, context)) return;
@@ -2029,6 +2159,11 @@ export class VintedListingEditorComponent {
       if (error instanceof VintedListingStorageError && error.code === 'conflict')
         this.conflict.set(true);
     }
+  }
+  private favoriteDiscountForSave(): number | null | undefined {
+    return this.hasInvalidFavoriteDiscount()
+      ? this.draft()?.favoriteDiscountPercent
+      : this.favoriteDiscountOverride();
   }
   private contentSnapshot(allowIncompletePrice = false): VintedListingContent {
     const values = this.form.getRawValue();

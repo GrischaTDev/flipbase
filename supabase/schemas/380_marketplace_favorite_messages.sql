@@ -83,6 +83,94 @@ create policy "Worker inserts favorite message settings" on public.marketplace_f
 create policy "Worker updates favorite message settings" on public.marketplace_favorite_message_settings for update to service_role using(true) with check(true);
 create policy "Worker deletes favorite message settings" on public.marketplace_favorite_message_settings for delete to service_role using(true);
 
+create table public.marketplace_listing_favorite_discounts (
+  id bigint generated always as identity primary key,
+  workspace_id uuid not null,
+  connection_id uuid not null,
+  external_account_id text not null check (external_account_id ~ '^[1-9][0-9]{0,31}$'),
+  item_id text not null check (item_id ~ '^[1-9][0-9]{0,31}$'),
+  discount_percent numeric not null check (discount_percent between 1 and 50 and discount_percent = round(discount_percent, 2)),
+  unique (workspace_id, connection_id, external_account_id, item_id),
+  foreign key (workspace_id, connection_id) references public.marketplace_connections(workspace_id, id) on delete cascade
+);
+comment on table public.marketplace_listing_favorite_discounts is 'Individueller Rabatt für Favoritennachrichten zu einem Vinted-Inserat.';
+alter table public.marketplace_listing_favorite_discounts enable row level security;
+revoke all on public.marketplace_listing_favorite_discounts from public, anon, authenticated, service_role;
+grant select, insert, update, delete on public.marketplace_listing_favorite_discounts to service_role;
+revoke all on sequence public.marketplace_listing_favorite_discounts_id_seq from public, anon, authenticated, service_role;
+grant usage, select on sequence public.marketplace_listing_favorite_discounts_id_seq to service_role;
+create policy "Worker reads listing favorite discounts" on public.marketplace_listing_favorite_discounts for select to service_role using (true);
+create policy "Worker inserts listing favorite discounts" on public.marketplace_listing_favorite_discounts for insert to service_role with check (true);
+create policy "Worker updates listing favorite discounts" on public.marketplace_listing_favorite_discounts for update to service_role using (true) with check (true);
+create policy "Worker deletes listing favorite discounts" on public.marketplace_listing_favorite_discounts for delete to service_role using (true);
+
+create or replace function public.marketplace_read_listing_favorite_discount(p_workspace_id uuid, p_connection_id uuid, p_item_id text default null)
+returns jsonb language plpgsql stable security definer set search_path = '' as $$
+declare
+  v_external_account_id text;
+  v_settings public.marketplace_favorite_message_settings;
+  v_discount_percent numeric;
+begin
+  if not public.marketplace_can_manage(p_workspace_id) then
+    raise exception 'Kontozugriff verweigert' using errcode = '42501';
+  end if;
+  if p_item_id is not null and p_item_id !~ '^[1-9][0-9]{0,31}$' then
+    raise exception 'Ungültige Vinted-Artikelnummer' using errcode = '22023';
+  end if;
+  select external_account_id into v_external_account_id from public.marketplace_connections
+    where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted';
+  if not found then
+    raise exception 'Kontozugriff verweigert' using errcode = '42501';
+  end if;
+  select * into v_settings from public.marketplace_favorite_message_settings
+    where workspace_id = p_workspace_id and connection_id = p_connection_id and external_account_id = v_external_account_id;
+  select discount_percent into v_discount_percent from public.marketplace_listing_favorite_discounts
+    where workspace_id = p_workspace_id and connection_id = p_connection_id and external_account_id = v_external_account_id and item_id = p_item_id;
+  return jsonb_build_object('enabled', coalesce(v_settings.enabled, false), 'defaultOffer', v_settings.config->'offer', 'discountPercent', v_discount_percent);
+end;
+$$;
+revoke all on function public.marketplace_read_listing_favorite_discount(uuid, uuid, text) from public, anon, authenticated;
+grant execute on function public.marketplace_read_listing_favorite_discount(uuid, uuid, text) to authenticated;
+
+create or replace function public.marketplace_save_listing_favorite_discount(p_workspace_id uuid, p_connection_id uuid, p_item_id text, p_discount_percent numeric default null)
+returns void language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_external_account_id text;
+begin
+  perform pg_advisory_xact_lock(91731, 1);
+  if not public.marketplace_can_manage(p_workspace_id) or not public.marketplace_workspace_authorization_valid(p_workspace_id, (select auth.uid())) then
+    raise exception 'Kontozugriff verweigert' using errcode = '42501';
+  end if;
+  if p_item_id is null or p_item_id !~ '^[1-9][0-9]{0,31}$'
+    or (p_discount_percent is not null and (p_discount_percent not between 1 and 50 or p_discount_percent <> round(p_discount_percent, 2))) then
+    raise exception 'Ungültiger Favoritenrabatt' using errcode = '22023';
+  end if;
+  select external_account_id into v_external_account_id from public.marketplace_connections
+    where workspace_id = p_workspace_id and id = p_connection_id and marketplace = 'vinted' for share;
+  if not found then
+    raise exception 'Kontozugriff verweigert' using errcode = '42501';
+  end if;
+  if not exists(select 1 from public.marketplace_favorite_message_settings
+    where workspace_id = p_workspace_id and connection_id = p_connection_id and external_account_id = v_external_account_id and enabled) then
+    raise exception 'Favoritennachrichten sind deaktiviert' using errcode = '42501';
+  end if;
+  if not exists(select 1 from public.marketplace_account_entries
+    where workspace_id = p_workspace_id and connection_id = p_connection_id and kind = 'publication' and external_id = p_item_id) then
+    raise exception 'Vinted-Inserat nicht gefunden' using errcode = '42501';
+  end if;
+  if p_discount_percent is null then
+    delete from public.marketplace_listing_favorite_discounts
+      where workspace_id = p_workspace_id and connection_id = p_connection_id and external_account_id = v_external_account_id and item_id = p_item_id;
+  else
+    insert into public.marketplace_listing_favorite_discounts(workspace_id, connection_id, external_account_id, item_id, discount_percent)
+      values (p_workspace_id, p_connection_id, v_external_account_id, p_item_id, p_discount_percent)
+      on conflict (workspace_id, connection_id, external_account_id, item_id) do update set discount_percent = excluded.discount_percent;
+  end if;
+end;
+$$;
+revoke all on function public.marketplace_save_listing_favorite_discount(uuid, uuid, text, numeric) from public, anon, authenticated;
+grant execute on function public.marketplace_save_listing_favorite_discount(uuid, uuid, text, numeric) to authenticated;
+
 create table public.marketplace_favorite_message_events (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
@@ -110,6 +198,7 @@ create table public.marketplace_favorite_message_events (
   offer_state text not null default 'not_requested' check(offer_state in ('not_requested','pending','claimed','sending','sent','failed','outcome_unknown','skipped')),
   external_conversation_id text,
   external_transaction_id text,
+  message_offer_base_price_cents bigint check (message_offer_base_price_cents between 1 and 100000000),
   offer_price_cents bigint,
   external_offer_id text,
   offer_error_code text,
@@ -272,9 +361,79 @@ $$;
 revoke all on function public.marketplace_favorite_message_text(jsonb,numeric,timestamptz,uuid) from public,anon,authenticated;
 grant execute on function public.marketplace_favorite_message_text(jsonb,numeric,timestamptz,uuid) to service_role;
 
+create or replace function public.marketplace_favorite_offer_price(p_offer jsonb, p_original_price_cents bigint)
+returns bigint language plpgsql immutable security invoker set search_path = '' as $$
+declare
+  v_expected_price numeric;
+begin
+  if p_original_price_cents is null or p_original_price_cents not between 1 and 100000000
+    or jsonb_typeof(p_offer->'value') is distinct from 'number' then return null; end if;
+  v_expected_price := case p_offer->>'type'
+    when 'amount' then p_original_price_cents - (p_offer->>'value')::numeric * 100
+    when 'percentage' then round(p_original_price_cents * (100 - (p_offer->>'value')::numeric) / 100)
+  end;
+  -- Eigene konservative Grenze: Der Angebotspreis muss mindestens die Hälfte des aktuellen Preises betragen.
+  if v_expected_price is null or v_expected_price <> trunc(v_expected_price)
+    or v_expected_price >= p_original_price_cents or v_expected_price < ceil(p_original_price_cents::numeric / 2) then return null; end if;
+  return v_expected_price::bigint;
+end;
+$$;
+revoke all on function public.marketplace_favorite_offer_price(jsonb, bigint) from public, anon, authenticated;
+grant execute on function public.marketplace_favorite_offer_price(jsonb, bigint) to service_role;
+
+create or replace function public.marketplace_prepare_favorite_message(p_event public.marketplace_favorite_message_events, p_config jsonb, p_publication jsonb, p_at timestamptz)
+returns table(message_text text, offer_config jsonb, error_code text, message_offer_base_price_cents bigint)
+language plpgsql stable security invoker set search_path = '' as $$
+declare
+  v_default_offer jsonb := nullif(p_config->'offer', 'null'::jsonb);
+  v_discount jsonb;
+  v_discount_percent numeric;
+  v_price numeric;
+  v_price_cents bigint;
+  v_offer_price_cents bigint;
+begin
+  select discount_percent into v_discount_percent from public.marketplace_listing_favorite_discounts
+    where workspace_id = p_event.workspace_id and connection_id = p_event.connection_id
+      and external_account_id = p_event.external_account_id and item_id = p_event.item_id;
+  v_discount := case when v_discount_percent is null then v_default_offer else jsonb_build_object('type', 'percentage', 'value', v_discount_percent) end;
+  -- Der Inseratsrabatt ändert den Betrag. Nur die Kontoeinstellung gibt das separate Angebot frei.
+  offer_config := case when v_default_offer is not null then v_discount end;
+  if jsonb_typeof(p_publication->'price') = 'number' then v_price := (p_publication->>'price')::numeric; end if;
+  message_text := public.marketplace_favorite_message_text(p_config, v_price, p_at, p_event.id);
+  if strpos(message_text, '{discountPercent}') > 0 then
+    if v_price between 0.01 and 1000000 and v_price = round(v_price, 2)
+      and (v_discount->>'type' <> 'amount' or coalesce(p_publication->>'currency', 'EUR') = 'EUR') then
+      v_price_cents := (v_price * 100)::bigint;
+      v_offer_price_cents := public.marketplace_favorite_offer_price(v_discount, v_price_cents);
+    end if;
+    if v_offer_price_cents is not null then
+      v_discount_percent := case v_discount->>'type'
+        when 'percentage' then (v_discount->>'value')::numeric
+        when 'amount' then round((v_price_cents - v_offer_price_cents) * 100::numeric / v_price_cents, 2)
+      end;
+    end if;
+    if v_offer_price_cents is null or v_discount_percent <= 0 then
+      message_text := null;
+      offer_config := null;
+      error_code := 'discount_unavailable';
+      return next;
+      return;
+    end if;
+    message_text := replace(message_text, '{discountPercent}', replace(trim_scale(v_discount_percent)::text, '.', ',') || ' %');
+    -- Bei einem Euro-Rabatt bleibt der versprochene Prozentsatz nur beim gleichen Artikelpreis gültig.
+    if offer_config->>'type' = 'amount' then message_offer_base_price_cents := v_price_cents; end if;
+  end if;
+  message_text := replace(message_text, '{article}', p_event.title);
+  if char_length(message_text) > 2000 then error_code := 'invalid_template'; end if;
+  return next;
+end;
+$$;
+revoke all on function public.marketplace_prepare_favorite_message(public.marketplace_favorite_message_events, jsonb, jsonb, timestamptz) from public, anon, authenticated;
+grant execute on function public.marketplace_prepare_favorite_message(public.marketplace_favorite_message_events, jsonb, jsonb, timestamptz) to service_role;
+
 create or replace function public.marketplace_local_favorite_claim(p_workspace_id uuid,p_connection_id uuid,p_token_hash text,p_offer_supported boolean)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_grant public.marketplace_local_extension_grants; v_settings public.marketplace_favorite_message_settings; v_event public.marketplace_favorite_message_events; v_publication public.marketplace_account_entries; v_text text; v_price numeric;
+declare v_grant public.marketplace_local_extension_grants; v_settings public.marketplace_favorite_message_settings; v_event public.marketplace_favorite_message_events; v_publication public.marketplace_account_entries; v_message record;
 begin
   v_grant:=public.marketplace_local_message_authorized(p_workspace_id,p_connection_id,p_token_hash);
   -- Betreiber-Not-Aus: keine neuen Aufträge, solange Vinted abgeschaltet ist.
@@ -307,13 +466,14 @@ begin
     update public.marketplace_favorite_message_events set state='skipped',error_code='existing_conversation_or_inactive_item',updated_at=clock_timestamp() where id=v_event.id;
     return jsonb_build_object('ok',true,'command',null);
   end if;
-  if jsonb_typeof(v_publication.body->'price')='number' then v_price:=(v_publication.body->>'price')::numeric; end if;
-  v_text:=replace(public.marketplace_favorite_message_text(v_settings.config,v_price,clock_timestamp(),v_event.id),'{article}',v_event.title);
-  if char_length(v_text)>2000 then
-    update public.marketplace_favorite_message_events set state='failed',error_code='invalid_template',updated_at=clock_timestamp() where id=v_event.id;
+  select * into v_message from public.marketplace_prepare_favorite_message(v_event, v_settings.config, v_publication.body, clock_timestamp());
+  if v_message.error_code is not null then
+    update public.marketplace_favorite_message_events set state=case when v_message.error_code='invalid_template' then 'failed' else 'skipped' end,error_code=v_message.error_code,
+      message_text=null,offer_config=null,message_offer_base_price_cents=null,updated_at=clock_timestamp() where id=v_event.id;
     return jsonb_build_object('ok',true,'command',null);
   end if;
-  update public.marketplace_favorite_message_events set state='claimed',message_text=v_text,offer_config=nullif(v_settings.config->'offer','null'::jsonb),claim_token=gen_random_uuid(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_event.id returning * into v_event;
+  update public.marketplace_favorite_message_events set state='claimed',message_text=v_message.message_text,offer_config=v_message.offer_config,
+    message_offer_base_price_cents=v_message.message_offer_base_price_cents,claim_token=gen_random_uuid(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_event.id returning * into v_event;
   return jsonb_build_object('ok',true,'command',jsonb_build_object('id',v_event.id,'claimToken',v_event.claim_token,'actorId',v_event.actor_id,'itemId',v_event.item_id,'text',v_event.message_text,'offer',v_event.offer_config,'stage','message'));
 end;
 $$;
@@ -399,13 +559,10 @@ grant execute on function public.marketplace_local_favorite_message_sent(uuid,uu
 
 create or replace function public.marketplace_validate_favorite_offer_price(p_offer jsonb,p_original_price_cents bigint,p_offer_price_cents bigint)
 returns void language plpgsql immutable security invoker set search_path='' as $$
-declare v_expected_price numeric;
+declare v_expected_price bigint;
 begin
-  if p_original_price_cents is null or p_original_price_cents not between 1 and 100000000 or p_offer_price_cents is null then raise exception 'Ungültiger Angebotspreis' using errcode='22023'; end if;
-  v_expected_price:=case when p_offer->>'type'='amount' then p_original_price_cents-(p_offer->>'value')::numeric*100
-    else round(p_original_price_cents*(100-(p_offer->>'value')::numeric)/100) end;
-  -- Eigene konservative Grenze: mindestens die Hälfte des aktuellen Preises, keine behauptete offizielle Anbietergrenze.
-  if p_offer_price_cents<>v_expected_price or p_offer_price_cents<=0 or p_offer_price_cents>=p_original_price_cents or p_offer_price_cents<ceil(p_original_price_cents::numeric/2) then
+  v_expected_price := public.marketplace_favorite_offer_price(p_offer, p_original_price_cents);
+  if v_expected_price is null or p_offer_price_cents is distinct from v_expected_price then
     raise exception 'Ungültiger Angebotspreis' using errcode='22023';
   end if;
 end;
@@ -425,6 +582,10 @@ begin
     or not coalesce(v_settings.enabled,false) or v_event.setting_version<>v_settings.version or v_settings.grant_generation<>v_grant.grant_generation
     or v_settings.external_account_id<>v_grant.external_account_id then raise exception 'Angebotsfreigabe ungültig' using errcode='42501'; end if;
   perform public.marketplace_validate_favorite_offer_price(v_event.offer_config,p_original_price_cents,p_offer_price_cents);
+  if v_event.message_offer_base_price_cents is not null and p_original_price_cents<>v_event.message_offer_base_price_cents then
+    update public.marketplace_favorite_message_events set offer_state='skipped',offer_error_code='price_changed',lease_expires_at=null,updated_at=clock_timestamp() where id=v_event.id;
+    return jsonb_build_object('ok',false);
+  end if;
   update public.marketplace_favorite_message_events set offer_state='sending',offer_price_cents=p_offer_price_cents,lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),updated_at=clock_timestamp() where id=v_event.id;
   return jsonb_build_object('ok',true);
 end;

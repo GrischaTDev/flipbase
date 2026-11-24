@@ -258,6 +258,7 @@ describe('Appweiter Relist-Auftrag', () => {
       'account-a',
       f.input.requestId,
       '98765',
+      undefined,
     );
     expect(f.jobs.enqueue).toHaveBeenCalledOnce();
   });
@@ -316,6 +317,7 @@ describe('Appweiter Relist-Auftrag', () => {
       'account-a',
       f.input.requestId,
       '98765',
+      undefined,
     );
     expect(f.upload).toHaveBeenCalledOnce();
     expect(f.upload.mock.calls[0][1].size).toBe(f.photo.size);

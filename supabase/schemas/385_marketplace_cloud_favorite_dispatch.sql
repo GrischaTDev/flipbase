@@ -1,7 +1,7 @@
 -- Dieselben Favoritenregeln mit einer eigenen, widerrufbaren Cloud-Ausführung.
 create or replace function public.marketplace_cloud_favorite_claim(p_worker_id uuid,p_worker_epoch bigint,p_runner_id uuid,p_target_id uuid default null)
 returns jsonb language plpgsql volatile security invoker set search_path='' as $$
-declare v_event public.marketplace_favorite_message_events; v_settings public.marketplace_favorite_message_settings; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions; v_publication public.marketplace_account_entries; v_phase text; v_price numeric; v_text text; v_next jsonb;
+declare v_event public.marketplace_favorite_message_events; v_settings public.marketplace_favorite_message_settings; v_permission public.marketplace_cloud_message_permissions; v_session public.marketplace_browser_sessions; v_publication public.marketplace_account_entries; v_phase text; v_message_text text; v_offer_config jsonb; v_error_code text; v_message_offer_base_price_cents bigint; v_next jsonb;
 begin
   perform pg_advisory_xact_lock(91731,1);
   if p_runner_id is null then raise exception 'Auftragskennung fehlt' using errcode='22023'; end if;
@@ -44,17 +44,19 @@ begin
       update public.marketplace_favorite_message_events set state='skipped',error_code='existing_conversation_or_inactive_item',updated_at=clock_timestamp() where id=v_event.id;
       return null;
     end if;
-    if jsonb_typeof(v_publication.body->'price')='number' then v_price:=(v_publication.body->>'price')::numeric; end if;
-    v_text:=replace(public.marketplace_favorite_message_text(v_settings.config,v_price,clock_timestamp(),v_event.id),'{article}',v_event.title);
-    if char_length(v_text)>2000 then
-      update public.marketplace_favorite_message_events set state='failed',error_code='invalid_template',updated_at=clock_timestamp() where id=v_event.id;
+    select message_text, offer_config, error_code, message_offer_base_price_cents into v_message_text, v_offer_config, v_error_code, v_message_offer_base_price_cents
+      from public.marketplace_prepare_favorite_message(v_event, v_settings.config, v_publication.body, clock_timestamp());
+    if v_error_code is not null then
+      update public.marketplace_favorite_message_events set state=case when v_error_code='invalid_template' then 'failed' else 'skipped' end,error_code=v_error_code,
+        message_text=null,offer_config=null,message_offer_base_price_cents=null,updated_at=clock_timestamp() where id=v_event.id;
       return null;
     end if;
   end if;
   insert into public.marketplace_browser_sessions(workspace_id,connection_id,started_by,provider_profile_id,expires_at,worker_id,worker_epoch,heartbeat_at,absolute_expires_at)
     values(v_event.workspace_id,v_event.connection_id,v_settings.approved_by,v_permission.provider_profile_id,clock_timestamp()+interval '90 seconds',p_worker_id,p_worker_epoch,clock_timestamp(),clock_timestamp()+interval '10 minutes') returning * into v_session;
   update public.marketplace_favorite_message_events set state=case when v_phase='message' then 'claimed' else state end,offer_state=case when v_phase='offer' then 'claimed' else offer_state end,
-    message_text=case when v_phase='message' then v_text else message_text end,offer_config=case when v_phase='message' then nullif(v_settings.config->'offer','null'::jsonb) else offer_config end,
+    message_text=case when v_phase='message' then v_message_text else message_text end,offer_config=case when v_phase='message' then v_offer_config else offer_config end,
+    message_offer_base_price_cents=case when v_phase='message' then v_message_offer_base_price_cents else message_offer_base_price_cents end,
     claim_token=gen_random_uuid(),lease_expires_at=v_session.expires_at,cloud_browser_session_id=v_session.public_id,cloud_worker_id=p_worker_id,cloud_worker_epoch=p_worker_epoch,cloud_runner_id=p_runner_id,cloud_phase=v_phase,updated_at=clock_timestamp()
     where id=v_event.id returning * into v_event;
   return jsonb_build_object('eventId',v_event.id,'claimToken',v_event.claim_token,'workspaceId',v_event.workspace_id,'connectionId',v_event.connection_id,'userId',v_settings.approved_by,
@@ -105,6 +107,10 @@ begin
   elsif p_phase='offer' then
     if v_event.offer_state<>'claimed' or v_event.external_message_id is null or v_event.external_conversation_id is null or v_event.external_transaction_id is null or v_event.offer_config is null then raise exception 'Angebotsclaim ungültig' using errcode='42501'; end if;
     perform public.marketplace_validate_favorite_offer_price(v_event.offer_config,p_original_price_cents,p_offer_price_cents);
+    if v_event.message_offer_base_price_cents is not null and p_original_price_cents<>v_event.message_offer_base_price_cents then
+      update public.marketplace_favorite_message_events set offer_state='skipped',offer_error_code='price_changed',lease_expires_at=null,updated_at=clock_timestamp() where id=p_event_id;
+      return jsonb_build_object('ok',false);
+    end if;
     update public.marketplace_favorite_message_events set offer_state='sending',offer_price_cents=p_offer_price_cents,updated_at=clock_timestamp() where id=p_event_id;
   else raise exception 'Favoritenphase ungültig' using errcode='22023'; end if;
   return jsonb_build_object('ok',true);
@@ -129,6 +135,7 @@ begin
   if v_state in ('sent','failed','skipped','outcome_unknown','cancelled') then
     if v_state=p_outcome and v_saved_id is not distinct from p_external_id and (p_phase='offer' or p_outcome<>'sent' or (v_event.external_conversation_id is not distinct from p_conversation_id and v_event.external_transaction_id is not distinct from p_transaction_id)) then return jsonb_build_object('ok',true); end if;
     if v_state in ('cancelled','skipped') and p_outcome in ('failed','skipped') then return jsonb_build_object('ok',true); end if;
+    if p_phase='offer' and v_state='skipped' and v_event.offer_error_code='price_changed' and p_outcome='outcome_unknown' and p_error_code='begin_unconfirmed' then return jsonb_build_object('ok',true); end if;
     if not(v_state='outcome_unknown' and p_outcome='sent') then raise exception 'Ergebnis bereits erfasst' using errcode='23505'; end if;
   elsif v_state<>'sending' and not(v_state='claimed' and p_outcome in ('failed','skipped','outcome_unknown')) then raise exception 'Versuch nicht gestartet' using errcode='42501'; end if;
   if p_phase='message' then

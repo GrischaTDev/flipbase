@@ -14,7 +14,7 @@ create temporary table listing_execution_context(draft jsonb,job jsonb,claim jso
 grant all on listing_execution_context to authenticated,service_role;
 set local role authenticated;
 select set_config('request.jwt.claim.sub','46400000-0000-4000-8000-000000000001',true);
-insert into listing_execution_context(draft) select public.marketplace_create_listing_draft('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021','{"title":"Lokaler Test","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"conditionId":2,"packageSizeId":2}');
+insert into listing_execution_context(draft) select public.marketplace_create_listing_draft('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021','{"title":"Lokaler Test","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"conditionId":2,"packageSizeId":2,"favoriteDiscountPercent":12.5}');
 select public.marketplace_approve_listings('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021','46401');
 reset role;
 insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
@@ -29,6 +29,8 @@ select throws_ok($$select public.marketplace_local_listing_claim('46400000-0000-
 update listing_execution_context set claim=public.marketplace_local_listing_claim('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64));
 select is((select claim->>'jobId' from listing_execution_context),(select job->>'id' from listing_execution_context),'Inseratfreigabe genügt ohne Nachrichtenfreigabe');
 select is((select jsonb_typeof(claim->'jobId') from listing_execution_context),'string','Ausführer erhält verlustfreie Textkennung');
+select ok((select not ((claim->'snapshot') ? 'favoriteDiscountPercent') and not ((claim->'snapshot'->'content') ? 'favoriteDiscountPercent') from listing_execution_context),'Der lokale Auftrag enthält keine Flipbase-Rabatteinstellungen');
+select is((select discount_percent from public.marketplace_listing_favorite_discounts where item_id='46402'),null::numeric,'Vor Bestätigung existiert kein veröffentlichter Rabatt');
 select ok(public.marketplace_local_listing_claim('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64)) is null,'Ein aktiver Versuch wird nicht doppelt übernommen');
 select is(public.marketplace_local_listing_check('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64),(select job->>'id' from listing_execution_context),'46400000-0000-4000-8000-000000000099')->>'active','false','Falsche Versuchkennung wird abgelehnt');
 select throws_ok($$select public.marketplace_local_listing_finish('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64),(select job->>'id' from listing_execution_context),(select (claim->>'claimToken')::uuid from listing_execution_context),jsonb_build_object('outcome','confirmed','action','publish','externalId','46402','externalAccountId','46401','providerState','active','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')))$$,'42501',null,'Vor Schreibbeginn kann kein Anbietererfolg gemeldet werden');
@@ -66,10 +68,13 @@ select throws_ok($$select public.marketplace_local_listing_finish('46400000-0000
 select throws_ok($$select public.marketplace_local_listing_finish('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64),(select job->>'id' from listing_execution_context),(select (claim->>'claimToken')::uuid from listing_execution_context),(select jsonb_set(result,'{externalAccountId}','"46403"') from listing_execution_context))$$,'22023',null,'Ein Ergebnis vom falschen Konto ist kein Erfolg');
 select lives_ok($$select public.marketplace_local_listing_finish('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64),(select job->>'id' from listing_execution_context),(select (claim->>'claimToken')::uuid from listing_execution_context),(select result from listing_execution_context))$$,'Ein spätes bestätigtes Ergebnis gehört weiterhin zum ursprünglichen Versuch');
 select lives_ok($$select public.marketplace_local_listing_finish('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021',repeat('a',64),(select job->>'id' from listing_execution_context),(select (claim->>'claimToken')::uuid from listing_execution_context),(select result from listing_execution_context))$$,'Eine wiederholte Ergebnisantwort wird idempotent angenommen');
+select is((select discount_percent from public.marketplace_listing_favorite_discounts
+  where workspace_id='46400000-0000-4000-8000-000000000011' and connection_id='46400000-0000-4000-8000-000000000021'
+    and external_account_id='46401' and item_id='46402'),12.5::numeric,'Der bestätigte Artikel erhält den gespeicherten Rabatt');
 select is((select state from public.marketplace_listing_jobs),'confirmed','Nur gebundene Bestätigung schließt den Auftrag erfolgreich ab');
 set local role authenticated;
 select public.marketplace_approve_listings('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021','46401');
-update listing_execution_context set draft=public.marketplace_create_listing_draft('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021','{"title":"Späterer Artikel","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"conditionId":2,"packageSizeId":2}');
+update listing_execution_context set draft=public.marketplace_create_listing_draft('46400000-0000-4000-8000-000000000011','46400000-0000-4000-8000-000000000021','{"title":"Späterer Artikel","description":"Gebraucht","priceCents":1200,"currency":"EUR","categoryId":1223,"conditionId":2,"packageSizeId":2,"favoriteDiscountPercent":12.5}');
 reset role;
 insert into public.marketplace_listing_images(workspace_id,draft_id,storage_path,file_name,mime_type,byte_size,state,created_by)
 select '46400000-0000-4000-8000-000000000011',(draft->>'id')::bigint,'46400000-0000-4000-8000-000000000011/'||(draft->>'id')||'/46400000-0000-4000-8000-000000000042.jpg','test.jpg','image/jpeg',123,'ready','46400000-0000-4000-8000-000000000001' from listing_execution_context;

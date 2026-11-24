@@ -26,6 +26,8 @@ import type { VintedRelistingPlanRecord } from '../../models/vinted-relisting-pl
 import { vintedListingSourceContent } from '../../models/vinted-listing-source';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
+import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
+import type { ListingFavoriteDiscount } from '../../models/vinted-favorite-messages';
 
 const [accountA, accountB] = createMarketplaceFixtures().connections;
 afterEach(() => {
@@ -38,6 +40,11 @@ function setup(connectionId: string) {
   const connections = signal<(typeof accountA)[]>([]);
   const selectedConnection = signal(accountA);
   const loading = signal(true);
+  const favoriteMessages = {
+    readListingDiscount: vi
+      .fn<VintedFavoriteMessageApiService['readListingDiscount']>()
+      .mockResolvedValue({ enabled: false, defaultOffer: null, discountPercent: null }),
+  };
   const store = {
     connections,
     canManage: signal(true),
@@ -72,6 +79,7 @@ function setup(connectionId: string) {
       MarketplaceListingStatisticsStore,
       { provide: MarketplaceApiService, useValue: { readListingStatistics: vi.fn() } },
       { provide: MarketplaceAccountStore, useValue: store },
+      { provide: VintedFavoriteMessageApiService, useValue: favoriteMessages },
       {
         provide: WorkspaceService,
         useValue: { currentWorkspace: signal({ id: accountA.workspaceId }) },
@@ -92,8 +100,50 @@ function setup(connectionId: string) {
     ],
   });
   const component = TestBed.runInInjectionContext(() => new VintedListingsComponent());
-  return { component, store, query };
+  return { component, store, query, favoriteMessages };
 }
+
+it('zeigt und öffnet die Rabattaktion nur für das aktivierte Konto und veröffentlichte Inserate', async () => {
+  const { component, store, favoriteMessages } = setup('');
+  store.connections.set([accountA, accountB]);
+  let resolveOldSettings: (settings: ListingFavoriteDiscount) => void = () => undefined;
+  const enabled = { enabled: true, defaultOffer: null, discountPercent: null };
+  favoriteMessages.readListingDiscount.mockReturnValueOnce(
+    new Promise((resolve) => (resolveOldSettings = resolve)),
+  );
+  const publication = (account: MarketplaceConnection) =>
+    parseMarketplacePage(
+      {
+        items: [{ ...account, id: 'listing', externalId: '123', publicationState: 'active' }],
+        total: 1,
+        nextCursor: null,
+      },
+      account,
+    ).items[0];
+
+  TestBed.tick();
+  await store.selectConnection(accountB.connectionId);
+  TestBed.tick();
+  resolveOldSettings(enabled);
+  await Promise.resolve();
+  expect(component.favoriteDiscountActionVisible(publication(accountA))).toBe(false);
+  expect(component.favoriteDiscountActionVisible(publication(accountB))).toBe(false);
+
+  favoriteMessages.readListingDiscount.mockResolvedValueOnce(enabled);
+  await store.selectConnection(accountA.connectionId);
+  TestBed.tick();
+  await Promise.resolve();
+  const listing = publication(accountA);
+  expect(component.favoriteDiscountActionVisible(listing)).toBe(true);
+  expect(component.favoriteDiscountActionVisible({ ...listing, publicationState: 'draft' })).toBe(
+    false,
+  );
+  component.openFavoriteDiscount(listing);
+  expect(component.favoriteDiscountEntry()).toBe(listing);
+
+  await store.selectConnection(accountB.connectionId);
+  expect(component.favoriteDiscountEntry()).toBeNull();
+});
 
 it('wählt das Konto aus einem Favoritenlink nach dem Laden einmalig und respektiert danach Deinen Kontowechsel', async () => {
   const { store } = setup(accountB.connectionId);

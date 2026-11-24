@@ -12,6 +12,12 @@ begin
       if jsonb_typeof(v_value) <> 'string' or length(v_value #>> '{}') > 20000 or regexp_replace(v_value #>> '{}', E'[\\t\\n\\r]', '', 'g') ~ '[[:cntrl:]]' then return false; end if;
     elsif v_key = 'aiPhoto' then
       if jsonb_typeof(v_value) <> 'boolean' then return false; end if;
+    elsif v_key = 'favoriteDiscountPercent' then
+      if v_value <> 'null'::jsonb then
+        if jsonb_typeof(v_value) <> 'number' then return false; end if;
+        if (v_value::text)::numeric not between 1 and 50
+          or round((v_value::text)::numeric,2) <> (v_value::text)::numeric then return false; end if;
+      end if;
     elsif v_key = 'currency' then
       if v_value <> '"EUR"'::jsonb then return false; end if;
     elsif v_key in ('priceCents', 'categoryId', 'brandId', 'sizeId', 'conditionId', 'packageSizeId') then

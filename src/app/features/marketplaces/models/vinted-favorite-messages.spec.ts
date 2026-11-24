@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   parseFavoriteMessageSettings,
   favoriteOfferPriceCents,
+  favoriteDiscountPreview,
+  parseListingFavoriteDiscount,
   validateFavoriteMessageConfig,
   type FavoriteMessageConfig,
 } from './vinted-favorite-messages';
@@ -29,6 +31,33 @@ describe('Vinted favorite message settings', () => {
     expect(favoriteOfferPriceCents(600, { type: 'amount', value: 5 })).toBeNull();
     expect(favoriteOfferPriceCents(1, { type: 'percentage', value: 10 })).toBeNull();
   });
+  it('previews both the rounded savings and price from the current article price', () => {
+    expect(favoriteDiscountPreview(999, { type: 'percentage', value: 12.5 })).toEqual({
+      originalPriceCents: 999,
+      offerPriceCents: 874,
+      discountCents: 125,
+      discountPercent: 12.5,
+    });
+    expect(favoriteDiscountPreview(6000, { type: 'amount', value: 10 })?.discountPercent).toBe(
+      16.67,
+    );
+    expect(favoriteDiscountPreview(600, { type: 'amount', value: 5 })).toBeNull();
+    expect(favoriteDiscountPreview(50_000, { type: 'amount', value: 0.01 })).toBeNull();
+  });
+
+  it('parses an enabled account and distinguishes no override from an invalid percentage', () => {
+    const settings = {
+      enabled: true,
+      defaultOffer: { type: 'amount', value: 5 },
+      discountPercent: null,
+    };
+    expect(parseListingFavoriteDiscount(settings)).toEqual(settings);
+    expect(
+      parseListingFavoriteDiscount({ ...settings, discountPercent: 12.5 }).discountPercent,
+    ).toBe(12.5);
+    expect(() => parseListingFavoriteDiscount({ ...settings, discountPercent: 51 })).toThrow();
+  });
+
   it('rejects invalid discounts while keeping legacy settings without offers valid', () => {
     for (const offer of [
       { type: 'percentage', value: 51 },

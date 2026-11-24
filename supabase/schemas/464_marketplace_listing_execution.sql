@@ -77,7 +77,7 @@ begin
   update public.marketplace_listing_jobs set state='claimed',claim_token=gen_random_uuid(),lease_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '90 seconds'),
     absolute_expires_at=least(v_grant.expires_at,clock_timestamp()+interval '10 minutes'),claim_local_token_hash=p_token_hash,claim_local_grant_generation=v_grant.grant_generation where id=v_job.id returning * into v_job;
   return jsonb_build_object('jobId',v_job.id::text,'claimToken',v_job.claim_token,'workspaceId',v_job.workspace_id,'connectionId',v_job.connection_id,'externalAccountId',v_job.external_account_id,
-    'action',v_job.action,'snapshot',v_job.snapshot,'expiresAt',v_job.lease_expires_at,'absoluteExpiresAt',v_job.absolute_expires_at);
+    'action',v_job.action,'snapshot',v_job.snapshot-'favoriteDiscountPercent','expiresAt',v_job.lease_expires_at,'absoluteExpiresAt',v_job.absolute_expires_at);
 end;
 $$;
 

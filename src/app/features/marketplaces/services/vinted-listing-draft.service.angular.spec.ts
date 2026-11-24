@@ -130,6 +130,23 @@ describe('Vinted-Entwurfservice', () => {
       p_expected_revision: 1,
     });
   });
+  it('behält den Einzelrabatt bei normalen Änderungen und sendet ein ausdrückliches Zurücksetzen', async () => {
+    const rpc = vi.fn().mockResolvedValue({
+      data: { ...body, content: { favoriteDiscountPercent: 12.5 } },
+      error: null,
+    });
+    TestBed.configureTestingModule({
+      providers: [{ provide: SupabaseService, useValue: { client: { rpc } } }],
+    });
+    const api = TestBed.inject(VintedListingDraftService);
+    const content = emptyVintedListingContent();
+    const draft = await api.create('workspace-a', content, null, 'request-a', undefined, 12.5);
+    expect(rpc.mock.lastCall?.[1].p_content.favoriteDiscountPercent).toBe(12.5);
+    await api.save(draft, content, null);
+    expect(rpc.mock.lastCall?.[1].p_content.favoriteDiscountPercent).toBe(12.5);
+    await api.save(draft, content, null, null);
+    expect(rpc.mock.lastCall?.[1].p_content.favoriteDiscountPercent).toBeNull();
+  });
   it('rejects an old workspace response', async () => {
     TestBed.configureTestingModule({
       providers: [

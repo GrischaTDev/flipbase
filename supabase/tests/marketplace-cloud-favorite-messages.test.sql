@@ -24,7 +24,7 @@ create temporary table favorite_fairness_context(body jsonb);
 grant all on favorite_fairness_context to authenticated,service_role;
 insert into public.marketplace_account_entries(id,workspace_id,connection_id,kind,external_id,body,sort_at) values
  ('38500000-0000-4000-8000-000000000031','38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','conversation','777','{"title":"Buyer"}',clock_timestamp());
-create function pg_temp.config() returns jsonb language sql as $$ select '{"templates":["Danke für Dein Interesse an {article}!"],"delayMinutes":0,"timezone":"Europe/Berlin","rules":[],"offer":{"type":"percentage","value":10}}'::jsonb; $$;
+create function pg_temp.config() returns jsonb language sql as $$ select '{"templates":["Danke für Dein Interesse an {article}! Du bekommst {discountPercent} Rabatt."],"delayMinutes":0,"timezone":"Europe/Berlin","rules":[],"offer":{"type":"percentage","value":10}}'::jsonb; $$;
 select set_config('request.jwt.claim.sub','38500000-0000-4000-8000-000000000001',true);
 set local role authenticated;
 select is(public.marketplace_read_favorite_messages('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021')->>'enabled','false','Cloud favorites disabled initially');
@@ -37,6 +37,9 @@ select has_function('public','marketplace_cloud_favorite_claim',array['uuid','bi
 select has_function('public','marketplace_cloud_favorite_check',array['uuid','uuid','uuid','uuid','uuid','bigint','text'],'Cloud favorite lease checks exist');
 insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at) values
  ('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','publication','456','{"title":"Boots","price":40,"isClosed":false,"isReserved":false}',clock_timestamp());
+set local role authenticated;
+select lives_ok($$select public.marketplace_save_listing_favorite_discount('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','456',12.25)$$,'Cloud listing accepts an individual discount');
+reset role;
 insert into public.marketplace_sync_schedules(workspace_id,connection_id,enabled,activated_by) values('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',true,'38500000-0000-4000-8000-000000000001');
 update public.marketplace_favorite_message_settings set activated_at=clock_timestamp()-interval '1 minute';
 create temporary table favorite_context(body jsonb);
@@ -61,7 +64,7 @@ select public.marketplace_account_action_cancel('38500000-0000-4000-8000-0000000
 set local role service_role;
 insert into favorite_context values(pg_temp.claim());
 select is((select body->>'phase' from favorite_context),'message','Message before offer');
-select is((select body->'command'->>'text' from favorite_context),'Danke für Dein Interesse an Boots!','Cloud uses shared article template');
+select is((select body->'command'->>'text' from favorite_context),'Danke für Dein Interesse an Boots! Du bekommst 12,25 % Rabatt.','Cloud renders the listing override through the shared template');
 select is(pg_temp.claim(),null::jsonb,'Global browser capacity excludes overlapping work');
 select is(pg_temp.check_run(2)->>'active','false','Wrong worker epoch cannot dispatch');
 select is(pg_temp.check_run(1,'offer')->>'active','false','Offer scope cannot use message authorization');
@@ -78,13 +81,31 @@ update public.marketplace_browser_sessions set state='closed',provider_stopped_a
 update favorite_context set body=pg_temp.claim();
 select is((select body->>'phase' from favorite_context),'offer','Confirmed message gets a separate offer claim');
 select throws_ok($$select pg_temp.begin_run(4000,3000)$$,'22023',null,'Server rejects mismatched discount');
-select lives_ok($$select pg_temp.begin_run(4000,3600)$$,'Shared percent formula confirms price');
+select lives_ok($$select pg_temp.begin_run(4000,3510)$$,'Cloud offer uses the same listing override as the message');
 select lives_ok($$select pg_temp.finish_run('sent','555')$$,'Concrete offer receipt persists');
 select lives_ok($$select pg_temp.finish_run('sent','555')$$,'Offer receipt replay is idempotent');
 select throws_ok($$select pg_temp.finish_run('sent','556')$$,'23505',null,'Conflicting offer receipt rejected');
 select throws_ok($$select public.marketplace_local_favorite_claim('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',repeat('a',64),true)$$,'42501',null,'Local extension cannot claim cloud favorites');
 reset role;
 select is((select count(*) from public.marketplace_favorite_message_events where actor_id='789'),1::bigint,'One durable attempt per actor and item');
+savepoint favorite_price_change_case;
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
+set local role authenticated;
+select public.marketplace_save_listing_favorite_discount('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','456');
+select public.marketplace_save_favorite_messages('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',true,pg_temp.config()||'{"offer":{"type":"amount","value":5}}',1);
+set local role service_role;
+select public.marketplace_record_favorite_events('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021','123','cloud',jsonb_build_array(jsonb_build_object('externalId','38500000-0000-4000-8000-000000000044','actorId','792','itemId','456','eventAt',clock_timestamp())));
+update favorite_context set body=pg_temp.claim();
+select is((select body->'command'->>'text' from favorite_context),'Danke für Dein Interesse an Boots! Du bekommst 12,5 % Rabatt.','Cloud text derives percentage from price at claim time');
+select pg_temp.begin_run();
+select pg_temp.finish_run('sent','889','778','667');
+update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
+update favorite_context set body=pg_temp.claim();
+select is(pg_temp.begin_run(5000,4500),'{"ok":false}'::jsonb,'Cloud offer with a changed live price is refused before sending');
+select lives_ok($$select public.marketplace_cloud_favorite_finish('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',(body->>'eventId')::uuid,(body->>'claimToken')::uuid,'38500000-0000-4000-8000-000000000051',1,'offer','outcome_unknown',null,'begin_unconfirmed') from favorite_context$$,'Cloud acknowledges the worker receipt for a server-skipped offer');
+select is((select offer_error_code from public.marketplace_favorite_message_events where actor_id='792' and state='sent' and offer_state='skipped'),'price_changed','Cloud keeps the authoritative offer skip reason');
+reset role;
+rollback to savepoint favorite_price_change_case;
 -- Beide Schreibphasen müssen dieselbe Kontopause dauerhaft setzen.
 savepoint favorite_failure_case;
 update public.marketplace_browser_sessions set state='closed',provider_stopped_at=clock_timestamp() where state='active';
@@ -104,7 +125,7 @@ update public.marketplace_browser_sessions set state='closed',provider_stopped_a
 update public.marketplace_favorite_message_events set offer_state='pending',external_offer_id=null where actor_id='789';
 set local role service_role;
 update favorite_context set body=pg_temp.claim();
-select pg_temp.begin_run(4000,3600);
+select pg_temp.begin_run(4000,3510);
 select public.marketplace_cloud_favorite_finish('38500000-0000-4000-8000-000000000011','38500000-0000-4000-8000-000000000021',(body->>'eventId')::uuid,(body->>'claimToken')::uuid,'38500000-0000-4000-8000-000000000051',1,'offer','failed',null,'rate_limited') from favorite_context;
 reset role;
 select is((select paused_reason from public.marketplace_sync_schedules where connection_id='38500000-0000-4000-8000-000000000021'),'rate_limited','Favorite offer rejection retains rate limit');

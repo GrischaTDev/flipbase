@@ -1,5 +1,13 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-24 - Juna - Artikelrabatte für Vinted-Favoritennachrichten
+
+Der Textbaustein `{discountPercent}` setzt den wirksamen Rabatt in Standard- und Regeltexte ein. Beim Anlegen, Bearbeiten und im Kleiderschrank lässt sich für aktivierte Favoritennachrichten ein Rabatt pro Inserat festlegen, ausgehend vom aktuellen Formularpreis oder dem zuletzt übernommenen Vinted-Preis. Ein leeres Feld verwendet den Kontostandard.
+
+Die Migration bewahrt den Rabatt vom Entwurf bis zum veröffentlichten Inserat. Cloud und Browser-Erweiterung verwenden dieselbe Rabattberechnung. Ändert sich nach der Nachricht der Preis, wird ein auf dem bisherigen Preis beruhendes festes Euro-Angebot ausgelassen.
+
+Geprüft mit neun Chromium-Fällen auf lokalen Testdaten und 469 pgTAP-Prüfungen für Versand, Veröffentlichung und Relisting nach Einspielen der Migration in eine isolierte Datenbank. Nach dem Abgleich mit dem Hauptzweig bestand der lokale Vorabcheck einschließlich aller 237 ausgewählten Angular-Testdateien und des Produktionsbaus.
+
 ## 2026-11-24 - Juna - Einkaufszuordnung und Tabelle für Verkaufsentwürfe
 
 Die Einkaufszuordnung steht in einer eigenen Box unter der Verkaufsübersicht. Ohne Shop ist ein Einkauf optional und die Kennzahl erscheint ab der Verknüpfung. Mit Shop zeigt der Vinted-Entwurf den fehlenden Einkauf direkt an und die Box kennzeichnet den Bestandsartikel als Pflichtfeld. Die Entwürfe haben eine eigene Tabelle mit Abstand zur Verkaufstabelle.
