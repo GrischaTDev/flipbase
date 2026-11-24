@@ -107,23 +107,48 @@
       const reply = { body: command.text, photo_temp_uuids: temporaryPhotos };
       if (bytes) reply.is_personal_data_sharing_check_skipped = false;
       replyAttempted = true;
-      await adapter.write(`/api/v2/conversations/${conversationId}/replies`, {
+      const result = await adapter.write(`/api/v2/conversations/${conversationId}/replies`, {
         body: JSON.stringify({ reply }),
         csrf: adapter.csrf,
         json: true,
       });
       replyAccepted = true;
       await identity();
+      if (bytes) {
+        // Die Antwort auf diesen POST bindet die Bildnachricht an den Auftrag.
+        // Im späteren Verlauf fehlt die temporäre Uploadkennung.
+        const data = result?.data;
+        const entity = data?.entity;
+        const id = identifier(data?.id) ?? identifier(entity?.id);
+        if (
+          (result?.code === undefined || result.code === 0) &&
+          id &&
+          !baseline.has(id) &&
+          identifier(entity?.user_id) === accountId &&
+          (entity?.body ?? '') === (command.text ?? '') &&
+          entity?.is_hidden !== true &&
+          Array.isArray(entity?.photos) &&
+          entity.photos.some(
+            (photo) =>
+              identifier(photo?.id) &&
+              typeof photo?.url === 'string' &&
+              photo.url.startsWith('https://') &&
+              photo.is_hidden !== true &&
+              photo.hidden_at == null,
+          )
+        )
+          return { outcome: 'sent', externalMessageId: id };
+        return { outcome: 'outcome_unknown', errorCode: 'reply_unconfirmed' };
+      }
       const after = detail(await adapter.read(`/api/v2/conversations/${conversationId}`));
       const matches = after.filter((message) => {
         const id = identifier(message.id) ?? identifier(message.entity?.id);
-        // Ein Bild ohne belegten temporären Bezug bleibt unbestätigt; nicht allein nach Upload zählen.
         return (
           id &&
           !baseline.has(id) &&
           identifier(message.entity?.user_id) === accountId &&
           message.entity?.body === command.text &&
-          !bytes
+          !(Array.isArray(message.entity?.photos) && message.entity.photos.length)
         );
       });
       if (matches.length === 1)

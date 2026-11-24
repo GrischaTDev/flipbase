@@ -16,6 +16,7 @@ function browser(
     replyStatus?: number;
     replyThrows?: boolean;
     replyJson?: boolean;
+    replyPayload?: unknown;
     csrf?: string | null;
   } = {},
 ) {
@@ -58,7 +59,9 @@ function browser(
           if (options.replyThrows) throw new Error('private upstream error');
           return options.replyJson === false
             ? new Response('<html>challenge</html>', { status: options.replyStatus ?? 200 })
-            : Response.json({ code: 0 }, { status: options.replyStatus ?? 200 });
+            : Response.json(options.replyPayload ?? { code: 0 }, {
+                status: options.replyStatus ?? 200,
+              });
         },
       }),
   } as unknown as Page;
@@ -156,6 +159,45 @@ test('an uploaded photo and matching text do not prove attachment delivery', asy
       is_personal_data_sharing_check_skipped: false,
     },
   });
+});
+
+test('confirms an image from the reply even before it is visible in the conversation', async () => {
+  const attachment = { name: 'test.png', mimeType: 'image/png' as const, base64: 'iVBORw0KGgo=' };
+  const entity = {
+    id: 12,
+    user_id: 123,
+    body: '',
+    photos: [{ id: 88, url: 'https://images.vinted.net/test.jpg', temp_uuid: null }],
+  };
+  for (const [code, replyEntity, externalMessageId] of [
+    [0, entity, '12'],
+    [0, { ...entity, photos: [] }, null],
+    [0, { ...entity, user_id: 456 }, null],
+    [0, { ...entity, id: 10 }, null],
+    [1, entity, null],
+  ] as const) {
+    const fixture = browser({
+      replyPayload: { code, data: { entity_type: 'message', entity: replyEntity } },
+      after: [oldMessage],
+    });
+    const result = await sendVintedMessage(
+      fixture.page,
+      '123',
+      { ...command, text: '', attachment },
+      async () => undefined,
+    );
+    assert.deepEqual(
+      result,
+      externalMessageId
+        ? { outcome: 'sent', externalMessageId }
+        : { outcome: 'outcome_unknown', errorCode: 'reply_unconfirmed' },
+    );
+    assert.equal(fixture.replies().length, 1);
+    assert.equal(
+      fixture.requests.filter(({ path }) => path === '/api/v2/conversations/777').length,
+      1,
+    );
+  }
 });
 
 test('invalid image bytes are rejected before any browser request', async () => {

@@ -77,6 +77,7 @@ async function inboxFixture(
     },
   ];
   const queue: Record<string, unknown>[] = [];
+  const importedImages: Record<string, unknown>[] = [];
   const accountActions = new Map<string, VintedAccountAction>();
   const enqueues: Record<string, unknown>[] = [];
   const retries: Record<string, unknown>[] = [];
@@ -227,6 +228,7 @@ async function inboxFixture(
     return route.fulfill({
       json: {
         items: [
+          ...importedImages,
           ...(automatedReply
             ? [
                 {
@@ -312,7 +314,7 @@ async function inboxFixture(
             messageType: 'status_message',
           },
         ].reverse(),
-        total: (longHistory ? 28 : 4) + (automatedReply ? 2 : 0),
+        total: (longHistory ? 28 : 4) + (automatedReply ? 2 : 0) + importedImages.length,
         nextCursor: null,
       },
     });
@@ -461,6 +463,35 @@ async function inboxFixture(
         errorCode: 'timeout',
         attachment: null,
       });
+    },
+    addUncertainImageReplies() {
+      for (const index of [1, 2]) {
+        const externalId = String(80 + index);
+        importedImages.push({
+          ...scope,
+          id: `25000000-0000-4000-8000-00000000008${index}`,
+          externalId,
+          conversationId,
+          title: 'Message',
+          text: index === 2 ? 'Hier ist das zweite Bild.' : null,
+          messageType: 'message',
+          direction: 'outbound',
+          occurredAt: now,
+          imageUrls: [`https://images.example.test/chat-${index}.svg`],
+        });
+        queue.push({
+          id: `25000000-0000-4000-8000-00000000009${index}`,
+          requestId: `25000000-0000-4000-8000-00000000007${index}`,
+          conversationId,
+          text: null,
+          state: 'outcome_unknown',
+          createdAt: now,
+          updatedAt: now,
+          externalMessageId: null,
+          errorCode: 'reply_unconfirmed',
+          attachment: { name: `bild-${index}.png`, mimeType: 'image/png' },
+        });
+      }
     },
     bridgeCalls,
     pauseStoredMessages() {
@@ -622,6 +653,49 @@ test('prüft unklaren Versand vor der Wiederholung und versetzt den Mausfokus ni
       .evaluate((element) => element.lastElementChild?.hasAttribute('data-conversation-sync')),
   ).toBe(true);
   await checkAxe(page);
+});
+
+test.describe('Unklarer Bildversand auf Touch-Geräten', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
+
+  test('blendet alte Versandeinträge gezielt aus und lässt beide importierten Bilder im Chat', async ({
+    page,
+  }) => {
+    const fixture = await inboxFixture(page);
+    fixture.addUncertainImageReplies();
+    const url = `/marketplaces/vinted/messages?connectionId=${connectionId}&conversationId=${conversationId}`;
+    await page.goto(url);
+    await page.getByRole('button', { name: 'Dunkles Design aktivieren', exact: true }).tap();
+    await expect(page.locator('html')).toHaveClass(/dark/u);
+    const conversation = page.getByRole('region', { name: 'Gespräch', exact: true });
+    const images = conversation
+      .getByRole('link', { name: 'Nachrichtenbild öffnen' })
+      .and(conversation.locator('a[href^="https://images.example.test/chat-"]'));
+    const unclear = conversation.locator('[data-queue-state="outcome_unknown"]');
+    await expect(images).toHaveCount(2);
+    await expect(conversation.getByText('Message', { exact: true })).toHaveCount(0);
+    await expect(conversation.getByText('Hier ist das zweite Bild.')).toBeVisible();
+    await expect(unclear).toHaveCount(2);
+    await checkAxe(page);
+    const dialog = page.getByRole('dialog');
+    await unclear.first().getByRole('button', { name: 'Versand prüfen und wiederholen' }).tap();
+    await dialog.getByRole('button', { name: 'Abbrechen', exact: true }).tap();
+    await expect(unclear).toHaveCount(2);
+    for (const remaining of [1, 0]) {
+      await unclear
+        .first()
+        .getByRole('button', { name: 'Unklaren Versandeintrag ausblenden' })
+        .tap();
+      await dialog.getByRole('button', { name: 'Ausblenden', exact: true }).tap();
+      await expect(unclear).toHaveCount(remaining);
+    }
+    await page.reload();
+    await expect(images).toHaveCount(2);
+    await expect(unclear).toHaveCount(0);
+    expect(fixture.retries).toHaveLength(0);
+    expect(fixture.enqueues).toHaveLength(0);
+    expect(fixture.providerRequests).toBe(0);
+  });
 });
 
 for (const width of [1440, 390]) {

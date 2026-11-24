@@ -22,6 +22,7 @@ import {
   LucideImagePlus,
   LucideSend,
   LucideTrash2,
+  LucideX,
   LucideTag,
   LucideBot,
   LucideRefreshCw,
@@ -152,6 +153,7 @@ interface ReadingPosition {
 })
 export class VintedMessagesComponent {
   readonly retryIcon = LucideRefreshCw;
+  readonly dismissIcon = LucideX;
   readonly userIcon = LucideUser;
   readonly retryingMessageId = signal<string | null>(null);
   readonly store = inject(MarketplaceAccountStore);
@@ -215,7 +217,11 @@ export class VintedMessagesComponent {
     const deliveredIds = new Set(transcript.map((entry) => entry.externalId));
     // Jede eigene Verlaufsnachricht deckt höchstens einen Warteschlangen-Eintrag ab.
     const unmatched = transcript.filter(
-      (entry) => entry.direction === 'outbound' && entry.text?.trim(),
+      (entry) =>
+        entry.direction === 'outbound' &&
+        !entry.imageUrls?.length &&
+        entry.messageType !== 'photo_message' &&
+        entry.text?.trim(),
     );
     return this.messaging
       .messages()
@@ -223,7 +229,7 @@ export class VintedMessagesComponent {
       .filter((message) => {
         // Mit Vinted-ID gilt nur die exakte Zuordnung.
         if (message.externalMessageId) return !deliveredIds.has(message.externalMessageId);
-        if (!deliverableQueueStates.has(message.state)) return true;
+        if (message.attachment || !deliverableQueueStates.has(message.state)) return true;
         const text = message.text?.trim();
         const queuedAt = Date.parse(message.createdAt);
         if (!text || !Number.isFinite(queuedAt)) return true;
@@ -358,11 +364,6 @@ export class VintedMessagesComponent {
           this.messageDay(entry.occurredAt) !== this.messageDay(entries[index - 1].occurredAt),
       })),
   );
-  readonly hasPendingMessages = computed(() =>
-    this.queuedMessages().some((message) =>
-      ['queued', 'claimed', 'sending'].includes(message.state),
-    ),
-  );
   readonly lastActiveLabel = computed(() => {
     const timestamp = this.conversation()?.lastActiveAt;
     if (!timestamp) return 'Letzte Aktivität unbekannt';
@@ -400,6 +401,37 @@ export class VintedMessagesComponent {
       const account = this.store.selectedConnection();
       if (account?.executionMode === 'cloud')
         untracked(() => void this.shippingLabels.load(account));
+    });
+    // Die Warteschlange kennt den bestätigten Versand vor dem nächsten Postfachimport.
+    const requestedImageReads = new Set<string>();
+    effect(() => {
+      const conversation = this.conversation();
+      if (
+        !conversation ||
+        this.isRefreshingConversation() ||
+        this.retryingMessageId() ||
+        (this.store.selectedConnection()?.executionMode === 'local' && this.local.busy())
+      )
+        return;
+      const importedImages = new Set(
+        this.transcript()
+          .filter((entry) => entry.imageUrls?.length)
+          .map((entry) => entry.externalId),
+      );
+      const waiting = this.messaging
+        .messages()
+        .filter(
+          (message) =>
+            message.conversationId === conversation.id &&
+            message.attachment &&
+            message.state === 'sent' &&
+            message.externalMessageId &&
+            !importedImages.has(message.externalMessageId) &&
+            !requestedImageReads.has(message.id),
+        );
+      if (!waiting.length) return;
+      for (const message of waiting) requestedImageReads.add(message.id);
+      untracked(() => void this.openConversation(conversation));
     });
     // Neue eigene Nachricht im Verlauf: Warteschlange sofort statt erst beim nächsten Intervall abgleichen.
     let outboundCount: number | null = null;
@@ -643,6 +675,30 @@ export class VintedMessagesComponent {
     );
   }
 
+  canDismissImageSend(message: LocalQueuedMessage): boolean {
+    return message.state === 'outcome_unknown' && message.attachment !== null;
+  }
+
+  async dismissImageSend(message: LocalQueuedMessage): Promise<void> {
+    const key = this.conversationKey();
+    if (
+      !key ||
+      this.store.selectedConversationId() !== message.conversationId ||
+      !this.canDismissImageSend(message) ||
+      this.retryingMessageId()
+    )
+      return;
+    const confirmed = await this.dialog.frage({
+      titel: 'Versandeintrag ausblenden?',
+      text: 'Wenn Du das Bild im Vinted-Verlauf siehst, kannst Du den unklaren Versandeintrag in diesem Browser ausblenden.',
+      bestaetigenText: 'Ausblenden',
+    });
+    if (confirmed && this.conversationKey() === key) {
+      this.messaging.dismissUnconfirmedImage(message.id);
+      this.focusConversation = key;
+    }
+  }
+
   async retryMessage(message: LocalQueuedMessage): Promise<void> {
     const account = this.store.selectedConnection();
     const conversation = this.conversation();
@@ -662,6 +718,13 @@ export class VintedMessagesComponent {
       if (message.state === 'outcome_unknown') {
         await this.openConversation(conversation);
         if (key !== this.conversationKey() || this.conversationReadError() || this.store.error())
+          return;
+        if (
+          message.attachment &&
+          !this.queuedMessages().some(
+            (entry) => entry.id === message.id && entry.state === 'outcome_unknown',
+          )
+        )
           return;
         const alreadyPresent =
           !message.attachment &&
@@ -919,6 +982,9 @@ export class VintedMessagesComponent {
   }
 
   messageBody(entry: MarketplaceEntry): string | null {
+    if (entry.imageUrls?.length && this.messageKind(entry) === 'text')
+      return entry.text?.trim() ? entry.text : null;
+    if (entry.messageType === 'photo_message') return entry.text ?? 'Bild';
     if (this.messageKind(entry) !== 'offer') return entry.text ?? entry.title;
     return this.offerText(entry.text) ?? this.offerText(entry.title);
   }
