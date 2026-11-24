@@ -369,9 +369,17 @@ begin
   insert into public.marketplace_listing_jobs(workspace_id,connection_id,draft_id,permission_id,requested_by,request_id,request_hash,draft_revision,authorization_version,
     external_account_id,execution_mode,action,snapshot,scheduled_at,time_zone,late_policy,replaces_job_id,relist_delay_seconds,relist_publish_at,relist_entry_id)
     values(v_draft.workspace_id,v_draft.connection_id,v_draft.id,v_permission.id,(select auth.uid()),p_request_id,v_hash,v_draft.revision,v_permission.authorization_version,
-      v_permission.external_account_id,v_permission.execution_mode,p_action,jsonb_build_object('content',v_draft.content-'aiPhoto','images',v_images,'aiPhoto',p_ai_photo,'bump',false,
+      v_permission.external_account_id,v_permission.execution_mode,p_action,jsonb_build_object('content',v_draft.content-array['aiPhoto','favoriteDiscountPercent'],'images',v_images,'aiPhoto',p_ai_photo,'bump',false,
       'connectionId',v_draft.connection_id,'inventoryItemId',v_draft.inventory_item_id,'photoOptions',v_draft.photo_options)
-      || case when v_draft.relist_external_id is null then '{}'::jsonb else jsonb_build_object('relistExternalId',v_draft.relist_external_id) end,
+      || case when v_draft.relist_external_id is null then '{}'::jsonb else jsonb_build_object('relistExternalId',v_draft.relist_external_id) end
+      || case when v_draft.content ? 'favoriteDiscountPercent' then jsonb_build_object('favoriteDiscountPercent',v_draft.content->'favoriteDiscountPercent')
+        when v_draft.relist_external_id is not null then coalesce((
+          select jsonb_build_object('favoriteDiscountPercent',d.discount_percent)
+          from public.marketplace_listing_favorite_discounts d
+          where d.workspace_id=v_draft.workspace_id and d.connection_id=v_draft.connection_id
+            and d.external_account_id=v_permission.external_account_id and d.item_id=v_draft.relist_external_id
+        ),'{}'::jsonb)
+        else '{}'::jsonb end,
       p_scheduled_at,p_time_zone,p_late_policy,p_replaces_job_id,p_relist_delay_seconds,case when v_draft.relist_deleted_at is not null then coalesce(p_scheduled_at,clock_timestamp()+make_interval(secs=>p_relist_delay_seconds)) else null end,v_relist_entry_id) returning * into v_job;
   if v_draft.relist_external_id is not null then perform public.marketplace_remember_listing_photo_source(v_job,v_draft.relist_external_id); end if;
   return public.marketplace_listing_job_document(v_job);
@@ -519,7 +527,8 @@ create or replace function public.marketplace_listing_job_draft_document(p_job p
 returns jsonb language sql stable security invoker set search_path='' as $$
   select jsonb_build_object('id',p_job.draft_id::text,'workspaceId',p_job.workspace_id,'connectionId',p_job.connection_id,'revision',p_job.draft_revision,
     'relistExternalId',p_job.snapshot->>'relistExternalId','inventoryItemId',p_job.snapshot->'inventoryItemId',
-    'content',(p_job.snapshot->'content')||jsonb_build_object('aiPhoto',p_job.snapshot->'aiPhoto'),
+    'content',(p_job.snapshot->'content')||jsonb_build_object('aiPhoto',p_job.snapshot->'aiPhoto')
+      || case when p_job.snapshot ? 'favoriteDiscountPercent' then jsonb_build_object('favoriteDiscountPercent',p_job.snapshot->'favoriteDiscountPercent') else '{}'::jsonb end,
     'images',p_job.snapshot->'images','photoOptions',p_job.snapshot->'photoOptions','createdAt',p_job.created_at,'updatedAt',p_job.created_at);
 $$;
 revoke all on function public.marketplace_listing_job_draft_document(public.marketplace_listing_jobs) from public,anon,authenticated;
@@ -584,3 +593,30 @@ end;
 $$;
 revoke all on function public.marketplace_read_relisting_plans(uuid,uuid) from public,anon;
 grant execute on function public.marketplace_read_relisting_plans(uuid,uuid) to authenticated;
+
+-- Der angenommene Entwurfsrabatt gehört ab bestätigter Veröffentlichung zur Anbieterkennung.
+create or replace function public.marketplace_remember_listing_favorite_discount()
+returns trigger language plpgsql volatile security invoker set search_path='' as $$
+begin
+  if tg_op='UPDATE' and old.state='confirmed' then return new; end if;
+  if not exists (
+    select 1 from public.marketplace_connections c
+    where c.workspace_id=new.workspace_id and c.id=new.connection_id
+      and c.marketplace='vinted' and c.external_account_id=new.external_account_id
+  ) then return new; end if;
+
+  insert into public.marketplace_listing_favorite_discounts(workspace_id,connection_id,external_account_id,item_id,discount_percent)
+  values(new.workspace_id,new.connection_id,new.external_account_id,new.external_id,(new.snapshot->>'favoriteDiscountPercent')::numeric)
+  on conflict(workspace_id,connection_id,external_account_id,item_id) do nothing;
+  return new;
+end;
+$$;
+revoke all on function public.marketplace_remember_listing_favorite_discount() from public,anon,authenticated;
+grant execute on function public.marketplace_remember_listing_favorite_discount() to service_role;
+
+create trigger marketplace_remember_listing_favorite_discount
+after insert or update of state on public.marketplace_listing_jobs
+for each row when (
+  new.state='confirmed' and new.action='publish' and new.external_id is not null
+  and jsonb_typeof(new.snapshot->'favoriteDiscountPercent')='number'
+) execute function public.marketplace_remember_listing_favorite_discount();

@@ -13,6 +13,9 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
+import { VintedFavoriteDiscountFieldComponent } from '../vinted-favorite-discount-field/vinted-favorite-discount-field.component';
+import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
+import type { ListingFavoriteDiscount } from '../../models/vinted-favorite-messages';
 import { VintedListingPriceChangedError } from '../../services/marketplace-browser-test-api.service';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
@@ -81,6 +84,14 @@ function setup(items: MarketplaceEntry[] = [], queryParams: Record<string, strin
     convertToParamMap({ connectionId: account.connectionId, entryId: 'a' }),
   );
   const query = new BehaviorSubject(convertToParamMap(queryParams));
+  const favoriteMessages = {
+    readListingDiscount: vi
+      .fn<VintedFavoriteMessageApiService['readListingDiscount']>()
+      .mockResolvedValue({ enabled: false, defaultOffer: null, discountPercent: null }),
+    saveListingDiscount: vi
+      .fn<VintedFavoriteMessageApiService['saveListingDiscount']>()
+      .mockResolvedValue(undefined),
+  };
   const readPublication = vi.fn().mockImplementation(async (_: string, id: string) => entry(id));
   const store = {
     connections: signal([account]),
@@ -199,10 +210,11 @@ function setup(items: MarketplaceEntry[] = [], queryParams: Record<string, strin
         },
       },
       { provide: MarketplaceAccountStore, useValue: store },
+      { provide: VintedFavoriteMessageApiService, useValue: favoriteMessages },
     ],
   });
   const component = TestBed.runInInjectionContext(() => new VintedListingDetailComponent());
-  return { component, store, params };
+  return { component, store, params, favoriteMessages };
 }
 let restoreRendering: (() => void) | undefined;
 beforeAll(async () => {
@@ -215,6 +227,10 @@ beforeAll(async () => {
     {
       type: VintedListingPriceDialogComponent,
       path: 'src/app/features/marketplaces/components/vinted-listing-price-dialog/vinted-listing-price-dialog.component.ts',
+    },
+    {
+      type: VintedFavoriteDiscountFieldComponent,
+      path: 'src/app/features/marketplaces/components/vinted-favorite-discount-field/vinted-favorite-discount-field.component.ts',
     },
     { type: NumberInputComponent, path: shared + 'number-input/number-input.component.ts' },
     {
@@ -274,6 +290,100 @@ afterAll(() => restoreRendering?.());
 afterEach(() => TestBed.resetTestingModule());
 
 describe('Reaktive Inseratdetails', () => {
+  it('zeigt den Einzelrabatt und speichert das Zurücksetzen ohne Vinted-Aktion', async () => {
+    const item = { ...entry('a'), externalId: '721', price: 40, currency: 'EUR' };
+    const { favoriteMessages, store } = setup([item]);
+    favoriteMessages.readListingDiscount.mockResolvedValue({
+      enabled: true,
+      defaultOffer: { type: 'percentage', value: 5 },
+      discountPercent: 10,
+    });
+    const fixture = TestBed.createComponent(VintedListingDetailComponent);
+    fixture.detectChanges();
+    await settle();
+    fixture.componentInstance.edit();
+    await settle();
+    fixture.detectChanges();
+
+    const field = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-vinted-favorite-discount-field',
+    );
+    expect(field?.textContent).toContain('10');
+    const percentage = field?.querySelector('input');
+    expect(percentage?.value).toBe('10');
+    if (!percentage) throw new Error('Rabattfeld fehlt');
+    percentage.value = '';
+    percentage.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    expect(field?.textContent).toContain('5');
+    expect(favoriteMessages.readListingDiscount).toHaveBeenCalledWith(item, '721');
+    await fixture.componentInstance.save();
+    expect(favoriteMessages.saveListingDiscount).toHaveBeenCalledWith(item, '721', null);
+    expect(store.saveListingIntent).not.toHaveBeenCalled();
+  });
+
+  it('behält gemischte Änderungen beim Rabattfehler und übergibt nur Inseratdaten an Vinted', async () => {
+    const item = { ...entry('a'), externalId: '721', price: 40, currency: 'EUR' };
+    const { component, favoriteMessages, store } = setup([item]);
+    favoriteMessages.readListingDiscount.mockResolvedValue({
+      enabled: true,
+      defaultOffer: null,
+      discountPercent: null,
+    });
+    favoriteMessages.saveListingDiscount.mockRejectedValueOnce(new Error('Speicherfehler'));
+    store.saveListingIntent.mockRejectedValueOnce(new Error('Vinted-Fehler'));
+    await settle();
+    component.edit();
+    await settle();
+    component.form.controls.price.setValue('35,50');
+    expect(component.favoriteDiscountPriceCents()).toBe(3550);
+    component.favoriteDiscountPercent.set(51);
+    expect(component.canSave()).toBe(false);
+    await component.save();
+    expect(favoriteMessages.saveListingDiscount).not.toHaveBeenCalled();
+
+    component.favoriteDiscountPercent.set(20);
+    await component.save();
+    expect(component.editing()).toBe(true);
+    expect(component.favoriteDiscountError()).toContain('konnte nicht gespeichert werden');
+    expect(component.form.controls.price.value).toBe('35,50');
+    expect(component.favoriteDiscountPercent()).toBe(20);
+    expect(store.saveListingIntent).not.toHaveBeenCalled();
+
+    await component.save();
+    await component.savingTask;
+    expect(favoriteMessages.saveListingDiscount).toHaveBeenLastCalledWith(item, '721', 20);
+    expect(store.saveListingIntent.mock.calls[0]?.[2].fields.price).toBe('35,50');
+    expect(store.saveListingIntent.mock.calls[0]?.[2]).not.toHaveProperty('discountPercent');
+    expect(TestBed.inject(VintedListingOperationStore).entries()[0]).toMatchObject({
+      state: 'error',
+      message: 'Vinted-Fehler',
+    });
+  });
+
+  it.each(['Abbrechen', 'Speichern'])(
+    'verwirft nach %s den alten Rabattabruf für dasselbe Inserat',
+    async (action) => {
+      const item = { ...entry('a'), externalId: '721', price: 40, currency: 'EUR' };
+      const { component, favoriteMessages } = setup([item]);
+      let resolveFirstRead: (settings: ListingFavoriteDiscount) => void = () => undefined;
+      favoriteMessages.readListingDiscount
+        .mockReturnValueOnce(new Promise((resolve) => (resolveFirstRead = resolve)))
+        .mockResolvedValueOnce({ enabled: true, defaultOffer: null, discountPercent: 20 });
+      await settle();
+      component.edit();
+      if (action === 'Abbrechen') component.cancelEdit();
+      else await component.save();
+
+      component.edit();
+      await settle();
+      expect(component.favoriteDiscountPercent()).toBe(20);
+      resolveFirstRead({ enabled: true, defaultOffer: null, discountPercent: 10 });
+      await settle();
+      expect(component.favoriteDiscountPercent()).toBe(20);
+    },
+  );
+
   it('zeigt private Originale und behält Anbieteradressen nur als Fotoschlüssel', async () => {
     const listing = listingCurrentContentFixture();
     const { component, store } = setup([

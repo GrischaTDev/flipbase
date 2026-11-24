@@ -142,8 +142,8 @@
             >Textvariante hinzufügen</app-button
           >
           <p class="text-[13px] text-fb-text-secondary">
-            Mit &#123;article&#125; fügst Du den Artikeltitel ein. Prüfe die Sprache Deiner
-            Nachricht vor dem Aktivieren.
+            In Standard- und Regeltexten setzt <code>&#123;article&#125;</code> den Artikeltitel und
+            <code>&#123;discountPercent&#125;</code> den Rabatt als Prozentzahl ein, etwa 15 %.
           </p>
         </div>
       </app-card>
@@ -345,6 +345,11 @@
         <p class="mt-1 text-xs text-fb-text-secondary">
           {{ event.eventAt | date: 'dd.MM.yyyy, HH:mm' }}
         </p>
+        @if (event.errorCode === 'discount_unavailable') {
+          <p class="mt-2 text-[13px] text-fb-text-secondary">
+            Für den Artikel konnte kein gültiger Rabatt eingesetzt werden.
+          </p>
+        }
         @if (event.text) {
           <p class="mt-2 whitespace-pre-wrap text-[13px]">{{ event.text }}</p>
         }

@@ -2,6 +2,73 @@ import { expect, test } from '@playwright/test';
 import axe from 'axe-core';
 import { mockMarketplace, accountIds, workspaceId } from './support/marketplace-account-fixture';
 test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' });
+
+test('Kleiderschrank zeigt den Artikelrabatt mit Preisvorschau nur bei aktiven Favoritennachrichten @marketplace-preview @core-smoke', async ({
+  page,
+}) => {
+  const itemId = '91842';
+  let enabled = true;
+  let discountPercent: number | null = null;
+  await mockMarketplace(page, true, false, false, false, [], {
+    publicationsTotal: 1,
+    publicationExternalId: itemId,
+  });
+  await page.route('**/rest/v1/rpc/marketplace_read_listing_favorite_discount', (route) => {
+    const body = route.request().postDataJSON();
+    return route.fulfill({
+      json: {
+        enabled,
+        defaultOffer: { type: 'percentage', value: 10 },
+        discountPercent: body.p_item_id === itemId ? discountPercent : null,
+      },
+    });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_save_listing_favorite_discount', (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.p_item_id).toBe(itemId);
+    discountPercent = body.p_discount_percent ?? null;
+    return route.fulfill({ status: 204 });
+  });
+
+  await page.goto('/marketplaces/vinted/listings');
+  const action = page.getByRole('button', {
+    name: 'Rabatt anpassen für Vintage-Schal · Testartikel',
+  });
+  await action.click();
+  const dialog = page.getByRole('dialog', { name: 'Rabatt anpassen' });
+  const input = dialog.getByRole('spinbutton', { name: 'Individueller Rabatt' });
+  const save = dialog.getByRole('button', { name: 'Rabatt speichern' });
+  await expect(dialog).toContainText(/29,90\s€ − 2,99\s€ Rabatt \(10 %\) = 26,91\s€/);
+  await input.fill('20');
+  await expect(dialog).toContainText(/29,90\s€ − 5,98\s€ Rabatt \(20 %\) = 23,92\s€/);
+  await save.click();
+  await expect(dialog).toHaveCount(0);
+  expect(discountPercent).toBe(20);
+
+  await action.click();
+  await expect(input).toHaveValue('20');
+  await page.addScriptTag({ content: axe.source });
+  const violations = await dialog.evaluate(
+    async (element) =>
+      (await (window as unknown as { axe: typeof axe }).axe.run(element)).violations,
+  );
+  expect(violations).toEqual([]);
+  await input.fill('abc');
+  await expect(save).toBeDisabled();
+  await input.fill('');
+  await save.click();
+  await expect(dialog).toHaveCount(0);
+  expect(discountPercent).toBeNull();
+
+  enabled = false;
+  const disabledSettings = page.waitForResponse((response) =>
+    response.url().endsWith('/rpc/marketplace_read_listing_favorite_discount'),
+  );
+  await page.reload();
+  await disabledSettings;
+  await expect(page.getByText('Vintage-Schal · Testartikel').first()).toBeVisible();
+  await expect(action).toHaveCount(0);
+});
 for (const { width, cloud } of [1440, 1024, 390, 320].flatMap((width) => [
   { width, cloud: false },
   { width, cloud: true },

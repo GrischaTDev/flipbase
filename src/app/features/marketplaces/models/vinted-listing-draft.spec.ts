@@ -16,6 +16,22 @@ describe('Gespeicherte Vinted-Entwürfe', () => {
   it('keeps large database IDs as strings without rounding', () => {
     expect(parseVintedListingDraft(draft, 'workspace-a').id).toBe('9007199254740999');
   });
+  it('liest den Einzelrabatt getrennt vom Inseratsinhalt und unterscheidet Zurücksetzen und Auslassen', () => {
+    const parseWithDiscount = (favoriteDiscountPercent: unknown) =>
+      parseVintedListingDraft(
+        { ...draft, content: { ...draft.content, favoriteDiscountPercent } },
+        'workspace-a',
+      );
+    const withDiscount = parseWithDiscount(12.5);
+    expect(withDiscount.favoriteDiscountPercent).toBe(12.5);
+    expect(withDiscount.content).not.toHaveProperty('favoriteDiscountPercent');
+    expect(parseWithDiscount(null).favoriteDiscountPercent).toBeNull();
+    expect(parseVintedListingDraft(draft, 'workspace-a')).not.toHaveProperty(
+      'favoriteDiscountPercent',
+    );
+    expect(() => parseWithDiscount(50.01)).toThrow();
+    expect(() => parseWithDiscount('12.5')).toThrow();
+  });
   it('rejects responses from another workspace or draft', () => {
     expect(() => parseVintedListingDraft(draft, 'workspace-b')).toThrow();
     expect(() => parseVintedListingDraft(draft, 'workspace-a', '22')).toThrow();

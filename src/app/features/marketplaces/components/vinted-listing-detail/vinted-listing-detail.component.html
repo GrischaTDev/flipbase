@@ -38,13 +38,13 @@
       <app-button [disabled]="busy()" (clicked)="cancelEdit()">Abbrechen</app-button>
       <app-button
         variant="primary"
-        [disabled]="form.invalid || !canSave()"
+        [disabled]="(form.invalid && !isDiscountOnlyEdit()) || !canSave()"
         [loading]="busy()"
         (clicked)="save()"
         >Speichern</app-button
       >
     </div>
-    <form [formGroup]="form" (ngSubmit)="save()">
+    <form [formGroup]="form" [inert]="busy()" (ngSubmit)="save()">
       <app-two-column-layout ratio="2-1">
         <div main class="space-y-4">
           <app-card title="Fotos">
@@ -111,6 +111,28 @@
               }
             </div>
           </app-card>
+          @if (favoriteDiscount()?.enabled || favoriteDiscountError()) {
+            <app-card title="Favoritennachrichten">
+              <div class="space-y-4">
+                @if (favoriteDiscount()?.enabled && favoriteDiscount(); as discount) {
+                  <app-vinted-favorite-discount-field
+                    [accountOffer]="discount.defaultOffer"
+                    [priceCents]="favoriteDiscountPriceCents()"
+                    [currency]="item.currency"
+                    [discountPercent]="favoriteDiscountPercent()"
+                    [disabled]="busy()"
+                    (discountPercentChange)="favoriteDiscountPercent.set($event)"
+                  />
+                }
+                @if (favoriteDiscountError(); as message) {
+                  <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+                  @if (!favoriteDiscount()) {
+                    <app-button (clicked)="loadFavoriteDiscount()">Erneut laden</app-button>
+                  }
+                }
+              </div>
+            </app-card>
+          }
           <app-card title="Artikelangaben">
             <div class="space-y-4">
               @if (current(); as loaded) {

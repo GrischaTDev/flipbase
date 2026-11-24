@@ -4394,6 +4394,7 @@ export type Database = {
           id: string
           item_id: string
           lease_expires_at: string | null
+          message_offer_base_price_cents: number | null
           message_text: string | null
           offer_config: Json | null
           offer_error_code: string | null
@@ -4428,6 +4429,7 @@ export type Database = {
           id?: string
           item_id: string
           lease_expires_at?: string | null
+          message_offer_base_price_cents?: number | null
           message_text?: string | null
           offer_config?: Json | null
           offer_error_code?: string | null
@@ -4462,6 +4464,7 @@ export type Database = {
           id?: string
           item_id?: string
           lease_expires_at?: string | null
+          message_offer_base_price_cents?: number | null
           message_text?: string | null
           offer_config?: Json | null
           offer_error_code?: string | null
@@ -4789,6 +4792,41 @@ export type Database = {
             columns: ["workspace_id", "inventory_item_id"]
             isOneToOne: false
             referencedRelation: "inventory_items"
+            referencedColumns: ["workspace_id", "id"]
+          },
+        ]
+      }
+      marketplace_listing_favorite_discounts: {
+        Row: {
+          connection_id: string
+          discount_percent: number
+          external_account_id: string
+          id: number
+          item_id: string
+          workspace_id: string
+        }
+        Insert: {
+          connection_id: string
+          discount_percent: number
+          external_account_id: string
+          id?: never
+          item_id: string
+          workspace_id: string
+        }
+        Update: {
+          connection_id?: string
+          discount_percent?: number
+          external_account_id?: string
+          id?: never
+          item_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "marketplace_listing_favorite_di_workspace_id_connection_id_fkey"
+            columns: ["workspace_id", "connection_id"]
+            isOneToOne: false
+            referencedRelation: "marketplace_connections"
             referencedColumns: ["workspace_id", "id"]
           },
         ]
@@ -12978,6 +13016,10 @@ export type Database = {
         Args: { p_at: string; p_config: Json; p_price: number; p_seed: string }
         Returns: string
       }
+      marketplace_favorite_offer_price: {
+        Args: { p_offer: Json; p_original_price_cents: number }
+        Returns: number
+      }
       marketplace_feedback_occurred_at: {
         Args: { p_value: string }
         Returns: string
@@ -13578,6 +13620,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      marketplace_prepare_favorite_message: {
+        Args: {
+          p_at: string
+          p_config: Json
+          p_event: Database["public"]["Tables"]["marketplace_favorite_message_events"]["Row"]
+          p_publication: Json
+        }
+        Returns: {
+          error_code: string
+          message_offer_base_price_cents: number
+          message_text: string
+          offer_config: Json
+        }[]
+      }
       marketplace_publication_age_sort_at: {
         Args: { p_age: Json; p_observed_at: string }
         Returns: string
@@ -13619,6 +13675,14 @@ export type Database = {
         Returns: Json
       }
       marketplace_read_listing_draft: { Args: { p_id: string }; Returns: Json }
+      marketplace_read_listing_favorite_discount: {
+        Args: {
+          p_connection_id: string
+          p_item_id?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_read_listing_jobs: {
         Args: { p_draft_id?: string; p_workspace_id: string }
         Returns: Json
@@ -13879,6 +13943,15 @@ export type Database = {
           p_id: string
         }
         Returns: Json
+      }
+      marketplace_save_listing_favorite_discount: {
+        Args: {
+          p_connection_id: string
+          p_discount_percent?: number
+          p_item_id: string
+          p_workspace_id: string
+        }
+        Returns: undefined
       }
       marketplace_save_listing_template: {
         Args: {

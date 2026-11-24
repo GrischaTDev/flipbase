@@ -51,6 +51,7 @@ import {
   vintedListingBrandValue,
   vintedListingEditSelection,
   withVintedListingBrand,
+  vintedListingPriceCents,
   vintedListingPriceText,
   type VintedListingEditField,
   type VintedListingEditSnapshot,
@@ -60,6 +61,12 @@ import { MarketplaceAccountStore } from '../../services/marketplace-account.stor
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
 import { vintedPublicationBadge } from '../../models/vinted-publication-state';
+import {
+  validateFavoriteOffer,
+  type ListingFavoriteDiscount,
+} from '../../models/vinted-favorite-messages';
+import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
+import { VintedFavoriteDiscountFieldComponent } from '../vinted-favorite-discount-field/vinted-favorite-discount-field.component';
 
 import { VintedListingExtraFieldsComponent } from '../vinted-listing-extra-fields/vinted-listing-extra-fields.component';
 import {
@@ -88,6 +95,7 @@ import {
     VintedListingMetricsComponent,
     VintedListingBrandDialogComponent,
     VintedListingExtraFieldsComponent,
+    VintedFavoriteDiscountFieldComponent,
   ],
   providers: [VintedListingCategoryService],
   templateUrl: './vinted-listing-detail.component.html',
@@ -106,6 +114,7 @@ export class VintedListingDetailComponent {
   private readonly toast = inject(ToastService);
   private readonly categoryApi = inject(VintedListingCategoryService);
   private readonly categoryFields = inject(VintedCategoryFieldStore);
+  private readonly favoriteMessages = inject(VintedFavoriteMessageApiService);
   private readonly workspace = inject(WorkspaceService);
   readonly workspaceId = computed(() => this.workspace.currentWorkspace()?.id ?? null);
   readonly categoryLoading = signal(false);
@@ -229,6 +238,14 @@ export class VintedListingDetailComponent {
 
   readonly error = signal<string | null>(null);
   readonly notice = signal<string | null>(null);
+  readonly favoriteDiscount = signal<ListingFavoriteDiscount | null>(null);
+  readonly favoriteDiscountPercent = signal<number | null>(null);
+  private readonly favoriteDiscountLoading = signal(false);
+  readonly favoriteDiscountError = signal<string | null>(null);
+  private readonly favoriteDiscountChanged = computed(() => {
+    const discount = this.favoriteDiscount();
+    return !!discount?.enabled && this.favoriteDiscountPercent() !== discount.discountPercent;
+  });
   readonly metricDisplay = createVintedListingMetricDisplay(this.store, () =>
     this.entry() ? [this.entry()!] : [],
   );
@@ -245,6 +262,12 @@ export class VintedListingDetailComponent {
     // Mehrfachauswahl als Bezeichnungen, getrennt wie in der gemeinsamen Auswahlbox.
     color: [''],
     material: [''],
+  });
+  private readonly formChanges = toSignal(this.form.valueChanges);
+  readonly favoriteDiscountPriceCents = computed(() => {
+    if (!this.editing()) return null;
+    this.formChanges();
+    return vintedListingPriceCents(this.form.controls.price.value);
   });
   /** Gespeicherte Angaben und lokale Auswahlwerte der laufenden Bearbeitung. */
   readonly current = signal<VintedListingEditSnapshot | null>(null);
@@ -309,17 +332,40 @@ export class VintedListingDetailComponent {
   readonly packageChoice = computed(
     () => this.choiceFields().find((choice) => choice.field === 'package') ?? null,
   );
-  readonly canSave = computed(
-    () =>
-      this.editing() &&
-      this.entry() !== null &&
-      !this.categoryLoading() &&
-      !this.brandPending() &&
-      Object.keys(this.extraErrors()).length === 0 &&
-      this.form.controls.categoryId.value ===
-        String(this.editingSnapshot()?.content.categoryId ?? ''),
+  private readonly hasListingChanges = computed(() => {
+    if (!this.editing()) return false;
+    this.formChanges();
+    const fields = this.form.getRawValue();
+    const initial = this.initialFields;
+    const extraValues = this.extraValues();
+    const storedAttributes = this.editingSnapshot()?.content.attributes;
+    return (
+      this.brandPending() ||
+      this.arrangedPhotos() !== null ||
+      Object.entries(extraValues?.values ?? {}).some(
+        ([key, value]) => (storedAttributes?.[key] ?? '') !== value,
+      ) ||
+      (Object.keys(fields) as (keyof typeof fields)[]).some((key) => fields[key] !== initial?.[key])
+    );
+  });
+  readonly isDiscountOnlyEdit = computed(
+    () => this.favoriteDiscountChanged() && !this.hasListingChanges(),
   );
-  readonly editStatus = computed(() => (this.busy() ? 'Wird bei Vinted gespeichert …' : ''));
+  readonly canSave = computed(() => {
+    if (!this.editing() || !this.entry()) return false;
+    const discount = this.favoriteDiscountPercent();
+    if (discount !== null && !validateFavoriteOffer({ type: 'percentage', value: discount }))
+      return false;
+    return (
+      this.isDiscountOnlyEdit() ||
+      (!this.categoryLoading() &&
+        !this.brandPending() &&
+        Object.keys(this.extraErrors()).length === 0 &&
+        this.form.controls.categoryId.value ===
+          String(this.editingSnapshot()?.content.categoryId ?? ''))
+    );
+  });
+  readonly editStatus = computed(() => (this.busy() ? 'Rabatt wird gespeichert …' : ''));
   readonly multipleFields = computed(() =>
     (
       [
@@ -441,6 +487,7 @@ export class VintedListingDetailComponent {
     this.current.set(null);
     this.initialFields = null;
     this.arrangedPhotos.set(null);
+    this.resetFavoriteDiscount();
   }
   private options(field: VintedListingEditField): SelectOption[] {
     const current = this.editingSnapshot();
@@ -508,6 +555,40 @@ export class VintedListingDetailComponent {
     this.initialFields = null;
     this.error.set(null);
     this.arrangedPhotos.set(null);
+    this.resetFavoriteDiscount();
+  }
+  private resetFavoriteDiscount(): void {
+    this.favoriteDiscount.set(null);
+    this.favoriteDiscountPercent.set(null);
+    this.favoriteDiscountLoading.set(false);
+    this.favoriteDiscountError.set(null);
+  }
+
+  async loadFavoriteDiscount(): Promise<void> {
+    const entry = this.entry();
+    if (
+      !this.editing() ||
+      this.favoriteDiscountLoading() ||
+      !entry?.externalId ||
+      entry.publicationState === 'draft'
+    )
+      return;
+    const version = this.requestVersion;
+    const isCurrentEdit = () =>
+      this.isCurrent(version) && this.editing() && this.entry()?.id === entry.id;
+    this.favoriteDiscountLoading.set(true);
+    this.favoriteDiscountError.set(null);
+    try {
+      const discount = await this.favoriteMessages.readListingDiscount(entry, entry.externalId);
+      if (!isCurrentEdit()) return;
+      this.favoriteDiscount.set(discount);
+      this.favoriteDiscountPercent.set(discount.discountPercent);
+    } catch {
+      if (isCurrentEdit())
+        this.favoriteDiscountError.set('Der Rabatt konnte nicht geladen werden.');
+    } finally {
+      if (isCurrentEdit()) this.favoriteDiscountLoading.set(false);
+    }
   }
   openPriceChange(): void {
     this.priceEditor.show();
@@ -533,8 +614,10 @@ export class VintedListingDetailComponent {
   edit(): void {
     const entry = this.entry();
     if (this.busy() || this.editing() || this.changingPrice() || !entry) return;
+    this.requestVersion++;
     this.error.set(null);
     this.notice.set(null);
+    this.resetFavoriteDiscount();
     const current = storedVintedListingEdit(
       entry,
       this.description()?.description ?? null,
@@ -577,6 +660,7 @@ export class VintedListingDetailComponent {
     this.brandValue.set(this.form.controls.brand.value);
     this.brandPending.set(false);
     this.editing.set(true);
+    void this.loadFavoriteDiscount();
   }
   private async changeCategory(id: string): Promise<void> {
     if (!this.editing() || this.busy()) return;
@@ -667,29 +751,53 @@ export class VintedListingDetailComponent {
   /** Laufende Speicherung im Hintergrund; die Ansicht ist dann bereits geschlossen. */
   savingTask: Promise<void> | null = null;
 
-  /** Übergibt die Bearbeitung an die Aktionsübersicht und kehrt sofort in den Kleiderschrank zurück. */
+  /** Speichert den Rabatt in Flipbase und übergibt Inseratänderungen an die Aktionsübersicht. */
   async save(): Promise<void> {
-    if (this.form.invalid || this.busy() || !this.canSave()) {
+    const discountOnly = this.isDiscountOnlyEdit();
+    if ((this.form.invalid && !discountOnly) || this.busy() || !this.canSave()) {
       this.form.markAllAsTouched();
       return;
     }
     const entry = this.entry();
     if (!entry) return;
-    if (this.operations.isRunning(entry)) {
-      this.error.set(
-        'Für dieses Inserat läuft bereits eine Aktion. Warte, bis sie abgeschlossen ist.',
-      );
-      return;
-    }
-    const task = this.saveTask();
+    const task = discountOnly ? null : this.saveTask();
     this.error.set(null);
     this.notice.set(null);
+    if (task && this.showRunningActionError(entry)) return;
+    const discount = this.favoriteDiscount();
+    if (discount?.enabled && this.favoriteDiscountChanged() && entry.externalId) {
+      const version = this.requestVersion;
+      const percent = this.favoriteDiscountPercent();
+      this.busy.set(true);
+      this.favoriteDiscountError.set(null);
+      try {
+        await this.favoriteMessages.saveListingDiscount(entry, entry.externalId, percent);
+        if (!this.isCurrent(version) || this.entry()?.id !== entry.id) return;
+        this.favoriteDiscount.set({ ...discount, discountPercent: percent });
+        this.toast.success('Rabatt gespeichert', entry.title);
+      } catch {
+        if (this.isCurrent(version))
+          this.favoriteDiscountError.set('Der Rabatt konnte nicht gespeichert werden.');
+        return;
+      } finally {
+        if (this.isCurrent(version)) this.busy.set(false);
+      }
+      if (task && this.showRunningActionError(entry)) return;
+    }
     this.editing.set(false);
     this.current.set(null);
     this.arrangedPhotos.set(null);
-    // Fehler zeigt die Aktionsübersicht; hier bleibt nichts offen.
-    this.savingTask = this.operations.updateListing(entry, task).catch(() => undefined);
+    this.resetFavoriteDiscount();
+    if (task) this.savingTask = this.operations.updateListing(entry, task).catch(() => undefined);
     await this.router.navigate(['/marketplaces/vinted/listings']);
+  }
+
+  private showRunningActionError(entry: MarketplaceEntry): boolean {
+    if (!this.operations.isRunning(entry)) return false;
+    this.error.set(
+      'Für dieses Inserat läuft bereits eine Aktion. Warte, bis sie abgeschlossen ist.',
+    );
+    return true;
   }
 
   /** Hält alle Eingaben fest, damit das Speichern unabhängig von dieser Ansicht weiterläuft. */

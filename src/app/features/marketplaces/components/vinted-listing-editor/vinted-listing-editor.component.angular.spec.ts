@@ -25,14 +25,17 @@ import { VintedListingOriginalPhotoService } from '../../services/vinted-listing
 import { VintedSoldItemCopyService } from '../../services/vinted-sold-item-copy.service';
 import { VintedListingJobService } from '../../services/vinted-listing-job.service';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
+import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
 import { VintedListingEditorComponent } from './vinted-listing-editor.component';
+import { VintedFavoriteDiscountFieldComponent } from '../vinted-favorite-discount-field/vinted-favorite-discount-field.component';
 import { VintedListingPhotoPreviewComponent } from './vinted-listing-photo-preview.component';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import { listingCategoryFixture } from '../../../../../../e2e/support/vinted-listing-category-fixture';
 import { buildVintedListingFieldSelection } from '../../models/vinted-listing-field-selection';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import type { ListingFavoriteDiscount } from '../../models/vinted-favorite-messages';
 import type { VintedListingEditorSource } from '../../models/vinted-listing-source';
 import { parseMarketplacePage } from '../../models/marketplace-response';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
@@ -120,12 +123,22 @@ async function publicationInput(f: ReturnType<typeof setup>) {
     mimeType: 'image/jpeg' as const,
     byteSize: 123,
   };
-  f.create.mockImplementation(async (_workspace, content, connectionId) => ({
-    ...draft,
-    content,
-    connectionId,
-    images: [],
-  }));
+  f.create.mockImplementation(
+    async (
+      _workspace,
+      content,
+      connectionId,
+      _request,
+      _inventoryItem,
+      favoriteDiscountPercent,
+    ) => ({
+      ...draft,
+      content,
+      connectionId,
+      favoriteDiscountPercent,
+      images: [],
+    }),
+  );
   vi.mocked(f.imageApi.upload).mockImplementation(async (current) => ({
     ...current,
     images: [image],
@@ -157,28 +170,57 @@ function setup(
   query: Record<string, string> = {},
   source?: VintedListingEditorSource,
   realRelisting = false,
+  options: { render?: boolean; favoriteDiscount?: ListingFavoriteDiscount } = {},
 ) {
   const startRelisting = vi.fn().mockResolvedValue(undefined);
   const snapshot = signal<MarketplaceSnapshot | null>(null);
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const connections = signal([account]);
+  const routeParams = new BehaviorSubject(convertToParamMap({}));
+  const readListingDiscount = vi
+    .fn<VintedFavoriteMessageApiService['readListingDiscount']>()
+    .mockResolvedValue(
+      options.favoriteDiscount ?? { enabled: false, defaultOffer: null, discountPercent: null },
+    );
   const readListingContent = vi.fn().mockRejectedValue(new Error('Anbieter nicht erreichbar'));
   const readRelistingContent = vi.fn().mockResolvedValue({
     ...listingCurrentContentFixture(),
     aiPhoto: false,
     photoUrls: listingCurrentContentFixture().photoUrls.slice(0, 1),
   });
-  const create = vi.fn().mockImplementation(async (_workspace, content, connectionId) => ({
-    ...draft,
-    content,
-    connectionId,
-  }));
-  const save = vi.fn().mockImplementation(async (current, content, connectionId) => ({
-    ...current,
-    content,
-    connectionId,
-    revision: current.revision + 1,
-  }));
+  const create = vi
+    .fn<VintedListingDraftService['create']>()
+    .mockImplementation(
+      async (
+        _workspace,
+        content,
+        connectionId,
+        _request,
+        _inventoryItem,
+        favoriteDiscountPercent,
+      ) => ({
+        ...draft,
+        content,
+        connectionId,
+        favoriteDiscountPercent,
+      }),
+    );
+  const save = vi
+    .fn<VintedListingDraftService['save']>()
+    .mockImplementation(
+      async (
+        current,
+        content,
+        connectionId,
+        favoriteDiscountPercent = current.favoriteDiscountPercent,
+      ) => ({
+        ...current,
+        content,
+        connectionId,
+        favoriteDiscountPercent,
+        revision: current.revision + 1,
+      }),
+    );
   TestBed.configureTestingModule({
     providers: [
       {
@@ -311,7 +353,7 @@ function setup(
       {
         provide: ActivatedRoute,
         useValue: {
-          paramMap: new BehaviorSubject(convertToParamMap({})),
+          paramMap: routeParams,
           queryParamMap: new BehaviorSubject(convertToParamMap(query)),
           snapshot: { paramMap: convertToParamMap({}), queryParamMap: convertToParamMap(query) },
         },
@@ -331,15 +373,27 @@ function setup(
         },
       },
       {
+        provide: VintedFavoriteMessageApiService,
+        useValue: { readListingDiscount },
+      },
+      {
         provide: VintedListingDraftService,
         useValue: {
           create,
           createRelisting: vi.fn(
-            async (_workspace, content, connectionId, _request, externalId) => ({
+            async (
+              _workspace,
+              content,
+              connectionId,
+              _request,
+              externalId,
+              favoriteDiscountPercent,
+            ) => ({
               ...draft,
               content,
               connectionId,
               relistExternalId: externalId,
+              favoriteDiscountPercent,
             }),
           ),
           save,
@@ -361,7 +415,15 @@ function setup(
       },
     ],
   });
-  const fixture = source ? TestBed.createComponent(VintedListingEditorComponent) : null;
+  const fixture =
+    source || options.render ? TestBed.createComponent(VintedListingEditorComponent) : null;
+  if (fixture && options.render) {
+    const editorCategoryApi = fixture.debugElement.injector.get(VintedListingCategoryService);
+    const categoryApi = TestBed.inject(VintedListingCategoryService);
+    vi.spyOn(editorCategoryApi, 'readSnapshot').mockImplementation((connectionId) =>
+      categoryApi.readSnapshot(connectionId),
+    );
+  }
   if (fixture && source) {
     fixture.componentRef.setInput('source', source);
     fixture.detectChanges();
@@ -377,10 +439,12 @@ function setup(
     photoSources: TestBed.inject(VintedListingPhotoSourceService),
     maskService: TestBed.inject(VintedPhotoBackgroundMaskService),
     readListingContent,
+    readListingDiscount,
     readRelistingContent,
     create,
     save,
     workspace,
+    routeParams,
     connections,
     imageApi: TestBed.inject(VintedListingImageService),
   };
@@ -391,6 +455,90 @@ afterEach(() => {
   vi.unstubAllGlobals();
   mockRenderVintedListingPhoto.mockReset();
   mockRenderVintedListingPhoto.mockImplementation(async () => btoa('rendered-preview'));
+});
+
+it('berechnet die Rabattvorschau mit dem aktuellen Verkaufspreis und übernimmt den Einzelrabatt in die Veröffentlichung', async () => {
+  const f = setup({ workspaceId: 'workspace-a', connectionId: 'account-a' }, undefined, false, {
+    render: true,
+  });
+  f.readListingDiscount.mockResolvedValue({
+    enabled: true,
+    defaultOffer: { type: 'percentage', value: 10 },
+    discountPercent: null,
+  });
+  await settle();
+  await publicationInput(f);
+  f.component.form.controls.price.setValue('25');
+  f.fixture?.detectChanges();
+  const field = f.fixture?.debugElement.query(By.directive(VintedFavoriteDiscountFieldComponent))
+    ?.componentInstance as VintedFavoriteDiscountFieldComponent;
+  expect(field.preview()?.offerPriceCents).toBe(2250);
+  field.control.setValue(20);
+  f.component.form.controls.price.setValue('30');
+  f.fixture?.detectChanges();
+  expect(field.preview()?.offerPriceCents).toBe(2400);
+  expect(f.component.favoriteDiscountPercent()).toBe(20);
+  expect(f.component.fieldErrors()).toEqual({});
+  expect(f.component.canStartPublication()).toBe(true);
+  await f.component.openPublication();
+  expect(f.create.mock.calls[0]?.[5]).toBe(20);
+  expect(f.component.publication()?.draft.favoriteDiscountPercent).toBe(20);
+  expect(f.component.publication()?.draft.content).not.toHaveProperty('favoriteDiscountPercent');
+});
+
+it('erhält gespeicherte Einzelrabatte ohne Einstellungsabruf und speichert eine ausdrückliche Rückkehr zum Kontostandard', async () => {
+  const f = setup();
+  f.routeParams.next(convertToParamMap({ draftId: draft.id }));
+  const savedDraft = { ...draft, connectionId: 'account-a', favoriteDiscountPercent: 15 };
+  vi.mocked(TestBed.inject(VintedListingDraftService).load).mockResolvedValue(savedDraft);
+  f.readListingDiscount.mockRejectedValueOnce(new Error('Einstellungen nicht erreichbar'));
+  await settle();
+  expect(f.component.favoriteDiscountAccount()).toBeNull();
+  expect(f.component.favoriteDiscountPercent()).toBe(15);
+  f.component.form.controls.title.setValue('Jacke');
+  await f.component.save();
+  expect(f.save).toHaveBeenLastCalledWith(savedDraft, expect.anything(), 'account-a', 15);
+
+  f.readListingDiscount.mockResolvedValueOnce({
+    enabled: true,
+    defaultOffer: { type: 'amount', value: 5 },
+    discountPercent: null,
+  });
+  await f.component.reload();
+  await settle();
+  expect(f.component.favoriteDiscountAccount()?.defaultOffer).toEqual({ type: 'amount', value: 5 });
+  f.component.changeFavoriteDiscount(Number.NaN);
+  expect(f.component.canSave()).toBe(false);
+  await f.component.save();
+  expect(f.save).toHaveBeenCalledTimes(1);
+  f.component.changeFavoriteDiscount(null);
+  await f.component.save();
+  expect(f.save).toHaveBeenLastCalledWith(savedDraft, expect.anything(), 'account-a', null);
+  expect(f.component.draft()?.favoriteDiscountPercent).toBeNull();
+});
+
+it('blendet den Einzelrabatt beim Kontowechsel sofort aus und verwirft verspätete Einstellungen', async () => {
+  const f = setup({ workspaceId: 'workspace-a', connectionId: 'account-a' });
+  f.connections.set([account, { ...account, connectionId: 'account-b' }]);
+  let finishFirstAccount:
+    ((settings: Awaited<ReturnType<typeof f.readListingDiscount>>) => void) | undefined;
+  f.readListingDiscount.mockReturnValueOnce(
+    new Promise((resolve) => {
+      finishFirstAccount = resolve;
+    }),
+  );
+  await settle();
+  expect(f.readListingDiscount.mock.calls[0][0].connectionId).toBe('account-a');
+  f.component.form.controls.connectionId.setValue('account-b');
+  await settle();
+  finishFirstAccount?.({
+    enabled: true,
+    defaultOffer: { type: 'percentage', value: 35 },
+    discountPercent: null,
+  });
+  await settle();
+  expect(f.readListingDiscount.mock.calls[1][0].connectionId).toBe('account-b');
+  expect(f.component.favoriteDiscountAccount()).toBeNull();
 });
 
 it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speichert ohne Quellverknüpfung', async () => {
@@ -422,6 +570,8 @@ it('öffnet einen Verkauf als vollständig bearbeitbares neues Inserat und speic
     }),
     'account-a',
     expect.any(String),
+    undefined,
+    undefined,
   );
   expect(TestBed.inject(VintedListingDraftService).createRelisting).not.toHaveBeenCalled();
   expect(f.imageApi.upload).toHaveBeenCalledWith(expect.anything(), expect.any(File), undefined);
@@ -1625,6 +1775,8 @@ describe('Vinted-Inserateditor', () => {
       expect.objectContaining({ title: 'Burberry Schal grau' }),
       'account-a',
       expect.any(String),
+      undefined,
+      undefined,
     );
     expect(save.mock.calls.every(([current]) => current.id === '77')).toBe(true);
     expect(upload).toHaveBeenCalledWith(expect.objectContaining({ id: '77' }), original, undefined);
@@ -1707,6 +1859,8 @@ describe('Vinted-Inserateditor', () => {
       expect.objectContaining({ title: 'Neuer Arbeitsbereich' }),
       null,
       expect.any(String),
+      undefined,
+      undefined,
     );
   });
 });
@@ -1786,6 +1940,28 @@ it('speichert beim Zuschneiden und Vergrößern die Originaldatei und nur Ausgab
     crops: { '2': crop },
   });
   expect(await original.text()).toBe('camera-original-Exif');
+});
+
+it('zeigt beim Relisten den Einzelrabatt des Originals und kann ihn ausdrücklich zurücksetzen', async () => {
+  const source = localRelisting();
+  const f = setup({}, source, false, {
+    favoriteDiscount: {
+      enabled: true,
+      defaultOffer: { type: 'percentage', value: 5 },
+      discountPercent: 20,
+    },
+  });
+  await settle();
+  expect(f.readListingDiscount).toHaveBeenCalledWith(
+    { workspaceId: 'workspace-a', connectionId: 'account-a' },
+    source.entry.externalId,
+  );
+  expect(f.component.favoriteDiscountPercent()).toBe(20);
+  f.component.changeFavoriteDiscount(null);
+  await f.component.submitRelisting();
+  expect(f.startRelisting).toHaveBeenCalledWith(
+    expect.objectContaining({ favoriteDiscountPercent: null }),
+  );
 });
 
 it('sperrt Formularelemente ohne Wertverlust oder zusätzliche Inhaltsänderung', async () => {

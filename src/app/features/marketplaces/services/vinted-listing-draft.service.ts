@@ -24,6 +24,13 @@ export interface VintedListingDraftPage {
   readonly nextCursor: VintedListingDraftCursor | null;
 }
 
+function serializeDraftContent(
+  content: VintedListingContent,
+  favoriteDiscountPercent: number | null | undefined,
+): Json {
+  return JSON.parse(JSON.stringify({ ...content, favoriteDiscountPercent })) as Json;
+}
+
 @Injectable({ providedIn: 'root' })
 export class VintedListingDraftService {
   private readonly client = inject(SupabaseService).client;
@@ -85,6 +92,7 @@ export class VintedListingDraftService {
     connectionId: string | null,
     requestId: string,
     inventoryItemId?: string,
+    favoriteDiscountPercent?: number | null,
   ): Promise<VintedListingDraft> {
     return parseVintedListingDraft(
       listingResponse(
@@ -92,7 +100,7 @@ export class VintedListingDraftService {
           // Der Typengenerator markiert nullable RPC-Parameter als nicht-null; die API benötigt explizites null.
           p_workspace_id: workspaceId,
           p_connection_id: connectionId!,
-          p_content: JSON.parse(JSON.stringify(content)) as Json,
+          p_content: serializeDraftContent(content, favoriteDiscountPercent),
           p_request_id: requestId,
           ...(inventoryItemId ? { p_inventory_item_id: inventoryItemId } : {}),
         }),
@@ -106,13 +114,14 @@ export class VintedListingDraftService {
     connectionId: string,
     requestId: string,
     externalId: string,
+    favoriteDiscountPercent?: number | null,
   ): Promise<VintedListingDraft> {
     return parseVintedListingDraft(
       listingResponse(
         await this.client.rpc('marketplace_create_relisting_draft', {
           p_workspace_id: workspaceId,
           p_connection_id: connectionId,
-          p_content: JSON.parse(JSON.stringify(content)) as Json,
+          p_content: serializeDraftContent(content, favoriteDiscountPercent),
           p_request_id: requestId,
           p_external_id: externalId,
         }),
@@ -124,6 +133,7 @@ export class VintedListingDraftService {
     draft: VintedListingDraft,
     content: VintedListingContent,
     connectionId: string | null,
+    favoriteDiscountPercent = draft.favoriteDiscountPercent,
   ): Promise<VintedListingDraft> {
     if (draft.relistExternalId && draft.connectionId !== connectionId)
       throw new Error('Relisten ist nur im ursprünglichen Konto möglich.');
@@ -132,7 +142,7 @@ export class VintedListingDraftService {
         await this.client.rpc('marketplace_save_listing_draft', {
           p_id: draft.id,
           p_expected_revision: draft.revision,
-          p_content: JSON.parse(JSON.stringify(content)) as Json,
+          p_content: serializeDraftContent(content, favoriteDiscountPercent),
           p_connection_id: connectionId!,
         }),
       ),

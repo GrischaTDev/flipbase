@@ -41,6 +41,7 @@ export interface VintedRelistingSubmission {
   readonly schedule: VintedListingJobIntent['schedule'];
   readonly delaySeconds: number;
   readonly requestId: string;
+  readonly favoriteDiscountPercent?: number | null;
 }
 
 /** Ein bestätigter Relist-Auftrag gehört zur Anwendung, nicht zur Lebensdauer seines Formulars. */
@@ -202,12 +203,22 @@ export class VintedRelistingSubmissionService {
       entry.connectionId,
       submission.requestId,
       entry.externalId!,
+      submission.favoriteDiscountPercent,
     );
     current();
     if (draft.connectionId !== entry.connectionId || draft.relistExternalId !== entry.externalId)
       throw new Error('Der Relist-Entwurf gehört nicht zum gewählten Inserat.');
-    if (JSON.stringify(draft.content) !== JSON.stringify(content)) {
-      draft = await this.drafts.save(draft, content, entry.connectionId);
+    if (
+      JSON.stringify(draft.content) !== JSON.stringify(content) ||
+      (submission.favoriteDiscountPercent !== undefined &&
+        draft.favoriteDiscountPercent !== submission.favoriteDiscountPercent)
+    ) {
+      draft = await this.drafts.save(
+        draft,
+        content,
+        entry.connectionId,
+        submission.favoriteDiscountPercent,
+      );
       current();
     }
     // Nach einer verlorenen Antwort kann bereits ein privater Teilstand existieren.

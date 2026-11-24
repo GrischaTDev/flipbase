@@ -7,6 +7,7 @@ import {
   type VintedListingContent,
   type VintedListingTemplateFields,
 } from './vinted-listing-content';
+import { validateFavoriteOffer } from './vinted-favorite-messages';
 
 export interface VintedListingImage {
   readonly id: string;
@@ -18,6 +19,7 @@ export interface VintedListingImage {
 export interface VintedListingDraft {
   readonly photoOptions?: VintedListingPhotoOptions;
   readonly relistExternalId?: string | null;
+  readonly favoriteDiscountPercent?: number | null;
   readonly id: string;
   readonly workspaceId: string;
   readonly connectionId: string | null;
@@ -81,6 +83,13 @@ export function parseVintedListingDraft(
   )
     return invalid();
   if (data['workspaceId'] !== workspaceId || (expectedId && expectedId !== id)) return invalid();
+  const { favoriteDiscountPercent, ...content } = record(data['content']);
+  if (
+    favoriteDiscountPercent != null &&
+    (typeof favoriteDiscountPercent !== 'number' ||
+      !validateFavoriteOffer({ type: 'percentage', value: favoriteDiscountPercent }))
+  )
+    return invalid();
   if (!Array.isArray(data['images']) || data['images'].length > 100) return invalid();
   const imageIds = new Set<string>();
   const images = data['images'].map((value): VintedListingImage => {
@@ -116,7 +125,8 @@ export function parseVintedListingDraft(
     relistExternalId: relistExternalId as string | null | undefined,
     connectionId: nullableText(data['connectionId']),
     revision: revision(data['revision']),
-    content: parseVintedListingContent(data['content']),
+    content: parseVintedListingContent(content),
+    ...(favoriteDiscountPercent !== undefined ? { favoriteDiscountPercent } : {}),
     images,
     photoOptions: parseVintedListingPhotoOptions(
       data['photoOptions'],

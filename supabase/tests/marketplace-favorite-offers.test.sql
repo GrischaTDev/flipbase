@@ -3,7 +3,8 @@ begin;
 set local search_path=public,extensions;
 select no_plan();
 insert into auth.users(id,aud,role,email,raw_app_meta_data,raw_user_meta_data) values
- ('38200000-0000-4000-8000-000000000001','authenticated','authenticated','favorite-offer-owner@example.test','{}','{}');
+ ('38200000-0000-4000-8000-000000000001','authenticated','authenticated','favorite-offer-owner@example.test','{}','{}'),
+ ('38200000-0000-4000-8000-000000000002','authenticated','authenticated','favorite-offer-other@example.test','{}','{}');
 insert into public.platform_operators(user_id) values('38200000-0000-4000-8000-000000000001');
 insert into public.workspaces(id,name) values('38200000-0000-4000-8000-000000000011','Favorite offers');
 insert into public.workspace_members(workspace_id,user_id,role) values
@@ -20,8 +21,14 @@ $$;
 create function pg_temp.read_settings() returns jsonb language sql as $$
  select public.marketplace_read_favorite_messages('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021');
 $$;
-create function pg_temp.save(p_enabled boolean,p_offer jsonb default '{"type":"amount","value":5}') returns jsonb language sql as $$
- select public.marketplace_save_favorite_messages('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021',p_enabled,pg_temp.config(p_offer),coalesce((pg_temp.read_settings()->>'version')::bigint,0));
+create function pg_temp.save(p_enabled boolean,p_offer jsonb default '{"type":"amount","value":5}',p_templates jsonb default pg_temp.config()->'templates') returns jsonb language sql as $$
+ select public.marketplace_save_favorite_messages('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021',p_enabled,pg_temp.config(p_offer)||jsonb_build_object('templates',p_templates),coalesce((pg_temp.read_settings()->>'version')::bigint,0));
+$$;
+create function pg_temp.read_discount(p_item text default '456') returns jsonb language sql as $$
+ select public.marketplace_read_listing_favorite_discount('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021',p_item);
+$$;
+create function pg_temp.save_discount(p_percent numeric,p_item text default '456') returns void language sql as $$
+ select public.marketplace_save_listing_favorite_discount('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021',p_item,p_percent);
 $$;
 create function pg_temp.ingest(p_actor text) returns jsonb language sql as $$
  select public.marketplace_import_local_favorites('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021',repeat('a',64),jsonb_build_array(jsonb_build_object('externalId',gen_random_uuid(),'actorId',p_actor,'itemId','456','eventAt',clock_timestamp()-interval '1 second')));
@@ -59,8 +66,13 @@ select ok(not has_function_privilege('authenticated','public.marketplace_local_f
 select ok(not has_function_privilege('anon','public.marketplace_local_favorite_message_sent(uuid,uuid,text,uuid,uuid,text,text,text)','execute'),'Anonymous callers cannot forge message checkpoint');
 select ok(not has_function_privilege('authenticated','public.marketplace_local_favorite_offer_start(uuid,uuid,text,uuid,uuid,bigint,bigint)','execute'),'App cannot start offers');
 select ok(not has_function_privilege('authenticated','public.marketplace_local_favorite_offer_finish(uuid,uuid,text,uuid,uuid,text,text,text)','execute'),'App cannot forge offer receipt');
+select ok(not has_table_privilege('authenticated','public.marketplace_listing_favorite_discounts','select,insert,update,delete'),'App must use guarded RPCs to access listing discounts');
+select ok((select relrowsecurity from pg_class where oid='public.marketplace_listing_favorite_discounts'::regclass),'Listing discounts use RLS');
+select ok(not has_function_privilege('anon','public.marketplace_save_listing_favorite_discount(uuid,uuid,text,numeric)','execute'),'Anonymous users cannot set a listing discount');
 select set_config('request.jwt.claim.sub','38200000-0000-4000-8000-000000000001',true);
 set local role authenticated;
+select is(pg_temp.read_discount(null),'{"enabled":false,"defaultOffer":null,"discountPercent":null}'::jsonb,'Account with no configuration starts disabled');
+select throws_ok($$select pg_temp.save_discount(10)$$,'42501',null,'Disabled favorite messages cannot set a listing discount');
 select lives_ok($$select pg_temp.save(true)$$,'Offer settings require explicit activation');
 reset role;
 update public.marketplace_favorite_message_settings set activated_at=clock_timestamp()-interval '1 minute';
@@ -81,6 +93,7 @@ reset role;
 select is((select state from public.marketplace_favorite_message_events where actor_id='701'),'sent','Message outcome remains sent while offer is pending');
 select is((select offer_state from public.marketplace_favorite_message_events where actor_id='701'),'pending','Offer pending persisted separately');
 select is((select offer_config from public.marketplace_favorite_message_events where actor_id='701'),'{"type":"amount","value":5}'::jsonb,'Claim snapshots the intended offer');
+select is((select message_offer_base_price_cents from public.marketplace_favorite_message_events where actor_id='701'),null::bigint,'Literal template does not pin a price for fixed offers');
 insert into public.marketplace_account_entries(workspace_id,connection_id,kind,external_id,body,sort_at) values
  ('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021','conversation','777','{"partnerId":"701"}',clock_timestamp());
 set local role service_role;
@@ -215,5 +228,64 @@ select throws_ok($$select pg_temp.offer_start('707')$$,'42501',null,'Revoked gra
 select throws_ok($$select pg_temp.offer_finish('707','sent','999',null,repeat('b',64))$$,'42501',null,'Wrong receipt credentials rejected after revocation');
 select lives_ok($$select pg_temp.offer_finish('707','sent','999')$$,'Revocation still permits receipt for already started write');
 select lives_ok($$select pg_temp.offer_finish('707','sent','999')$$,'Same confirmed receipt replays after revocation');
+set local role authenticated;
+select is(pg_temp.read_discount()->>'enabled','true','Listing discount controls use configured enablement, even with a revoked extension grant');
+select is(pg_temp.read_discount()->'defaultOffer','{"type":"amount","value":5}'::jsonb,'Default amount is available to listing editors');
+select throws_ok($$select pg_temp.save_discount(10,'999')$$,'42501',null,'Unknown listing cannot accept a discount');
+select throws_ok($$select pg_temp.save_discount(0.99)$$,'22023',null,'Listing discount must be at least one percent');
+select throws_ok($$select pg_temp.save_discount(50.01)$$,'22023',null,'Listing discount cannot exceed fifty percent');
+select throws_ok($$select pg_temp.save_discount(12.255)$$,'22023',null,'Listing discount accepts two decimal places');
+select lives_ok($$select pg_temp.save_discount(12.25)$$,'Listing discount can be configured while the extension is inactive');
+select is(pg_temp.read_discount()->'discountPercent','12.25'::jsonb,'Admin can read the matching listing discount');
+select set_config('request.jwt.claim.sub','38200000-0000-4000-8000-000000000002',true);
+select throws_ok($$select pg_temp.read_discount()$$,'42501',null,'Other users cannot read the listing discount');
+select throws_ok($$select pg_temp.save_discount(20)$$,'42501',null,'Other users cannot edit the listing discount');
+select set_config('request.jwt.claim.sub','38200000-0000-4000-8000-000000000001',true);
+reset role;
+update public.marketplace_connections set external_account_id='124';
+set local role authenticated;
+select is(pg_temp.read_discount(),'{"enabled":false,"defaultOffer":null,"discountPercent":null}'::jsonb,'Account identity change hides the previous default and override');
+select throws_ok($$select pg_temp.save_discount(20)$$,'42501',null,'Rebound connection requires activation for the new account');
+reset role;
+update public.marketplace_connections set external_account_id='123';
+update public.marketplace_local_extension_grants set revoked_at=null;
+set local role authenticated;
+select public.marketplace_save_listing_favorite_discount('38200000-0000-4000-8000-000000000011','38200000-0000-4000-8000-000000000021','456');
+select is(pg_temp.read_discount()->'discountPercent','null'::jsonb,'Reset deletes the published override');
+select pg_temp.save(true,'{"type":"amount","value":5}','["{article} mit {discountPercent} Rabatt."]');
+set local role service_role;
+select pg_temp.ingest('708');
+select is(pg_temp.claim()->'command'->>'text','Boots mit 12,5 % Rabatt.','Fixed euro amount is converted using the article price');
+select is((select offer_config from public.marketplace_favorite_message_events where actor_id='708'),'{"type":"amount","value":5}'::jsonb,'Default offer retains the configured fixed euro amount');
+select is((select message_offer_base_price_cents from public.marketplace_favorite_message_events where actor_id='708'),4000::bigint,'Fixed-amount template saves the price used to calculate the advertised percentage');
+select pg_temp.message_start('708');
+select pg_temp.message_sent('708');
+select is(pg_temp.offer_start('708',5000,4500),'{"ok":false}'::jsonb,'Local offer with a changed live price is refused before sending');
+select is((select offer_error_code from public.marketplace_favorite_message_events where actor_id='708' and state='sent' and offer_state='skipped'),'price_changed','Local offer is skipped while its message remains sent');
+set local role authenticated;
+select pg_temp.save_discount(12.25);
+set local role service_role;
+select pg_temp.ingest('709');
+select is(pg_temp.claim()->'command'->>'text','Boots mit 12,25 % Rabatt.','Listing percentage overrides the account discount in local messages');
+select lives_ok($$select pg_temp.message_start('709')$$,'Message with listing discount can start');
+select lives_ok($$select pg_temp.message_sent('709')$$,'Message with listing discount creates a pending offer');
+set local role authenticated;
+select pg_temp.save_discount(20);
+set local role service_role;
+select throws_ok($$select pg_temp.offer_start('709',4000,3500)$$,'22023',null,'Offer does not use the account default after rendering a listing override');
+select lives_ok($$select pg_temp.offer_start('709',4400,3861)$$,'A percentage offer uses the same listing discount even after the article price changes');
+select pg_temp.offer_finish('709','sent','998');
+set local role authenticated;
+select pg_temp.save(true,null,'["{article} mit {discountPercent} Rabatt."]');
+set local role service_role;
+select pg_temp.ingest('710');
+select is(pg_temp.claim(false)->'command'->>'text','Boots mit 20 % Rabatt.','Message-only extension can render an override when offers are off');
+select is((select offer_config from public.marketplace_favorite_message_events where actor_id='710'),null::jsonb,'Listing override alone cannot enable offers');
+reset role;
+update public.marketplace_account_entries set body=body-'price' where kind='publication' and external_id='456';
+set local role service_role;
+select pg_temp.ingest('711');
+select is(pg_temp.claim()->>'command',null,'Unknown price cannot dispatch a message claiming a discount');
+select is((select error_code from public.marketplace_favorite_message_events where actor_id='711'),'discount_unavailable','Skipped discount has a durable reason');
 select * from finish();
 rollback;

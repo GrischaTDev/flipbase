@@ -1,0 +1,44 @@
+<app-modal-shell title="Rabatt anpassen" size="sm" (closed)="close()">
+  <form
+    id="vinted-listing-favorite-discount"
+    (submit)="$event.preventDefault(); save()"
+    class="space-y-4"
+  >
+    <p class="text-sm text-fb-text-secondary">{{ entry().title }}</p>
+    @if (loading()) {
+      <p role="status" class="text-sm text-fb-text-secondary">Rabatt wird geladen …</p>
+    } @else if (settings(); as discount) {
+      @if (discount.enabled) {
+        <app-vinted-favorite-discount-field
+          [accountOffer]="discount.defaultOffer"
+          [priceCents]="priceCents()"
+          [currency]="entry().currency"
+          [discountPercent]="discountPercent()"
+          [disabled]="saving()"
+          (discountPercentChange)="discountPercent.set($event)"
+        />
+      } @else {
+        <app-notice-banner announcement="alert">
+          Favoritennachrichten sind für dieses Konto deaktiviert.
+        </app-notice-banner>
+      }
+    }
+    @if (error(); as message) {
+      <app-notice-banner announcement="alert">{{ message }}</app-notice-banner>
+      @if (!settings()) {
+        <app-button (clicked)="load()">Erneut laden</app-button>
+      }
+    }
+  </form>
+  <div modal-footer class="flex justify-end gap-2">
+    <app-button [disabled]="saving()" (clicked)="close()">Abbrechen</app-button>
+    <app-button
+      variant="primary"
+      type="submit"
+      formId="vinted-listing-favorite-discount"
+      [disabled]="!canSave()"
+      [loading]="saving()"
+      >Rabatt speichern</app-button
+    >
+  </div>
+</app-modal-shell>

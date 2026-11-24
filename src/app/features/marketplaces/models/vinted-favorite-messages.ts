@@ -76,6 +76,41 @@ export function favoriteOfferPriceCents(
     ? proposedPrice
     : null;
 }
+export function favoriteDiscountPreview(originalPriceCents: number, offer: FavoriteOfferConfig) {
+  const offerPriceCents = favoriteOfferPriceCents(originalPriceCents, offer);
+  if (offerPriceCents === null) return null;
+
+  const discountCents = originalPriceCents - offerPriceCents;
+  const discountPercent =
+    offer.type === 'percentage'
+      ? offer.value
+      : Math.round((discountCents * 10000) / originalPriceCents) / 100;
+  return discountPercent > 0
+    ? { originalPriceCents, offerPriceCents, discountCents, discountPercent }
+    : null;
+}
+
+export interface ListingFavoriteDiscount {
+  readonly enabled: boolean;
+  readonly defaultOffer: FavoriteOfferConfig | null;
+  readonly discountPercent: number | null;
+}
+
+export function parseListingFavoriteDiscount(input: unknown): ListingFavoriteDiscount {
+  const { enabled, defaultOffer, discountPercent } = record(input);
+  if (
+    typeof enabled !== 'boolean' ||
+    (defaultOffer !== null && !validateFavoriteOffer(defaultOffer)) ||
+    (discountPercent !== null &&
+      (typeof discountPercent !== 'number' ||
+        !validateFavoriteOffer({ type: 'percentage', value: discountPercent })))
+  ) {
+    throw new MarketplaceResponseError();
+  }
+
+  return { enabled, defaultOffer, discountPercent };
+}
+
 export type FavoriteMessageState =
   | 'queued'
   | 'claimed'
