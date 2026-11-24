@@ -93,8 +93,10 @@ for (const width of [1440, 834, 390]) {
           .getByRole('button', { name: 'Artikel suchen oder hinzufügen', exact: true })
           .click();
         const picker = page.locator('app-article-picker');
-        await picker.getByRole('button', { name: new RegExp(saleItem) }).click();
-        await picker.locator('[data-product-option]').click();
+        const article = picker.getByRole('button', { name: new RegExp(saleItem) });
+        await article.click();
+        await expect(article).toHaveAttribute('aria-pressed', 'true');
+        await expect(picker.getByRole('dialog', { name: 'Artikel auswählen' })).toBeVisible();
         await picker.getByRole('button', { name: 'Hinzufügen (1)', exact: true }).click();
         await entry.getByRole('spinbutton', { name: 'Preis je Stück (€)', exact: true }).fill('35');
 
