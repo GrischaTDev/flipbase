@@ -6,6 +6,7 @@ import type {
 } from '../models/vinted-statistics-overview';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { MarketplaceApiService } from './marketplace-api.service';
+import { VintedAccountViewService } from './vinted-account-view.service';
 
 export type VintedStatisticsAccountScope = 'account' | 'all';
 
@@ -23,7 +24,7 @@ interface StatisticsRequest {
 export class VintedStatisticsStore {
   private readonly account = inject(MarketplaceAccountStore);
   private readonly api = inject(MarketplaceApiService);
-  private readonly requestedAccountScope = signal<VintedStatisticsAccountScope>('account');
+  private readonly accountView = inject(VintedAccountViewService);
   private readonly selectedRange = signal<VintedStatisticsRange>('7d');
   private readonly reloads = signal(0);
   private readonly result = signal<{
@@ -37,20 +38,26 @@ export class VintedStatisticsStore {
   readonly range = this.selectedRange.asReadonly();
   readonly canCombineAccounts = computed(() => this.account.connections().length > 1);
   readonly accountScope = computed<VintedStatisticsAccountScope>(() =>
-    this.canCombineAccounts() ? this.requestedAccountScope() : 'account',
+    this.canCombineAccounts() && this.accountView.showAllAccounts() ? 'all' : 'account',
   );
   // Solange der Kontostand noch lädt, stünde der Abruf sofort wieder zur Wiederholung an.
   private readonly waitingForAccount = computed(
-    () => this.account.loadingSnapshot() && !this.account.snapshot(),
+    () =>
+      this.accountScope() === 'account' &&
+      this.account.loadingSnapshot() &&
+      !this.account.snapshot(),
   );
   // Gleicher Schlüssel heißt gleiche Anfrage: fremde Kontoänderungen lösen keinen neuen Abruf aus.
   private readonly request = computed<StatisticsRequest | null>(
     () => {
-      const connection = this.account.selectedConnection();
+      const allAccounts = this.accountScope() === 'all';
+      const connection = allAccounts
+        ? this.account.connections()[0]
+        : this.account.selectedConnection();
       if (!connection || !this.account.canManage() || this.waitingForAccount()) return null;
       const scope: VintedStatisticsRequestScope = {
         workspaceId: connection.workspaceId,
-        connectionId: this.accountScope() === 'all' ? null : connection.connectionId,
+        connectionId: allAccounts ? null : connection.connectionId,
       };
       const range = this.range();
       // Ein neuer Abruf ändert die Messzeitpunkte und lädt die Statistik neu. Für alle Konten
@@ -59,7 +66,7 @@ export class VintedStatisticsStore {
         scope.connectionId === null
           ? this.account
               .connections()
-              .map((item) => item.lastSyncedAt)
+              .map((item) => [item.connectionId, item.lastSyncedAt])
               .join(',')
           : this.account
               .snapshot()
@@ -69,7 +76,7 @@ export class VintedStatisticsStore {
         scope.workspaceId,
         scope.connectionId,
         range,
-        this.account.selectionVersion(),
+        allAccounts ? null : this.account.selectionVersion(),
       ]);
       return {
         scope,
@@ -127,7 +134,7 @@ export class VintedStatisticsStore {
   }
 
   selectAccountScope(scope: VintedStatisticsAccountScope): void {
-    this.requestedAccountScope.set(scope);
+    this.accountView.selectAccountView(scope === 'all');
   }
   selectRange(range: VintedStatisticsRange): void {
     this.selectedRange.set(range);

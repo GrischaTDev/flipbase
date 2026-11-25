@@ -79,7 +79,12 @@ beforeEach(async () => {
       { provide: LOCALE_ID, useValue: 'de' },
       {
         provide: MarketplaceAccountStore,
-        useValue: { connections: signal(accounts), canManage, loading: signal(false) },
+        useValue: {
+          connections: signal(accounts),
+          selectedConnection: signal(null),
+          canManage,
+          loading: signal(false),
+        },
       },
       {
         provide: WorkspaceService,

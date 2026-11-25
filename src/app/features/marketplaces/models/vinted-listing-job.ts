@@ -295,6 +295,20 @@ export function vintedListingJobLabel(job: VintedListingJob, now = Date.now()): 
 
 /** Tatsächlicher Relist-Zustand; die Wartezeit beginnt erst mit belegter Löschung. */
 const dependencyWaitLabel = 'Wartet auf Prüfung der vorherigen Änderung';
+
+export function vintedRelistingWaitMs(job: VintedListingJob, now: number): number {
+  if (
+    job.state !== 'queued' ||
+    job.errorCode === 'editing' ||
+    job.waitReason === 'dependency_unresolved' ||
+    !job.relistDeletedAt ||
+    !job.scheduledAt
+  )
+    return 0;
+  const remaining = Date.parse(job.scheduledAt) - now;
+  return remaining > 0 ? remaining : 0;
+}
+
 export function vintedRelistingJobLabel(job: VintedListingJob, now: number): string {
   if (job.errorCode === 'editing') return 'Wird bearbeitet';
   if (job.state === 'claimed') return 'Wird vorbereitet';
@@ -302,9 +316,8 @@ export function vintedRelistingJobLabel(job: VintedListingJob, now: number): str
   if (job.state !== 'queued') return vintedListingJobLabel(job, now);
   if (job.waitReason === 'dependency_unresolved') return dependencyWaitLabel;
   if (!job.relistDeletedAt) return 'Wird vorbereitet';
-  if (!job.scheduledAt) return 'Wartet auf den Start';
-  const remaining = Date.parse(job.scheduledAt) - now;
-  if (remaining <= 0) return 'Wartet auf den Start';
+  const remaining = vintedRelistingWaitMs(job, now);
+  if (!remaining) return 'Wartet auf den Start';
   if (remaining < 60_000) return 'Wird in weniger als einer Minute relistet';
   const minutes = Math.ceil(remaining / 60_000);
   return `Wird in ${minutes} ${minutes === 1 ? 'Minute' : 'Minuten'} relistet`;

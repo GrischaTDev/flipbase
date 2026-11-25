@@ -7,6 +7,7 @@ import { ConfirmDialogService } from '../../../../shared/components/confirm-dial
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedListingDraftService } from '../../services/vinted-listing-draft.service';
 import { VintedListingImageService } from '../../services/vinted-listing-image.service';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
 import type { VintedListingDraft } from '../../models/vinted-listing-draft';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
@@ -35,6 +36,8 @@ async function settle() {
 }
 function setup() {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
+  const account = signal<{ connectionId: string } | null>(null);
+  const showAllAccounts = signal(false);
   const list = vi.fn().mockResolvedValue({ items: [row], nextCursor: null });
   const remove = vi.fn().mockResolvedValue(undefined);
   const frage = vi.fn().mockResolvedValue(true);
@@ -45,15 +48,20 @@ function setup() {
       { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
       {
         provide: MarketplaceAccountStore,
-        useValue: { canManage: signal(true), connections: signal([]) },
+        useValue: {
+          canManage: signal(true),
+          connections: signal([]),
+          selectedConnection: account,
+        },
       },
+      { provide: VintedAccountViewService, useValue: { showAllAccounts } },
       { provide: VintedListingDraftService, useValue: { list, remove } },
       { provide: VintedListingImageService, useValue: { thumbnailUrls } },
       { provide: ConfirmDialogService, useValue: { frage } },
     ],
   });
   const component = TestBed.runInInjectionContext(() => new VintedListingDraftsComponent());
-  return { component, workspace, list, remove, frage, thumbnailUrls };
+  return { component, workspace, list, remove, frage, thumbnailUrls, account, showAllAccounts };
 }
 afterEach(() => {
   vi.useRealTimers();
@@ -81,6 +89,22 @@ const publication = (state: VintedListingJob['state']) =>
     updatedAt: row.updatedAt,
   }) as unknown as VintedListingJob;
 describe('Vinted-Entwurfsübersicht', () => {
+  it('wechselt von kontogebundenen Entwürfen zur gemeinsamen Liste', async () => {
+    const { account, showAllAccounts, component, list } = setup();
+    account.set({ connectionId: 'account-a' });
+    const first = { ...row, connectionId: 'account-a' };
+    const second = { ...olderRow, connectionId: 'account-b' };
+    list.mockResolvedValueOnce({ items: [first], nextCursor: null });
+    await settle();
+    expect(component.drafts()).toEqual([first]);
+    expect(list).toHaveBeenLastCalledWith('workspace-a', '', undefined, 'account-a');
+
+    list.mockResolvedValueOnce({ items: [first, second], nextCursor: null });
+    showAllAccounts.set(true);
+    await settle();
+    expect(component.drafts()).toEqual([first, second]);
+    expect(list).toHaveBeenLastCalledWith('workspace-a', '', undefined, undefined);
+  });
   it('zeigt eine laufende Veröffentlichung und entfernt den Entwurf erst nach der Bestätigung', async () => {
     vi.useFakeTimers();
     const { component, list } = setup();
@@ -124,7 +148,7 @@ describe('Vinted-Entwurfsübersicht', () => {
     const { component, list } = setup();
     await settle();
     expect(component.drafts()).toEqual([row]);
-    expect(list).toHaveBeenCalledWith('workspace-a', '');
+    expect(list).toHaveBeenCalledWith('workspace-a', '', undefined, undefined);
   });
   it('rejects a page arriving after changing the workspace', async () => {
     const { component, workspace, list } = setup();
@@ -152,7 +176,7 @@ describe('Vinted-Entwurfsübersicht', () => {
     await component.loadMore();
     component.viewMode.set('list');
     expect(component.drafts()).toEqual([row, olderRow]);
-    expect(list).toHaveBeenLastCalledWith('workspace-a', '', cursor);
+    expect(list).toHaveBeenLastCalledWith('workspace-a', '', cursor, undefined);
     component.viewMode.set('grid');
     expect(component.drafts()).toEqual([row, olderRow]);
   });
@@ -216,7 +240,7 @@ describe('Vinted-Entwurfsübersicht', () => {
     await component.deleteDraft(row);
     expect(component.drafts()).toEqual([olderRow]);
     expect(component.nextCursor()).toBeNull();
-    expect(list).toHaveBeenLastCalledWith('workspace-a', '', cursor);
+    expect(list).toHaveBeenLastCalledWith('workspace-a', '', cursor, undefined);
   });
   it('does not delete after switching workspaces while confirming', async () => {
     const { component, workspace, list, frage, remove } = setup();
@@ -277,7 +301,7 @@ describe('Vinted-Entwurfsübersicht', () => {
       component.setSearch('Jacke');
       await vi.advanceTimersByTimeAsync(250);
       await settle();
-      expect(list).toHaveBeenLastCalledWith('workspace-a', 'Jacke');
+      expect(list).toHaveBeenLastCalledWith('workspace-a', 'Jacke', undefined, undefined);
       if (searchFinishesFirst) {
         completeSearch({ items: [row], nextCursor: null });
         await settle();

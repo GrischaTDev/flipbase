@@ -28,6 +28,9 @@ import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.s
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { vintedSaleItemIds } from '../../models/vinted-listing-source';
 import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
+import { createVintedAccountList } from '../../services/vinted-addressed-list';
+import { vintedAccountEntryKey } from '../../models/vinted-account-list';
 
 interface SaleLink {
   readonly saleId: string;
@@ -44,6 +47,7 @@ interface SaleLink {
     ProductThumbnailComponent,
     VintedShippingLabelActionsComponent,
     TableActionMenuComponent,
+    NoticeBannerComponent,
   ],
   templateUrl: './vinted-sales.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -51,6 +55,8 @@ interface SaleLink {
 })
 export class VintedSalesComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly accountList = createVintedAccountList(() => ({ kind: 'sale' }));
+  readonly entryKey = vintedAccountEntryKey;
   private readonly api = inject(MarketplaceApiService);
   private readonly shippingLabels = inject(VintedShippingLabelStore);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -77,6 +83,7 @@ export class VintedSalesComponent {
   });
   private readonly activeSaleLink = computed(() => {
     const link = this.linkedSale();
+    if (this.accountList.showAllAccounts()) return link;
     const selected = this.store.selectedConnection();
     return link &&
       selected?.workspaceId === link.scope.workspaceId &&
@@ -88,7 +95,11 @@ export class VintedSalesComponent {
     link: SaleLink;
     entry: MarketplaceEntry | null;
   } | null>(null);
-  readonly page = computed(() => this.store.snapshot()?.sales);
+  readonly page = computed(() =>
+    this.accountList.showAllAccounts() ? this.accountList.page() : this.store.snapshot()?.sales,
+  );
+  readonly loadMore = () =>
+    this.accountList.showAllAccounts() ? this.accountList.loadMore() : this.store.loadMore('sale');
   private readonly linkedSaleInPage = computed(() =>
     this.page()?.items.find((entry) => this.isLinkedSale(entry)),
   );
@@ -107,7 +118,9 @@ export class VintedSalesComponent {
   });
 
   canCopy(entry: MarketplaceEntry): boolean {
-    const connection = this.store.selectedConnection();
+    const connection = this.accountList.showAllAccounts()
+      ? this.store.connections().find((account) => account.connectionId === entry.connectionId)
+      : this.store.selectedConnection();
     return (
       this.store.canManage() &&
       connection?.status === 'connected' &&
@@ -120,6 +133,12 @@ export class VintedSalesComponent {
   constructor() {
     // Versandscheine gibt es nur für Cloud-Konten; sie gehören zum gewählten Konto.
     effect(() => {
+      if (this.accountList.showAllAccounts()) {
+        const workspaceId = this.store.connections()[0]?.workspaceId;
+        if (workspaceId && this.store.canManage())
+          untracked(() => void this.shippingLabels.load({ workspaceId }));
+        return;
+      }
       const connection = this.store.selectedConnection();
       if (connection?.executionMode !== 'cloud') return;
       const scope = { workspaceId: connection.workspaceId, connectionId: connection.connectionId };

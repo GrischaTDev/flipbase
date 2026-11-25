@@ -70,6 +70,67 @@ function browserStartFailure(
   return action;
 }
 
+test('Kleiderschrank übernimmt ein neu veröffentlichtes Inserat aus dem gespeicherten Kontoabgleich @marketplace-preview', async ({
+  page,
+}) => {
+  const title = 'Neu veröffentlichtes Inserat';
+  const scope = { workspaceId, connectionId: accountIds[0] };
+  await prepareListing(page, { title, text: 'Beschreibung', textState: 'loaded', imageUrls: [] });
+  await page.clock.install();
+  let imported = false;
+  await page.route('**/rest/v1/rpc/marketplace_list_connections', (route) =>
+    route.fulfill({
+      json: {
+        canManage: true,
+        connections: [
+          {
+            ...scope,
+            marketplace: 'vinted',
+            executionMode: 'cloud',
+            displayName: 'Testkonto A',
+            externalAccountId: '100',
+            status: 'connected',
+            capabilities: {},
+            allowedActions: [],
+            lastSyncedAt: imported ? '2026-11-25T10:00:10Z' : '2026-11-25T10:00:00Z',
+          },
+        ],
+      },
+    }),
+  );
+  await page.route('**/rest/v1/rpc/marketplace_read_snapshot', (route) =>
+    route.fulfill({
+      json: {
+        ...scope,
+        profile: null,
+        publications: imported
+          ? {
+              items: [
+                { ...scope, id: entryId, externalId: '98765', title, publicationState: 'active' },
+              ],
+              total: 1,
+              nextCursor: null,
+            }
+          : emptyPage(),
+        conversations: emptyPage(),
+        sales: emptyPage(),
+        activity: emptyPage(),
+      },
+    }),
+  );
+
+  await page.goto('/marketplaces/vinted/listings');
+  await expect(page.getByRole('heading', { name: 'Kleiderschrank', exact: true })).toBeVisible();
+  await expect(
+    page.getByText('Noch keine Artikel im Kleiderschrank', { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('[data-action-overview-trigger]')).toHaveCount(0);
+  await expect(page.getByRole('heading', { name: title })).toHaveCount(0);
+  imported = true;
+  await page.clock.fastForward('00:31');
+  await expect(page.getByRole('heading', { name: title })).toBeVisible();
+});
+
 test('Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast @marketplace-preview', async ({
   page,
 }) => {
@@ -812,7 +873,7 @@ for (const width of [320, 390, 834, 1440]) {
       });
       if ((width === 1440 && theme === 'light') || (width === 390 && theme === 'dark')) {
         // Eine lokale Kopie mit gleichem Titel ändert den Anbieterstatus des Originals nicht.
-        await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', (route) =>
+        await page.route(/\/rest\/v1\/rpc\/marketplace_list_listing_drafts(?:_scoped)?$/, (route) =>
           route.fulfill({
             json: {
               items: [
@@ -1724,6 +1785,19 @@ for (const width of [390, 1440])
             },
           }),
         );
+        await page.route('**/rest/v1/vinted_listing_categories?*', (route) =>
+          route.fulfill({
+            json: [
+              {
+                id: 2738,
+                parent_id: null,
+                title: 'Fußballschuhe',
+                path: 'Fußballschuhe',
+                tree_observed_at: '2026-11-04T12:00:00Z',
+              },
+            ],
+          }),
+        );
         await page.goto('/marketplaces/vinted/listings');
         const wardrobe = page.locator('app-vinted-listings');
         await expect(
@@ -2120,7 +2194,20 @@ for (const width of [390, 1440])
         await expect(plan.getByRole('button')).toHaveCount(4);
         const planImageBox = await plan.locator('app-product-thumbnail').boundingBox();
         const planStatusBox = await plan.getByRole('status').boundingBox();
-        expect(Math.abs(planStatusBox!.y - planImageBox!.y - 8)).toBeLessThan(2);
+        expect(planImageBox).not.toBeNull();
+        expect(planStatusBox).not.toBeNull();
+        if (!planImageBox || !planStatusBox) throw new Error('Das Relist-Badge fehlt.');
+        expect(
+          Math.abs(
+            planStatusBox.x + planStatusBox.width / 2 - planImageBox.x - planImageBox.width / 2,
+          ),
+        ).toBeLessThan(2);
+        expect(
+          Math.abs(
+            planStatusBox.y + planStatusBox.height / 2 - planImageBox.y - planImageBox.height / 2,
+          ),
+        ).toBeLessThan(2);
+        await expect(plan.getByRole('status')).toHaveCSS('text-align', 'center');
         const plannedGridActions = await plan.locator('[data-listing-actions]').evaluate((bar) => {
           const card = bar.closest('article')!.getBoundingClientRect();
           const bounds = bar.getBoundingClientRect();
@@ -2131,7 +2218,15 @@ for (const width of [390, 1440])
         await screenshot(page, `vinted-relist-countdown-${width}-${theme}`, wardrobe);
         await page.clock.fastForward(180000);
         await expect(plan).toContainText('Wird in 2 Minuten relistet');
-        await page.clock.fastForward(120000);
+        await page.clock.fastForward(61_000);
+        const timer = plan.getByRole('timer');
+        await expect(timer).toHaveText(/Relist in \d+ s/);
+        const readSeconds = async () => Number((await timer.textContent())?.match(/\d+/)?.[0]);
+        const initialSeconds = await readSeconds();
+        expect(initialSeconds).toBeGreaterThan(1);
+        expect(initialSeconds).toBeLessThan(60);
+        await expect.poll(readSeconds, { timeout: 3000 }).toBeLessThan(initialSeconds);
+        await page.clock.fastForward(58_000);
         await expect(plan).toContainText('Wartet auf den Start');
         await expect(plan.locator('app-loading-indicator')).toHaveCount(0);
         plannedJob = { ...plannedJob, state: 'writing' };

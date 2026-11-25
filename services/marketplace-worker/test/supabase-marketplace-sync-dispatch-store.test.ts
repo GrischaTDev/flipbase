@@ -136,6 +136,7 @@ test('manueller Claim enthält ausschließlich eingefrorenen Lesescope ohne Nutz
     userAccessToken: '',
     syncRead: {
       operationId: '10000000-0000-4000-8000-000000000003',
+      authorizationKind: 'manual_read',
       runnerId,
       workerEpoch: 7,
       sessionId: '10000000-0000-4000-8000-000000000007',

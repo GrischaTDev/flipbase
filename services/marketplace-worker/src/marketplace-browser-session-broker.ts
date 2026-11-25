@@ -33,6 +33,7 @@ export interface BrowserSessionScope {
   /** Interne, ausschließlich lesende Auftragserlaubnis; niemals aus HTTP-Nutzdaten übernehmen. */
   syncRead?: {
     operationId: string;
+    authorizationKind?: 'manual_read' | 'scheduled_read';
     runnerId: string;
     workerEpoch: number;
     sessionId: string;

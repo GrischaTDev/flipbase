@@ -7,11 +7,11 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
-import { CustomSelectComponent } from '../../../../shared/components/custom-select/custom-select.component';
 import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
 import { VintedProviderDraftsComponent } from './vinted-provider-drafts.component';
 
 let restore: (() => void) | undefined;
@@ -24,7 +24,6 @@ beforeAll(async () => {
     ...[
       ['badge', BadgeComponent],
       ['card', CardComponent],
-      ['custom-select', CustomSelectComponent],
       ['notice-banner', NoticeBannerComponent],
       ['product-thumbnail', ProductThumbnailComponent],
     ].map(([name, type]) => ({
@@ -61,6 +60,8 @@ async function settle() {
 function setup() {
   const workspace = signal({ id: 'workspace-a', archived_at: null });
   const read = vi.fn().mockResolvedValue({ items: [draft], nextCursor: 'next', total: 2 });
+  const readVintedList = vi.fn();
+  const showAllAccounts = signal(false);
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
@@ -70,17 +71,66 @@ function setup() {
         provide: MarketplaceAccountStore,
         useValue: {
           canManage: signal(true),
-          connections: signal([{ connectionId: 'account-a', displayName: 'Mein Konto' }]),
-          selectedConnection: signal(null),
+          connections: signal([
+            { connectionId: 'account-a', displayName: 'Mein Konto' },
+            { connectionId: 'account-b', displayName: 'Zweites Konto' },
+          ]),
+          selectedConnection: signal({ connectionId: 'account-a' }),
         },
       },
-      { provide: MarketplaceApiService, useValue: { readOverviewPublications: read } },
+      {
+        provide: MarketplaceApiService,
+        useValue: { readOverviewPublications: read, readVintedList },
+      },
+      { provide: VintedAccountViewService, useValue: { showAllAccounts } },
     ],
   });
   const fixture = TestBed.createComponent(VintedProviderDraftsComponent);
   fixture.detectChanges();
-  return { fixture, component: fixture.componentInstance, workspace, read };
+  return {
+    fixture,
+    component: fixture.componentInstance,
+    workspace,
+    read,
+    readVintedList,
+    showAllAccounts,
+  };
 }
+it('zeigt gleichlautende Anbieterkennungen getrennt mit ihren Konten an', async () => {
+  const { fixture, component, showAllAccounts, readVintedList } = setup();
+  const first = {
+    workspaceId: 'workspace-a',
+    connectionId: 'account-a',
+    id: 'entry-a',
+    externalId: '99',
+    title: 'Getrennter Entwurf A',
+    publicationState: 'draft',
+  };
+  readVintedList.mockResolvedValue({
+    items: [
+      first,
+      { ...first, connectionId: 'account-b', id: 'entry-b', title: 'Getrennter Entwurf B' },
+    ],
+    total: 2,
+    nextCursor: null,
+  });
+  showAllAccounts.set(true);
+  await settle();
+  fixture.detectChanges();
+  expect(readVintedList).toHaveBeenCalledWith({
+    workspaceId: 'workspace-a',
+    kind: 'provider_draft',
+    query: '',
+  });
+  expect(component.items().map((item) => item.reference.connectionId)).toEqual([
+    'account-a',
+    'account-b',
+  ]);
+  const links = (fixture.nativeElement as HTMLElement).querySelectorAll('a');
+  expect(links[0].textContent).toContain('Mein Konto');
+  expect(links[1].textContent).toContain('Zweites Konto');
+  expect(links[1].getAttribute('href')).toContain('/account-b/entry-b');
+});
 it('liest ausschließlich native Entwürfe paginiert und zeigt Herkunft statt Alter', async () => {
   const f = setup();
   await settle();

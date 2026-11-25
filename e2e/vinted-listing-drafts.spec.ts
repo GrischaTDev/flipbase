@@ -41,6 +41,9 @@ async function mockSellingTree(
     path: string;
     isLeaf: boolean;
   }[],
+  publishableIds = new Set(categories.map(({ id }) => id)),
+  includeInAccountTree: (id: number) => boolean = () => true,
+  observedAt = () => '2026-11-04T12:00:00Z',
 ) {
   await page.route('**/rest/v1/vinted_selling_category_snapshots*', (route) =>
     route.fulfill({
@@ -48,9 +51,22 @@ async function mockSellingTree(
         external_account_id: new URL(route.request().url()).searchParams
           .get('external_account_id')
           ?.slice(3),
-        observed_at: '2026-11-04T12:00:00Z',
-        categories,
+        observed_at: observedAt(),
+        categories: categories.filter(({ id }) => includeInAccountTree(id)),
       },
+    }),
+  );
+  await page.route('**/rest/v1/vinted_listing_categories?*', (route) =>
+    route.fulfill({
+      json: categories
+        .filter(({ id }) => publishableIds.has(id))
+        .map(({ id, parentId, title, path }) => ({
+          id,
+          parent_id: parentId,
+          title,
+          path,
+          tree_observed_at: '2026-11-04T12:00:00Z',
+        })),
     }),
   );
 }
@@ -365,14 +381,24 @@ async function mockDrafts(
       };
       templates = [...templates, template];
       return route.fulfill({ json: template });
-    } else if (name === 'marketplace_list_listing_drafts') {
+    } else if (
+      name === 'marketplace_list_listing_drafts' ||
+      name === 'marketplace_list_listing_drafts_scoped'
+    ) {
       draftLists.push(body);
       // Wie der Server: jeder Entwurf trägt seinen jüngsten Veröffentlichungsauftrag.
-      const items = (overviewDrafts ?? (created ? [draft] : [])).map((entry) => ({
-        ...entry,
-        publication:
-          jobs.find((job) => job.draftId === entry.id && job.action === 'publish') ?? null,
-      }));
+      const items = (overviewDrafts ?? (created ? [draft] : []))
+        .filter(
+          (entry) =>
+            name !== 'marketplace_list_listing_drafts_scoped' ||
+            entry.connectionId === null ||
+            entry.connectionId === body['p_connection_id'],
+        )
+        .map((entry) => ({
+          ...entry,
+          publication:
+            jobs.find((job) => job.draftId === entry.id && job.action === 'publish') ?? null,
+        }));
       return route.fulfill({ json: { items, nextCursor: null } });
     } else if (name === 'marketplace_delete_listing_draft') {
       draftDeletes.push(body);
@@ -1161,6 +1187,10 @@ test('Sofortauftrag behält bei verlorener Antwort denselben Versuch @marketplac
     exact: true,
   });
   await expect(retry).toBeEnabled();
+  await expect(feedback.getByRole('button', { name: 'Zum Editor' })).toHaveCount(0);
+  await expect(
+    page.locator('app-vinted-listing-editor form, app-vinted-listing-editor [inert]').last(),
+  ).toHaveAttribute('inert', '');
   expect(state.enqueues).toHaveLength(1);
   await retry.click();
   await expect(feedback).not.toBeVisible();
@@ -1270,7 +1300,7 @@ for (const width of [1440, 390])
       const editor = page.locator('app-vinted-listing-editor');
       await editor.getByRole('textbox', { name: 'Titel', exact: true }).fill('Meine Jacke');
       await editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true }).fill('20,50');
-      await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+      await editor.getByRole('button', { name: /^Kategorie (?!entfernen)/ }).click();
       await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Jacken');
       await page.getByRole('option', { name: /Jacken/ }).click();
       await saveDraft(page);
@@ -1513,7 +1543,7 @@ for (const width of [1440, 390])
       ).toBeVisible();
       await editor.getByRole('combobox', { name: 'Zielkonto für diesen Entwurf' }).click();
       await page.getByRole('option', { name: 'Testkonto A', exact: true }).click();
-      await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+      await editor.getByRole('button', { name: /^Kategorie (?!entfernen)/ }).click();
       await expect(page.getByRole('option', { name: /Kleidung/ })).toBeVisible();
       expect(
         (await page.getByRole('dialog', { name: 'Kategorie', exact: true }).boundingBox())!.height,
@@ -1569,7 +1599,7 @@ for (const width of [1440, 390])
       await expect(editor.getByRole('textbox', { name: 'Verkaufspreis', exact: true })).toHaveValue(
         '45,50',
       );
-      await expect(editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ })).toContainText(
+      await expect(editor.getByRole('button', { name: /^Kategorie (?!entfernen)/ })).toContainText(
         'Jacken',
       );
       await editor
@@ -1782,7 +1812,7 @@ for (const width of [1440, 390]) {
         expect(state.signedImageBatches).toEqual([
           [newest.images[0].storagePath, unnamed.images[0].storagePath],
         ]);
-        expect(state.draftLists).toEqual([{ p_workspace_id: workspaceId, p_query: '' }]);
+        expect(state.draftLists.at(-1)).toMatchObject({ p_workspace_id: workspaceId, p_query: '' });
         const gridBounds = (await cards.first().boundingBox())!;
         const gridImageWidth = (await cards.first().locator('app-product-thumbnail').boundingBox())!
           .width;
@@ -1873,7 +1903,7 @@ for (const width of [1440, 390]) {
         let finishFailure!: () => void;
         const pendingFailure = new Promise<void>((resolve) => (finishFailure = resolve));
         let failNextRead = true;
-        await page.route('**/rest/v1/rpc/marketplace_list_listing_drafts', async (route) => {
+        await page.route(/\/rpc\/marketplace_list_listing_drafts(?:_scoped)?$/, async (route) => {
           const query = (route.request().postDataJSON() as { p_query?: unknown }).p_query;
           if (query === 'Fehlerprüfung' && failNextRead) {
             await pendingFailure;
@@ -2053,10 +2083,15 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
   );
   await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
   await expect(
-    editor.getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
+    editor
+      .locator('[data-publication-correction]')
+      .getByText('Wähle unter „Schuhe“ eine passende Unterkategorie aus.', { exact: true }),
   ).toBeVisible();
   await expect(page.locator('app-vinted-listing-publication-preview')).toHaveCount(0);
-  await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
+  await editor
+    .locator('[data-publication-correction]')
+    .getByRole('button', { name: 'Kategorie ändern', exact: true })
+    .click();
   await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schuhe');
   await expect(page.getByRole('option', { name: 'Schuhe', exact: true })).toHaveCount(0);
   await page.getByRole('option', { name: /Sneaker/ }).click();
@@ -2074,56 +2109,152 @@ test('fordert bei gespeicherten Damenschuhen als Oberkategorie eine konkrete Sch
 test('selects current scarf categories and an explicit target group in the listing editor', async ({
   page,
 }) => {
-  const state = await mockDrafts(page, true);
+  const state = await mockPublication(page);
   const providerSearches: string[] = [];
+  const categoryRefreshes: unknown[] = [];
+  const rejectedRequests: Record<string, unknown>[] = [];
+  const packageError = 'Wähle im Entwurf einen gültigen Wert für „Paketgröße“.';
+  let refreshed = false;
+  const operationId = '25000000-0000-4000-8000-000000000010';
+  await page.route('**/marketplace-browser/connections/sync/start', (route) => {
+    categoryRefreshes.push(route.request().postDataJSON());
+    return route.fulfill({ status: 202, json: { id: operationId } });
+  });
+  await page.route('**/marketplace-browser/connections/sync/status', (route) => {
+    expect(route.request().postDataJSON()).toEqual({
+      workspaceId,
+      connectionId: accountIds[0],
+      operationId,
+    });
+    refreshed = true;
+    return route.fulfill({ json: { id: operationId, state: 'succeeded' } });
+  });
+  await page.route('**/rest/v1/rpc/marketplace_enqueue_listing', (route) => {
+    if (rejectedRequests.length) return route.fallback();
+    rejectedRequests.push(route.request().postDataJSON() as Record<string, unknown>);
+    return route.fulfill({ status: 400, json: { code: 'PV001', message: packageError } });
+  });
   page.on('request', (request) => {
     if (request.url().includes('/marketplace-browser/listings/category/search'))
       providerSearches.push(request.url());
   });
-  await mockSellingTree(page, [
-    { id: 5496, parentId: null, title: 'Modeaccessoires', path: 'Modeaccessoires', isLeaf: false },
-    {
-      id: 5555,
-      parentId: 5496,
-      title: 'Tücher & Schals',
-      path: 'Modeaccessoires > Tücher & Schals',
-      isLeaf: true,
-    },
-    { id: 1, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
-    { id: 1400, parentId: 1, title: 'Activewear', path: 'Damen > Activewear', isLeaf: false },
-    {
-      id: 1440,
-      parentId: 1400,
-      title: 'Schals',
-      path: 'Damen > Activewear > Schals',
-      isLeaf: true,
-    },
-    { id: 5, parentId: null, title: 'Herren', path: 'Herren', isLeaf: false },
-    { id: 1460, parentId: 5, title: 'Sportartikel', path: 'Herren > Sportartikel', isLeaf: false },
-    {
-      id: 1470,
-      parentId: 1460,
-      title: 'Schals',
-      path: 'Herren > Sportartikel > Schals',
-      isLeaf: true,
-    },
-  ]);
+  state.draft().content = {
+    ...state.draft().content,
+    categoryId: 89,
+    categoryLabel: 'Damen > Accessoires > Tücher & Schals',
+    sizeId: null,
+    sizeLabel: '',
+  };
+  await mockSellingTree(
+    page,
+    [
+      {
+        id: 5496,
+        parentId: null,
+        title: 'Modeaccessoires',
+        path: 'Modeaccessoires',
+        isLeaf: false,
+      },
+      {
+        id: 5555,
+        parentId: 5496,
+        title: 'Tücher & Schals',
+        path: 'Modeaccessoires > Tücher & Schals',
+        isLeaf: true,
+      },
+      { id: 1, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
+      {
+        id: 89,
+        parentId: 1,
+        title: 'Tücher & Schals',
+        path: 'Damen > Tücher & Schals',
+        isLeaf: true,
+      },
+      { id: 1400, parentId: 1, title: 'Activewear', path: 'Damen > Activewear', isLeaf: false },
+      {
+        id: 1440,
+        parentId: 1400,
+        title: 'Schals',
+        path: 'Damen > Activewear > Schals',
+        isLeaf: true,
+      },
+      { id: 5, parentId: null, title: 'Herren', path: 'Herren', isLeaf: false },
+      {
+        id: 1460,
+        parentId: 5,
+        title: 'Sportartikel',
+        path: 'Herren > Sportartikel',
+        isLeaf: false,
+      },
+      {
+        id: 1470,
+        parentId: 1460,
+        title: 'Schals',
+        path: 'Herren > Sportartikel > Schals',
+        isLeaf: true,
+      },
+    ],
+    new Set([5496, 5555, 1, 1400, 1440, 5, 1460, 1470]),
+    (id) => (refreshed ? id !== 89 : id !== 5496 && id !== 5555),
+    () => (refreshed ? '2026-11-05T12:00:00Z' : '2026-11-04T12:00:00Z'),
+  );
   await page.goto('/marketplaces/vinted/listing-drafts/9007199254740999');
   const editor = page.locator('app-vinted-listing-editor');
-  await editor.getByRole('button', { name: /^Kategorie(?! entfernen)/ }).click();
-  await page.getByRole('combobox', { name: 'Kategorie suchen', exact: true }).fill('Schals');
+  await editor.getByRole('button', { name: /^Kategorie (?!entfernen)/ }).click();
+  const search = page.getByRole('combobox', { name: 'Kategorie suchen', exact: true });
+  await search.fill('Schals');
+  await expect(page.getByRole('option', { name: /Damen.*Tücher/ })).toHaveCount(0);
   await expect(page.getByRole('option', { name: /Damen.*Activewear.*Schals/ })).toBeVisible();
   await expect(page.getByRole('option', { name: /Herren.*Sportartikel.*Schals/ })).toBeVisible();
+  await expect(page.getByRole('option', { name: /Modeaccessoires.*Tücher/ })).toHaveCount(0);
+  expect(categoryRefreshes).toEqual([]);
+  await search.press('Escape');
+  await editor
+    .getByRole('button', { name: 'Kategorien für dieses Konto aktualisieren', exact: true })
+    .click();
+  await search.fill('Schals');
   await page.getByRole('option', { name: /Modeaccessoires.*Tücher/ }).click();
   await editor.getByRole('combobox', { name: 'Zielgruppe', exact: true }).click();
   await page.getByRole('option', { name: 'Herren', exact: true }).click();
+  await editor.getByRole('combobox', { name: 'Paketgröße', exact: true }).click();
+  await page.getByRole('option', { name: 'Mittel', exact: true }).click();
+  await editor.getByRole('combobox', { name: 'Marke', exact: true }).fill('Jak');
+  await page.getByRole('option', { name: 'Jako', exact: true }).click();
+  await expect(editor.getByRole('combobox', { name: 'Marke', exact: true })).toHaveAttribute(
+    'aria-expanded',
+    'false',
+  );
   await saveDraft(page);
   expect(providerSearches).toEqual([]);
+  expect(categoryRefreshes).toEqual([{ workspaceId, connectionId: accountIds[0] }]);
   expect(state.draft().content.categoryId).toBe(5555);
   expect(state.draft().content.attributes).toMatchObject({
     accessory_department: '575',
     accessory_department_label: 'Herren',
   });
+  await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+  const correction = editor.locator('[data-publication-correction]');
+  await expect(correction).toContainText(packageError);
+  await expect(editor.locator('[data-publication-review]')).toHaveCount(0);
+  expect(
+    await correction.evaluate((notice) => {
+      const field = document.querySelector('#vinted-choice-package');
+      return field
+        ? !!(notice.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING)
+        : false;
+    }),
+  ).toBe(true);
+  await expect(editor.getByRole('textbox', { name: 'Titel', exact: true })).toBeEditable();
+  await correction.getByRole('button', { name: 'Zur Angabe', exact: true }).click();
+  const parcel = editor.getByRole('combobox', { name: 'Paketgröße', exact: true });
+  await expect(parcel).toBeFocused();
+  await parcel.click();
+  await page.getByRole('option', { name: 'Klein', exact: true }).click();
+  await editor.getByRole('button', { name: 'Jetzt veröffentlichen', exact: true }).click();
+  await expect.poll(() => state.enqueues.length).toBe(1);
+  expect(rejectedRequests).toHaveLength(1);
+  expect(state.enqueues[0]['p_request_id']).not.toBe(rejectedRequests[0]['p_request_id']);
+  expect(state.draft().content.packageSizeId).toBe(1);
 });
 
 test('bietet bei einem bereits veröffentlichten Entwurf eine Kopie statt erneuter Veröffentlichung an @marketplace-preview', async ({
@@ -2205,6 +2336,8 @@ test('zeigt eine laufende Veröffentlichung in der Entwurfsübersicht bis zur Be
   const card = overview.locator(`[data-draft-id="${state.draft().id}"]`);
   const status = card.locator('[data-draft-publication="claimed"]');
   await expect(status).toContainText('Wird vorbereitet');
+  await expect(status).toHaveCSS('text-align', 'center');
+  await expect(card.locator('app-product-thumbnail')).toHaveCSS('opacity', '0.6');
   await expect(status.locator('app-loading-indicator')).toBeVisible();
   await expect(card.getByRole('button', { name: /löschen$/ })).toBeDisabled();
   await checkListingSurface(page, 'app-vinted-listing-drafts');

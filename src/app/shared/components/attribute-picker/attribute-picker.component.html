@@ -1,4 +1,9 @@
-<app-form-field [controlId]="fieldId()" [label]="label()" [error]="error()">
+<app-form-field
+  [controlId]="fieldId()"
+  [label]="label()"
+  [required]="requiredIndicator()"
+  [error]="error()"
+>
   <div class="relative">
     <div
       #fieldContainer
@@ -49,6 +54,7 @@
         [attr.aria-controls]="listboxId()"
         [attr.aria-activedescendant]="activeDescendantId()"
         [attr.aria-invalid]="error() ? 'true' : null"
+        [attr.aria-required]="requiredIndicator() ? 'true' : null"
         [attr.aria-describedby]="error() ? fieldId() + '-error' : null"
         [placeholder]="multiple() && selected().length ? '' : placeholder()"
         [value]="query()"

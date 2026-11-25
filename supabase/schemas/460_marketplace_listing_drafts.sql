@@ -266,11 +266,15 @@ begin
 end;
 $$;
 
-create or replace function public.marketplace_list_listing_drafts(p_workspace_id uuid,p_query text default '',p_cursor jsonb default null,p_limit integer default 50)
+create or replace function public.marketplace_list_listing_drafts_scoped(p_workspace_id uuid,p_query text,p_cursor jsonb,p_limit integer,p_connection_id uuid)
 returns jsonb language plpgsql stable security definer set search_path = '' as $$
 declare v_rows jsonb; v_last jsonb; v_cursor_id bigint; v_cursor_at timestamptz; v_more boolean;
 begin
   if not public.marketplace_can_manage(p_workspace_id) then raise exception 'Kein Zugriff auf diesen Arbeitsbereich.' using errcode='42501'; end if;
+  if p_connection_id is not null and not exists(select 1 from public.marketplace_connections
+    where workspace_id=p_workspace_id and id=p_connection_id) then
+    raise exception 'Kein Zugriff auf dieses Marktplatzkonto.' using errcode='42501';
+  end if;
   if p_query is null or length(p_query)>160 or p_limit is null or p_limit not between 1 and 100 then raise exception 'Ungültige Entwurfssuche.' using errcode='22023'; end if;
   if p_cursor is not null and p_cursor<>'null'::jsonb then
     if jsonb_typeof(p_cursor)<>'object' or jsonb_typeof(p_cursor->'id') is distinct from 'string'
@@ -295,6 +299,7 @@ begin
     select public.marketplace_listing_job_document(j) from public.marketplace_listing_jobs j
     where j.draft_id=d.id and j.action='publish' order by j.id desc limit 1)) order by d.created_at desc,d.id desc),'[]'::jsonb) into v_rows from (
     select * from public.marketplace_listing_drafts where workspace_id=p_workspace_id and deleted_at is null and relist_external_id is null
+      and (p_connection_id is null or connection_id is null or connection_id=p_connection_id)
       -- Ein bei Vinted bestätigter Entwurf ist verbraucht; er bleibt für Aufträge und Verlauf gespeichert.
       and not exists (select 1 from public.marketplace_listing_jobs j where j.draft_id=marketplace_listing_drafts.id and j.state='confirmed')
       and (btrim(p_query)='' or position(lower(btrim(p_query)) in lower(content->>'title'))>0)
@@ -308,6 +313,13 @@ begin
   end if;
   return jsonb_build_object('items',v_rows,'nextCursor',case when v_more then jsonb_build_object('id',v_last->>'id','createdAt',v_last->>'createdAt','updatedAt',v_last->>'updatedAt') else null end);
 end;
+$$;
+revoke all on function public.marketplace_list_listing_drafts_scoped(uuid,text,jsonb,integer,uuid) from public,anon;
+grant execute on function public.marketplace_list_listing_drafts_scoped(uuid,text,jsonb,integer,uuid) to authenticated,service_role;
+
+create or replace function public.marketplace_list_listing_drafts(p_workspace_id uuid,p_query text default '',p_cursor jsonb default null,p_limit integer default 50)
+returns jsonb language sql stable security definer set search_path='' as $$
+  select public.marketplace_list_listing_drafts_scoped(p_workspace_id,p_query,p_cursor,p_limit,null);
 $$;
 
 create or replace function public.marketplace_save_listing_draft(p_id text, p_expected_revision bigint, p_content jsonb, p_connection_id uuid)

@@ -1,6 +1,15 @@
 <p class="sr-only" role="status" aria-live="polite" aria-atomic="true">
   {{ metricDisplay.announcement() }}
 </p>
+@if (accountList.error(); as error) {
+  <app-notice-banner announcement="alert" class="mb-4">
+    {{ error }}
+    <app-button (clicked)="accountList.refresh()">Erneut versuchen</app-button>
+  </app-notice-banner>
+}
+@if (accountList.loading() && !page()) {
+  <p role="status" class="text-sm text-fb-text-secondary">Artikel werden geladen …</p>
+}
 @if (page(); as publications) {
   <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
     <h2 class="text-sm font-semibold text-fb-text-primary">
@@ -57,13 +66,15 @@
     />
   } @else {
     <div class="grid min-w-0 grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-      @for (row of tableRows(); track row.entry.id) {
+      @for (row of tableRows(); track entryKey(row.entry)) {
         @let entry = row.entry;
         <article
           [attr.data-listing-row]="row.plan ? null : ''"
           [attr.data-relisting-plan]="row.plan ? '' : null"
           [attr.aria-busy]="row.running ? 'true' : null"
-          [attr.aria-label]="row.plan ? entry.title : null"
+          [attr.aria-label]="
+            row.plan ? entry.title + (row.accountLabel ? ' · ' + row.accountLabel : '') : null
+          "
           class="flex min-w-0 flex-col overflow-hidden rounded-xl border border-fb-border-subtle bg-fb-surface"
         >
           <a
@@ -90,23 +101,15 @@
                 <app-badge class="absolute bottom-2 left-2" tone="info">Gepusht</app-badge>
               }
               @if (row.running || row.plan) {
-                <p
-                  role="status"
-                  class="absolute flex items-center justify-center gap-2 rounded-md bg-fb-brand-strong px-2 py-1 text-xs font-medium text-fb-on-accent shadow-sm"
-                  [class]="
-                    row.plan || isPreparingRelisting(entry)
-                      ? 'inset-x-2 top-2'
-                      : 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap'
-                  "
-                >
-                  @if (row.running) {
-                    <app-loading-indicator />
-                  }
-                  {{ row.runningLabel }}
-                </p>
+                @let relistStatus = row.plan ? relistingCardStatus(row.plan.job) : undefined;
+                <app-vinted-photo-status
+                  [label]="relistStatus?.label ?? row.runningLabel ?? 'Wird bearbeitet'"
+                  [busy]="row.running"
+                  [countdownSeconds]="relistStatus?.countdownSeconds"
+                />
               }
             </div>
-            <div class="p-3" [class.opacity-60]="row.running || !!row.plan">
+            <div class="p-3" [class.opacity-60]="!row.accountLabel && (row.running || !!row.plan)">
               <span class="sr-only">Inserat </span>
               <h2
                 class="truncate text-sm font-semibold text-fb-text-primary"
@@ -115,6 +118,11 @@
                 {{ entry.title }}
               </h2>
               <span class="sr-only"> öffnen</span>
+              @if (row.accountLabel) {
+                <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                  {{ row.accountLabel }}
+                </app-badge>
+              }
               @if (publicationBadge(entry.publicationState); as badge) {
                 <app-badge
                   class="mt-2"
@@ -199,7 +207,7 @@
         tone="neutral"
         size="slim"
         [icon]="priceIcon"
-        [disabled]="savingPrice() || actionsBlocked(entry) || !priceEditor.available(entry)"
+        [disabled]="savingPrice() || actionsBlocked(entry) || !canChangePrice(entry)"
         [iconOnly]="true"
         title="Preis ändern"
         [ariaLabel]="'Preis für ' + entry.title + ' ändern'"
@@ -296,7 +304,7 @@
   </ng-template>
   @if (priceEditor.open()) {
     <app-vinted-listing-price-dialog
-      [title]="priceEntry()?.title ?? ''"
+      [title]="(priceEntry()?.title ?? '') + listingAccountSuffix(priceEntry()?.connectionId)"
       [form]="priceEditor.form"
       [busy]="savingPrice()"
       [error]="priceEditor.error()"
@@ -313,8 +321,12 @@
   @if (publications.nextCursor) {
     <app-button
       class="mt-4"
-      [loading]="store.loadingPage() === 'publication'"
-      (clicked)="store.loadMore('publication')"
+      [loading]="
+        accountList.showAllAccounts()
+          ? accountList.loading()
+          : store.loadingPage() === 'publication'
+      "
+      (clicked)="loadMore()"
       >Weitere Artikel laden</app-button
     >
   }
@@ -324,7 +336,7 @@
 }
 @if (editingPlan(); as job) {
   <app-modal-shell
-    title="Geplantes Relisting"
+    [title]="'Geplantes Relisting' + listingAccountSuffix(job.connectionId)"
     size="2xl"
     [hasFooter]="!plannedEditor.publication()"
     (closed)="plannedEditor.cancel()"
@@ -352,7 +364,8 @@
 @if (editorSource(); as source) {
   <app-modal-shell
     [title]="
-      source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden'
+      (source.mode === 'relist' ? 'Artikel relisten' : 'Als Vorlage für neues Inserat verwenden') +
+      listingAccountSuffix(source.entry.connectionId)
     "
     [size]="source.mode === 'relist' ? '2xl' : 'full'"
     [hasFooter]="!editor.publication()"

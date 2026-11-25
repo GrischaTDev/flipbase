@@ -16,6 +16,8 @@
         <app-custom-select
           [triggerId]="'vinted-choice-' + field.name"
           [label]="field.label"
+          [requiredIndicator]="true"
+          [attr.data-publication-field]="field.name"
           [ariaLabel]="field.label"
           [options]="singleOptions(field.name)"
           [formControl]="form.controls[field.control]"
@@ -31,7 +33,10 @@
       }
       @for (field of multipleFields(); track field.name) {
         @if (inline()) {
-          <div [attr.data-listing-issue]="fieldErrors()[field.name] ? '' : null">
+          <div
+            [attr.data-publication-field]="field.name"
+            [attr.data-listing-issue]="fieldErrors()[field.name] ? '' : null"
+          >
             <app-attribute-picker
               [label]="field.label"
               [options]="labelsFor(field.name)"

@@ -9,6 +9,7 @@ import type {
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { MarketplaceApiService } from './marketplace-api.service';
 import { VintedStatisticsStore } from './vinted-statistics.store';
+import { VintedAccountViewService } from './vinted-account-view.service';
 
 const accountA = {
   workspaceId: 'workspace-a',
@@ -41,11 +42,13 @@ const overview = (
 });
 let read: ReturnType<typeof vi.fn>;
 let store: VintedStatisticsStore;
+const showAllAccounts = signal(false);
 async function settle() {
   TestBed.tick();
   for (let i = 0; i < 8; i++) await Promise.resolve();
 }
 beforeEach(() => {
+  showAllAccounts.set(false);
   account.canManage.set(true);
   account.connections.set([accountA, accountB]);
   account.selectedConnection.set(accountA);
@@ -60,6 +63,10 @@ beforeEach(() => {
       VintedStatisticsStore,
       { provide: MarketplaceAccountStore, useValue: account },
       { provide: MarketplaceApiService, useValue: { readStatisticsOverview: read } },
+      {
+        provide: VintedAccountViewService,
+        useValue: { showAllAccounts, selectAccountView: showAllAccounts.set },
+      },
     ],
   });
   store = TestBed.inject(VintedStatisticsStore);

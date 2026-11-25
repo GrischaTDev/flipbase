@@ -4,6 +4,8 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { AuthService } from '../../../core/services/auth.service';
 import { WorkspaceService } from '../../../core/services/workspace.service';
+import { VintedCategoryService } from '../../../core/services/vinted-category.service';
+import { vintedListingCategorySource } from '../models/vinted-listing-category-source';
 import { MarketplaceAccountStore } from './marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from './marketplace-browser-test-api.service';
 import { VintedListingCategoryService } from './vinted-listing-category.service';
@@ -12,6 +14,7 @@ import { VintedCategoryFieldStore } from './vinted-category-field.store';
 const connection = {
   workspaceId: 'workspace-a',
   connectionId: 'account-a',
+  marketplace: 'vinted',
   executionMode: 'cloud',
   status: 'connected',
   externalAccountId: '123',
@@ -104,6 +107,7 @@ describe('Vinted category service', () => {
     const f = setup();
     for (const patch of [
       { workspaceId: 'workspace-b' },
+      { marketplace: 'ebay' },
       { executionMode: 'local' },
       { status: 'paused' },
     ]) {
@@ -147,11 +151,12 @@ const legacy = [
 ];
 function setupSellingTree() {
   let identity = '123';
+  let freshLegacyTree = false;
   const read = vi.fn(async (filters: Record<string, string>) => ({
     data: {
       external_account_id: filters['external_account_id'],
-      categories: filters['connection_id'] === 'modern' ? modern : legacy,
-      observed_at: '2026-11-04T12:00:00Z',
+      categories: filters['connection_id'] === 'modern' || freshLegacyTree ? modern : legacy,
+      observed_at: freshLegacyTree ? '2026-11-05T12:00:00Z' : '2026-11-04T12:00:00Z',
     },
     error: null,
   }));
@@ -168,6 +173,9 @@ function setupSellingTree() {
     return query;
   });
   const provider = vi.fn();
+  const sync = vi.fn(async () => {
+    freshLegacyTree = true;
+  });
   TestBed.configureTestingModule({
     providers: [
       VintedListingCategoryService,
@@ -200,13 +208,17 @@ function setupSellingTree() {
             ['modern', 'legacy'].map((connectionId) => ({
               connectionId,
               workspaceId: 'workspace',
+              marketplace: 'vinted',
               externalAccountId: connectionId === 'modern' ? identity : '456',
               status: 'connected',
               executionMode: 'cloud',
             })),
         },
       },
-      { provide: MarketplaceBrowserTestApiService, useValue: { readListingCategory: provider } },
+      {
+        provide: MarketplaceBrowserTestApiService,
+        useValue: { readListingCategory: provider, syncConnection: sync },
+      },
     ],
   });
   return {
@@ -214,6 +226,7 @@ function setupSellingTree() {
     read,
     from,
     provider,
+    sync,
     rebind: () => {
       identity = '789';
     },
@@ -244,6 +257,48 @@ it('rejects a cached source after its Vinted identity changes', async () => {
   f.rebind();
   await expect(source.search('Schals')).rejects.toThrow('Kontoverbindung');
   expect(f.read).toHaveBeenCalledTimes(1);
+});
+it('accepts only categories that are selectable for the target account and present in the central catalog', async () => {
+  const f = setupSellingTree();
+  vi.spyOn(TestBed.inject(VintedCategoryService), 'readSnapshot').mockResolvedValue({
+    categories: modern,
+    status: { refreshedAt: '2026-11-04T12:00:00Z', categoryCount: modern.length },
+  });
+  const current = await f.service.readPublicationSnapshot('modern');
+  const previous = await f.service.readPublicationSnapshot('legacy');
+  const currentPicker = vintedListingCategorySource(
+    current.categories,
+    current.publishableCategoryIds,
+  );
+  const previousPicker = vintedListingCategorySource(
+    previous.categories,
+    previous.publishableCategoryIds,
+  );
+  expect((await currentPicker.search('Schals')).categories.map((category) => category.id)).toEqual([
+    '5555',
+  ]);
+  expect((await previousPicker.search('Schals')).categories).toEqual([]);
+  expect(await previousPicker.getById('89')).toMatchObject({ isSelectable: false });
+  expect(f.provider).not.toHaveBeenCalled();
+  expect(f.sync).not.toHaveBeenCalled();
+});
+it('updates the exact target account only on explicit refresh and checks that the snapshot changed', async () => {
+  const f = setupSellingTree();
+  vi.spyOn(TestBed.inject(VintedCategoryService), 'readSnapshot').mockResolvedValue({
+    categories: modern,
+    status: { refreshedAt: '2026-11-04T12:00:00Z', categoryCount: modern.length },
+  });
+  expect((await f.service.readPublicationSnapshot('legacy')).publishableCategoryIds.size).toBe(0);
+  expect(f.sync).not.toHaveBeenCalled();
+  const updated = await f.service.refreshPublicationSnapshot('legacy');
+  expect(updated.publishableCategoryIds).toEqual(new Set([5555]));
+  expect(f.sync).toHaveBeenCalledWith(
+    { workspaceId: 'workspace', connectionId: 'legacy' },
+    'fixture',
+  );
+  await expect(f.service.refreshPublicationSnapshot('legacy')).rejects.toThrow(
+    'Verkaufsbaum wurde bei Vinted nicht aktualisiert',
+  );
 });
 it('rejects a partial tree instead of showing an incomplete category picker', async () => {
   const f = setupSellingTree();

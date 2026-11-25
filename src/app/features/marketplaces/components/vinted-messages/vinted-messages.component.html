@@ -1,8 +1,12 @@
 @if (notice(); as message) {
   <p role="status" class="mb-3 text-[13px] text-fb-text-secondary">{{ message }}</p>
 }
-@if (store.snapshot(); as snapshot) {
-  @if (store.selectedConnection()?.executionMode === 'local' && !local.messagesAllowed()) {
+@if (store.snapshot() || accountList.showAllAccounts()) {
+  @if (
+    (!accountList.showAllAccounts() || store.selectedConversationId()) &&
+    store.selectedConnection()?.executionMode === 'local' &&
+    !local.messagesAllowed()
+  ) {
     <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
       <p class="text-[13px] text-fb-text-secondary">
         Verbinde Dein Postfach, um Nachrichten zu übernehmen.
@@ -63,14 +67,24 @@
           </div>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto p-2">
-          @for (entry of visibleConversations(); track entry.id) {
+          @if (accountList.error(); as error) {
+            <app-notice-banner announcement="alert">
+              {{ error }}
+              <app-button (clicked)="accountList.refresh()">Erneut versuchen</app-button>
+            </app-notice-banner>
+          }
+          @for (entry of visibleConversations(); track entryKey(entry)) {
             <app-button
               variant="list-row"
               density="compact"
               [fullWidth]="true"
               contentAlign="start"
               [attr.data-conversation-row]="entry.id"
-              [ariaPressed]="store.selectedConversationId() === entry.id"
+              [attr.data-conversation-key]="entryKey(entry)"
+              [ariaPressed]="
+                store.selectedConversationId() === entry.id &&
+                store.selectedConnection()?.connectionId === entry.connectionId
+              "
               (clicked)="openConversation(entry, true, $event.detail === 0)"
             >
               <span class="flex min-w-0 items-center gap-3">
@@ -95,6 +109,11 @@
                       >
                     }
                   </span>
+                  @if (accountList.showAllAccounts()) {
+                    <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                      {{ accountList.labels().get(entry.connectionId) }}
+                    </app-badge>
+                  }
                   <span class="mt-1 flex items-center justify-between gap-2">
                     <span class="min-w-0 flex-1 truncate text-xs text-fb-text-secondary">{{
                       messageBody(entry) ?? 'Gespräch öffnen'
@@ -107,20 +126,30 @@
               </span>
             </app-button>
           } @empty {
-            <p class="px-3 py-4 text-[13px] text-fb-text-secondary">
-              {{
-                store.localInboxUnavailable()
-                  ? 'Nachrichten noch nicht synchronisiert.'
-                  : search() || conversationFilter() !== 'all'
-                    ? 'Keine passenden Gespräche.'
-                    : 'Noch keine Gespräche gespeichert.'
-              }}
-            </p>
+            @if (accountList.loading()) {
+              <p role="status" class="px-3 py-4 text-[13px] text-fb-text-secondary">
+                Gespräche werden geladen …
+              </p>
+            } @else if (!accountList.error()) {
+              <p class="px-3 py-4 text-[13px] text-fb-text-secondary">
+                {{
+                  !accountList.showAllAccounts() && store.localInboxUnavailable()
+                    ? 'Nachrichten noch nicht synchronisiert.'
+                    : search() || conversationFilter() !== 'all'
+                      ? 'Keine passenden Gespräche.'
+                      : 'Noch keine Gespräche gespeichert.'
+                }}
+              </p>
+            }
           }
-          @if (snapshot.conversations.nextCursor) {
+          @if (conversationPage()?.nextCursor) {
             <app-button
               class="mx-2 my-2"
-              [loading]="store.loadingPage() === 'conversation'"
+              [loading]="
+                accountList.showAllAccounts()
+                  ? accountList.loading()
+                  : store.loadingPage() === 'conversation'
+              "
               (clicked)="loadMoreConversations()"
               >Weitere Gespräche laden</app-button
             >
@@ -155,6 +184,11 @@
                   >
                     {{ conversation.title }}
                   </h2>
+                  @if (accountList.showAllAccounts()) {
+                    <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                      {{ accountList.labels().get(conversation.connectionId) }}
+                    </app-badge>
+                  }
                   <p
                     data-partner-activity
                     class="mt-0.5 text-xs text-fb-text-secondary"

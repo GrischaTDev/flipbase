@@ -1,4 +1,6 @@
-@if (store.snapshot(); as snapshot) {
+@if (accountView.showAllAccounts()) {
+  <app-vinted-account-summaries [showReviews]="true" />
+} @else if (store.snapshot(); as snapshot) {
   <div class="mx-auto space-y-4">
     <app-card padding="lg" rounded="xl">
       @if (snapshot.profile; as profile) {

@@ -7,8 +7,11 @@ import {
 } from './vinted-workspace-navigation';
 
 describe('Vinted-Bereichsgrenzen', () => {
-  it('ordnet Konten zuerst und Kontoseiten und Automatisierungen in explizite Gruppen', () => {
-    expect(VINTED_WORKSPACE_NAVIGATION[0].label).toBe('Konten');
+  it('ordnet Konten und Einstellungen vor den fachlichen Gruppen', () => {
+    expect(VINTED_WORKSPACE_NAVIGATION.slice(0, 2).map((item) => item.label)).toEqual([
+      'Konten',
+      'Einstellungen',
+    ]);
     expect(VINTED_WORKSPACE_NAVIGATION_GROUPS.map((group) => group.label)).toEqual([
       'Konto',
       'Automatisierungen',
@@ -33,7 +36,7 @@ describe('Vinted-Bereichsgrenzen', () => {
       'handshake',
       'messageCircle',
     ]);
-    expect(VINTED_WORKSPACE_NAVIGATION.slice(1)).toEqual(
+    expect(VINTED_WORKSPACE_NAVIGATION.slice(2)).toEqual(
       VINTED_WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items),
     );
   });

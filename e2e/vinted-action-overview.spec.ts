@@ -233,10 +233,8 @@ async function checkRunningActions(overview: Locator) {
   await expect(overview.locator('[data-action-state="queued"]')).toContainText(
     'Konto ist beschäftigt',
   );
-  // Die Warteschlange ist nummeriert; die zuletzt gestartete Aktion steht oben.
   const numbers = overview.locator('[data-queue-number]');
-  await expect(numbers.first()).toContainText(String(await numbers.count()));
-  await expect(numbers.last()).toContainText('1');
+  await expect(numbers).toHaveText(['Position 1', 'Position 2']);
   await expect(
     overview.locator(
       '[data-action-state]:not([data-action-state="running"]):not([data-action-state="queued"])',

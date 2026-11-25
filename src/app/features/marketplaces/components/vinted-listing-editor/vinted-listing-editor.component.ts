@@ -94,7 +94,11 @@ import { VintedFavoriteDiscountFieldComponent } from '../vinted-favorite-discoun
 import { VintedListingTemplatePanelComponent } from '../vinted-listing-template-panel/vinted-listing-template-panel.component';
 import { VintedListingBrandDialogComponent } from '../vinted-listing-brand-dialog/vinted-listing-brand-dialog.component';
 import { VintedListingFieldsDialogComponent } from '../vinted-listing-fields-dialog/vinted-listing-fields-dialog.component';
-import { VintedListingPublicationPreviewComponent } from '../vinted-listing-publication-preview/vinted-listing-publication-preview.component';
+import {
+  VintedListingPublicationPreviewComponent,
+  type VintedListingPublicationCorrection,
+} from '../vinted-listing-publication-preview/vinted-listing-publication-preview.component';
+import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import type { VintedListingJob } from '../../models/vinted-listing-job';
 import {
@@ -616,10 +620,6 @@ export class VintedListingEditorComponent {
   private readonly liveCategoryApi = inject(VintedListingCategoryService);
   private readonly backgroundMaskApi = inject(VintedPhotoBackgroundMaskService);
   private readonly categoryFields = inject(VintedCategoryFieldStore);
-  private readonly sellingCategories = new Map<
-    number,
-    { id: number; title: string; path: string }
-  >();
   private readonly dialog = inject(ConfirmDialogService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef, { optional: true });
@@ -672,6 +672,12 @@ export class VintedListingEditorComponent {
   readonly saveAttempted = signal(false);
   readonly images = signal<readonly ListingImageDraft[]>([]);
   readonly categories = signal<readonly VintedCategory[]>([]);
+  private readonly publicationCategoryIds = signal<ReadonlySet<number>>(new Set());
+  private readonly publicationCorrections = signal<{
+    fields: readonly VintedListingPublicationCorrection[];
+    content: VintedListingContent;
+    connectionId: string | undefined;
+  } | null>(null);
   readonly categoryError = signal<string | null>(null);
   readonly categoryLoading = signal(false);
   readonly brandSelectionContext = signal<string | null>(null);
@@ -683,6 +689,7 @@ export class VintedListingEditorComponent {
     readonly images: readonly ListingImageDraft[];
   } | null>(null);
   readonly publicationBusy = signal(false);
+  readonly publicationIntentLocked = signal(false);
   readonly publicationSchedule = signal<VintedListingScheduleSelection | null>(null);
   readonly planningPublication = signal(false);
   readonly publicationAnnouncement = signal('');
@@ -733,6 +740,18 @@ export class VintedListingEditorComponent {
       .connections()
       .find((account) => account.connectionId === this.form.controls.connectionId.value);
   });
+  private readonly categoryAccount = computed(() => {
+    const account = this.selectedAccount();
+    return account
+      ? JSON.stringify([
+          account.connectionId,
+          account.externalAccountId,
+          account.status,
+          account.executionMode,
+        ])
+      : null;
+  });
+  private readonly loadedCategoryAccount = signal<string | null>(null);
   readonly accountIssue = computed(() =>
     vintedListingAccountIssue(this.selectedAccount(), this.workspaceId()),
   );
@@ -791,15 +810,32 @@ export class VintedListingEditorComponent {
   private readonly hasVisibleInvalidFavoriteDiscount = computed(
     () => this.favoriteDiscountAccount() !== null && this.hasInvalidFavoriteDiscount(),
   );
-  readonly categorySource = computed(() => {
-    const connectionId = this.selectedAccount()?.connectionId;
-    this.sellingCategories.clear();
-    return connectionId
-      ? this.liveCategoryApi.source(connectionId, (category) => {
-          if (this.form.controls.connectionId.value === connectionId)
-            this.sellingCategories.set(category.id, category);
-        })
-      : null;
+  readonly categorySource = computed(() =>
+    this.selectedAccount()
+      ? vintedListingCategorySource(
+          this.categories(),
+          this.categoryAccount() === this.loadedCategoryAccount()
+            ? this.publicationCategoryIds()
+            : new Set(),
+        )
+      : null,
+  );
+  readonly needsFreshCategoryList = computed(() => {
+    if (this.accountIssue() || this.categoryLoading()) return false;
+    if (this.categoryError()) return true;
+    const categoryId = this.currentCategoryId();
+    if (categoryId !== null && this.categories().some(({ parentId }) => parentId === categoryId))
+      return false;
+    return (
+      (categoryId !== null && !this.publicationCategoryIds().has(categoryId)) ||
+      // Der bekannte alte Schalpfad soll auch schon vor der Suche aktualisiert werden können.
+      (categoryId === null &&
+        this.categories().some(
+          ({ id, title }) =>
+            id === 89 && title === 'Tücher & Schals' && !this.publicationCategoryIds().has(id),
+        )) ||
+      this.activePublicationCorrections().some(({ field }) => field === 'category')
+    );
   });
   readonly priceError = computed(() => {
     this.changed();
@@ -861,9 +897,9 @@ export class VintedListingEditorComponent {
   readonly canSelectBrand = computed(
     () =>
       this.store.canManage() &&
+      !this.loading() &&
       !!this.context() &&
       this.context() === this.loadedContext &&
-      !this.loading() &&
       !this.loadError() &&
       !this.saving() &&
       !this.imageEditing() &&
@@ -932,26 +968,23 @@ export class VintedListingEditorComponent {
       ...vintedListingExtraFieldErrors(this.extraFields(), this.content().attributes),
     };
     const categoryId = this.currentCategoryId();
-    const category =
-      this.categories().find((value) => value.id === categoryId) ??
-      (categoryId === null ? undefined : this.sellingCategories.get(categoryId)) ??
-      (this.categories().length > 0 && categoryId === this.referenceContent().categoryId
-        ? this.referenceContent()
-        : undefined);
-    if (!this.relisting() && categoryId !== null && !category)
+    if (this.relisting() || categoryId === null) return errors;
+    const category = this.categories().find((value) => value.id === categoryId);
+    if (this.categoryLoading() || this.categoryAccount() !== this.loadedCategoryAccount())
+      return { ...errors, category: 'Die Kategorien werden geladen. Warte bitte kurz.' };
+    if (category && this.categories().some((value) => value.parentId === categoryId))
+      return {
+        ...errors,
+        category: `Wähle unter „${category.title}“ eine passende Unterkategorie aus.`,
+      };
+    if (!category || !this.publicationCategoryIds().has(categoryId))
       return {
         ...errors,
         category:
           this.categoryError() ??
-          (this.categoryLoading()
-            ? 'Die Kategorien werden geladen. Warte bitte kurz.'
-            : 'Diese Kategorie ist nicht verfügbar. Wähle eine passende Kategorie aus.'),
+          'Diese Kategorie ist für das Zielkonto nicht aktuell. Wähle eine verfügbare Kategorie.',
       };
-    return !this.relisting() &&
-      category &&
-      this.categories().some((value) => value.parentId === categoryId)
-      ? { ...errors, category: `Wähle unter „${category.title}“ eine passende Unterkategorie aus.` }
-      : errors;
+    return errors;
   });
   readonly additionalFieldErrors = computed(() =>
     Object.entries(this.visibleFieldErrors())
@@ -974,9 +1007,44 @@ export class VintedListingEditorComponent {
       )
       .map(([, message]) => message),
   );
-  readonly visibleFieldErrors = computed<Readonly<Record<string, string>>>(() =>
-    this.publicationAttempted() ? this.fieldErrors() : {},
-  );
+  readonly activePublicationCorrections = computed(() => {
+    const corrections = this.publicationCorrections();
+    const content = this.content();
+    if (!corrections || this.selectedAccount()?.connectionId !== corrections.connectionId)
+      return [];
+    return corrections.fields.filter(({ field }) => {
+      switch (field) {
+        case 'category':
+          return content.categoryId === corrections.content.categoryId;
+        case 'brand':
+          return (
+            content.brandId === corrections.content.brandId &&
+            content.brandLabel === corrections.content.brandLabel
+          );
+        case 'size':
+          return content.sizeId === corrections.content.sizeId;
+        case 'condition':
+          return content.conditionId === corrections.content.conditionId;
+        case 'package':
+          return content.packageSizeId === corrections.content.packageSizeId;
+        case 'accessory_department':
+          return (
+            content.attributes['accessory_department'] ===
+            corrections.content.attributes['accessory_department']
+          );
+        default:
+          return same(content, corrections.content);
+      }
+    });
+  });
+  readonly visibleFieldErrors = computed<Readonly<Record<string, string>>>(() => ({
+    ...(this.publicationAttempted() ? this.fieldErrors() : {}),
+    ...Object.fromEntries(
+      this.activePublicationCorrections().flatMap(({ field, message }) =>
+        field ? [[field, message]] : [],
+      ),
+    ),
+  }));
   readonly publicationHint = computed(
     () =>
       this.accountIssue() ??
@@ -1068,6 +1136,11 @@ export class VintedListingEditorComponent {
     effect(() => {
       const context = this.context();
       untracked(() => void this.load(context));
+    });
+    effect(() => {
+      const scope = this.categoryAccount();
+      if (scope !== this.requestedCategoryAccount && !this.relisting() && this.canSelectBrand())
+        untracked(() => void this.reloadCategories());
     });
     effect((onCleanup) => {
       const scopeKey = this.favoriteDiscountScopeKey();
@@ -1241,19 +1314,35 @@ export class VintedListingEditorComponent {
     if (!this.canStartPublication()) return;
     this.planningPublication.set(false);
     this.publicationAttempted.set(true);
+    this.publicationCorrections.set(null);
+    const accountIssue = this.accountIssue();
+    const contentError = this.contentError();
+    const fieldErrors = this.fieldErrors();
     if (
       !this.canSelectFields() ||
-      this.accountIssue() ||
-      this.contentError() ||
-      Object.keys(this.fieldErrors()).length
+      accountIssue ||
+      contentError ||
+      Object.keys(fieldErrors).length
     ) {
       if (this.relisting()) {
-        const hiddenIssue = Object.entries(this.fieldErrors()).find(
+        const hiddenIssue = Object.entries(fieldErrors).find(
           ([field]) => !['title', 'description'].includes(field),
         )?.[1];
-        this.error.set(this.accountIssue() ?? this.contentError() ?? hiddenIssue ?? null);
+        this.error.set(accountIssue ?? contentError ?? hiddenIssue ?? null);
       }
-      this.focusFirstIssue();
+      const categoryError = fieldErrors['category'];
+      if (
+        !this.relisting() &&
+        this.currentCategoryId() !== null &&
+        categoryError &&
+        !accountIssue &&
+        !contentError &&
+        !fieldErrors['photos']
+      ) {
+        this.correctPublication([{ field: 'category', message: categoryError }]);
+      } else {
+        this.focusFirstIssue();
+      }
       return;
     }
     // Auch unveränderte ältere Entwürfe müssen vor dem Auftrag die eigene Formularversion sichern.
@@ -1290,10 +1379,42 @@ export class VintedListingEditorComponent {
   }
   closePublication(): void {
     this.publicationBusy.set(false);
+    this.publicationIntentLocked.set(false);
     this.publication.set(null);
   }
+  correctPublication(
+    fields: readonly VintedListingPublicationCorrection[],
+    refreshCategories = false,
+  ): void {
+    this.closePublication();
+    this.publicationCorrections.set({
+      fields,
+      content: this.content(),
+      connectionId: this.selectedAccount()?.connectionId,
+    });
+    if (refreshCategories && fields.some(({ field }) => field === 'category'))
+      void this.reloadCategories();
+    setTimeout(() =>
+      this.host?.nativeElement.querySelector<HTMLElement>('[data-publication-correction]')?.focus(),
+    );
+  }
+  focusPublicationField(field: string | null): void {
+    const target = Array.from(
+      this.host?.nativeElement.querySelectorAll<HTMLElement>('[data-publication-field]') ?? [],
+    ).find((element) => element.dataset['publicationField'] === field);
+    const control = target?.querySelector<HTMLElement>(
+      'button:not(:disabled), input:not([hidden]):not([type="hidden"]):not(:disabled), textarea:not(:disabled)',
+    );
+    if (!control) {
+      this.focusFirstIssue();
+      return;
+    }
+    control.focus();
+    // Der Klick im Hinweis darf die gerade geöffnete Auswahl nicht als Außenklick schließen.
+    if (field === 'category') setTimeout(() => control.isConnected && control.click());
+  }
   returnToEditor(): void {
-    if (this.publicationBusy()) return;
+    if (this.publicationBusy() || this.publicationIntentLocked()) return;
     this.closePublication();
     setTimeout(() => {
       if (this.modalActions()) this.publicationReturned.emit();
@@ -1567,7 +1688,7 @@ export class VintedListingEditorComponent {
     await this.load(context, true, id);
   }
   async canLeave(): Promise<boolean> {
-    if (this.publicationBusy()) return false;
+    if (this.publicationBusy() || this.publicationIntentLocked()) return false;
     if (this.activeSave) await this.activeSave;
     return (
       (!this.dirty() && !this.imageEditing()) ||
@@ -1581,7 +1702,7 @@ export class VintedListingEditorComponent {
   }
   /** Das Relist-Modal hat keinen Entwurf; Schließen verwirft die Eingaben ohne Rückfrage. */
   private async canCloseRelisting(): Promise<boolean> {
-    if (this.publicationBusy()) return false;
+    if (this.publicationBusy() || this.publicationIntentLocked()) return false;
     if (this.activeSave) await this.activeSave;
     return true;
   }
@@ -1613,15 +1734,21 @@ export class VintedListingEditorComponent {
     ]);
   }
   beforeUnload(event: BeforeUnloadEvent): void {
-    if (this.dirty() || this.saving() || this.imageEditing() || this.publicationBusy()) {
+    if (
+      this.dirty() ||
+      this.saving() ||
+      this.imageEditing() ||
+      this.publicationBusy() ||
+      this.publicationIntentLocked()
+    ) {
       event.preventDefault();
       event.returnValue = '';
     }
   }
   private categoryConnectionId: string | null = null;
+  private requestedCategoryAccount: string | null = null;
+  private categoryLoadVersion = 0;
   private markChanged(): void {
-    if (!this.relisting() && this.form.controls.connectionId.value !== this.categoryConnectionId)
-      void this.reloadCategories();
     if (!this.loading() && !this.loadError()) {
       const selection = this.selectedBrand();
       if (
@@ -1660,6 +1787,8 @@ export class VintedListingEditorComponent {
       this.changed.update((value) => value + 1);
       this.dirty.set(true);
     }
+    if (!this.relisting() && this.form.controls.connectionId.value !== this.categoryConnectionId)
+      void this.reloadCategories();
   }
   private current(generation: number, context = this.loadedContext): boolean {
     return (
@@ -1687,6 +1816,7 @@ export class VintedListingEditorComponent {
     this.activeSave = null;
     this.loading.set(true);
     this.publicationAttempted.set(false);
+    this.publicationCorrections.set(null);
     this.saveAttempted.set(false);
     this.imageEditing.set(false);
     this.preparingPhotos.set(false);
@@ -1952,38 +2082,51 @@ export class VintedListingEditorComponent {
     this.loading.set(false);
     await this.reloadCategories();
   }
-  async reloadCategories(): Promise<void> {
-    if (!this.canSelectBrand()) return;
+  async reloadCategories(refreshAtVinted = false): Promise<void> {
+    if (!this.canSelectBrand() || this.relisting()) return;
     const connectionId = this.form.controls.connectionId.value;
+    const scope = this.categoryAccount();
+    this.requestedCategoryAccount = scope;
     this.categoryConnectionId = connectionId;
+    const version = ++this.categoryLoadVersion;
     const generation = this.generation,
       context = this.loadedContext;
+    const isCurrent = () =>
+      version === this.categoryLoadVersion &&
+      this.current(generation, context) &&
+      this.form.controls.connectionId.value === connectionId &&
+      this.categoryAccount() === scope;
     this.categoryLoading.set(true);
     this.categoryError.set(null);
-    // Beim Kontowechsel bleibt die bisherige Liste sichtbar; die gewählte Kategorie verschwindet
-    // so weder während des Abrufs noch ohne Konto oder bei einem fehlgeschlagenen Abruf.
+    if (this.loadedCategoryAccount() !== scope || !refreshAtVinted)
+      this.publicationCategoryIds.set(new Set());
+    this.loadedCategoryAccount.set(scope);
     try {
       if (!connectionId) return;
-      const snapshot = await this.liveCategoryApi.readSnapshot(connectionId);
-      if (
-        this.current(generation, context) &&
-        this.form.controls.connectionId.value === connectionId
-      )
+      const snapshot = await (refreshAtVinted
+        ? this.liveCategoryApi.refreshPublicationSnapshot(connectionId)
+        : this.liveCategoryApi.readPublicationSnapshot(connectionId));
+      if (isCurrent()) {
         this.categories.set(snapshot.categories);
+        this.publicationCategoryIds.set(snapshot.publishableCategoryIds);
+        if (snapshot.publishableCategoryIds.size === 0)
+          this.categoryError.set(
+            'Die Kategorien für das Zielkonto sind veraltet. Aktualisiere das Konto und lade die Kategorien erneut.',
+          );
+        if (refreshAtVinted && snapshot.publishableCategoryIds.size > 0)
+          setTimeout(() => {
+            if (isCurrent()) this.focusPublicationField('category');
+          });
+      }
     } catch {
-      if (
-        this.current(generation, context) &&
-        this.form.controls.connectionId.value === connectionId
-      )
+      if (isCurrent())
         this.categoryError.set(
-          'Die Vinted-Kategorien konnten nicht geladen werden. Deine Eingaben bleiben erhalten.',
+          refreshAtVinted
+            ? 'Die Kategorien konnten bei Vinted nicht aktualisiert werden. Versuche es erneut.'
+            : 'Die Vinted-Kategorien konnten nicht geladen werden. Deine Eingaben bleiben erhalten.',
         );
     } finally {
-      if (
-        this.current(generation, context) &&
-        this.form.controls.connectionId.value === connectionId
-      )
-        this.categoryLoading.set(false);
+      if (isCurrent()) this.categoryLoading.set(false);
     }
   }
   readonly photoOptions = computed<VintedListingPhotoOptions>(() => {
@@ -2188,7 +2331,6 @@ export class VintedListingEditorComponent {
       priceCents,
       categoryId,
       categoryLabel:
-        (categoryId === null ? undefined : this.sellingCategories.get(categoryId)?.path) ??
         this.categories().find((category) => category.id === categoryId)?.path ??
         (categorySame ? previous.categoryLabel : ''),
       brandLabel: values.brand,

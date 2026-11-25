@@ -10,61 +10,35 @@
     }
     @if (showingSetup() || showingLocalConnection() || showingCloudConnection()) {
       <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
-    } @else if (
-      !showingAccounts() && !showingShippingLabels() && store.selectedConnection();
-      as account
-    ) {
-      <app-vinted-account-controls
-        header-actions
-        class="w-full sm:w-auto sm:max-w-[min(36rem,60vw)]"
-        [runtimeStatus]="runtimeStatus()"
-        [connections]="store.connections()"
-        [account]="account"
-        [profile]="store.snapshot()?.profile ?? null"
-        [canManage]="store.canManage()"
-        [refreshing]="store.busy() || local.busy()"
-        [loading]="store.loadingSnapshot()"
-        [inbox]="showingMessages() && account.executionMode === 'local'"
-        [inboxSyncedAt]="
-          local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null
-        "
-        [refreshLabel]="
-          showingMessages() && account.executionMode === 'local'
-            ? 'Nachrichten aktualisieren'
-            : 'Kontodaten aktualisieren'
-        "
-        (accountSelected)="selectAccount($event)"
-        (refreshRequested)="sync()"
-        (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
-        (scheduleStateChanged)="cloudHeaderState.set($event)"
-      />
-    } @else if (!showingAccounts() && !showingShippingLabels()) {
+    } @else if (!showingAccounts() && !showingSettings() && store.selectedConnection()) {
+      <ng-container header-actions [ngTemplateOutlet]="accountControls" />
+    } @else if (!showingAccounts() && !showingShippingLabels() && !showingSettings()) {
       <app-button header-actions link="/marketplaces/vinted/accounts">Alle Konten</app-button>
     }
   </app-page-header>
+} @else if (showingDraftList() && store.selectedConnection()) {
+  <div class="mb-3 flex justify-end">
+    <ng-container [ngTemplateOutlet]="accountControls" />
+  </div>
 }
 <div class="space-y-4" [class.mt-4]="!showingDraftWorkspace()">
   @if (store.loading() && !showingShippingLabels()) {
     <p role="status" class="text-[13px] text-fb-text-secondary">Vinted-Konten werden geladen …</p>
   }
-  @if (store.error(); as error) {
-    <app-notice-banner announcement="alert"
-      ><p>{{ error }}</p>
-      <app-button class="mt-2" (clicked)="store.reloadConnections()" [disabled]="store.loading()"
-        >Erneut versuchen</app-button
-      >
-    </app-notice-banner>
+  @if ((!viewingAllAccounts() && !showingSettings()) || !store.canManage()) {
+    @if (store.error(); as error) {
+      <app-notice-banner announcement="alert"
+        ><p>{{ error }}</p>
+        <app-button class="mt-2" (clicked)="store.reloadConnections()" [disabled]="store.loading()"
+          >Erneut versuchen</app-button
+        >
+      </app-notice-banner>
+    }
   }
   @if (
-    showingAccounts() ||
-    showingSetup() ||
-    showingLocalConnection() ||
-    showingCloudConnection() ||
-    showingDraftWorkspace() ||
-    showingShippingLabels()
+    !accountIndependentPage() && !viewingAllAccounts() && store.selectedConnection();
+    as account
   ) {
-    <router-outlet />
-  } @else if (store.selectedConnection(); as account) {
     @if (scheduleNotice(); as notice) {
       <app-notice-banner [announcement]="notice.alert ? 'alert' : 'status'">
         {{ notice.text }}
@@ -146,6 +120,8 @@
     @if (store.loadingSnapshot()) {
       <p role="status" class="text-[13px] text-fb-text-secondary">Kontodaten werden geladen …</p>
     }
+  }
+  @if (accountIndependentPage() || viewingAllAccounts() || store.selectedConnection()) {
     <router-outlet />
   } @else if (!store.loading() && !store.error()) {
     <app-vinted-setup />
@@ -159,3 +135,32 @@
     (closed)="syncModalOpen.set(false)"
   />
 }
+
+<ng-template #accountControls>
+  @if (store.selectedConnection(); as account) {
+    <app-vinted-account-controls
+      class="w-full sm:w-auto sm:max-w-[min(36rem,60vw)]"
+      [runtimeStatus]="runtimeStatus()"
+      [connections]="store.connections()"
+      [account]="account"
+      [profile]="store.snapshot()?.profile ?? null"
+      [canManage]="store.canManage()"
+      [allowAllAccounts]="allowsAllAccounts()"
+      [allAccountsSelected]="viewingAllAccounts()"
+      [chooserOnly]="showingDraftList() || showingShippingLabels()"
+      [refreshing]="store.busy() || local.busy()"
+      [loading]="store.loadingSnapshot()"
+      [inbox]="showingMessages() && account.executionMode === 'local'"
+      [inboxSyncedAt]="local.binding()?.inboxSyncedAt ?? local.inboxImported()?.observedAt ?? null"
+      [refreshLabel]="
+        showingMessages() && account.executionMode === 'local'
+          ? 'Nachrichten aktualisieren'
+          : 'Kontodaten aktualisieren'
+      "
+      (accountSelected)="selectAccount($event)"
+      (refreshRequested)="sync()"
+      (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
+      (scheduleStateChanged)="cloudHeaderState.set($event)"
+    />
+  }
+</ng-template>

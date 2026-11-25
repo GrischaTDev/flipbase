@@ -40,13 +40,15 @@
     }
     @if (!loading() && !busy()) {
       <div class="mt-3 flex flex-wrap gap-2">
-        <app-button variant="secondary" size="slim" (clicked)="close()">Zum Editor</app-button>
+        @if (!intentLocked()) {
+          <app-button variant="secondary" size="slim" (clicked)="close()">Zum Editor</app-button>
+        }
         @if (canCopy() && blockedJob()?.state === 'confirmed') {
           <app-button size="slim" (clicked)="copyRequested.emit()"
             >Als neuen Entwurf kopieren</app-button
           >
         }
-        @if (error() && canSubmit()) {
+        @if (intentLocked() && error() && canSubmit()) {
           <app-button size="slim" (clicked)="submit()">Denselben Auftrag erneut prüfen</app-button>
         }
       </div>

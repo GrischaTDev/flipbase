@@ -4,6 +4,8 @@
     placeholder="Marke suchen"
     [options]="labels()"
     [liveText]="true"
+    [closeOnSelection]="true"
+    [requiredIndicator]="requiredIndicator()"
     [error]="fieldError()"
     [allowCustom]="false"
     [formControl]="labelControl"

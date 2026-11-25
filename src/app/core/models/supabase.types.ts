@@ -13085,6 +13085,16 @@ export type Database = {
         }
         Returns: Json
       }
+      marketplace_list_listing_drafts_scoped: {
+        Args: {
+          p_connection_id: string
+          p_cursor: Json
+          p_limit: number
+          p_query: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       marketplace_list_listing_templates: {
         Args: { p_workspace_id: string }
         Returns: Json
@@ -13771,6 +13781,23 @@ export type Database = {
       }
       marketplace_read_sync_schedule: {
         Args: { p_connection_id: string; p_workspace_id: string }
+        Returns: Json
+      }
+      marketplace_read_vinted_list: {
+        Args: {
+          p_connection_id?: string
+          p_cursor?: string
+          p_entry_id?: string
+          p_filter?: string
+          p_kind: string
+          p_oldest_first?: boolean
+          p_query?: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      marketplace_read_vinted_relisting_plans: {
+        Args: { p_workspace_id: string }
         Returns: Json
       }
       marketplace_record_cloud_write_failure: {

@@ -1,4 +1,4 @@
-@if (store.localSalesUnavailable()) {
+@if (!accountList.showAllAccounts() && store.localSalesUnavailable()) {
   <app-card class="mb-4" title="Verkäufe noch nicht lokal angebunden">
     <p class="text-sm text-fb-text-secondary">
       Deine Vinted-Verkäufe werden über die lokale Verbindung noch nicht synchronisiert. Vorhandene
@@ -11,6 +11,12 @@
     Liste wird mit dem Kontoabgleich ergänzt.
   </p>
 }
+@if (accountList.error(); as error) {
+  <app-notice-banner announcement="alert" class="mb-4">
+    {{ error }}
+    <app-button (clicked)="accountList.refresh()">Erneut versuchen</app-button>
+  </app-notice-banner>
+}
 @if (linkedSaleUnavailable()) {
   <p role="status" class="mb-4 text-sm text-fb-text-secondary">
     Der verlinkte Verkauf ist nicht verfügbar.
@@ -20,7 +26,7 @@
   <section class="mb-6" aria-label="Aktuelle Verkaufsvorgänge">
     <h2 class="mb-2 text-sm font-semibold text-fb-text-primary">Aktuelle Verkaufsvorgänge</h2>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
-      @for (entry of entries(); track entry.id) {
+      @for (entry of entries(); track entryKey(entry)) {
         @let linked = isLinkedSale(entry);
         <article
           class="min-w-0 space-y-2 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
@@ -47,6 +53,11 @@
               >
                 {{ entry.title }}
               </h3>
+              @if (accountList.showAllAccounts()) {
+                <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                  {{ accountList.labels().get(entry.connectionId) }}
+                </app-badge>
+              }
               <div data-sale-details class="mt-2 flex min-w-0 items-center justify-between gap-2">
                 <p
                   class="min-w-0 truncate text-xs text-fb-text-secondary"
@@ -145,7 +156,13 @@
     </div>
   </section>
 }
-@if (!entries().length && !page()?.nextCursor && !store.localSalesUnavailable()) {
+@if (
+  !entries().length &&
+  !page()?.nextCursor &&
+  !accountList.loading() &&
+  !accountList.error() &&
+  (accountList.showAllAccounts() || !store.localSalesUnavailable())
+) {
   <app-card
     title="Noch keine bestätigten Verkäufe gespeichert"
     subtitle="Einzelne als verkauft markierte Inserate reichen nicht als Kaufbeleg. Bestätigte Verkäufe und Stornierungen erscheinen nach dem Abruf des zugehörigen Chats."
@@ -154,8 +171,10 @@
 @if (page()?.nextCursor) {
   <app-button
     class="mt-4"
-    [loading]="store.loadingPage() === 'sale'"
-    (clicked)="store.loadMore('sale')"
+    [loading]="
+      accountList.showAllAccounts() ? accountList.loading() : store.loadingPage() === 'sale'
+    "
+    (clicked)="loadMore()"
     >Weitere Verkäufe laden</app-button
   >
 }

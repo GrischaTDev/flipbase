@@ -10,6 +10,8 @@ import {
 } from '../models/vinted-listing-job';
 import type { VintedListingDraft } from '../models/vinted-listing-draft';
 import { VintedListingOperationStore } from './vinted-listing-operation.store';
+import { VintedAccountViewService } from './vinted-account-view.service';
+import { MarketplaceApiService } from './marketplace-api.service';
 
 export interface VintedRelistingPlan {
   readonly job: VintedListingJob;
@@ -24,19 +26,35 @@ export class VintedRelistingPlanStore {
   private readonly jobs = inject(VintedListingJobService);
   private readonly images = inject(VintedListingImageService);
   private readonly operations = inject(VintedListingOperationStore);
+  private readonly accountView = inject(VintedAccountViewService);
+  private readonly api = inject(MarketplaceApiService);
+  private readonly visibleAccounts = computed(() => {
+    if (!this.accounts.canManage()) return [];
+    const selected = this.accounts.selectedConnection();
+    const accounts = this.accountView.showAllAccounts()
+      ? this.accounts.connections()
+      : selected
+        ? [selected]
+        : [];
+    return accounts.filter(
+      (account) => account.status === 'connected' && account.executionMode === 'cloud',
+    );
+  });
+  readonly combinedPublicationRevision = signal(0);
   readonly plans = signal<readonly VintedRelistingPlan[]>([]);
   readonly error = signal<string | null>(null);
   private readonly binding = computed(() => {
-    const account = this.accounts.selectedConnection();
-    return this.auth.currentUser() &&
-      this.accounts.canManage() &&
-      account?.status === 'connected' &&
-      account.executionMode === 'cloud'
+    const userId = this.auth.currentUser()?.id;
+    const accounts = this.visibleAccounts();
+    return userId && accounts.length
       ? JSON.stringify([
-          this.auth.currentUser()!.id,
-          account.workspaceId,
-          account.connectionId,
-          account.externalAccountId,
+          userId,
+          this.accountView.showAllAccounts(),
+          accounts.map((account) => [
+            account.workspaceId,
+            account.connectionId,
+            account.externalAccountId,
+          ]),
         ])
       : null;
   });
@@ -62,24 +80,25 @@ export class VintedRelistingPlanStore {
         this.releasedJobIds.clear();
         void this.refresh();
       });
-      const { account, userId } = untracked(() => ({
-        account: this.accounts.selectedConnection(),
+      const { accounts, userId } = untracked(() => ({
+        accounts: this.visibleAccounts(),
         userId: this.auth.currentUser()?.id,
       }));
-      if (binding && account && userId)
-        onCleanup(
-          this.operations.registerRelistingView(
-            { userId, workspaceId: account.workspaceId, connectionId: account.connectionId },
-            (job) => this.synchronizeConfirmedRelisting(job, binding),
-            (job) => this.releaseCancelledPlan(job, binding),
-          ),
-        );
+      if (binding && userId)
+        for (const account of accounts)
+          onCleanup(
+            this.operations.registerRelistingView(
+              { userId, workspaceId: account.workspaceId, connectionId: account.connectionId },
+              (job) => this.synchronizeConfirmedRelisting(job, binding),
+              (job) => this.releaseCancelledPlan(job, binding),
+            ),
+          );
     });
     effect((onCleanup) => {
       const key = this.subscriptionKey();
       if (!key) return;
       const { account, binding, draftIds } = untracked(() => ({
-        account: this.accounts.selectedConnection(),
+        account: this.visibleAccounts()[0],
         binding: this.binding(),
         draftIds: [...new Set(this.plans().map(({ job }) => job.draftId))].sort(),
       }));
@@ -125,8 +144,19 @@ export class VintedRelistingPlanStore {
     binding: string,
   ): Promise<boolean> {
     if (this.destroyed || this.binding() !== binding) return true;
-    if (this.accounts.selectedConnection()?.externalAccountId !== job.externalAccountId)
-      return false;
+    const account = this.visibleAccounts().find((item) => item.connectionId === job.connectionId);
+    if (!account || account.externalAccountId !== job.externalAccountId) return false;
+    if (this.accountView.showAllAccounts()) {
+      if (!job.relistEntryId || !job.externalId) return false;
+      const entry = await this.api.readPublication(account, job.relistEntryId).catch(() => null);
+      if (this.destroyed || this.binding() !== binding) return true;
+      if (
+        entry?.externalId !== job.externalId ||
+        (job.providerState === 'active' && !(Date.parse(entry.publishedAt ?? '') <= Date.now()))
+      )
+        return false;
+      this.combinedPublicationRevision.update((value) => value + 1);
+    }
     const hasConfirmedEntry = () =>
       this.accounts
         .snapshot()
@@ -141,7 +171,7 @@ export class VintedRelistingPlanStore {
                 Number.isFinite(Date.parse(entry.publishedAt ?? '')) &&
                 Date.parse(entry.publishedAt ?? '') <= Date.now())),
         );
-    if (!hasConfirmedEntry()) {
+    if (!this.accountView.showAllAccounts() && !hasConfirmedEntry()) {
       if (!job.connectionId) return false;
       const loaded = await this.accounts.reloadImportedSnapshot({
         workspaceId: job.workspaceId,
@@ -164,7 +194,7 @@ export class VintedRelistingPlanStore {
   /** Entfernt nur einen sicher vor der Quellenlöschung gescheiterten Auftrag. */
   async discardFailed(job: VintedListingJob): Promise<void> {
     const binding = this.binding();
-    const account = this.accounts.selectedConnection();
+    const account = this.visibleAccounts().find((item) => item.connectionId === job.connectionId);
     const current = this.plans().find(
       (plan) =>
         plan.job.id === job.id &&
@@ -186,7 +216,11 @@ export class VintedRelistingPlanStore {
     if (
       this.destroyed ||
       binding !== this.binding() ||
-      this.accounts.selectedConnection()?.externalAccountId !== job.externalAccountId ||
+      !this.visibleAccounts().some(
+        (account) =>
+          account.connectionId === job.connectionId &&
+          account.externalAccountId === job.externalAccountId,
+      ) ||
       (current?.job.version ?? 0) > job.version ||
       (this.cache.get(job.id)?.job.version ?? 0) > job.version ||
       this.releasedJobIds.has(job.id)
@@ -197,6 +231,8 @@ export class VintedRelistingPlanStore {
     this.releasedJobIds.add(job.id);
     this.plans.update((plans) => plans.filter((plan) => plan.job.id !== job.id));
     this.cache.delete(job.id);
+    if (this.accountView.showAllAccounts())
+      this.combinedPublicationRevision.update((value) => value + 1);
   }
 
   canEdit(job: VintedListingJob): boolean {
@@ -209,28 +245,41 @@ export class VintedRelistingPlanStore {
     return vintedRelistingJobLabel(job, Date.now());
   }
   private pendingPlans() {
-    const account = this.accounts.selectedConnection();
+    const accounts = this.visibleAccounts();
     return this.binding()
       ? this.operations
           .acceptedRelistings()
-          .filter(
-            (item) =>
-              item.record.job.workspaceId === account?.workspaceId &&
-              item.record.job.connectionId === account.connectionId,
+          .filter((item) =>
+            accounts.some(
+              (account) =>
+                item.record.job.workspaceId === account.workspaceId &&
+                item.record.job.connectionId === account.connectionId,
+            ),
           )
       : [];
   }
   async refresh(): Promise<void> {
     if (this.destroyed || this.refreshing || !this.binding()) return;
-    const account = this.accounts.selectedConnection()!,
-      generation = this.generation;
+    const accounts = this.visibleAccounts();
+    const account = accounts[0];
+    if (!account) return;
+    const allAccounts = this.accountView.showAllAccounts();
+    const generation = this.generation;
     this.refreshing = true;
     try {
       const reloadThumbnails = Date.now() - this.thumbnailsLoadedAt > 45 * 60_000;
       if (reloadThumbnails) {
         this.thumbnailsLoadedAt = Date.now();
       }
-      const received = await this.jobs.listPlans(account.workspaceId, account.connectionId);
+      const received = allAccounts
+        ? (await this.jobs.listWorkspaceRelistingPlans(account.workspaceId)).filter(({ job }) =>
+            accounts.some(
+              (candidate) =>
+                candidate.connectionId === job.connectionId &&
+                candidate.externalAccountId === job.externalAccountId,
+            ),
+          )
+        : await this.jobs.listPlans(account.workspaceId, account.connectionId);
       if (generation !== this.generation || this.destroyed) return;
       // Ein alter, bereits laufender Abruf darf eine soeben verworfene Karte nicht wieder sperren.
       const records = received.filter(({ job }) => !this.releasedJobIds.has(job.id));
@@ -242,8 +291,14 @@ export class VintedRelistingPlanStore {
       );
       const needsSnapshot =
         missing.length > 0 || records.some((record) => record.job.state === 'confirmed');
+      if (
+        allAccounts &&
+        needsSnapshot &&
+        (missing.length || records.some(({ job }) => !this.cache.has(job.id)))
+      )
+        this.combinedPublicationRevision.update((value) => value + 1);
       const snapshotLoaded =
-        !needsSnapshot || (await this.accounts.reloadImportedSnapshot(account));
+        allAccounts || !needsSnapshot || (await this.accounts.reloadImportedSnapshot(account));
       if (generation !== this.generation || this.destroyed) return;
       const plans: VintedRelistingPlan[] = [];
       for (const { job, draft } of records) {

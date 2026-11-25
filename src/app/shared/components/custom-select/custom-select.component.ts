@@ -115,6 +115,7 @@ export class CustomSelectComponent<T = string> implements ControlValueAccessor {
   readonly triggerId = input<string>('');
   readonly actionLabel = input<string | null>(null);
   readonly required = input(false);
+  readonly requiredIndicator = input(false);
   readonly action = output<void>();
 
   readonly isOpen = signal<boolean>(false);

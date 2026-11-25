@@ -204,6 +204,37 @@ export class VintedListingJobService {
     if (new Set(plans.map((plan) => plan.job.id)).size !== plans.length) return invalid();
     return plans;
   }
+  async listWorkspaceRelistingPlans(
+    workspaceId: string,
+  ): Promise<readonly VintedRelistingPlanRecord[]> {
+    const result = listingResponse(
+      await this.client.rpc('marketplace_read_vinted_relisting_plans', {
+        p_workspace_id: workspaceId,
+      }),
+    );
+    if (
+      !result ||
+      typeof result !== 'object' ||
+      !('items' in result) ||
+      !Array.isArray(result.items)
+    )
+      return invalid();
+    const plans = result.items.map((value: unknown) => {
+      if (
+        !value ||
+        typeof value !== 'object' ||
+        !('job' in value) ||
+        !value.job ||
+        typeof value.job !== 'object' ||
+        !('connectionId' in value.job) ||
+        typeof value.job.connectionId !== 'string'
+      )
+        return invalid();
+      return parseVintedRelistingPlan(value, workspaceId, value.job.connectionId);
+    });
+    if (new Set(plans.map((plan) => plan.job.id)).size !== plans.length) return invalid();
+    return plans;
+  }
   async editPlan(job: VintedListingJob, editing: boolean): Promise<VintedListingJob> {
     return parseVintedListingJob(
       listingResponse(

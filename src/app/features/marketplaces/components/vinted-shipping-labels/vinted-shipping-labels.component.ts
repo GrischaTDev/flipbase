@@ -24,6 +24,8 @@ import {
   type VintedShippingLabel,
 } from '../../models/vinted-shipping-label';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
+import { vintedAccountLabels } from '../../models/vinted-account-labels';
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
 
 /** Gespeicherte Vinted-Versandscheine aus allen Konten des aktuellen Workspace. */
@@ -36,6 +38,7 @@ import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.s
 })
 export class VintedShippingLabelsComponent {
   readonly store = inject(MarketplaceAccountStore);
+  private readonly accountView = inject(VintedAccountViewService);
   readonly labels = inject(VintedShippingLabelStore);
   readonly search = signal('');
   private readonly workspace = inject(WorkspaceService);
@@ -53,22 +56,23 @@ export class VintedShippingLabelsComponent {
   });
   readonly openIcon = FileText;
   readonly downloadIcon = Download;
-  readonly accountNames = computed(
-    () =>
-      new Map(
-        this.store.connections().map((account) => [account.connectionId, account.displayName]),
-      ),
-  );
+  readonly accountNames = computed(() => vintedAccountLabels(this.store.connections()));
   readonly rows = computed(() => {
     const workspaceId = this.workspace.currentWorkspace()?.id;
     if (!this.store.canManage()) return [];
     const query = this.search().trim().toLocaleLowerCase('de');
     const accounts = this.accountNames();
+    const connectionId = this.accountView.showAllAccounts()
+      ? undefined
+      : this.store.selectedConnection()?.connectionId;
     return this.labels
       .labels()
       .filter(
         (label) =>
           label.workspaceId === workspaceId &&
+          (!connectionId ||
+            label.connectionId === connectionId ||
+            label.id === this.targetLabelId()) &&
           (!query ||
             label.title.toLocaleLowerCase('de').includes(query) ||
             label.transactionId.includes(query) ||

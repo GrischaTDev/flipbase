@@ -1,4 +1,6 @@
 import { SupabaseService } from '../../../core/services/supabase.service';
+import { VintedCategoryService } from '../../../core/services/vinted-category.service';
+import { buildVintedCategoryTree } from '../../../core/models/vinted-category-tree';
 import {
   parseVintedSellingTree,
   type VintedSellingTreeNode,
@@ -17,6 +19,7 @@ import { VintedCategoryFieldStore } from './vinted-category-field.store';
 @Injectable()
 export class VintedListingCategoryService {
   private readonly database = inject(SupabaseService);
+  private readonly catalog = inject(VintedCategoryService);
   private readonly auth = inject(AuthService);
   private readonly workspace = inject(WorkspaceService);
   private readonly store = inject(MarketplaceAccountStore);
@@ -93,6 +96,47 @@ export class VintedListingCategoryService {
       );
     return { categories: parseVintedSellingTree(data.categories), observedAt: data.observed_at };
   }
+
+  async readPublicationSnapshot(connectionId: string): Promise<{
+    categories: VintedSellingTreeNode[];
+    publishableCategoryIds: ReadonlySet<number>;
+    observedAt: string;
+  }> {
+    const binding = JSON.stringify(this.binding(connectionId));
+    const [sellingTree, catalog] = await Promise.all([
+      this.readSnapshot(connectionId),
+      this.catalog.readSnapshot(),
+    ]);
+    if (JSON.stringify(this.binding(connectionId)) !== binding)
+      throw new Error('Die Kontoverbindung wurde geändert.');
+    const catalogTree = buildVintedCategoryTree(catalog.categories);
+    return {
+      categories: sellingTree.categories,
+      observedAt: sellingTree.observedAt,
+      publishableCategoryIds: new Set(
+        sellingTree.categories
+          .filter(({ id, isLeaf }) => isLeaf && catalogTree.get(id)?.isLeaf)
+          .map(({ id }) => id),
+      ),
+    };
+  }
+
+  async refreshPublicationSnapshot(connectionId: string) {
+    const binding = this.binding(connectionId);
+    const token = this.auth.session()?.access_token;
+    if (!token) throw new Error('Melde Dich erneut an, um die Vinted-Auswahl zu laden.');
+    const previous = await this.readSnapshot(connectionId).catch(() => null);
+    if (JSON.stringify(this.binding(connectionId)) !== JSON.stringify(binding))
+      throw new Error('Die Kontoverbindung wurde geändert.');
+    await this.api.syncConnection({ workspaceId: binding.workspaceId, connectionId }, token);
+    if (JSON.stringify(this.binding(connectionId)) !== JSON.stringify(binding))
+      throw new Error('Die Kontoverbindung wurde geändert.');
+    const snapshot = await this.readPublicationSnapshot(connectionId);
+    if (snapshot.observedAt === previous?.observedAt)
+      throw new Error('Der Verkaufsbaum wurde bei Vinted nicht aktualisiert.');
+    return snapshot;
+  }
+
   source(
     connectionId: string,
     remember: (category: VintedSellingTreeNode) => void,
@@ -131,6 +175,7 @@ export class VintedListingCategoryService {
     if (
       !connection ||
       connection.workspaceId !== workspace.id ||
+      connection.marketplace !== 'vinted' ||
       connection.status !== 'connected' ||
       connection.executionMode !== 'cloud' ||
       typeof connection.externalAccountId !== 'string' ||

@@ -1,7 +1,7 @@
 <app-form-field
   [controlId]="resolvedTriggerId()"
   [label]="label()"
-  [required]="required()"
+  [required]="required() || requiredIndicator()"
   [helpText]="helpText()"
   [error]="error()"
 >
@@ -29,7 +29,7 @@
           [attr.aria-expanded]="isOpen()"
           [attr.aria-controls]="isOpen() ? listboxId() : null"
           [attr.aria-activedescendant]="activeDescendantId()"
-          [attr.aria-required]="required()"
+          [attr.aria-required]="required() || requiredIndicator()"
           [placeholder]="placeholder()"
           [value]="isOpen() ? query() : (selectedOption()?.label ?? '')"
           (focus)="onSearchFocus()"
@@ -69,7 +69,7 @@
         [attr.aria-controls]="isOpen() ? listboxId() : null"
         [attr.aria-activedescendant]="activeDescendantId()"
         [attr.aria-disabled]="effectiveDisabled()"
-        [attr.aria-required]="required()"
+        [attr.aria-required]="required() || requiredIndicator()"
         [class]="triggerClasses()"
       >
         @if (selectedOption()?.badgeClass) {

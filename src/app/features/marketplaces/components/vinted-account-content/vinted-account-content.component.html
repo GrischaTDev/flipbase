@@ -1,4 +1,4 @@
-@if (store.snapshot()) {
+@if (store.snapshot() || accountList.showAllAccounts()) {
   @switch (section()) {
     @case ('overview') {
       <app-vinted-overview />
@@ -16,6 +16,15 @@
       <app-vinted-sales />
     }
     @case ('activity') {
+      @if (accountList.error(); as error) {
+        <app-notice-banner announcement="alert" class="mb-4">
+          {{ error }}
+          <app-button (clicked)="accountList.refresh()">Erneut versuchen</app-button>
+        </app-notice-banner>
+      }
+      @if (accountList.loading() && !page()) {
+        <p role="status" class="text-sm text-fb-text-secondary">Aktivitäten werden geladen …</p>
+      }
       @if (page(); as entries) {
         @if (entries.items.length) {
           <app-data-table [hasRows]="true" [searchEnabled]="false" ariaLabel="Vinted-Aktivitäten"
@@ -28,12 +37,20 @@
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-fb-line">
-                  @for (entry of entries.items; track entry.id) {
+                  @for (entry of entries.items; track entryKey(entry)) {
                     <tr>
                       <td class="px-4 py-3">
                         <p class="break-words font-medium text-fb-text-primary">
                           {{ entry.title }}
                         </p>
+                        @if (accountList.showAllAccounts()) {
+                          <app-badge
+                            tone="neutral"
+                            class="mt-1 max-w-full [overflow-wrap:anywhere]"
+                          >
+                            {{ accountList.labels().get(entry.connectionId) }}
+                          </app-badge>
+                        }
                         @if (entry.text) {
                           <p class="mt-1 whitespace-pre-wrap break-words text-fb-text-secondary">
                             {{ entry.text }}
@@ -52,16 +69,17 @@
             </div></app-data-table
           >
         } @else {
-          <app-card
-            title="Noch keine gespeicherten Vinted-Aktivitäten"
-            subtitle="Für dieses Konto sind bisher keine Vinted-Aktivitäten gespeichert."
-          />
+          <app-card title="Noch keine gespeicherten Vinted-Aktivitäten" />
         }
         @if (entries.nextCursor) {
           <app-button
             class="mt-3"
-            [loading]="store.loadingPage() === 'activity'"
-            (clicked)="store.loadMore('activity')"
+            [loading]="
+              accountList.showAllAccounts()
+                ? accountList.loading()
+                : store.loadingPage() === 'activity'
+            "
+            (clicked)="loadMore()"
             >Weitere Aktivitäten laden</app-button
           >
         }

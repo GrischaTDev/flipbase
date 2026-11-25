@@ -1,4 +1,7 @@
 import { VintedProviderDraftsComponent } from '../vinted-provider-drafts/vinted-provider-drafts.component';
+import { VintedPhotoStatusComponent } from '../vinted-photo-status/vinted-photo-status.component';
+import { vintedAccountLabels } from '../../models/vinted-account-labels';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
 import { CurrencyPipe, DatePipe } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -56,6 +59,7 @@ import { VintedListingImageService } from '../../services/vinted-listing-image.s
   templateUrl: './vinted-listing-drafts.component.html',
   imports: [
     VintedProviderDraftsComponent,
+    VintedPhotoStatusComponent,
     CurrencyPipe,
     DatePipe,
     RouterLink,
@@ -74,6 +78,7 @@ import { VintedListingImageService } from '../../services/vinted-listing-image.s
 export class VintedListingDraftsComponent {
   readonly store = inject(MarketplaceAccountStore);
   private readonly auth = inject(AuthService);
+  private readonly accountView = inject(VintedAccountViewService);
   private readonly workspace = inject(WorkspaceService);
   private readonly api = inject(VintedListingDraftService);
   private readonly images = inject(VintedListingImageService);
@@ -96,9 +101,13 @@ export class VintedListingDraftsComponent {
       ? JSON.stringify([user.id, workspace.id])
       : null;
   });
+  private readonly draftConnectionId = computed(() =>
+    this.accountView.showAllAccounts() ? undefined : this.store.selectedConnection()?.connectionId,
+  );
+  private readonly accountLabels = computed(() => vintedAccountLabels(this.store.connections()));
   private readonly context = computed(() => {
     const scope = this.scope();
-    return scope ? JSON.stringify([scope, this.query()]) : null;
+    return scope ? JSON.stringify([scope, this.query(), this.draftConnectionId()]) : null;
   });
   private readonly loaded = signal<string | null>(null);
   private readonly rows = signal<readonly VintedListingDraftOverview[]>([]);
@@ -181,8 +190,7 @@ export class VintedListingDraftsComponent {
   accountName(id: string | null): string {
     return id === null
       ? 'Noch kein Konto'
-      : (this.store.connections().find((account) => account.connectionId === id)?.displayName ??
-          'Konto nicht verfügbar');
+      : (this.accountLabels().get(id) ?? 'Konto nicht verfügbar');
   }
   async deleteDraft(draft: VintedListingDraft, event?: MouseEvent): Promise<void> {
     const context = this.context(),
@@ -263,7 +271,12 @@ export class VintedListingDraftsComponent {
     this.loadingMore.set(true);
     this.moreError.set(null);
     try {
-      const page = await this.api.list(workspace.id, this.query(), cursor);
+      const page = await this.api.list(
+        workspace.id,
+        this.query(),
+        cursor,
+        this.draftConnectionId(),
+      );
       if (!this.current(generation, context)) return;
       this.rows.update((rows) => [
         ...new Map(
@@ -297,7 +310,12 @@ export class VintedListingDraftsComponent {
       return;
     }
     try {
-      const page = await this.api.list(workspace.id, this.query());
+      const page = await this.api.list(
+        workspace.id,
+        this.query(),
+        undefined,
+        this.draftConnectionId(),
+      );
       if (!this.current(generation, context)) return;
       const fresh = new Map(page.items.map((row) => [row.id, row]));
       const oldest = page.items.at(-1)?.createdAt ?? '';
@@ -378,7 +396,12 @@ export class VintedListingDraftsComponent {
     }
     this.fetching.set(true);
     try {
-      const page = await this.api.list(workspace.id, this.query());
+      const page = await this.api.list(
+        workspace.id,
+        this.query(),
+        undefined,
+        this.draftConnectionId(),
+      );
       if (this.current(generation, context)) {
         this.rows.set(page.items.filter((row) => !this.deletedIds.has(row.id)));
         this.cursor.set(page.nextCursor);

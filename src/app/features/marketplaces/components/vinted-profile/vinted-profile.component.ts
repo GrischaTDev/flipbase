@@ -12,6 +12,8 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedFeedbackListComponent } from '../vinted-feedback-list/vinted-feedback-list.component';
 import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-profile-editor.component';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
+import { VintedAccountSummariesComponent } from '../vinted-account-summaries/vinted-account-summaries.component';
 
 @Component({
   selector: 'app-vinted-profile',
@@ -20,6 +22,7 @@ import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-pr
     ProductThumbnailComponent,
     VintedFeedbackListComponent,
     VintedProfileEditorComponent,
+    VintedAccountSummariesComponent,
   ],
   templateUrl: './vinted-profile.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,7 +30,11 @@ import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-pr
 })
 export class VintedProfileComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly accountView = inject(VintedAccountViewService);
   private readonly route = inject(ActivatedRoute);
+  private readonly query = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
   private readonly fragment = toSignal(this.route.fragment, {
     initialValue: this.route.snapshot.fragment,
   });
@@ -37,12 +44,17 @@ export class VintedProfileComponent {
   constructor() {
     afterRenderEffect(() => {
       this.store.snapshot();
+      const allAccounts = this.accountView.showAllAccounts();
+      const targetId = this.query()?.get('connectionId');
+      const id = allAccounts && targetId ? 'reviews-' + targetId : 'reviews';
       const reviews =
         this.fragment() === 'reviews'
-          ? this.host.nativeElement.querySelector<HTMLElement>('#reviews')
+          ? [...this.host.nativeElement.querySelectorAll<HTMLElement>('[id]')].find(
+              (node) => node.id === id,
+            )
           : null;
       if (reviews && reviews !== this.focusedReviewsSection) reviews.focus();
-      this.focusedReviewsSection = reviews;
+      this.focusedReviewsSection = reviews ?? null;
     });
   }
 }

@@ -541,13 +541,19 @@ begin
     or (p_job.state='outcome_unknown' and (p_job.provider_result->>'externalId' is distinct from p_job.external_id
       or p_job.provider_result->>'externalAccountId' is distinct from p_job.external_account_id))
     or p_job.action<>'publish' or p_job.execution_mode<>'cloud'
-    or (not (p_job.snapshot ? 'relistExternalId') and (p_job.state<>'outcome_unknown' or coalesce(p_job.error_code,'') not in (
+    or (not (p_job.snapshot ? 'relistExternalId') and p_job.state='outcome_unknown' and coalesce(p_job.error_code,'') not in (
       'provider_unconfirmed_save_navigation','provider_unconfirmed_saved_navigation','provider_unconfirmed_saved_form',
-      'provider_unconfirmed_active_navigation','provider_unconfirmed_active_filter','provider_unconfirmed_active_loading','provider_unconfirmed_active_evidence')))
+      'provider_unconfirmed_active_navigation','provider_unconfirmed_active_filter','provider_unconfirmed_active_loading','provider_unconfirmed_active_evidence'))
     or ((p_job.snapshot ? 'relistExternalId') and (not public.marketplace_relisting_job_is_latest(p_job) or p_job.relist_imported_at is not null))
     or not public.marketplace_workspace_authorization_valid(p_job.workspace_id,p_job.requested_by)
     or not exists(select 1 from public.marketplace_connections where id=p_job.connection_id and workspace_id=p_job.workspace_id
       and external_account_id=p_job.external_account_id and execution_mode='cloud' and status='connected') then return; end if;
+  if p_job.state='confirmed' and not (p_job.snapshot ? 'relistExternalId')
+    and exists(select 1 from public.marketplace_account_entries entry
+      where entry.workspace_id=p_job.workspace_id and entry.connection_id=p_job.connection_id
+        and entry.kind='publication' and entry.external_id=p_job.external_id
+        and entry.observed_at>=p_job.started_at
+        and entry.body->>'publicationState' in ('active','reserved','hidden','ended')) then return; end if;
   if exists(select 1 from public.marketplace_operations where workspace_id=p_job.workspace_id and connection_id=p_job.connection_id
     and created_at>=p_job.finished_at and (state in ('queued','running') or finished_at>clock_timestamp()-interval '1 minute')) then return; end if;
   insert into public.marketplace_operations(workspace_id,connection_id,requested_by,authorization_kind,authorization_version,created_at)
@@ -557,6 +563,39 @@ end;
 $$;
 revoke all on function public.marketplace_request_relisting_import(public.marketplace_listing_jobs) from public,anon,authenticated;
 grant execute on function public.marketplace_request_relisting_import(public.marketplace_listing_jobs) to service_role;
+
+-- Falls der vorhandene Kontoabruf schon vor der Veröffentlichung lief, folgt nach
+-- seinem Abschluss ein Leseauftrag für inzwischen bestätigte, noch fehlende Artikel.
+create or replace function public.marketplace_import_new_publication_after_sync()
+returns trigger language plpgsql volatile security invoker set search_path='' as $$
+declare v_job public.marketplace_listing_jobs;
+begin
+  if new.state='failed' and (
+    coalesce(new.error_code,'') not in ('publications','conversations','messages','sales','persist','transaction','parse','interrupted')
+    or exists(select 1 from jsonb_each(coalesce(new.source_results,'{}')) source
+      where source.value->>'failure' in ('unauthorized','forbidden','rate_limited','challenge'))
+  ) then return new; end if;
+  for v_job in select job.* from public.marketplace_listing_jobs job
+    where job.workspace_id=new.workspace_id and job.connection_id=new.connection_id
+      and job.state='confirmed' and job.action='publish' and job.execution_mode='cloud'
+      and job.external_id is not null and job.finished_at>coalesce(new.started_at,new.created_at)
+      and not (job.snapshot ? 'relistExternalId')
+    order by job.finished_at desc
+  loop
+    perform public.marketplace_request_relisting_import(v_job);
+    if exists(select 1 from public.marketplace_operations operation
+      where operation.workspace_id=v_job.workspace_id and operation.connection_id=v_job.connection_id
+        and operation.state in ('queued','running')) then exit; end if;
+  end loop;
+  return new;
+end;
+$$;
+revoke all on function public.marketplace_import_new_publication_after_sync() from public,anon,authenticated;
+grant execute on function public.marketplace_import_new_publication_after_sync() to service_role;
+create trigger marketplace_import_new_publication_after_sync
+  after update of state on public.marketplace_operations
+  for each row when (old.state='running' and new.state in ('succeeded','failed'))
+  execute function public.marketplace_import_new_publication_after_sync();
 
 create or replace function public.marketplace_read_relisting_plans(p_workspace_id uuid,p_connection_id uuid)
 returns jsonb language plpgsql volatile security definer set search_path='' as $$

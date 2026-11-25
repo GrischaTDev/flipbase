@@ -152,6 +152,12 @@ export class MarketplaceAccountStore {
     this.current() && this.canManage() ? this.messagePage() : null,
   );
   readonly selectedConversationId = computed(() => (this.current() ? this.conversationId() : null));
+  private readonly addressedConversation = signal<MarketplaceEntry | null>(null);
+  private addressedConversationRevision = 0;
+  readonly selectedConversationEntry = computed(() => {
+    const id = this.selectedConversationId();
+    return id ? this.storedConversation(id) : null;
+  });
   readonly loading = computed(
     () => this.contextKey() !== null && (!this.current() || this.fetching()),
   );
@@ -168,6 +174,20 @@ export class MarketplaceAccountStore {
       ? JSON.stringify([this.contextKey(), connection.workspaceId, connection.connectionId])
       : null;
   });
+  private readonly combinedImportObservers = signal(0);
+  private readonly combinedImportConnectionIds = computed(() =>
+    this.combinedImportObservers() && this.canManage()
+      ? JSON.stringify(
+          this.connections()
+            .filter((account) => account.connectionId !== this.selectedConnection()?.connectionId)
+            .map((account) => [
+              account.workspaceId,
+              account.connectionId,
+              account.externalAccountId,
+            ]),
+        )
+      : null,
+  );
 
   constructor() {
     effect(() => {
@@ -205,6 +225,38 @@ export class MarketplaceAccountStore {
         }
       });
     });
+    effect((onCleanup) => {
+      const key = this.combinedImportConnectionIds();
+      if (!key) return;
+      const connections = untracked(() => this.connections());
+      const selectedId = untracked(() => this.selectedConnection()?.connectionId);
+      for (const connection of connections) {
+        if (connection.connectionId === selectedId) continue;
+        try {
+          const remove = this.api.listenAccountImports(
+            this.scope(connection),
+            (lastSyncedAt) => {
+              if (this.combinedImportConnectionIds() !== key) return;
+              this.accountList.update((accounts) =>
+                accounts.map((account) =>
+                  account.workspaceId === connection.workspaceId &&
+                  account.connectionId === connection.connectionId &&
+                  account.externalAccountId === connection.externalAccountId &&
+                  (!account.lastSyncedAt ||
+                    Date.parse(lastSyncedAt) > Date.parse(account.lastSyncedAt))
+                    ? { ...account, lastSyncedAt }
+                    : account,
+                ),
+              );
+            },
+            () => void this.checkLatestImport(),
+          );
+          onCleanup(remove);
+        } catch {
+          // Die vorhandene Kontrollabfrage hält den gespeicherten Stand auch ohne Livekanal aktuell.
+        }
+      }
+    });
     effect(() => {
       const token = this.auth.session()?.access_token;
       if (token && this.canManage()) this.api.authenticateImports?.(token);
@@ -241,6 +293,11 @@ export class MarketplaceAccountStore {
       this.pendingImport.set(null);
       this.reset();
     });
+  }
+
+  observeCombinedImports(): () => void {
+    this.combinedImportObservers.update((value) => value + 1);
+    return () => this.combinedImportObservers.update((value) => value - 1);
   }
 
   private readSavedConnection(context: string): string | null {
@@ -328,6 +385,8 @@ export class MarketplaceAccountStore {
     if (!connection || !key || !this.canManage()) return;
     this.clearDescriptions();
     this.conversationPages.clear();
+    this.addressedConversation.set(null);
+    this.addressedConversationRevision++;
     if (this.metricConnectionId !== connection.connectionId) {
       this.clearListingMetrics();
       this.metricConnectionId = connection.connectionId;
@@ -616,13 +675,15 @@ export class MarketplaceAccountStore {
       connection.status !== 'connected' ||
       !token ||
       !valid() ||
-      !this.snapshot()?.conversations.items.some((entry) => entry.id === id)
+      !this.storedConversation(id)
     )
       return { status: 'cancelled' };
     try {
       const observedAt = await this.browserApi.readConversation(this.scope(connection), id, token);
       if (!valid()) return { status: 'cancelled' };
       await this.checkLatestImport(true);
+      if (valid() && !this.snapshot()?.conversations.items.some((entry) => entry.id === id))
+        await this.readStoredConversation(id, true);
       if (!valid()) return { status: 'cancelled' };
       return { status: 'success', observedAt };
     } catch (error) {
@@ -646,7 +707,7 @@ export class MarketplaceAccountStore {
     const connection = this.selectedConnection();
     const key = this.contextKey();
     const selection = this.selectionRevision;
-    const entry = this.snapshot()?.conversations.items.find((item) => item.id === id);
+    const entry = this.storedConversation(id);
     const version = entry?.readVersion;
     const valid = () =>
       !!key &&
@@ -672,6 +733,9 @@ export class MarketplaceAccountStore {
         observedAt,
       );
       if (!marked || !valid()) return;
+      this.addressedConversation.update((item) =>
+        item?.id === id && item.readVersion === version ? { ...item, unread: false } : item,
+      );
       this.accountSnapshot.update((snapshot) =>
         snapshot
           ? {
@@ -692,6 +756,47 @@ export class MarketplaceAccountStore {
     }
   }
 
+  private storedConversation(id: string): MarketplaceEntry | null {
+    const account = this.selectedConnection();
+    const addressed = this.addressedConversation();
+    return (
+      this.snapshot()?.conversations.items.find((item) => item.id === id) ??
+      (addressed?.id === id &&
+      addressed.workspaceId === account?.workspaceId &&
+      addressed.connectionId === account.connectionId
+        ? addressed
+        : null)
+    );
+  }
+
+  async readStoredConversation(id: string, refresh = false): Promise<MarketplaceEntry | null> {
+    const account = this.selectedConnection();
+    const key = this.contextKey();
+    const selection = this.selectionRevision;
+    if (!account || !key || !this.canManage()) return null;
+    const known = this.storedConversation(id);
+    if (known && !refresh) return known;
+    const revision = ++this.addressedConversationRevision;
+    try {
+      const page = await this.api.readVintedList({
+        ...this.scope(account),
+        kind: 'conversation',
+        entryId: id,
+      });
+      if (
+        !this.isCurrent(key) ||
+        selection !== this.selectionRevision ||
+        revision !== this.addressedConversationRevision
+      )
+        return null;
+      const entry = page.items.find((item) => item.id === id) ?? null;
+      this.addressedConversation.set(entry);
+      return entry;
+    } catch {
+      return null;
+    }
+  }
+
   async openConversation(id: string): Promise<void> {
     const connection = this.selectedConnection();
     const key = this.contextKey();
@@ -700,7 +805,7 @@ export class MarketplaceAccountStore {
       !key ||
       !connection ||
       !this.canManage() ||
-      (!alreadySelected && !this.snapshot()?.conversations.items.some((item) => item.id === id))
+      (!alreadySelected && !this.storedConversation(id))
     )
       return;
     const revision = ++this.conversationRevision;
@@ -1070,10 +1175,20 @@ export class MarketplaceAccountStore {
       connection?.executionMode !== 'cloud' ||
       connection.connectionId !== connectionId ||
       connection.status !== 'connected' ||
-      !token ||
-      !this.accountSnapshot()?.publications.items.some((entry) => entry.id === entryId)
+      !token
     )
       throw new Error('Wähle zuerst das verbundene Vinted-Konto aus.');
+    if (!this.accountSnapshot()?.publications.items.some((entry) => entry.id === entryId)) {
+      const entry = await this.api.readPublication(this.scope(connection), entryId);
+      if (
+        !entry ||
+        entry.connectionId !== connectionId ||
+        entry.workspaceId !== connection.workspaceId ||
+        !this.isCurrent(key) ||
+        selection !== this.selectionRevision
+      )
+        throw new Error('Das Inserat ist in diesem Vinted-Konto nicht verfügbar.');
+    }
     await this.browserApi.deleteListing(this.scope(connection), entryId, token);
     this.rememberDeletion(connectionId, entryId);
     if (!this.isCurrent(key) || selection !== this.selectionRevision)
@@ -1513,6 +1628,8 @@ export class MarketplaceAccountStore {
     this.hasExplicitConnectionSelection.set(false);
     this.clearDescriptions();
     this.conversationPages.clear();
+    this.addressedConversation.set(null);
+    this.addressedConversationRevision++;
     this.clearListingMetrics();
     this.selectionEpoch.update((value) => value + 1);
     this.accountList.set([]);

@@ -19,6 +19,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { VintedBrandSearchService } from '../../../../core/services/vinted-brand-search.service';
 import { emptyVintedListingContent } from '../../models/vinted-listing-content';
+import { VintedListingCatalogError } from '../../models/vinted-listing-draft';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceBrowserTestApiService } from '../../services/marketplace-browser-test-api.service';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
@@ -225,6 +226,20 @@ describe('Vinted publication preview', () => {
     expect(f.api.approve).not.toHaveBeenCalled();
     f.fixture.destroy();
   });
+  it('gibt einen bestätigten Katalogfehler im Direktmodus zur Korrektur zurück', async () => {
+    const f = setup(true);
+    const correction = vi.fn();
+    const message = 'Wähle im Entwurf eine aktuelle Vinted-Kategorie.';
+    f.component.correctionRequired.subscribe(correction);
+    f.api.enqueue.mockRejectedValueOnce(new VintedListingCatalogError(message));
+    f.fixture.componentRef.setInput('direct', true);
+    await settle(f);
+    expect(correction).toHaveBeenCalledWith([{ field: 'category', message }]);
+    expect(f.component.intentLocked()).toBe(false);
+    expect(f.api.enqueue).toHaveBeenCalledTimes(1);
+    expect(f.accepted).not.toHaveBeenCalled();
+    f.fixture.destroy();
+  });
   it('ignoriert eine verspätete Kontoprüfung nach dem Schließen', async () => {
     const f = setup();
     let resolve!: (value: {
@@ -322,6 +337,8 @@ describe('Vinted publication preview', () => {
     reject(new Error('Antwort verloren'));
     await sending;
     expect(f.component.intentLocked()).toBe(true);
+    f.component.close();
+    expect(f.closed).not.toHaveBeenCalled();
     f.component.selectSchedule({
       scheduledAt: '2099-10-25T01:30:00.000Z',
       timeZone: 'Europe/Berlin',

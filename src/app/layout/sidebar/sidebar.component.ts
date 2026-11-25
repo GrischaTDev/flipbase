@@ -75,7 +75,7 @@ import { marketplacePlatformAppearance } from '../../shared/models/marketplace-p
 import {
   isVintedWorkspaceRoute,
   isVintedNavigationActive,
-  VINTED_ACCOUNTS_NAVIGATION,
+  VINTED_WORKSPACE_MAIN_LINKS,
   VINTED_WORKSPACE_NAVIGATION_GROUPS,
 } from '../../core/config/vinted-workspace-navigation';
 import {
@@ -165,7 +165,7 @@ export class SidebarComponent {
   readonly adminNavigation = PLATFORM_ADMIN_SIDEBAR_NAVIGATION;
   readonly kleinanzeigenNavigation = KLEINANZEIGEN_WORKSPACE_NAVIGATION;
   readonly ebayNavigation = EBAY_WORKSPACE_NAVIGATION;
-  readonly vintedAccountsItem = VINTED_ACCOUNTS_NAVIGATION;
+  readonly vintedMainLinks = VINTED_WORKSPACE_MAIN_LINKS;
   readonly vintedNavigationGroups = VINTED_WORKSPACE_NAVIGATION_GROUPS;
   readonly pwaService = inject(PwaService);
 

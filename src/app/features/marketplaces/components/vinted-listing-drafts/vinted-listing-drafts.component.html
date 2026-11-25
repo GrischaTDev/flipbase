@@ -119,21 +119,26 @@
                       <div class="relative overflow-hidden">
                         <app-product-thumbnail
                           class="block w-full"
+                          [class.opacity-60]="status?.busy"
                           [src]="thumbnails().get(draft.id) ?? null"
                           alt=""
                           size="listing"
                           [flush]="true"
                         />
-                        <app-badge
-                          class="absolute bottom-2 left-2"
-                          [tone]="status?.tone ?? 'neutral'"
-                          [attr.data-draft-publication]="status ? draft.publication?.state : null"
-                        >
-                          @if (status?.busy) {
-                            <app-loading-indicator class="mr-1" />
-                          }
-                          {{ status?.label ?? 'Entwurf' }}
-                        </app-badge>
+                        @if (status?.busy) {
+                          <app-vinted-photo-status
+                            [label]="status.label"
+                            [busy]="true"
+                            [attr.data-draft-publication]="draft.publication?.state"
+                          />
+                        } @else {
+                          <app-badge
+                            class="absolute bottom-2 left-2"
+                            [tone]="status?.tone ?? 'neutral'"
+                            [attr.data-draft-publication]="status ? draft.publication?.state : null"
+                            >{{ status?.label ?? 'Entwurf' }}</app-badge
+                          >
+                        }
                       </div>
                       <div class="p-3">
                         <h2

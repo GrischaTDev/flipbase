@@ -44,6 +44,9 @@ import type {
   MarketplaceEntry,
 } from '../../models/marketplace-read.models';
 import type { AccountScope } from '../../models/marketplace.models';
+import { vintedAccountEntryKey } from '../../models/vinted-account-list';
+import { createVintedAccountList } from '../../services/vinted-addressed-list';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import {
   MarketplaceApiService,
@@ -163,6 +166,7 @@ interface ConversationItemLookup {
     VintedOfferActionsComponent,
     VintedChatPendingBubbleComponent,
     VintedShippingLabelActionsComponent,
+    NoticeBannerComponent,
   ],
   providers: [VintedActionOverviewStore],
   templateUrl: './vinted-messages.component.html',
@@ -183,13 +187,33 @@ export class VintedMessagesComponent {
   readonly search = signal('');
   readonly conversationFilter = signal<ConversationFilter | null>('all');
   readonly conversationSort = signal<'latest' | 'oldest' | null>('latest');
+  private readonly accountSearch = signal('');
+  readonly accountList = createVintedAccountList(() => ({
+    kind: 'conversation',
+    query: this.accountSearch(),
+    filter: this.conversationFilter() ?? 'all',
+    oldestFirst: this.conversationSort() === 'oldest',
+  }));
+  readonly entryKey = vintedAccountEntryKey;
+  private readonly pinnedConversation = signal<MarketplaceEntry | null>(null);
+  readonly conversationPage = computed(() =>
+    this.accountList.showAllAccounts()
+      ? this.accountList.page()
+      : this.store.snapshot()?.conversations,
+  );
   readonly filterOptions = computed<readonly SelectOption<ConversationFilter>[]>(() =>
     conversationFilters.map((option) => ({
       ...option,
       label:
         option.value === 'all'
           ? option.label
-          : `${option.label} (${(this.store.snapshot()?.conversations.items ?? []).filter((entry) => this.matchesFilter(entry, option.value)).length})`,
+          : `${option.label} (${
+              this.accountList.showAllAccounts()
+                ? (this.accountList.page()?.filterCounts[option.value] ?? 0)
+                : (this.store.snapshot()?.conversations.items ?? []).filter((entry) =>
+                    this.matchesFilter(entry, option.value),
+                  ).length
+            })`,
     })),
   );
   readonly sortOptions: readonly SelectOption<'latest' | 'oldest'>[] = [
@@ -197,6 +221,15 @@ export class VintedMessagesComponent {
     { value: 'oldest', label: 'Älteste zuerst' },
   ];
   readonly visibleConversations = computed(() => {
+    if (this.accountList.showAllAccounts()) {
+      const items = this.accountList.page()?.items ?? [];
+      const focused = this.pinnedConversation();
+      return focused &&
+        this.accountList.labels().has(focused.connectionId) &&
+        items.every((entry) => this.entryKey(entry) !== this.entryKey(focused))
+        ? [focused, ...items]
+        : items;
+    }
     const search = this.search().trim().toLocaleLowerCase('de');
     const filter = this.conversationFilter();
     return [...(this.store.snapshot()?.conversations.items ?? [])]
@@ -331,9 +364,7 @@ export class VintedMessagesComponent {
   });
   readonly conversation = computed(() => {
     if (!this.conversationKey()) return null;
-    const current = this.store
-      .snapshot()
-      ?.conversations.items.find((entry) => entry.id === this.store.selectedConversationId());
+    const current = this.store.selectedConversationEntry();
     const saved = this.savedConversation();
     if (current)
       return preserveConversationMetadata(
@@ -496,6 +527,15 @@ export class VintedMessagesComponent {
 
   constructor() {
     effect((onCleanup) => {
+      const query = this.search().trim().slice(0, 160);
+      if (!this.accountList.showAllAccounts()) return;
+      this.conversationFilter();
+      this.conversationSort();
+      this.pinnedConversation.set(null);
+      const handle = setTimeout(() => this.accountSearch.set(query), 220);
+      onCleanup(() => clearTimeout(handle));
+    });
+    effect((onCleanup) => {
       const lookup = this.conversationItemLookup();
       if (!lookup) {
         this.resolvedConversationItem.set(null);
@@ -594,9 +634,7 @@ export class VintedMessagesComponent {
     });
     effect(() => {
       const key = this.conversationKey();
-      const entry = this.store
-        .snapshot()
-        ?.conversations.items.find((item) => item.id === this.store.selectedConversationId());
+      const entry = this.store.selectedConversationEntry();
       untracked(() => {
         if (!key) this.savedConversation.set(null);
         else if (entry) {
@@ -626,6 +664,7 @@ export class VintedMessagesComponent {
         this.handledQuery = null;
         this.selectingQuery = null;
         this.notice.set(null);
+        this.pinnedConversation.set(null);
       }
       if (!accountId || !conversationId || signature === this.handledQuery || loading) return;
       if (!canManage) return;
@@ -638,23 +677,36 @@ export class VintedMessagesComponent {
       if (selected?.connectionId !== accountId) {
         if (this.selectingQuery !== signature) {
           this.selectingQuery = signature;
-          untracked(() => void this.store.selectConnection(accountId));
+          untracked(
+            () => void this.store.selectConnection(accountId, !this.accountList.showAllAccounts()),
+          );
         }
         return;
       }
-      if (
-        !snapshot ||
-        snapshot.connectionId !== accountId ||
-        snapshot.workspaceId !== account.workspaceId
-      )
-        return;
       this.handledQuery = signature;
-      const entry = snapshot.conversations.items.find((item) => item.id === conversationId);
-      if (entry) {
-        // Ein Direktlink (z. B. aus einer Benachrichtigung) zeigt die gewählte Zeile auch links.
-        this.revealListRow = entry.id;
-        untracked(() => void this.openConversation(entry));
-      } else this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
+      const context = this.context();
+      const revision = this.openRevision;
+      const entry = snapshot?.conversations.items.find((item) => item.id === conversationId);
+      untracked(() => {
+        const resolve = entry
+          ? Promise.resolve(entry)
+          : this.store.readStoredConversation(conversationId);
+        void resolve.then((target) => {
+          if (
+            this.lastQuery !== signature ||
+            this.context() !== context ||
+            this.openRevision !== revision
+          )
+            return;
+          if (!target) {
+            this.notice.set('Das verlinkte Gespräch ist für dieses Konto nicht verfügbar.');
+            return;
+          }
+          this.revealListRow = this.entryKey(target);
+          if (this.accountList.showAllAccounts()) this.pinnedConversation.set(target);
+          void this.openConversation(target, true, true);
+        });
+      });
     });
     afterEveryRender(() => {
       this.restoreReadingPosition();
@@ -666,18 +718,34 @@ export class VintedMessagesComponent {
     readProvider = true,
     shouldFocus = false,
   ): Promise<void> {
+    const revision = ++this.openRevision;
+    if (
+      this.accountList.showAllAccounts() &&
+      this.store.selectedConnection()?.connectionId !== entry.connectionId
+    ) {
+      await this.store.selectConnection(entry.connectionId, false);
+      if (revision !== this.openRevision) return;
+    }
     const account = this.store.selectedConnection();
     if (
       !this.store.canManage() ||
       entry.workspaceId !== account?.workspaceId ||
-      entry.connectionId !== account.connectionId ||
-      !this.store.snapshot()?.conversations.items.some((item) => item.id === entry.id)
+      entry.connectionId !== account.connectionId
     )
       return;
+    if (!this.store.snapshot()?.conversations.items.some((item) => item.id === entry.id)) {
+      const target = await this.store.readStoredConversation(entry.id);
+      if (
+        !target ||
+        revision !== this.openRevision ||
+        this.store.selectedConnection()?.connectionId !== entry.connectionId
+      )
+        return;
+      entry = target;
+    }
     this.notice.set(null);
     this.failedRequest.set(null);
     this.focusConversation = shouldFocus ? JSON.stringify([this.context(), entry.id]) : null;
-    const revision = ++this.openRevision;
     const context = this.context();
     const key = JSON.stringify([context, entry.id]);
     const previous = this.savedConversation();
@@ -707,6 +775,12 @@ export class VintedMessagesComponent {
             this.conversationRead.set({ key, error: result.error, observedAt: null });
           } else if (result.status === 'success') {
             const refreshError = this.store.error();
+            if (
+              account.executionMode === 'local' &&
+              !this.store.snapshot()?.conversations.items.some((item) => item.id === entry.id)
+            )
+              await this.store.readStoredConversation(entry.id, true);
+            if (!isCurrent()) return;
             await this.store.openConversation(entry.id);
             if (isCurrent() && !this.store.error())
               await this.store.markConversationRead(entry.id, result.observedAt, isCurrent);
@@ -716,6 +790,7 @@ export class VintedMessagesComponent {
                 error: this.store.error() ?? refreshError,
                 observedAt: result.observedAt,
               });
+            if (isCurrent()) void this.accountList.refresh();
           }
         });
         this.providerRead = read;
@@ -988,7 +1063,8 @@ export class VintedMessagesComponent {
   backToList(): void {
     this.openRevision++;
     this.openingConversation.set(null);
-    this.focusListRow = this.store.selectedConversationId();
+    const entry = this.conversation();
+    this.focusListRow = entry ? this.entryKey(entry) : null;
     this.focusConversation = null;
     this.store.clearConversation();
   }
@@ -1006,6 +1082,7 @@ export class VintedMessagesComponent {
   }
 
   async loadMoreConversations(): Promise<void> {
+    if (this.accountList.showAllAccounts()) return this.accountList.loadMore();
     const key = this.conversationKey();
     const context = this.context();
     this.failedRequest.set(null);
@@ -1287,12 +1364,10 @@ export class VintedMessagesComponent {
   }
 
   private restoreReadingPosition(): void {
-    if (this.revealListRow && this.revealListRow !== this.store.selectedConversationId()) {
-      this.revealListRow = null;
-    } else if (this.revealListRow) {
+    if (this.revealListRow) {
       const row = [
         ...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-conversation-row]'),
-      ].find((item) => item.dataset['conversationRow'] === this.revealListRow);
+      ].find((item) => item.dataset['conversationKey'] === this.revealListRow);
       if (row) {
         row.scrollIntoView?.({ block: 'nearest' });
         this.revealListRow = null;
@@ -1301,7 +1376,7 @@ export class VintedMessagesComponent {
     if (this.focusListRow && !this.store.selectedConversationId()) {
       const row = [
         ...this.host.nativeElement.querySelectorAll<HTMLElement>('[data-conversation-row]'),
-      ].find((item) => item.dataset['conversationRow'] === this.focusListRow);
+      ].find((item) => item.dataset['conversationKey'] === this.focusListRow);
       (row?.querySelector<HTMLElement>('button') ?? this.listHeading()?.nativeElement)?.focus({
         preventScroll: true,
       });

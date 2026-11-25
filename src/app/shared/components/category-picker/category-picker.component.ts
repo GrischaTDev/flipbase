@@ -79,6 +79,9 @@ export class CategoryPickerComponent implements ControlValueAccessor {
 
   readonly label = input('Kategorie');
   readonly labelHidden = input(false);
+  readonly requiredIndicator = input(false);
+  readonly error = input<string | null>(null);
+  readonly unavailableLabel = input('');
   readonly placeholder = input('Kategorie wählen');
   readonly suggestion = input<string | null>(null);
   readonly helpText = input('');

@@ -1,0 +1,23 @@
+<app-card title="Benachrichtigungen" variant="section" [overflowVisible]="true">
+  @if (accountOptions().length) {
+    <div class="space-y-5">
+      <div class="max-w-sm">
+        <app-custom-select
+          label="Vinted-Konto"
+          ariaLabel="Vinted-Konto für Benachrichtigungen"
+          [options]="accountOptions()"
+          [value]="account()?.connectionId ?? null"
+          (valueChange)="selectAccount($event)"
+        />
+      </div>
+      @if (account(); as selected) {
+        <div class="space-y-4 border-t border-fb-border-subtle pt-4">
+          <app-vinted-favorite-settings [account]="selected" />
+          <app-vinted-message-settings [account]="selected" />
+        </div>
+      }
+    </div>
+  } @else if (!loading()) {
+    <app-button link="/marketplaces/vinted/accounts">Zu den Vinted-Konten</app-button>
+  }
+</app-card>

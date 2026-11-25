@@ -6,11 +6,15 @@ import type { VintedCategoryNode } from '../../../core/models/vinted-category-tr
 /** Oberkategorien bleiben zur Navigation und für alte Entwürfe sichtbar; veröffentlicht werden konkrete Artikelkategorien. */
 export function vintedListingCategorySource(
   rows: readonly VintedCategoryNode[],
+  publishableCategoryIds?: ReadonlySet<number>,
 ): CategoryPickerSource {
   const source = vintedCategorySource(rows);
   const forListing = (category: ProductCategory): ProductCategory => ({
     ...category,
-    isSelectable: category.isSelectable !== false && category.isLeaf,
+    isSelectable:
+      category.isSelectable !== false &&
+      category.isLeaf &&
+      (!publishableCategoryIds || publishableCategoryIds.has(Number(category.id))),
   });
   return {
     async getById(id) {
@@ -24,7 +28,7 @@ export function vintedListingCategorySource(
       const result = await source.search(term);
       return {
         ...result,
-        categories: result.categories.filter((category) => category.isLeaf).map(forListing),
+        categories: result.categories.map(forListing).filter((category) => category.isSelectable),
       };
     },
   };

@@ -58,6 +58,7 @@ import {
 } from '../../models/vinted-listing-edit-form';
 import { storedVintedListingEdit } from '../../models/vinted-stored-listing-edit';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
 import { VintedListingMetricsComponent } from '../vinted-listings/vinted-listing-metrics.component';
 import { createVintedListingMetricDisplay } from '../vinted-listings/vinted-listing-metric-display';
 import { vintedPublicationBadge } from '../../models/vinted-publication-state';
@@ -105,6 +106,7 @@ import {
 export class VintedListingDetailComponent {
   readonly publicationBadge = vintedPublicationBadge;
   readonly store = inject(MarketplaceAccountStore);
+  private readonly accountView = inject(VintedAccountViewService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly operations = inject(VintedListingOperationStore);
@@ -413,7 +415,8 @@ export class VintedListingDetailComponent {
         }
         if (selected?.connectionId !== connectionId) {
           if (loading) return;
-          if (!this.selected) void this.store.selectConnection(connectionId);
+          if (!this.selected)
+            void this.store.selectConnection(connectionId, !this.accountView.showAllAccounts());
           else void this.router.navigate(['/marketplaces/vinted/listings']);
           return;
         }

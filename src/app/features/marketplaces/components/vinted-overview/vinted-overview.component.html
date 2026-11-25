@@ -1,4 +1,58 @@
-@if (store.snapshot(); as snapshot) {
+@if (inbox.showAllAccounts()) {
+  <div class="space-y-4">
+    <app-vinted-account-summaries />
+    <div class="grid gap-4 lg:grid-cols-2">
+      <app-card title="Letzte Gespräche">
+        <ul class="space-y-2">
+          @for (entry of combinedConversations(); track entryKey(entry)) {
+            <li class="min-w-0">
+              <a
+                class="block rounded-md py-1 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                routerLink="/marketplaces/vinted/messages"
+                [queryParams]="{ connectionId: entry.connectionId, conversationId: entry.id }"
+              >
+                <span class="block break-words text-sm font-medium">{{ entry.title }}</span>
+                <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                  {{ inbox.labels().get(entry.connectionId) }}
+                </app-badge>
+              </a>
+            </li>
+          }
+        </ul>
+        @if (inbox.error(); as error) {
+          <p role="alert" class="text-sm">{{ error }}</p>
+          <app-button (clicked)="inbox.refresh()">Erneut versuchen</app-button>
+        } @else if (inbox.loading()) {
+          <p role="status" class="text-sm">Gespräche werden geladen …</p>
+        }
+      </app-card>
+      <app-card title="Letzte Verkäufe">
+        <ul class="space-y-2">
+          @for (entry of combinedSales(); track entryKey(entry)) {
+            <li class="min-w-0">
+              <a
+                class="block rounded-md py-1 focus-visible:outline-2 focus-visible:outline-fb-primary"
+                routerLink="/marketplaces/vinted/sales"
+                [queryParams]="{ connectionId: entry.connectionId, saleId: entry.id }"
+              >
+                <span class="block break-words text-sm font-medium">{{ entry.title }}</span>
+                <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                  {{ salesList.labels().get(entry.connectionId) }}
+                </app-badge>
+              </a>
+            </li>
+          }
+        </ul>
+        @if (salesList.error(); as error) {
+          <p role="alert" class="text-sm">{{ error }}</p>
+          <app-button (clicked)="salesList.refresh()">Erneut versuchen</app-button>
+        } @else if (salesList.loading()) {
+          <p role="status" class="text-sm">Verkäufe werden geladen …</p>
+        }
+      </app-card>
+    </div>
+  </div>
+} @else if (store.snapshot(); as snapshot) {
   <div class="space-y-4">
     @if (snapshot.profile; as profile) {
       <app-card padding="md" rounded="xl">
