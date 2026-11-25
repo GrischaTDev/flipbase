@@ -1315,20 +1315,30 @@ export class VintedListingEditorComponent {
     this.planningPublication.set(false);
     this.publicationAttempted.set(true);
     this.publicationCorrections.set(null);
+    const accountIssue = this.accountIssue();
+    const contentError = this.contentError();
+    const fieldErrors = this.fieldErrors();
     if (
       !this.canSelectFields() ||
-      this.accountIssue() ||
-      this.contentError() ||
-      Object.keys(this.fieldErrors()).length
+      accountIssue ||
+      contentError ||
+      Object.keys(fieldErrors).length
     ) {
       if (this.relisting()) {
-        const hiddenIssue = Object.entries(this.fieldErrors()).find(
+        const hiddenIssue = Object.entries(fieldErrors).find(
           ([field]) => !['title', 'description'].includes(field),
         )?.[1];
-        this.error.set(this.accountIssue() ?? this.contentError() ?? hiddenIssue ?? null);
+        this.error.set(accountIssue ?? contentError ?? hiddenIssue ?? null);
       }
-      const categoryError = this.fieldErrors()['category'];
-      if (!this.relisting() && this.currentCategoryId() !== null && categoryError) {
+      const categoryError = fieldErrors['category'];
+      if (
+        !this.relisting() &&
+        this.currentCategoryId() !== null &&
+        categoryError &&
+        !accountIssue &&
+        !contentError &&
+        !fieldErrors['photos']
+      ) {
         this.correctPublication([{ field: 'category', message: categoryError }]);
       } else {
         this.focusFirstIssue();

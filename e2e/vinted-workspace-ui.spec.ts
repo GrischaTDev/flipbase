@@ -1070,21 +1070,16 @@ for (const [width, theme, hasTouch] of [
       await expect(openQr).toBeVisible();
       await expect(target.getByRole('button', { name: 'QR-Code herunterladen' })).toBeAttached();
       const other = page.getByRole('row', { name: /Andere Bestellung/ });
-      await expect(other).not.toHaveAttribute('aria-current', 'true');
-      const openPdf = other.getByRole('button', { name: 'Druck-PDF öffnen' });
-      await expect(openPdf).toBeVisible();
-      const buttonWidth = (button: HTMLElement) => button.getBoundingClientRect().width;
-      expect(await openQr.evaluate(buttonWidth)).toBe(await openPdf.evaluate(buttonWidth));
+      const accountView = page.getByRole('combobox', { name: 'Vinted-Konto auswählen' });
+      await expect(accountView).toHaveText('Testkonto A');
+      await expect(other).toHaveCount(0);
       await expect(target).toContainText('Testkonto A');
-      await expect(other).toContainText('Testkonto B');
       const thumbnail = target.locator('img');
       await expect(thumbnail).toHaveAttribute('src', photo);
       await expect(thumbnail).toHaveCSS('object-fit', 'cover');
       await expect
         .poll(() => thumbnail.evaluate((image) => (image as HTMLImageElement).naturalWidth))
         .toBe(24);
-      await expect(other.locator('[data-product-placeholder]')).toBeVisible();
-      await expect(page.getByRole('combobox', { name: 'Vinted-Konto auswählen' })).toHaveCount(0);
       const markedColor = () => target.evaluate((row) => getComputedStyle(row).backgroundColor);
       const brandColor = /^rgba?\(252, 198, 1, /;
       await expect.poll(markedColor).toMatch(brandColor);
@@ -1094,6 +1089,19 @@ for (const [width, theme, hasTouch] of [
       await expect(target).not.toHaveAttribute('aria-current', 'true');
       await expect.poll(markedColor).not.toMatch(brandColor);
       await expect(target).toBeFocused();
+
+      await accountView.click();
+      await page.getByRole('option', { name: 'Alle Konten', exact: true }).click();
+      await expect(other).toContainText('Testkonto B');
+      await expect(other).not.toHaveAttribute('aria-current', 'true');
+      await expect(other.locator('[data-product-placeholder]')).toBeVisible();
+      const openPdf = other.getByRole('button', { name: 'Druck-PDF öffnen' });
+      await expect(openPdf).toBeVisible();
+      const buttonWidth = (button: HTMLElement) => button.getBoundingClientRect().width;
+      expect(await openQr.evaluate(buttonWidth)).toBe(await openPdf.evaluate(buttonWidth));
+      await accountView.click();
+      await page.getByRole('option', { name: 'Testkonto A', exact: true }).click();
+      await expect(other).toHaveCount(0);
 
       await openVintedSection(page, 'Verkäufe', width);
       if (hasTouch) await page.setViewportSize({ width: 320, height: 900 });
