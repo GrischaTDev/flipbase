@@ -33,7 +33,7 @@
             ? 'Nachrichten aktualisieren'
             : 'Kontodaten aktualisieren'
         "
-        (accountSelected)="store.selectConnection($event)"
+        (accountSelected)="selectAccount($event)"
         (refreshRequested)="sync()"
         (synchronized)="store.refreshImportedSnapshot($event, $event.lastSuccessAt)"
         (scheduleStateChanged)="cloudHeaderState.set($event)"

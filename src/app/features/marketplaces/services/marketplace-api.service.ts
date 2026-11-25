@@ -38,6 +38,10 @@ interface RpcResult {
   data: unknown;
   error: { code?: string } | null;
 }
+export interface VintedConversationItemTarget {
+  readonly kind: 'publication' | 'sale';
+  readonly id: string;
+}
 export class MarketplaceApiError extends Error {
   constructor(readonly code: 'forbidden' | 'unavailable' | 'request_failed' | 'account_limit') {
     super(
@@ -336,6 +340,87 @@ export class MarketplaceApiService {
       scope,
     ).items[0];
     return (await this.originals.entries(scope, [entry]))[0] ?? null;
+  }
+
+  async readConversationItemTarget(
+    scope: AccountScope,
+    conversationId: string,
+    itemId: string | null,
+  ): Promise<VintedConversationItemTarget | null> {
+    const conversation = await this.visibleAccountEntries(scope, 'conversation')
+      .eq('id', conversationId)
+      .maybeSingle();
+    if (conversation.error) dataOf(conversation);
+    const externalConversationId = conversation.data?.external_id;
+    if (!externalConversationId) return null;
+
+    const sale = await this.visibleAccountEntries(scope, 'sale')
+      .eq('body->>externalConversationId', externalConversationId)
+      .in('body->>saleState', ['sold', 'shipped', 'completed', 'cancelled', 'relisted'])
+      .order('sort_at', { ascending: false })
+      .order('id', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (sale.error) dataOf(sale);
+    const saleBody = sale.data?.body;
+    if (
+      sale.data?.id &&
+      saleBody &&
+      typeof saleBody === 'object' &&
+      !Array.isArray(saleBody) &&
+      saleBody['saleState'] !== 'relisted'
+    )
+      return { kind: 'sale', id: sale.data.id };
+
+    if (!itemId) return null;
+    const publication = await this.visibleAccountEntries(scope, 'publication')
+      .eq('external_id', itemId)
+      .in('body->>publicationState', ['active', 'reserved'])
+      .maybeSingle();
+    if (publication.error) dataOf(publication);
+    return publication.data?.id ? { kind: 'publication', id: publication.data.id } : null;
+  }
+
+  async readVisibleSale(scope: AccountScope, saleId: string): Promise<MarketplaceEntry | null> {
+    const sale = await this.visibleAccountEntries(scope, 'sale')
+      .eq('id', saleId)
+      .or('body->>saleState.is.null,body->>saleState.neq.relisted')
+      .maybeSingle();
+    if (sale.error) dataOf(sale);
+    const row = sale.data;
+    if (!row?.id) return null;
+    const body = row.body;
+    if (!body || typeof body !== 'object' || Array.isArray(body))
+      throw new MarketplaceResponseError();
+
+    // Wie beim paginierten Abruf für den Chat-Link die interne Flipbase-ID ermitteln.
+    let conversationId: string | null = null;
+    if (typeof body['externalConversationId'] === 'string' && body['externalConversationId']) {
+      const conversation = await this.visibleAccountEntries(scope, 'conversation')
+        .eq('external_id', body['externalConversationId'])
+        .maybeSingle();
+      if (conversation.error) dataOf(conversation);
+      conversationId = conversation.data?.id ?? null;
+    }
+    return (
+      parseMarketplacePage(
+        {
+          items: [{ ...body, ...scope, id: row.id, externalId: row.external_id, conversationId }],
+          total: 1,
+          nextCursor: null,
+        },
+        scope,
+      ).items[0] ?? null
+    );
+  }
+
+  private visibleAccountEntries(scope: AccountScope, kind: MarketplaceEntryKind) {
+    return this.client
+      .from('marketplace_visible_account_entries')
+      .select('id,external_id,body')
+      .eq('workspace_id', scope.workspaceId)
+      .eq('connection_id', scope.connectionId)
+      .eq('kind', kind);
   }
   async readPage(
     scope: AccountScope,

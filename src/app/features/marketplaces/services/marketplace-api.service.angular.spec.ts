@@ -20,11 +20,13 @@ let api: MarketplaceApiService;
 let visibleSaleCount: number;
 let saleCountError: { code: string } | null;
 const saleFilters = vi.fn<(field: string, content: string) => void>();
+const readSingleEntry = vi.fn();
 beforeEach(() => {
   rpc = vi.fn().mockResolvedValue({ data: null, error: null });
   visibleSaleCount = 0;
   saleCountError = null;
   saleFilters.mockReset();
+  readSingleEntry.mockReset();
   const countQuery = {
     select: () => countQuery,
     eq: (field: string, amount: string) => {
@@ -35,6 +37,13 @@ beforeEach(() => {
       saleFilters('or', filter);
       return countQuery;
     },
+    in: (field: string, values: readonly string[]) => {
+      saleFilters(field, values.join(','));
+      return countQuery;
+    },
+    order: () => countQuery,
+    limit: () => countQuery,
+    maybeSingle: readSingleEntry,
     then: (resolve: (result: unknown) => unknown) =>
       Promise.resolve({ count: visibleSaleCount, error: saleCountError }).then(resolve),
   };
@@ -48,6 +57,64 @@ beforeEach(() => {
   api = TestBed.inject(MarketplaceApiService);
 });
 describe('Marktplatz-API', () => {
+  it('ordnet einen älteren bestätigten Verkauf dem gespeicherten Gespräch im selben Konto zu', async () => {
+    readSingleEntry
+      .mockResolvedValueOnce({ data: { external_id: '899' }, error: null })
+      .mockResolvedValueOnce({
+        data: { id: 'old-sale', body: { saleState: 'completed' } },
+        error: null,
+      });
+
+    await expect(api.readConversationItemTarget(scope, 'chat-entry', '456')).resolves.toEqual({
+      kind: 'sale',
+      id: 'old-sale',
+    });
+    expect(saleFilters).toHaveBeenCalledWith('workspace_id', scope.workspaceId);
+    expect(saleFilters).toHaveBeenCalledWith('connection_id', scope.connectionId);
+    expect(saleFilters).toHaveBeenCalledWith('id', 'chat-entry');
+    expect(saleFilters).toHaveBeenCalledWith('body->>externalConversationId', '899');
+    expect(readSingleEntry).toHaveBeenCalledTimes(2);
+  });
+
+  it('verlinkt nach bestätigtem Wiederanbieten das aktive Inserat', async () => {
+    readSingleEntry
+      .mockResolvedValueOnce({ data: { external_id: '899' }, error: null })
+      .mockResolvedValueOnce({
+        data: { id: 'old-sale', body: { saleState: 'relisted' } },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'publication' }, error: null });
+
+    await expect(api.readConversationItemTarget(scope, 'chat-entry', '456')).resolves.toEqual({
+      kind: 'publication',
+      id: 'publication',
+    });
+    expect(saleFilters).toHaveBeenCalledWith('external_id', '456');
+    expect(saleFilters).toHaveBeenCalledWith('body->>publicationState', 'active,reserved');
+  });
+
+  it('liest einen einzelnen Verkauf mit der internen ID des zugehörigen Gesprächs', async () => {
+    readSingleEntry
+      .mockResolvedValueOnce({
+        data: {
+          id: 'old-sale',
+          external_id: 'sale-123',
+          body: { title: 'Jacke', saleState: 'completed', externalConversationId: '899' },
+        },
+        error: null,
+      })
+      .mockResolvedValueOnce({ data: { id: 'chat-entry' }, error: null });
+
+    await expect(api.readVisibleSale(scope, 'old-sale')).resolves.toMatchObject({
+      ...scope,
+      id: 'old-sale',
+      conversationId: 'chat-entry',
+      saleState: 'completed',
+    });
+    expect(saleFilters).toHaveBeenCalledWith('id', 'old-sale');
+    expect(saleFilters).toHaveBeenCalledWith('external_id', '899');
+  });
+
   it('entfernt Wiederaufnahmen aus Snapshot und Gesamtzahl ohne den Kleiderschrank umzuschreiben', async () => {
     const items = ['sold', 'shipped', 'completed', 'cancelled', null, 'relisted'].map(
       (saleState, index) => ({

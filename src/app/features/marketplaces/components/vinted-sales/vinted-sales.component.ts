@@ -1,13 +1,18 @@
 import { LucideRotateCcw, LucideMessageCircle } from '@lucide/angular';
 import { CurrencyPipe } from '@angular/common';
 import {
+  afterRenderEffect,
   ChangeDetectionStrategy,
   Component,
   computed,
   effect,
+  ElementRef,
   inject,
+  signal,
   untracked,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { ActivatedRoute } from '@angular/router';
 import {
   BadgeComponent,
   type BadgeTone,
@@ -16,11 +21,18 @@ import { ButtonComponent } from '../../../../shared/components/button/button.com
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import type { AccountScope } from '../../models/marketplace.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
 import { vintedSaleItemIds } from '../../models/vinted-listing-source';
 import { TableActionMenuComponent } from '../../../../shared/components/table-action-menu/table-action-menu.component';
+
+interface SaleLink {
+  readonly saleId: string;
+  readonly scope: AccountScope;
+}
 
 @Component({
   selector: 'app-vinted-sales',
@@ -38,8 +50,62 @@ import { TableActionMenuComponent } from '../../../../shared/components/table-ac
   host: { class: 'block min-w-0' },
 })
 export class VintedSalesComponent {
+  readonly store = inject(MarketplaceAccountStore);
+  private readonly api = inject(MarketplaceApiService);
+  private readonly shippingLabels = inject(VintedShippingLabelStore);
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly route = inject(ActivatedRoute);
   readonly icons = { relist: LucideRotateCcw, chat: LucideMessageCircle };
   readonly itemIds = vintedSaleItemIds;
+  private readonly queryParams = toSignal(this.route.queryParamMap, {
+    initialValue: this.route.snapshot.queryParamMap,
+  });
+  private readonly linkedSale = computed<SaleLink | null>(() => {
+    const params = this.queryParams();
+    const saleId = params.get('saleId');
+    const connectionId = params.get('connectionId');
+    const workspaceId = params.get('workspaceId');
+    if (!saleId || !connectionId || !this.store.canManage()) return null;
+    const account = this.store
+      .connections()
+      .find(
+        (connection) =>
+          connection.connectionId === connectionId &&
+          (workspaceId === null || connection.workspaceId === workspaceId),
+      );
+    return account ? { saleId, scope: { workspaceId: account.workspaceId, connectionId } } : null;
+  });
+  private readonly activeSaleLink = computed(() => {
+    const link = this.linkedSale();
+    const selected = this.store.selectedConnection();
+    return link &&
+      selected?.workspaceId === link.scope.workspaceId &&
+      selected.connectionId === link.scope.connectionId
+      ? { ...link, selectionVersion: this.store.selectionVersion() }
+      : null;
+  });
+  private readonly fetchedSale = signal<{
+    link: SaleLink;
+    entry: MarketplaceEntry | null;
+  } | null>(null);
+  readonly page = computed(() => this.store.snapshot()?.sales);
+  private readonly linkedSaleInPage = computed(() =>
+    this.page()?.items.find((entry) => this.isLinkedSale(entry)),
+  );
+  readonly entries = computed(() => {
+    const entries = (this.page()?.items ?? []).filter((entry) => entry.saleState !== 'relisted');
+    const fetched = this.fetchedSale();
+    return fetched?.link === this.activeSaleLink() && fetched.entry && !this.linkedSaleInPage()
+      ? [fetched.entry, ...entries]
+      : entries;
+  });
+  readonly linkedSaleUnavailable = computed(() => {
+    const known = this.linkedSaleInPage();
+    if (known) return known.saleState === 'relisted';
+    const fetched = this.fetchedSale();
+    return fetched?.link === this.activeSaleLink() && fetched.entry === null;
+  });
+
   canCopy(entry: MarketplaceEntry): boolean {
     const connection = this.store.selectedConnection();
     return (
@@ -51,8 +117,6 @@ export class VintedSalesComponent {
       this.itemIds(entry).length > 0
     );
   }
-  readonly store = inject(MarketplaceAccountStore);
-  private readonly shippingLabels = inject(VintedShippingLabelStore);
   constructor() {
     // Versandscheine gibt es nur für Cloud-Konten; sie gehören zum gewählten Konto.
     effect(() => {
@@ -61,11 +125,59 @@ export class VintedSalesComponent {
       const scope = { workspaceId: connection.workspaceId, connectionId: connection.connectionId };
       untracked(() => void this.shippingLabels.load(scope));
     });
+    effect(() => {
+      const target = this.linkedSale();
+      if (!target || this.store.loading() || this.activeSaleLink()) return;
+      untracked(() => void this.store.selectConnection(target.scope.connectionId));
+    });
+    effect((onCleanup) => {
+      const target = this.activeSaleLink();
+      const known = this.linkedSaleInPage();
+      this.fetchedSale.set(null);
+      if (!target || known) return;
+      let current = true;
+      onCleanup(() => (current = false));
+      const accept = (entry: MarketplaceEntry | null) => {
+        if (!current || target !== this.activeSaleLink()) return;
+        this.fetchedSale.set({
+          link: target,
+          entry: entry && entry.saleState !== 'relisted' && this.isLinkedSale(entry) ? entry : null,
+        });
+      };
+      untracked(() => {
+        void this.api.readVisibleSale(target.scope, target.saleId).then(accept, () => accept(null));
+      });
+    });
+    let focusedLink: SaleLink | null = null;
+    afterRenderEffect({
+      write: () => {
+        const target = this.activeSaleLink();
+        if (
+          !target ||
+          target === focusedLink ||
+          !this.entries().some((entry) => this.isLinkedSale(entry))
+        )
+          return;
+        const card = this.host.nativeElement.querySelector<HTMLElement>(
+          '[data-vinted-sale-target]',
+        );
+        if (!card) return;
+        card.focus({ preventScroll: true });
+        card.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+        focusedLink = target;
+      },
+    });
   }
-  readonly page = computed(() => this.store.snapshot()?.sales);
-  readonly entries = computed(() =>
-    (this.page()?.items ?? []).filter((entry) => entry.saleState !== 'relisted'),
-  );
+
+  isLinkedSale(entry: MarketplaceEntry): boolean {
+    const target = this.activeSaleLink();
+    return (
+      target !== null &&
+      entry.id === target.saleId &&
+      entry.workspaceId === target.scope.workspaceId &&
+      entry.connectionId === target.scope.connectionId
+    );
+  }
   details(entry: MarketplaceEntry): string {
     if (entry.isBundle || (entry.itemCount ?? 0) > 1)
       return entry.itemCount ? `Paket mit ${entry.itemCount} Artikeln` : 'Artikelpaket';
