@@ -14,6 +14,8 @@ test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: 'block' }
 const connectionId = accountIds[0];
 const conversationId = '25000000-0000-4000-8000-000000000051';
 const secondConversationId = '25000000-0000-4000-8000-000000000052';
+const listingId = '25000000-0000-4000-8000-000000000053';
+const saleId = '25000000-0000-4000-8000-000000000054';
 const scope = { workspaceId, connectionId };
 const imageUrl = 'https://images.example.test/jacket.svg';
 const partnerAvatarUrl = 'https://images.example.test/partner.svg';
@@ -69,6 +71,7 @@ async function inboxFixture(
       occurredAt: '2026-10-01T10:00:00Z',
       unread: false,
       readVersion: 'a'.repeat(32),
+      itemId: '457',
       itemTitle: 'Blauer Schal',
       itemImageUrl: imageUrl,
       itemPrice: 12,
@@ -76,6 +79,8 @@ async function inboxFixture(
       detailCheckedAt: null as string | null,
     },
   ];
+  const publications: Record<string, unknown>[] = [];
+  const sales: Record<string, unknown>[] = [];
   const queue: Record<string, unknown>[] = [];
   const importedImages: Record<string, unknown>[] = [];
   const accountActions = new Map<string, VintedAccountAction>();
@@ -213,9 +218,9 @@ async function inboxFixture(
           bio: null,
           imageUrl: accountAvatarUrl,
         },
-        publications: emptyPage(),
+        publications: { items: publications, total: publications.length, nextCursor: null },
         conversations: { items: conversations, total: 2, nextCursor: null },
-        sales: emptyPage(),
+        sales: { items: sales, total: sales.length, nextCursor: null },
         activity: emptyPage(),
       },
     }),
@@ -450,6 +455,30 @@ async function inboxFixture(
   return {
     enqueues,
     retries,
+    addConversationArticleTargets() {
+      publications.push({
+        ...scope,
+        id: listingId,
+        externalId: '456',
+        title: 'Vintage Lederjacke',
+        occurredAt: now,
+        publicationState: 'active',
+        imageUrl,
+        price: 58,
+        currency: 'EUR',
+      });
+      sales.push({
+        ...scope,
+        id: saleId,
+        conversationId: secondConversationId,
+        title: 'Blauer Schal',
+        saleState: 'completed',
+        occurredAt: now,
+        itemIds: ['457'],
+        price: 12,
+        currency: 'EUR',
+      });
+    },
     addUncertainMessage() {
       queue.push({
         id: '25000000-0000-4000-8000-000000000071',
@@ -891,6 +920,7 @@ test('zeigt einen bekannten Chat sofort auch während Datenbank und Vinted noch 
   }
   fixture.resumeDetails();
   await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
+  await expect(conversation.locator('div[data-conversation-item]')).toContainText('Blauer Schal');
   fixture.pauseStoredMessages();
   fixture.pauseDetails();
   await rows.nth(0).getByRole('button').click();
@@ -932,6 +962,7 @@ for (const { width, theme } of [
     const errors: string[] = [];
     page.on('pageerror', (error) => errors.push(error.message));
     const fixture = await inboxFixture(page, theme === 'dark');
+    fixture.addConversationArticleTargets();
     await page.goto('/marketplaces/vinted/messages');
     await expect(page.getByRole('heading', { name: 'Gespräche', exact: true })).toBeVisible({
       timeout: 15000,
@@ -1020,6 +1051,10 @@ for (const { width, theme } of [
     await expect(conversation.locator('[data-conversation-loading]')).toHaveCount(0);
     await expect(conversation.locator('[data-conversation-sync]')).toContainText('Synchronisiert');
     await expect(conversation.getByText('Vintage Lederjacke', { exact: true })).toBeVisible();
+    await expect(conversation.locator('a[data-conversation-item]')).toHaveAttribute(
+      'href',
+      `/marketplaces/vinted/listings/${connectionId}/${listingId}`,
+    );
     await expect(
       conversation.locator('[data-conversation-item]').getByText('58,00 €', { exact: true }),
     ).toBeVisible();
@@ -1070,7 +1105,9 @@ for (const { width, theme } of [
       .getByRole('textbox', { name: 'Deine Nachricht' })
       .fill('Testantwort\nmit zweiter Zeile');
     await conversation.getByRole('button', { name: 'Senden', exact: true }).click();
-    await expect(page.locator('[data-queue-state="queued"]')).toContainText('Testantwort');
+    const pendingMessage = conversation.locator('[data-queue-state="queued"]');
+    await expect(pendingMessage).toContainText('Testantwort');
+    await expect(pendingMessage.locator('time')).toHaveText(/^\d{2}:\d{2} Uhr$/u);
     expect(
       await page
         .getByRole('log')
@@ -1111,6 +1148,28 @@ for (const { width, theme } of [
       await expect(page.getByRole('heading', { name: 'Gespräche', exact: true })).toBeVisible();
       await expect(page.getByRole('searchbox', { name: 'Gespräche suchen' })).toBeVisible();
     }
+    await page.getByRole('combobox', { name: 'Gespräche filtern' }).click();
+    await page.getByRole('option', { name: 'Alle', exact: true }).click();
+    await page
+      .locator(`[data-conversation-row="${secondConversationId}"]`)
+      .getByRole('button')
+      .click();
+    await expect(conversation.getByRole('heading', { name: 'Ben', exact: true })).toBeVisible();
+    const saleLink = conversation.locator('a[data-conversation-item]');
+    await expect(saleLink).toHaveAttribute('href', /\/marketplaces\/vinted\/sales\?/u);
+    await saleLink.click();
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === '/marketplaces/vinted/sales' &&
+        url.searchParams.get('workspaceId') === workspaceId &&
+        url.searchParams.get('connectionId') === connectionId &&
+        url.searchParams.get('saleId') === saleId,
+    );
+    const saleCard = page.locator('[data-vinted-sale-target]');
+    await expect(
+      saleCard.getByRole('heading', { name: 'Blauer Schal', exact: true }),
+    ).toBeVisible();
+    await expect(saleCard).toBeFocused();
     expect(fixture.providerRequests).toBe(0);
     expect(errors).toEqual([]);
   });

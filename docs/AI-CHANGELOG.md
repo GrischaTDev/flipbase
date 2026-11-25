@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-25 - Juna - Artikel aus dem Vinted-Chat öffnen
+
+Wartende und bestätigte Nachrichten zeigen dieselbe kurze Uhrzeit. Der Artikelkopf führt bei eindeutiger Zuordnung zum aktiven Inserat oder zum zugehörigen Verkauf. Ein älterer verlinkter Verkauf lässt sich gezielt öffnen.
+
 ## 2026-11-24 - Juna - Gemeinsame Felder für Vinted-Feed-Filter verwenden
 
 Die Live-Suche und beide Preisfilter verwenden die gemeinsamen Formularbausteine. Titel- und Markensuche, Preisgrenzen und das Zurücksetzen greifen weiterhin direkt auf die geöffneten Feed-Karten zu.

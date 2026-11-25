@@ -253,6 +253,20 @@ export class VintedWorkspaceComponent {
     });
   }
 
+  async selectAccount(connectionId: string | null): Promise<void> {
+    if (connectionId === null) return;
+    const currentUrl = this.currentUrl();
+    const params = this.queryParams();
+    if (currentUrl.split(/[?#]/)[0] === '/marketplaces/vinted/sales' && params.has('saleId')) {
+      const destination = this.router.parseUrl(currentUrl);
+      delete destination.queryParams['saleId'];
+      delete destination.queryParams['connectionId'];
+      delete destination.queryParams['workspaceId'];
+      if (!(await this.router.navigateByUrl(destination, { replaceUrl: true }))) return;
+    }
+    await this.store.selectConnection(connectionId);
+  }
+
   async sync(): Promise<void> {
     const account = this.store.selectedConnection();
     if (account?.executionMode === 'local') {

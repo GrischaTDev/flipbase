@@ -1,6 +1,6 @@
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import { CurrencyPipe, DatePipe, NgTemplateOutlet } from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
@@ -15,7 +15,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
   LucideArrowLeft,
@@ -27,8 +27,10 @@ import {
   LucideBot,
   LucideRefreshCw,
   LucideUser,
+  LucideChevronRight,
 } from '@lucide/angular';
 import imageCompression from 'browser-image-compression';
+import { LoggerService } from '../../../../core/services/logger.service';
 import {
   BadgeComponent,
   type BadgeTone,
@@ -41,7 +43,13 @@ import type {
   LocalQueuedMessage,
   MarketplaceEntry,
 } from '../../models/marketplace-read.models';
+import type { AccountScope } from '../../models/marketplace.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import {
+  MarketplaceApiService,
+  type VintedConversationItemTarget,
+} from '../../services/marketplace-api.service';
+import { vintedPublicationIsOnline } from '../../models/vinted-publication-state';
 import { VintedLocalExtensionStore } from '../../services/vinted-local-extension.store';
 import { ConfirmDialogService } from '../../../../shared/components/confirm-dialog/confirm-dialog.service';
 import { CustomSearchInputComponent } from '../../../../shared/components/custom-search-input/custom-search-input.component';
@@ -126,11 +134,20 @@ interface ReadingPosition {
   items: string;
 }
 
+interface ConversationItemLookup {
+  readonly key: string;
+  readonly scope: AccountScope;
+  readonly conversationId: string;
+  readonly itemId: string | null;
+}
+
 @Component({
   selector: 'app-vinted-messages',
   imports: [
     CurrencyPipe,
     DatePipe,
+    NgTemplateOutlet,
+    RouterLink,
     ReactiveFormsModule,
     BadgeComponent,
     ButtonComponent,
@@ -142,6 +159,7 @@ interface ReadingPosition {
     LoadingIndicatorComponent,
     LucideTag,
     LucideBot,
+    LucideChevronRight,
     VintedOfferActionsComponent,
     VintedChatPendingBubbleComponent,
     VintedShippingLabelActionsComponent,
@@ -285,6 +303,8 @@ export class VintedMessagesComponent {
     () => this.isRefreshingConversation() && !this.conversation(),
   );
   private readonly dialog = inject(ConfirmDialogService);
+  private readonly marketplaceApi = inject(MarketplaceApiService);
+  private readonly logger = inject(LoggerService);
   private readonly route = inject(ActivatedRoute);
   private readonly query = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -321,6 +341,86 @@ export class VintedMessagesComponent {
         saved?.key === this.conversationKey() ? saved.entry : null,
       );
     return saved?.key === this.conversationKey() ? saved.entry : null;
+  });
+  private readonly knownConversationItem = computed<VintedConversationItemTarget | null>(() => {
+    const conversation = this.conversation();
+    const snapshot = this.store.snapshot();
+    if (
+      !conversation ||
+      snapshot?.workspaceId !== conversation.workspaceId ||
+      snapshot.connectionId !== conversation.connectionId
+    )
+      return null;
+    const sale = snapshot.sales?.items.find(
+      (entry) =>
+        entry.conversationId === conversation.id &&
+        (entry.saleState === 'sold' ||
+          entry.saleState === 'shipped' ||
+          entry.saleState === 'completed' ||
+          entry.saleState === 'cancelled'),
+    );
+    if (sale) return { kind: 'sale', id: sale.id };
+    const publication = conversation.itemId
+      ? snapshot.publications?.items.find(
+          (entry) =>
+            entry.externalId === conversation.itemId &&
+            vintedPublicationIsOnline(entry.publicationState),
+        )
+      : null;
+    return publication ? { kind: 'publication', id: publication.id } : null;
+  });
+  private readonly conversationItemLookup = computed<ConversationItemLookup | null>(
+    () => {
+      const conversation = this.conversation();
+      const key = this.conversationKey();
+      const snapshot = this.store.snapshot();
+      if (
+        !key ||
+        !conversation ||
+        snapshot?.workspaceId !== conversation.workspaceId ||
+        snapshot.connectionId !== conversation.connectionId
+      )
+        return null;
+      const knownItem = this.knownConversationItem();
+      const hasMoreSales = !!snapshot.sales?.nextCursor;
+      const hasMorePublications =
+        !knownItem && !!conversation.itemId && !!snapshot.publications?.nextCursor;
+      if (knownItem?.kind === 'sale' || (!hasMoreSales && !hasMorePublications)) return null;
+      return {
+        key,
+        scope: { workspaceId: conversation.workspaceId, connectionId: conversation.connectionId },
+        conversationId: conversation.id,
+        itemId: conversation.itemId ?? null,
+      };
+    },
+    { equal: (previous, next) => previous?.key === next?.key && previous?.itemId === next?.itemId },
+  );
+  private readonly resolvedConversationItem = signal<{
+    lookup: ConversationItemLookup;
+    target: VintedConversationItemTarget | null;
+  } | null>(null);
+  readonly conversationItemLink = computed(() => {
+    const conversation = this.conversation();
+    const lookup = this.conversationItemLookup();
+    const resolved = this.resolvedConversationItem();
+    const target = lookup
+      ? resolved?.lookup === lookup
+        ? resolved.target
+        : null
+      : this.knownConversationItem();
+    if (!conversation || !target) return null;
+    const { workspaceId, connectionId } = conversation;
+    return target.kind === 'sale'
+      ? {
+          route: ['/marketplaces/vinted/sales'],
+          queryParams: { workspaceId, connectionId, saleId: target.id },
+          label: 'Verkauf öffnen',
+        }
+      : {
+          route: ['/marketplaces/vinted/listings', connectionId, target.id],
+          queryParams: null,
+          label: 'Inserat öffnen',
+        };
   });
   /** Verkauf zu diesem Gespräch, sofern Vinted dafür einen Versandschein anbietet oder hält. */
   readonly conversationSale = computed(() => {
@@ -395,6 +495,24 @@ export class VintedMessagesComponent {
   private revealListRow: string | null = null;
 
   constructor() {
+    effect((onCleanup) => {
+      const lookup = this.conversationItemLookup();
+      if (!lookup) {
+        this.resolvedConversationItem.set(null);
+        return;
+      }
+      let current = true;
+      onCleanup(() => (current = false));
+      void this.marketplaceApi
+        .readConversationItemTarget(lookup.scope, lookup.conversationId, lookup.itemId)
+        .then((target) => {
+          if (current) this.resolvedConversationItem.set({ lookup, target });
+        })
+        .catch((error: unknown) => {
+          if (current)
+            this.logger.warn('Das Ziel des Vinted-Artikels konnte nicht geladen werden!', error);
+        });
+    });
     const clock = setInterval(() => this.now.set(Date.now()), 60_000);
     inject(DestroyRef).onDestroy(() => clearInterval(clock));
     effect(() => {

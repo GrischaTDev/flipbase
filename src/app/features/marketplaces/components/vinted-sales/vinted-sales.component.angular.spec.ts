@@ -3,6 +3,7 @@ import { registerLocaleData } from '@angular/common';
 import localeDe from '@angular/common/locales/de';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { RouterTestingHarness } from '@angular/router/testing';
 import { afterAll, beforeAll, beforeEach, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
@@ -12,6 +13,7 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../../models/marketplace-response';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { VintedShippingLabelStore } from '../../services/vinted-shipping-label.store';
 import type { VintedShippingLabel } from '../../models/vinted-shipping-label';
 import { VintedShippingLabelActionsComponent } from '../vinted-shipping-label-actions/vinted-shipping-label-actions.component';
@@ -20,17 +22,21 @@ import { TableActionMenuComponent } from '../../../../shared/components/table-ac
 
 const scope = { workspaceId: 'workspace-1', connectionId: 'connection-1' };
 const empty = { items: [], total: 0, nextCursor: null };
-const makeSnapshot = (items: Record<string, unknown>[] = [], nextCursor: string | null = null) =>
+const makeSnapshot = (
+  items: Record<string, unknown>[] = [],
+  nextCursor: string | null = null,
+  snapshotScope = scope,
+) =>
   parseMarketplaceSnapshot(
     {
-      ...scope,
+      ...snapshotScope,
       profile: null,
       publications: empty,
       conversations: empty,
       activity: empty,
       sales: {
         items: items.map((item, index) => ({
-          ...scope,
+          ...snapshotScope,
           id: `sale-${index}`,
           title: '6 Artikel',
           ...item,
@@ -39,7 +45,7 @@ const makeSnapshot = (items: Record<string, unknown>[] = [], nextCursor: string 
         nextCursor,
       },
     },
-    scope,
+    snapshotScope,
   );
 const current = signal(makeSnapshot());
 const unavailable = signal(false);
@@ -53,6 +59,10 @@ const selected = signal<{
   executionMode: string;
   status?: string;
 } | null>(null);
+const connections = signal<readonly NonNullable<ReturnType<typeof selected>>[]>([]);
+const selectConnection = vi.fn();
+const selectionVersion = signal(0);
+const readVisibleSale = vi.fn();
 
 it('bietet einzelne Artikel eines Verkaufs als unabhängiges neues Inserat an', async () => {
   selected.set({ ...scope, executionMode: 'cloud', status: 'connected' });
@@ -106,11 +116,14 @@ beforeEach(async () => {
   loadMore.mockReset();
   labelList.set([]);
   selected.set(null);
-  for (const mock of [requestLabel, loadLabels]) mock.mockReset();
+  connections.set([]);
+  selectionVersion.set(0);
+  for (const mock of [requestLabel, loadLabels, selectConnection, readVisibleSale])
+    mock.mockReset();
   await TestBed.configureTestingModule({
     imports: [VintedSalesComponent],
     providers: [
-      provideRouter([]),
+      provideRouter([{ path: 'marketplaces/vinted/sales', component: VintedSalesComponent }]),
       { provide: LOCALE_ID, useValue: 'de' },
       {
         provide: MarketplaceAccountStore,
@@ -120,9 +133,14 @@ beforeEach(async () => {
           loadingPage: signal(null),
           loadMore,
           selectedConnection: selected,
+          connections,
+          selectConnection,
+          selectionVersion,
+          loading: signal(false),
           canManage: () => true,
         },
       },
+      { provide: MarketplaceApiService, useValue: { readVisibleSale } },
       {
         provide: VintedShippingLabelStore,
         useValue: {
@@ -135,6 +153,90 @@ beforeEach(async () => {
       },
     ],
   }).compileComponents();
+});
+
+it('lädt und fokussiert einen verlinkten Verkauf außerhalb der ersten Seite gezielt', async () => {
+  const account = { ...scope, executionMode: 'cloud' };
+  selected.set(account);
+  connections.set([account]);
+  current.set(makeSnapshot([{ title: 'Jüngerer Verkauf', saleState: 'sold' }], 'next'));
+  readVisibleSale.mockResolvedValue(
+    makeSnapshot([{ id: 'older-sale', title: 'Älterer Verkauf', saleState: 'completed' }]).sales
+      .items[0],
+  );
+  const scroll = vi.fn();
+  const prototype = HTMLElement.prototype;
+  const original = Object.getOwnPropertyDescriptor(prototype, 'scrollIntoView');
+  Object.defineProperty(prototype, 'scrollIntoView', { configurable: true, value: scroll });
+  try {
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(
+      '/marketplaces/vinted/sales?workspaceId=workspace-1&connectionId=connection-1&saleId=older-sale',
+      VintedSalesComponent,
+    );
+    await vi.waitFor(() => {
+      harness.detectChanges();
+      const target = harness.routeNativeElement?.querySelector('[data-vinted-sale-target]');
+      expect(target?.textContent).toContain('Älterer Verkauf');
+      expect(target).toBe(document.activeElement);
+    });
+    expect(harness.routeNativeElement?.textContent).toContain('Jüngerer Verkauf');
+    expect(readVisibleSale).toHaveBeenCalledExactlyOnceWith(scope, 'older-sale');
+    expect(scroll).toHaveBeenCalledExactlyOnceWith({ block: 'nearest', inline: 'nearest' });
+    expect(loadMore).not.toHaveBeenCalled();
+    expect(selectConnection).not.toHaveBeenCalled();
+  } finally {
+    if (original) Object.defineProperty(prototype, 'scrollIntoView', original);
+    else Reflect.deleteProperty(prototype, 'scrollIntoView');
+  }
+});
+
+it('wendet Verkaufslinks mit einem fremden Workspace oder Konto nicht auf die aktuelle Liste an', async () => {
+  const account = { ...scope, executionMode: 'local' };
+  selected.set(account);
+  connections.set([account]);
+  current.set(makeSnapshot([{ title: 'Eigener Verkauf', saleState: 'sold' }]));
+  const harness = await RouterTestingHarness.create();
+  for (const query of [
+    'workspaceId=other-workspace&connectionId=connection-1',
+    'workspaceId=workspace-1&connectionId=other-connection',
+  ]) {
+    await harness.navigateByUrl(
+      `/marketplaces/vinted/sales?${query}&saleId=sale-0`,
+      VintedSalesComponent,
+    );
+    expect(harness.routeNativeElement?.textContent).toContain('Eigener Verkauf');
+    expect(harness.routeNativeElement?.querySelector('[data-vinted-sale-target]')).toBeNull();
+  }
+  expect(selectConnection).not.toHaveBeenCalled();
+  expect(readVisibleSale).not.toHaveBeenCalled();
+});
+
+it('öffnet einen schon geladenen Verkauf im verlinkten Vinted-Konto', async () => {
+  const account = { ...scope, executionMode: 'cloud' };
+  const otherScope = { ...scope, connectionId: 'connection-2' };
+  const otherAccount = { ...otherScope, executionMode: 'cloud' };
+  selected.set(account);
+  connections.set([account, otherAccount]);
+  current.set(makeSnapshot([{ title: 'Verkauf von Konto A', saleState: 'sold' }]));
+  selectConnection.mockImplementation(async () => {
+    selectionVersion.update((version) => version + 1);
+    selected.set(otherAccount);
+    current.set(
+      makeSnapshot([{ title: 'Verkauf von Konto B', saleState: 'sold' }], null, otherScope),
+    );
+  });
+  const harness = await RouterTestingHarness.create();
+  await harness.navigateByUrl(
+    '/marketplaces/vinted/sales?connectionId=connection-2&saleId=sale-0',
+    VintedSalesComponent,
+  );
+  expect(selectConnection).toHaveBeenCalledExactlyOnceWith('connection-2');
+  expect(
+    harness.routeNativeElement?.querySelector('[data-vinted-sale-target]')?.textContent,
+  ).toContain('Verkauf von Konto B');
+  expect(harness.routeNativeElement?.textContent).not.toContain('Verkauf von Konto A');
+  expect(readVisibleSale).not.toHaveBeenCalled();
 });
 
 it('zeigt einen stornierten Paketverkauf kompakt mit echtem Gesamtpreis und gebundenem Chat', () => {

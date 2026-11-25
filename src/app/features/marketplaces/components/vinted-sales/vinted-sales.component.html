@@ -11,12 +11,25 @@
     Liste wird mit dem Kontoabgleich ergänzt.
   </p>
 }
+@if (linkedSaleUnavailable()) {
+  <p role="status" class="mb-4 text-sm text-fb-text-secondary">
+    Der verlinkte Verkauf ist nicht verfügbar.
+  </p>
+}
 @if (entries().length) {
   <section class="mb-6" aria-label="Aktuelle Verkaufsvorgänge">
     <h2 class="mb-2 text-sm font-semibold text-fb-text-primary">Aktuelle Verkaufsvorgänge</h2>
     <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-5">
       @for (entry of entries(); track entry.id) {
-        <article class="min-w-0 space-y-2">
+        @let linked = isLinkedSale(entry);
+        <article
+          class="min-w-0 space-y-2 rounded-xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-fb-primary"
+          [attr.aria-current]="linked ? 'true' : null"
+          [attr.data-vinted-sale-target]="linked ? '' : null"
+          [attr.tabindex]="linked ? -1 : null"
+          [class.ring-2]="linked"
+          [class.ring-fb-primary]="linked"
+        >
           <app-card padding="none" class="min-w-0 overflow-hidden">
             <div class="relative overflow-hidden">
               <app-product-thumbnail

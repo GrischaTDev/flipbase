@@ -193,17 +193,39 @@
             <span class="sr-only">Gespräch wird geladen …</span>
           </div>
         } @else if (conversation(); as conversation) {
-          <div
-            data-conversation-item
-            class="flex shrink-0 items-center gap-3 border-b border-fb-line px-3 py-2"
-          >
+          @if (conversationItemLink(); as itemLink) {
+            <a
+              data-conversation-item
+              [routerLink]="itemLink.route"
+              [queryParams]="itemLink.queryParams"
+              class="group flex shrink-0 items-center gap-3 border-b border-fb-line px-3 py-2 hover:bg-fb-surface-hover focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-fb-primary"
+            >
+              <span class="sr-only">{{ itemLink.label }}. </span>
+              <ng-container [ngTemplateOutlet]="conversationItemDetails" />
+              <svg
+                lucideChevronRight
+                class="size-4 shrink-0 text-fb-text-secondary"
+                aria-hidden="true"
+              ></svg>
+            </a>
+          } @else {
+            <div
+              data-conversation-item
+              class="flex shrink-0 items-center gap-3 border-b border-fb-line px-3 py-2"
+            >
+              <ng-container [ngTemplateOutlet]="conversationItemDetails" />
+            </div>
+          }
+          <ng-template #conversationItemDetails>
             <app-product-thumbnail
               [src]="conversation.itemImageUrl ?? null"
               [alt]="conversation.itemTitle ?? 'Artikel'"
               size="sm"
               fit="cover"
             />
-            <p class="min-w-0 flex-1 truncate text-[13px] text-fb-text-primary">
+            <p
+              class="min-w-0 flex-1 truncate text-[13px] text-fb-text-primary group-hover:underline"
+            >
               {{ conversation.itemTitle ?? 'Artikel noch nicht geladen' }}
             </p>
             @if (
@@ -221,7 +243,7 @@
             @if (conversation.transactionStatus) {
               <app-badge tone="neutral">{{ conversation.transactionStatus }}</app-badge>
             }
-          </div>
+          </ng-template>
           @if (conversationSale(); as sale) {
             <app-vinted-shipping-label-actions
               data-conversation-shipping-label
@@ -479,8 +501,10 @@
                   <p class="text-xs">Bild: {{ queued.attachment.name }}</p>
                 }
                 <p class="mt-1 text-right text-xs">
-                  <time [attr.datetime]="queued.createdAt"
-                    >{{ queued.createdAt | date: 'dd.MM.yyyy, HH:mm' }} Uhr</time
+                  <time
+                    [attr.datetime]="queued.createdAt"
+                    [attr.title]="queued.createdAt | date: 'dd.MM.yyyy, HH:mm'"
+                    >{{ queued.createdAt | date: 'HH:mm' }} Uhr</time
                   >
                 </p>
                 @if (queued.attachment || canRetryMessage(queued)) {
