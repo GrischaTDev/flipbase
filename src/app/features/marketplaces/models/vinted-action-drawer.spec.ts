@@ -82,17 +82,51 @@ const empty = {
 };
 
 describe('Seitenleiste Aktionen', () => {
-  it('zeigt die zuletzt gestartete laufende Aktion oben, nummeriert nach Startreihenfolge', () => {
+  it('zeigt laufende Aktionen ab Position 1 in Startreihenfolge', () => {
     const items = actionDrawerItems({
       ...empty,
-      // Preisänderung zuerst gestartet, danach Relisten – unabhängig von der Herkunft.
+      // Die Quellen liefern die Aktionen unabhängig von ihrer Startreihenfolge.
       accountActions: [accountEntry('price', 'running', '2026-11-16T00:00:00Z')],
-      listings: [listingEntry('relist', 'queued', '2026-11-16T00:01:00Z')],
+      listings: [
+        listingEntry('later-relist', 'queued', '2026-11-16T00:02:00Z'),
+        listingEntry('next-relist', 'queued', '2026-11-16T00:01:00Z'),
+      ],
     });
     const queue = runningActionQueue(items);
     expect(queue.map(({ item, position }) => [item.key, position])).toEqual([
-      ['listing:relist', 2],
       ['account:price', 1],
+      ['listing:next-relist', 2],
+      ['listing:later-relist', 3],
+    ]);
+  });
+
+  it('ordnet geplante Relists nach ihrem aktuellen Termin', () => {
+    const first = listingEntry('first', 'queued', '2026-11-16T00:01:00Z');
+    const second = listingEntry('second', 'queued', '2026-11-16T00:02:00Z');
+    const items = actionDrawerItems({
+      ...empty,
+      listings: [
+        {
+          ...first,
+          job: {
+            ...first.job,
+            scheduledAt: '2026-11-16T00:05:00Z',
+            relistDeletedAt: first.job.createdAt,
+          },
+        },
+        {
+          ...second,
+          job: {
+            ...second.job,
+            scheduledAt: '2026-11-16T00:03:00Z',
+            relistDeletedAt: second.job.createdAt,
+          },
+        },
+      ],
+    });
+    expect(runningActionQueue(items).map(({ item, position }) => [item.key, position])).toEqual([
+      ['listing:second', 1],
+      ['listing:first', 2],
     ]);
   });
 

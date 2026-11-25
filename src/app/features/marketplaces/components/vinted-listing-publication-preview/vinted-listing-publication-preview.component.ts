@@ -21,7 +21,10 @@ import { VintedBrandSearchService } from '../../../../core/services/vinted-brand
 import type { VintedBrand } from '../../../../core/models/vinted-brand.model';
 import type { MarketplaceConnection } from '../../models/marketplace.models';
 import type { VintedListingCategoryFields } from '../../models/vinted-listing-category-fields';
-import type { VintedListingDraft } from '../../models/vinted-listing-draft';
+import {
+  VintedListingCatalogError,
+  type VintedListingDraft,
+} from '../../models/vinted-listing-draft';
 import {
   vintedListingJobLabel,
   type VintedListingJob,
@@ -43,6 +46,11 @@ import {
   VintedListingScheduleDialogComponent,
   type VintedListingScheduleSelection,
 } from '../vinted-listing-schedule-dialog/vinted-listing-schedule-dialog.component';
+
+export interface VintedListingPublicationCorrection {
+  readonly field: string | null;
+  readonly message: string;
+}
 
 @Component({
   selector: 'app-vinted-listing-publication-preview',
@@ -71,11 +79,13 @@ export class VintedListingPublicationPreviewComponent {
   readonly canCopy = input(false);
   private readonly directAttempted = signal(false);
   readonly accepted = output<VintedListingJob>();
+  readonly correctionRequired = output<readonly VintedListingPublicationCorrection[]>();
   readonly closed = output<void>();
   readonly copyRequested = output<void>();
   readonly loading = signal(false);
   readonly busy = signal(false);
   readonly busyChange = output<boolean>();
+  readonly intentLockedChange = output<boolean>();
   readonly error = signal<string | null>(null);
   readonly schema = signal<VintedListingCategoryFields | null>(null);
   readonly brands = signal<readonly VintedBrand[]>([]);
@@ -232,6 +242,7 @@ export class VintedListingPublicationPreviewComponent {
 
   constructor() {
     effect(() => this.busyChange.emit(this.busy()));
+    effect(() => this.intentLockedChange.emit(this.intentLocked()));
     effect(() => {
       const binding = this.binding();
       untracked(() => {
@@ -301,7 +312,7 @@ export class VintedListingPublicationPreviewComponent {
       ]);
       if (!this.current(generation, binding)) return;
       // Fehlerhafte Kategorien werden abgefangen, bevor der abgeleitete Zustand entsteht.
-      reviewVintedListingPublication(
+      const validation = reviewVintedListingPublication(
         {
           ...draft,
           content: flipbaseVintedListingReviewContent(
@@ -322,6 +333,14 @@ export class VintedListingPublicationPreviewComponent {
           availability.listingPublishingEnabled === true,
       );
       this.jobs.set(jobs);
+      if (this.direct() && !this.replacesJob() && !this.blockedJob() && !validation.ready) {
+        this.correctionRequired.emit(
+          validation.issues.map((issue, index) => ({
+            field: issue.field,
+            message: validation.messages[index],
+          })),
+        );
+      }
     } catch (error) {
       if (this.current(generation, binding))
         this.error.set(
@@ -418,6 +437,7 @@ export class VintedListingPublicationPreviewComponent {
     this.intent.set(intent);
     this.busy.set(true);
     this.error.set(null);
+    let submitted = false;
     try {
       if (!this.permission()?.allowed) {
         const permission = await this.api.approve(
@@ -431,6 +451,7 @@ export class VintedListingPublicationPreviewComponent {
         this.permission.set(permission);
       }
       if (!this.current(generation, binding) || this.disabled()) return;
+      submitted = true;
       const accepted = this.replacesJob()
         ? await this.api.relist(draft, intent, this.replacesJob())
         : await this.api.enqueue(draft, intent);
@@ -446,18 +467,26 @@ export class VintedListingPublicationPreviewComponent {
       this.acceptedOnce = true;
       this.accepted.emit(accepted);
     } catch (error) {
-      if (this.current(generation, binding))
-        this.error.set(
-          error instanceof Error
-            ? error.message
-            : 'Die Auftragsantwort fehlt. Prüfe den Verlauf oder prüfe denselben Auftrag erneut.',
-        );
+      if (!this.current(generation, binding)) return;
+      if (!submitted) this.intent.set(null);
+      if (error instanceof VintedListingCatalogError) {
+        this.intent.set(null);
+        if (this.direct() && !this.replacesJob()) {
+          this.correctionRequired.emit([{ field: error.field, message: error.message }]);
+          return;
+        }
+      }
+      this.error.set(
+        error instanceof Error
+          ? error.message
+          : 'Die Auftragsantwort fehlt. Prüfe den Verlauf oder prüfe denselben Auftrag erneut.',
+      );
     } finally {
       if (this.current(generation, binding)) this.busy.set(false);
     }
   }
   close(): void {
-    if (this.busy() || this.closing) return;
+    if (this.busy() || this.intentLocked() || this.closing) return;
     this.closing = true;
     this.generation++;
     this.closed.emit();

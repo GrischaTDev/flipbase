@@ -284,5 +284,39 @@ update public.marketplace_listing_jobs set stage='values' where id=(select (job-
 update public.marketplace_listing_jobs set state='failed',error_code='provider_unavailable' where id=(select (job->>'id')::bigint from cloud_listing_context);
 select is((select detail->>'stage' from public.platform_error_events where source='marketplace_listing_jobs' and reference_id=(select job->>'id' from cloud_listing_context) order by id desc limit 1),'values','Das Fehlerprotokoll nennt den gescheiterten Schritt');
 select throws_ok($$update public.marketplace_listing_jobs set stage='Werte!'$$,'23514',null,'Die Spalte nimmt nur gültige Schrittnamen an');
+
+-- Eine neue Veröffentlichung verwendet denselben lesenden Abgleich wie der Relist.
+insert into public.marketplace_connections(id,workspace_id,display_name,execution_mode,status,external_account_id)
+values ('46500000-0000-4000-8000-000000000022','46500000-0000-4000-8000-000000000011','Zweites Konto','cloud','connected','46502');
+set local role authenticated;
+select public.marketplace_create_listing_draft('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000021','{"title":"Kontotest A"}');
+select public.marketplace_create_listing_draft('46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000022','{"title":"Kontotest B"}');
+select public.marketplace_create_listing_draft('46500000-0000-4000-8000-000000000011',null,'{"title":"Kontotest ohne Konto"}');
+select is(jsonb_array_length(public.marketplace_list_listing_drafts('46500000-0000-4000-8000-000000000011','Kontotest')->'items'),3,'Gesamtliste umfasst beide Konten und unzugeordnete Entwürfe');
+select is(jsonb_array_length(public.marketplace_list_listing_drafts_scoped('46500000-0000-4000-8000-000000000011','Kontotest',null,50,'46500000-0000-4000-8000-000000000022')->'items'),2,'Einzelkonto enthält seine Entwürfe und unzugeordnete Entwürfe');
+select throws_ok($$select public.marketplace_list_listing_drafts_scoped('46500000-0000-4000-8000-000000000011','',null,50,'46500000-0000-4000-8000-000000000023')$$,'42501',null,'Eine fremde Verbindung kann nicht für die Entwurfsliste verwendet werden');
+reset role;
+insert into public.marketplace_operations(id,workspace_id,connection_id,requested_by,state,started_at,created_at)
+values ('46500000-0000-4000-8000-000000000024','46500000-0000-4000-8000-000000000011','46500000-0000-4000-8000-000000000022','46500000-0000-4000-8000-000000000001','running',clock_timestamp()-interval '1 minute',clock_timestamp()-interval '1 minute');
+insert into public.marketplace_listing_jobs(workspace_id,connection_id,draft_id,requested_by,request_id,request_hash,draft_revision,authorization_version,external_account_id,execution_mode,action,snapshot,state,started_at)
+select workspace_id,connection_id,id,'46500000-0000-4000-8000-000000000001','46500000-0000-4000-8000-000000000074',repeat('0',64),revision,1,'46502','cloud','publish','{}','writing',clock_timestamp()
+from public.marketplace_listing_drafts where content->>'title'='Kontotest B';
+update cloud_listing_context set result=jsonb_build_object('outcome','confirmed','action','publish','externalId','46503','externalAccountId','46502','providerState','active','verifiedAt',to_char(clock_timestamp() at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'));
+set local role service_role;
+select public.marketplace_listing_finish_job(listing_job,result)
+from public.marketplace_listing_jobs listing_job cross join cloud_listing_context
+where request_id='46500000-0000-4000-8000-000000000074';
+select is((select count(*) from public.marketplace_operations where connection_id='46500000-0000-4000-8000-000000000022'),1::bigint,'Ein laufender Import wird durch einen neuen Artikel nicht verdoppelt');
+select is((select count(*) from public.marketplace_account_entries where connection_id='46500000-0000-4000-8000-000000000022' and external_id='46503'),0::bigint,'Ein bestätigter Anbieterauftrag erzeugt keinen künstlichen Eintrag im Kleiderschrank');
+update public.marketplace_operations set state='failed',error_code='publications',finished_at=clock_timestamp() where id='46500000-0000-4000-8000-000000000024';
+select is((select count(*) from public.marketplace_operations where connection_id='46500000-0000-4000-8000-000000000022' and state='queued'),1::bigint,'Der vor der Veröffentlichung gestartete Abruf erhält nach einem vorübergehenden Lesefehler einen Folgeauftrag für sein Konto');
+select public.marketplace_listing_finish_job(listing_job,result)
+from public.marketplace_listing_jobs listing_job cross join cloud_listing_context
+where request_id='46500000-0000-4000-8000-000000000074';
+select is((select count(*) from public.marketplace_operations where connection_id='46500000-0000-4000-8000-000000000022'),2::bigint,'Ein doppelt eintreffendes Ergebnis erzeugt keinen weiteren Leseauftrag');
+update public.marketplace_operations set state='running',started_at=clock_timestamp() where connection_id='46500000-0000-4000-8000-000000000022' and state='queued';
+update public.marketplace_operations set state='succeeded',finished_at=clock_timestamp() where connection_id='46500000-0000-4000-8000-000000000022' and state='running';
+select is((select count(*) from public.marketplace_operations where connection_id='46500000-0000-4000-8000-000000000022' and state='queued'),0::bigint,'Nach dem regulären Folgeabruf startet keine weitere Abgleichschleife');
+reset role;
 select * from finish();
 rollback;

@@ -1,5 +1,11 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-25 - Juna - Vinted-Konten, Entwürfe und laufende Aktionen
+
+Die Vinted-Kontoauswahl bietet eine gemeinsame Ansicht mit erkennbarer Kontozuordnung. Benachrichtigungen lassen sich in den Vinted-Einstellungen je Konto verwalten. Die allgemeinen Menüpunkte bleiben auch in den Marktplätzen erreichbar.
+
+Laufende Aktionen zeigen den nächsten Termin oben. Entwürfe und Kleiderschrank verwenden dieselbe mittige Statusanzeige. In der letzten Relist-Minute zählt sie Sekunden herunter. Der Entwurfseditor kennzeichnet Pflichtfelder und zeigt korrigierbare Veröffentlichungsfehler direkt am Formular. Neue, bestätigte Inserate lösen für ihr Vinted-Konto einen automatischen Leseabgleich aus.
+
 ## 2026-11-25 - Juna - Artikel aus dem Vinted-Chat öffnen
 
 Wartende und bestätigte Nachrichten zeigen dieselbe kurze Uhrzeit. Der Artikelkopf führt bei eindeutiger Zuordnung zum aktiven Inserat oder zum zugehörigen Verkauf. Ein älterer verlinkter Verkauf lässt sich gezielt öffnen.

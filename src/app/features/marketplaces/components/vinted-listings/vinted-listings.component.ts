@@ -5,6 +5,8 @@ import {
 import {
   canDiscardFailedRelisting,
   isVintedListingConfirmationPending,
+  vintedRelistingJobLabel,
+  vintedRelistingWaitMs,
   type VintedListingJob,
 } from '../../models/vinted-listing-job';
 import { CurrencyPipe, NgTemplateOutlet } from '@angular/common';
@@ -55,10 +57,14 @@ import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-
 import { createVintedListingMetricDisplay } from './vinted-listing-metric-display';
 import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import type { AccountScope } from '../../models/marketplace.models';
+import { vintedAccountEntryKey } from '../../models/vinted-account-list';
+import { createVintedAccountList } from '../../services/vinted-addressed-list';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 import { createVintedListingPriceEditor } from '../../services/vinted-listing-price-editor';
 import { VintedListingPriceDialogComponent } from '../vinted-listing-price-dialog/vinted-listing-price-dialog.component';
 import { VintedListingOperationStore } from '../../services/vinted-listing-operation.store';
-import { LoadingIndicatorComponent } from '../../../../shared/components/loading-indicator/loading-indicator.component';
+import { VintedPhotoStatusComponent } from '../vinted-photo-status/vinted-photo-status.component';
 import { ToastService } from '../../../../shared/components/toast/toast.service';
 import { VintedFavoriteMessageApiService } from '../../services/vinted-favorite-message-api.service';
 import { VintedListingFavoriteDiscountDialogComponent } from './vinted-listing-favorite-discount-dialog.component';
@@ -81,7 +87,8 @@ import { VintedListingFavoriteDiscountDialogComponent } from './vinted-listing-f
     VintedListingFavoriteDiscountDialogComponent,
     ModalShellComponent,
     VintedListingEditorComponent,
-    LoadingIndicatorComponent,
+    VintedPhotoStatusComponent,
+    NoticeBannerComponent,
   ],
   templateUrl: './vinted-listings.component.html',
   providers: [MarketplaceListingStatisticsStore, VintedRelistingPlanStore],
@@ -89,6 +96,8 @@ import { VintedListingFavoriteDiscountDialogComponent } from './vinted-listing-f
   host: { class: 'relative block min-w-0 w-full max-w-full overflow-hidden' },
 })
 export class VintedListingsComponent {
+  readonly accountList = createVintedAccountList(() => ({ kind: 'publication' }));
+  readonly entryKey = vintedAccountEntryKey;
   readonly viewMode = signal<'grid' | 'list'>('grid');
   readonly gridIcon = LucideLayoutGrid;
   readonly listIcon = LucideList;
@@ -106,22 +115,23 @@ export class VintedListingsComponent {
   private readonly confirm = inject(ConfirmDialogService);
   readonly plans = inject(VintedRelistingPlanStore);
   readonly editingPlan = signal<VintedListingJob | null>(null);
+  private readonly relistingNow = signal<number | null>(null);
+  private readonly hasRelistingCountdown = computed(
+    () =>
+      this.viewMode() === 'grid' &&
+      this.plans.plans().some(({ job }) => vintedRelistingWaitMs(job, Date.now()) > 0),
+  );
   readonly entries = computed(() => {
-    const deleted = new Set(
-      this.plans
-        .plans()
-        .flatMap((plan) =>
-          plan.job.state === 'confirmed'
-            ? [plan.job.relistExternalId, plan.job.externalId]
-            : [plan.job.relistExternalId],
-        ),
+    const plans = this.plans.plans();
+    return (this.page()?.items ?? []).filter(
+      (entry) => !plans.some(({ job }) => this.matchesPlan(job, entry)),
     );
-    return (this.page()?.items ?? []).filter((entry) => !deleted.has(entry.externalId));
   });
   closeEditor(): void {
     this.editorSource.set(null);
     this.editingPlan.set(null);
     void this.plans.refresh();
+    void this.accountList.refresh();
   }
   focusEditorAction(): void {
     this.element?.nativeElement
@@ -136,12 +146,15 @@ export class VintedListingsComponent {
     return this.canManageEntry(entry) && !!entry.externalId;
   }
   private canManageEntry(entry: MarketplaceEntry): boolean {
+    const account = this.accountList.showAllAccounts()
+      ? this.store.connections().find((candidate) => candidate.connectionId === entry.connectionId)
+      : this.store.selectedConnection();
     return (
       this.store.canManage() &&
-      entry.connectionId === this.store.selectedConnection()?.connectionId &&
-      entry.workspaceId === this.store.selectedConnection()?.workspaceId &&
-      this.store.selectedConnection()?.status === 'connected' &&
-      this.store.selectedConnection()?.executionMode === 'cloud'
+      entry.connectionId === account?.connectionId &&
+      entry.workspaceId === account.workspaceId &&
+      account.status === 'connected' &&
+      account.executionMode === 'cloud'
     );
   }
   priceActionVisible(entry: MarketplaceEntry): boolean {
@@ -175,20 +188,23 @@ export class VintedListingsComponent {
         )
     );
   }
-  isPreparingRelisting(entry: MarketplaceEntry): boolean {
-    return this.operations
-      .entries()
-      .some(
-        (action) =>
-          action.kind === 'relist' &&
-          action.state === 'running' &&
-          action.workspaceId === entry.workspaceId &&
-          action.connectionId === entry.connectionId &&
-          action.entryId === entry.id,
-      );
+  relistingCardStatus(job: VintedListingJob): { label: string; countdownSeconds?: number } {
+    const now = this.relistingNow() ?? Date.now();
+    const waitMs = vintedRelistingWaitMs(job, now);
+    return {
+      label: vintedRelistingJobLabel(job, now),
+      countdownSeconds: waitMs > 0 && waitMs < 60_000 ? Math.ceil(waitMs / 1000) : undefined,
+    };
   }
   openEditor(entry: MarketplaceEntry, mode: 'relist' | 'template'): void {
-    if (this.canCreateFrom(entry)) this.editorSource.set({ entry, mode });
+    if (!this.canCreateFrom(entry)) return;
+    if (this.needsEntryAccount(entry)) {
+      void this.useEntryAccount(entry).then((current) => {
+        if (current && this.canCreateFrom(entry)) this.editorSource.set({ entry, mode });
+      });
+      return;
+    }
+    this.editorSource.set({ entry, mode });
   }
   /** Öffnet die Bearbeiten-Maske direkt, ohne Umweg über die Detailansicht. */
   editListing(entry: MarketplaceEntry): void {
@@ -199,6 +215,12 @@ export class VintedListingsComponent {
   }
   editPlan(entry: MarketplaceEntry, plan: VintedRelistingPlan): void {
     if (!this.canManageEntry(entry) || this.operations.isRunning(entry)) return;
+    if (this.needsEntryAccount(entry)) {
+      void this.useEntryAccount(entry).then((current) => {
+        if (current) this.editPlan(entry, plan);
+      });
+      return;
+    }
     const current = this.plans
       .plans()
       .find(
@@ -222,38 +244,58 @@ export class VintedListingsComponent {
     initialValue: this.route.snapshot.queryParamMap,
   });
   private handledConnectionId: string | null = null;
-  readonly page = computed(() => this.store.snapshot()?.publications ?? null);
+  readonly page = computed(() =>
+    this.accountList.showAllAccounts()
+      ? this.accountList.page()
+      : (this.store.snapshot()?.publications ?? null),
+  );
+  readonly loadMore = () =>
+    this.accountList.showAllAccounts()
+      ? this.accountList.loadMore()
+      : this.store.loadMore('publication');
+  listingAccountSuffix(connectionId: string | null | undefined): string {
+    const label =
+      this.accountList.showAllAccounts() && connectionId
+        ? this.accountList.labels().get(connectionId)
+        : undefined;
+    return label ? ' · ' + label : '';
+  }
   readonly publicationBadge = vintedPublicationBadge;
   private readonly displayedEntries = signal<readonly MarketplaceEntry[]>([]);
   private displayedScope: string | null = null;
   readonly tableRows = computed<readonly VintedWardrobeTableRow[]>(() => {
     const account = this.store.selectedConnection();
+    const allAccounts = this.accountList.showAllAccounts();
     const plans = this.plans
       .plans()
       .filter(
         (plan) =>
-          plan.job.workspaceId === account?.workspaceId &&
-          plan.job.connectionId === account.connectionId,
+          allAccounts ||
+          (plan.job.workspaceId === account?.workspaceId &&
+            plan.job.connectionId === account.connectionId),
       );
     const remaining = new Set(plans);
-    const visible = new Set(this.entries().map((entry) => entry.id));
+    const visible = new Set(this.entries().map(this.entryKey));
     const sources = this.displayedEntries().filter(
       (source) =>
-        source.workspaceId === account?.workspaceId && source.connectionId === account.connectionId,
+        allAccounts ||
+        (source.workspaceId === account?.workspaceId &&
+          source.connectionId === account.connectionId),
     );
     const rows = sources.flatMap((source) => {
       const plan = plans.find((candidate) => this.matchesPlan(candidate.job, source));
       if (plan) {
+        const matchingSources = sources.filter((entry) => this.matchesPlan(plan.job, entry));
         const boundSource =
-          sources.find((entry) => entry.id === plan.job.relistEntryId) ??
-          sources.find((entry) => entry.externalId === plan.job.relistExternalId) ??
-          sources.find((entry) => this.matchesPlan(plan.job, entry));
+          matchingSources.find((entry) => entry.id === plan.job.relistEntryId) ??
+          matchingSources.find((entry) => entry.externalId === plan.job.relistExternalId) ??
+          matchingSources[0];
         if (source !== boundSource || !remaining.has(plan)) return [];
       }
       if (plan) remaining.delete(plan);
       return plan
         ? [this.listingRow(this.plannedEntry(plan, source), plan)]
-        : visible.has(source.id)
+        : visible.has(this.entryKey(source))
           ? [this.listingRow(source)]
           : [];
     });
@@ -280,6 +322,9 @@ export class VintedListingsComponent {
     return {
       entry,
       plan,
+      accountLabel: this.accountList.showAllAccounts()
+        ? this.accountList.labels().get(entry.connectionId)
+        : undefined,
       change: this.statistics.change(entry),
       comparisonLabel: this.statistics.comparisonLabel(entry),
       highlighted: this.metricDisplay.highlighted().has(entry.id),
@@ -389,6 +434,20 @@ export class VintedListingsComponent {
   );
 
   constructor() {
+    effect(() => {
+      if (this.accountList.showAllAccounts() && this.plans.combinedPublicationRevision())
+        untracked(() => void this.accountList.refresh());
+    });
+    effect((onCleanup) => {
+      if (!this.hasRelistingCountdown()) {
+        this.relistingNow.set(null);
+        return;
+      }
+      const updateCountdown = () => this.relistingNow.set(Date.now());
+      updateCountdown();
+      const timer = setInterval(updateCountdown, 1000);
+      onCleanup(() => clearInterval(timer));
+    });
     effect((onCleanup) => {
       const context = this.favoriteDiscountContext();
       untracked(() => {
@@ -409,32 +468,35 @@ export class VintedListingsComponent {
     });
     effect(() => {
       const account = this.store.selectedConnection();
-      const scope = account
-        ? JSON.stringify([account.workspaceId, account.connectionId, account.externalAccountId])
-        : null;
+      const allAccounts = this.accountList.showAllAccounts();
+      const scope = allAccounts
+        ? JSON.stringify(
+            this.store
+              .connections()
+              .map((item) => [item.workspaceId, item.connectionId, item.externalAccountId]),
+          )
+        : account
+          ? JSON.stringify([account.workspaceId, account.connectionId, account.externalAccountId])
+          : null;
       const entries = (this.page()?.items ?? []).filter(
         (entry) =>
-          entry.workspaceId === account?.workspaceId && entry.connectionId === account.connectionId,
+          allAccounts ||
+          (entry.workspaceId === account?.workspaceId &&
+            entry.connectionId === account.connectionId),
       );
-      const plannedIds = new Set(
-        this.plans
-          .plans()
-          .filter(
-            (plan) =>
-              plan.job.workspaceId === account?.workspaceId &&
-              plan.job.connectionId === account.connectionId,
-          )
-          .map((plan) => plan.job.relistExternalId),
-      );
+      const plans = this.plans.plans();
       untracked(() => {
         const previous = scope === this.displayedScope ? this.displayedEntries() : [];
         const next = [...entries];
         // Beim Entfernen des alten Vinted-Inserats bleiben Karte und Aktionsleiste stehen.
         previous.forEach((entry, index) => {
           if (
-            plannedIds.has(entry.externalId) &&
+            plans.some(({ job }) => this.matchesPlan(job, entry)) &&
             !next.some(
-              (current) => current.id === entry.id || current.externalId === entry.externalId,
+              (current) =>
+                current.workspaceId === entry.workspaceId &&
+                current.connectionId === entry.connectionId &&
+                (current.id === entry.id || current.externalId === entry.externalId),
             )
           )
             next.splice(Math.min(index, next.length), 0, entry);
@@ -524,27 +586,51 @@ export class VintedListingsComponent {
     if (!this.canCreateFrom(entry)) return;
     const confirmed = await this.confirm.frage({
       titel: 'Inserat löschen?',
-      text: entry.title,
+      text: this.accountList.showAllAccounts()
+        ? `${entry.title} · ${this.accountList.labels().get(entry.connectionId) ?? 'Vinted-Konto'}`
+        : entry.title,
       bestaetigenText: 'Löschen',
       gefahr: true,
     });
     if (!confirmed || !this.canCreateFrom(entry)) return;
+    if (this.needsEntryAccount(entry) && !(await this.useEntryAccount(entry))) return;
     // Fehler bleiben in „Laufende Aktionen“ sichtbar, auch nach dem Schließen des Dialogs.
     await this.operations
       .deleteListing(entry, () => this.store.deleteListing(entry.connectionId, entry.id))
       .catch(() => undefined);
+    void this.accountList.refresh();
   }
 
   changePrice(entry: MarketplaceEntry, event: MouseEvent): void {
+    const target = event.target instanceof Element ? event.target.closest('button') : null;
+    if (this.needsEntryAccount(entry) && this.canChangePrice(entry)) {
+      void this.useEntryAccount(entry).then((current) => {
+        if (current) this.showPrice(entry, target);
+      });
+      return;
+    }
+    this.showPrice(entry, target);
+  }
+
+  canChangePrice(entry: MarketplaceEntry): boolean {
+    return this.needsEntryAccount(entry)
+      ? this.priceActionVisible(entry) && entry.price !== null && entry.currency === 'EUR'
+      : this.priceEditor.available(entry);
+  }
+
+  private showPrice(entry: MarketplaceEntry, target: HTMLElement | null): void {
     if (this.actionsBlocked(entry) || this.priceEditor.open() || !this.priceEditor.available(entry))
       return;
-    this.priceTrigger = event.target instanceof Element ? event.target.closest('button') : null;
+    this.priceTrigger = target;
     this.priceEntry.set(entry);
     this.priceEditor.show();
   }
   async savePrice(): Promise<void> {
     const entry = this.priceEntry();
-    if (entry && !this.actionsBlocked(entry)) await this.priceEditor.save();
+    if (entry && !this.actionsBlocked(entry)) {
+      await this.priceEditor.save();
+      void this.accountList.refresh();
+    }
   }
 
   openFavoriteDiscount(entry: MarketplaceEntry): void {
@@ -553,6 +639,24 @@ export class VintedListingsComponent {
 
   closeFavoriteDiscount(): void {
     this.openedFavoriteDiscount.set(null);
+  }
+
+  private needsEntryAccount(entry: AccountScope): boolean {
+    return (
+      this.accountList.showAllAccounts() &&
+      this.store.selectedConnection()?.connectionId !== entry.connectionId
+    );
+  }
+
+  private async useEntryAccount(entry: MarketplaceEntry): Promise<boolean> {
+    if (!this.canManageEntry(entry)) return false;
+    const selection = this.store.selectionVersion();
+    await this.store.selectConnection(entry.connectionId, false);
+    return (
+      this.store.selectionVersion() === selection + 1 &&
+      this.store.selectedConnection()?.connectionId === entry.connectionId &&
+      this.canManageEntry(entry)
+    );
   }
 
   private async selectLinkedConnection(connectionId: string, workspaceId: string): Promise<void> {

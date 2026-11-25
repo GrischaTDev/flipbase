@@ -629,12 +629,13 @@ for (const outcome of ['saved', 'read_failed', 'nothing_due'] as const) {
   });
 }
 
-test('übergibt ein innerhalb von 24 Stunden bestätigtes Verkaufsbaum-Konto an importAccount', async () => {
+test('nutzt den aktuellen Verkaufsbaum beim geplanten Abruf und holt ihn beim Kontoabgleich neu', async () => {
   const dispatched = {
     ...scope,
     userAccessToken: '',
     syncRead: {
       operationId,
+      authorizationKind: 'scheduled_read' as const,
       runnerId: operationId,
       workerEpoch: 2,
       sessionId,
@@ -686,4 +687,9 @@ test('übergibt ein innerhalb von 24 Stunden bestätigtes Verkaufsbaum-Konto an 
   );
   await runner.runDispatched(dispatched);
   assert.deepEqual(receivedOptions, { cachedSellingTreeAccountId: '123' });
+  await runner.runDispatched({
+    ...dispatched,
+    syncRead: { ...dispatched.syncRead, authorizationKind: 'manual_read' },
+  });
+  assert.equal(receivedOptions, undefined);
 });

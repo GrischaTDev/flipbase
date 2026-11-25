@@ -135,6 +135,13 @@ export const MARKETPLACES_ROUTES: Routes = [
           ),
       },
       {
+        path: 'settings',
+        loadComponent: () =>
+          import('./components/vinted-settings/vinted-settings.component').then(
+            (m) => m.VintedSettingsComponent,
+          ),
+      },
+      {
         path: 'local-connect/:connectionId',
         loadComponent: () =>
           import('./components/vinted-local-connect/vinted-local-connect.component').then(

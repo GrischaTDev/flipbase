@@ -13,7 +13,7 @@ export type ActionDrawerItem = {
   readonly key: string;
   /** Läuft oder wartet noch; sonst gehört der Eintrag zu „Vergangen“. */
   readonly running: boolean;
-  /** Start der Aktion; bestimmt die Reihenfolge der Warteschlange. */
+  /** Start der Aktion; bestimmt bei fehlendem Termin die Reihenfolge. */
   readonly startedAt: number;
   /** Letzte Änderung; bestimmt die Reihenfolge im Verlauf. */
   readonly updatedAt: number;
@@ -144,14 +144,26 @@ export function actionDrawerItems(sources: {
   ];
 }
 
-/** Laufende Aktionen: zuletzt gestartete oben; Position 1 ist die älteste, also die nächste. */
 export function runningActionQueue(
   items: readonly ActionDrawerItem[],
 ): readonly { readonly item: ActionDrawerItem; readonly position: number }[] {
   const running = items
     .filter((item) => item.running)
-    .sort((left, right) => left.startedAt - right.startedAt || left.key.localeCompare(right.key));
-  return running.map((item, index) => ({ item, position: index + 1 })).reverse();
+    .sort(
+      (left, right) =>
+        nextActionTime(left) - nextActionTime(right) ||
+        left.startedAt - right.startedAt ||
+        left.key.localeCompare(right.key),
+    );
+  return running.map((item, index) => ({ item, position: index + 1 }));
+}
+
+function nextActionTime(item: ActionDrawerItem): number {
+  if (item.kind !== 'listing' || item.entry.job.state !== 'queued') return item.startedAt;
+  const job = item.entry.job;
+  return (
+    (!job.relistExternalId || job.relistDeletedAt ? time(job.scheduledAt) : 0) || item.startedAt
+  );
 }
 
 /** Vergangene Aktionen wie ein Verlauf: zuletzt beendete oben. */

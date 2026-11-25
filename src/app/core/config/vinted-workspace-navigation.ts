@@ -4,6 +4,7 @@ export interface VintedNavigationItem {
   readonly path: string;
   readonly label: string;
   readonly icon: WorkspaceNavigationIcon;
+  readonly ariaLabel?: string;
 }
 
 export interface VintedNavigationGroup {
@@ -12,11 +13,15 @@ export interface VintedNavigationGroup {
   readonly items: readonly VintedNavigationItem[];
 }
 
-export const VINTED_ACCOUNTS_NAVIGATION: VintedNavigationItem = {
-  path: '/marketplaces/vinted/accounts',
-  label: 'Konten',
-  icon: 'users',
-};
+export const VINTED_WORKSPACE_MAIN_LINKS: readonly VintedNavigationItem[] = [
+  { path: '/marketplaces/vinted/accounts', label: 'Konten', icon: 'users' },
+  {
+    path: '/marketplaces/vinted/settings',
+    label: 'Einstellungen',
+    ariaLabel: 'Vinted-Einstellungen',
+    icon: 'settings',
+  },
+];
 
 export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[] = [
   {
@@ -54,7 +59,7 @@ export const VINTED_WORKSPACE_NAVIGATION_GROUPS: readonly VintedNavigationGroup[
 ];
 
 export const VINTED_WORKSPACE_NAVIGATION: readonly VintedNavigationItem[] = [
-  VINTED_ACCOUNTS_NAVIGATION,
+  ...VINTED_WORKSPACE_MAIN_LINKS,
   ...VINTED_WORKSPACE_NAVIGATION_GROUPS.flatMap((group) => group.items),
 ];
 

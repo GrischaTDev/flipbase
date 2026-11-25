@@ -5,6 +5,7 @@ import { ActionStatusIndicatorComponent } from '../../shared/components/action-s
 import { listingTransferRendering } from '../../../../e2e/support/listing-transfer-rendering';
 import { VintedFavoriteSettingsComponent } from './components/vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedMessageSettingsComponent } from './components/vinted-message-settings/vinted-message-settings.component';
+import { VintedSettingsComponent } from './components/vinted-settings/vinted-settings.component';
 import { VintedLocalConnectComponent } from './components/vinted-local-connect/vinted-local-connect.component';
 import { VintedSetupComponent } from './components/vinted-setup/vinted-setup.component';
 import { VintedLocalExtensionApiService } from './services/vinted-local-extension-api.service';
@@ -31,6 +32,10 @@ import { createMarketplaceFixtures } from './testing/marketplace-fixtures';
 import { parseMarketplaceSnapshot } from './models/marketplace-response';
 import type { AccountScope } from './models/marketplace.models';
 import { VintedWorkspaceComponent } from './vinted-workspace.component';
+import {
+  VINTED_ALL_ACCOUNTS_OPTION,
+  VintedAccountViewService,
+} from './services/vinted-account-view.service';
 import { VintedAccountGridComponent } from './components/vinted-account-grid/vinted-account-grid.component';
 import { VintedOverviewComponent } from './components/vinted-overview/vinted-overview.component';
 import { VintedProfileComponent } from './components/vinted-profile/vinted-profile.component';
@@ -214,6 +219,10 @@ beforeAll(async () => {
     {
       type: VintedMessageSettingsComponent,
       path: 'src/app/features/marketplaces/components/vinted-message-settings/vinted-message-settings.component.ts',
+    },
+    {
+      type: VintedSettingsComponent,
+      path: 'src/app/features/marketplaces/components/vinted-settings/vinted-settings.component.ts',
     },
     {
       type: VintedAccountControlsComponent,
@@ -415,6 +424,7 @@ beforeEach(() => {
           children: [
             { path: '', redirectTo: 'accounts', pathMatch: 'full' },
             { path: 'accounts', component: VintedAccountGridComponent },
+            { path: 'settings', component: VintedSettingsComponent },
             { path: 'setup', component: VintedSetupComponent },
             { path: 'manage', redirectTo: 'accounts', pathMatch: 'full' },
             {
@@ -522,6 +532,52 @@ async function render(url: string) {
   return { harness, element: harness.routeNativeElement as HTMLElement };
 }
 describe('Vinted-Bereich in Flipbase', () => {
+  it('öffnet die Einstellungen auch ohne Vinted-Verbindung', async () => {
+    api.listConnections.mockResolvedValue({ canManage: true, connections: [] });
+    const { element } = await render('/marketplaces/vinted/settings');
+
+    expect(element.querySelector('h1')?.textContent).toContain('Vinted-Einstellungen');
+    expect(
+      element.querySelector('app-vinted-settings a[href="/marketplaces/vinted/accounts"]'),
+    ).not.toBeNull();
+    expect(element.querySelector('app-vinted-setup')).toBeNull();
+    expect(api.readSnapshot).not.toHaveBeenCalled();
+  });
+
+  it('hält Kontowerkzeuge aus der gemeinsamen Ansicht heraus und behält das konkrete Konto', async () => {
+    const { harness } = await render('/marketplaces/vinted/overview');
+    const workspace = harness.fixture.debugElement.query(By.directive(VintedWorkspaceComponent))
+      .componentInstance as VintedWorkspaceComponent;
+    const initialConnectionId = workspace.store.selectedConnection()?.connectionId;
+    expect(initialConnectionId).toBe(fixtureConnections[0].connectionId);
+
+    await workspace.selectAccount(VINTED_ALL_ACCOUNTS_OPTION);
+    await harness.fixture.whenStable();
+    harness.detectChanges();
+
+    const controls = harness.fixture.debugElement.query(
+      By.directive(VintedAccountControlsComponent),
+    ).componentInstance as VintedAccountControlsComponent;
+    expect(controls.accountOptions()[0]?.label).toBe('Alle Konten');
+    expect(controls.selectedOption()).toBe(VINTED_ALL_ACCOUNTS_OPTION);
+    expect(controls.showAccountTools()).toBe(false);
+    expect(workspace.store.selectedConnection()?.connectionId).toBe(initialConnectionId);
+
+    const secondConnectionId = fixtureConnections[1].connectionId;
+    await workspace.store.selectConnection(secondConnectionId, false);
+    expect(workspace.store.hasExplicitConnectionSelection()).toBe(false);
+    await workspace.selectAccount(secondConnectionId);
+    expect(workspace.store.hasExplicitConnectionSelection()).toBe(true);
+    expect(TestBed.inject(VintedAccountViewService).showAllAccounts()).toBe(false);
+
+    await workspace.selectAccount(VINTED_ALL_ACCOUNTS_OPTION);
+    await harness.navigateByUrl('/marketplaces/vinted/settings');
+    expect(TestBed.inject(VintedAccountViewService).showAllAccounts()).toBe(true);
+    expect(
+      harness.fixture.debugElement.query(By.directive(VintedAccountControlsComponent)),
+    ).toBeNull();
+  });
+
   it('meldet ein passendes geprüftes Profil als verbunden und erklärt einen Profilwechsel unter dem Header', async () => {
     const account = {
       ...fixtureConnections[0],

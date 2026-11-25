@@ -1,0 +1,57 @@
+<div class="grid min-w-0 gap-4" [class.lg:grid-cols-2]="!showReviews()">
+  @for (tile of previews.tiles(); track tile.connection.connectionId) {
+    @let accountLabel = labels().get(tile.connection.connectionId);
+    <app-card
+      class="min-w-0"
+      [title]="accountLabel ?? tile.connection.displayName"
+      [attr.id]="'reviews-' + tile.connection.connectionId"
+      tabindex="-1"
+    >
+      @if (tile.preview; as preview) {
+        @if (preview.profile; as profile) {
+          <div class="mb-3 flex min-w-0 items-center gap-3">
+            <app-product-thumbnail [src]="profile.imageUrl" alt="" size="avatar" />
+            <div class="min-w-0 text-sm text-fb-text-secondary">
+              @if (profile.username) {
+                <p class="break-words">&#64;{{ profile.username }}</p>
+              }
+              @if (profile.location) {
+                <p class="break-words">{{ profile.location }}</p>
+              }
+            </div>
+          </div>
+        }
+        @if (showReviews()) {
+          @if (preview.profile?.bio; as bio) {
+            <p class="mb-4 whitespace-pre-wrap break-words text-sm text-fb-text-primary">
+              {{ bio }}
+            </p>
+          }
+          <app-vinted-feedback-list
+            [profile]="preview.profile"
+            [isConnected]="tile.connection.status === 'connected'"
+          />
+        } @else {
+          <div class="flex flex-wrap items-center gap-2">
+            <app-badge tone="neutral">{{ preview.publicationCount }} Inserate</app-badge>
+            <app-badge tone="neutral">{{ preview.saleCount }} Verkäufe</app-badge>
+            <app-button
+              variant="plain"
+              link="/marketplaces/vinted/profile"
+              [queryParams]="{ connectionId: tile.connection.connectionId }"
+              fragment="reviews"
+              >Profil ansehen</app-button
+            >
+          </div>
+        }
+      }
+      @if (tile.error) {
+        <p role="status" class="mt-2 text-sm text-fb-text-secondary">
+          Kontodaten konnten nicht aktualisiert werden.
+        </p>
+      } @else if (tile.loading && !tile.preview) {
+        <p role="status" class="text-sm text-fb-text-secondary">Kontodaten werden geladen …</p>
+      }
+    </app-card>
+  }
+</div>

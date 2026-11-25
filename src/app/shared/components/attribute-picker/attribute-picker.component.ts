@@ -69,6 +69,8 @@ export class AttributePickerComponent implements ControlValueAccessor {
   readonly liveText = input(false);
   /** Ermöglicht im Einzelmodus das Abwählen per X-Button oder Leeren des Felds. */
   readonly clearable = input(false);
+  readonly closeOnSelection = input(false);
+  readonly requiredIndicator = input(false);
   /** Optionaler erster Listeneintrag zum Zurücksetzen im Einzelmodus, z. B. „Alle Marken“. */
   readonly clearOptionLabel = input('');
   readonly error = input<string | null>(null);
@@ -231,7 +233,7 @@ export class AttributePickerComponent implements ControlValueAccessor {
       this.setValue(value);
       this.query.set(value);
       this.isEditing.set(false);
-      if (this.clearable()) this.close(true);
+      if (this.clearable() || this.closeOnSelection()) this.close(true);
       else this.field()?.nativeElement.focus();
     }
   }

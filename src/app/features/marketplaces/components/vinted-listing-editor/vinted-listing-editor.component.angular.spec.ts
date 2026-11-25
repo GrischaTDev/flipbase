@@ -1,5 +1,4 @@
 import { VintedCategoryFieldStore } from '../../services/vinted-category-field.store';
-import { vintedListingCategorySource } from '../../models/vinted-listing-category-source';
 import { VintedListingCategoryService } from '../../services/vinted-listing-category.service';
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
@@ -236,13 +235,10 @@ function setup(
         provide: VintedListingCategoryService,
         useValue: {
           read: vi.fn(),
-          readSnapshot: vi.fn(() => TestBed.inject(VintedCategoryService).readSnapshot()),
-          source: vi.fn(() =>
-            vintedListingCategorySource([
-              { id: 1223, parentId: null, title: 'Jacken' },
-              { id: 2738, parentId: null, title: 'Schuhe' },
-            ]),
-          ),
+          readPublicationSnapshot: vi.fn(async () => {
+            const { categories } = await TestBed.inject(VintedCategoryService).readSnapshot();
+            return { categories, publishableCategoryIds: new Set(categories.map(({ id }) => id)) };
+          }),
         },
       },
       {
@@ -420,8 +416,8 @@ function setup(
   if (fixture && options.render) {
     const editorCategoryApi = fixture.debugElement.injector.get(VintedListingCategoryService);
     const categoryApi = TestBed.inject(VintedListingCategoryService);
-    vi.spyOn(editorCategoryApi, 'readSnapshot').mockImplementation((connectionId) =>
-      categoryApi.readSnapshot(connectionId),
+    vi.spyOn(editorCategoryApi, 'readPublicationSnapshot').mockImplementation((connectionId) =>
+      categoryApi.readPublicationSnapshot(connectionId),
     );
   }
   if (fixture && source) {
@@ -733,7 +729,9 @@ describe('Relisten aus der lokalen Lesekopie', () => {
     });
     expect(f.readListingContent).not.toHaveBeenCalled();
     expect(TestBed.inject(VintedListingOriginalPhotoService).read).not.toHaveBeenCalled();
-    expect(TestBed.inject(VintedCategoryService).readSnapshot).not.toHaveBeenCalled();
+    expect(
+      TestBed.inject(VintedListingCategoryService).readPublicationSnapshot,
+    ).not.toHaveBeenCalled();
     expect(request).not.toHaveBeenCalled();
     expect(f.create).not.toHaveBeenCalled();
     expect(f.save).not.toHaveBeenCalled();
@@ -1139,21 +1137,33 @@ describe('Vinted-Inserateditor', () => {
     const { component, connections } = setup();
     await settle();
     connections.set([account, { ...account, connectionId: 'account-b' }]);
+    type Snapshot = Awaited<ReturnType<VintedListingCategoryService['readPublicationSnapshot']>>;
+    let finishPrevious: (snapshot: Snapshot) => void = () => undefined;
+    vi.mocked(
+      TestBed.inject(VintedListingCategoryService).readPublicationSnapshot,
+    ).mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishPrevious = resolve;
+        }),
+    );
     component.form.controls.connectionId.setValue('account-a');
-    component.categorySource();
-    const rememberPrevious = vi
-      .mocked(TestBed.inject(VintedListingCategoryService).source)
-      .mock.calls.at(-1)?.[1];
     component.form.controls.connectionId.setValue('account-b');
-    component.categorySource();
     await settle();
-    rememberPrevious?.({
-      id: 5555,
-      parentId: null,
-      title: 'Alter Schalzweig',
-      path: 'Alter Schalzweig',
-      isLeaf: true,
+    finishPrevious({
+      categories: [
+        {
+          id: 5555,
+          parentId: null,
+          title: 'Alter Schalzweig',
+          path: 'Alter Schalzweig',
+          isLeaf: true,
+        },
+      ],
+      publishableCategoryIds: new Set([5555]),
+      observedAt: '2026-11-05T12:00:00Z',
     });
+    await settle();
     component.form.controls.categoryId.setValue('5555');
     expect(component.content().categoryLabel).toBe('');
   });
@@ -1163,7 +1173,9 @@ describe('Vinted-Inserateditor', () => {
     connections.set([account, { ...account, connectionId: 'account-b' }]);
     component.form.controls.connectionId.setValue('account-a');
     let rejectPrevious: (error: Error) => void = () => undefined;
-    vi.mocked(TestBed.inject(VintedListingCategoryService).readSnapshot).mockImplementationOnce(
+    vi.mocked(
+      TestBed.inject(VintedListingCategoryService).readPublicationSnapshot,
+    ).mockImplementationOnce(
       () =>
         new Promise((_, reject) => {
           rejectPrevious = reject;
@@ -1210,13 +1222,19 @@ describe('Vinted-Inserateditor', () => {
   it('zeigt bei einer gespeicherten Oberkategorie die erforderliche Unterkategorie bereits im Editor an', async () => {
     const f = setup();
     await settle();
+    vi.mocked(
+      TestBed.inject(VintedListingCategoryService).readPublicationSnapshot,
+    ).mockResolvedValueOnce({
+      categories: [
+        { id: 5, parentId: null, title: 'Damen', path: 'Damen', isLeaf: false },
+        { id: 16, parentId: 5, title: 'Schuhe', path: 'Damen > Schuhe', isLeaf: false },
+        { id: 17, parentId: 16, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker', isLeaf: true },
+      ],
+      publishableCategoryIds: new Set([17]),
+      observedAt: '2026-11-05T12:00:00Z',
+    });
     f.component.form.controls.connectionId.setValue('account-a');
     await settle();
-    f.component.categories.set([
-      { id: 5, parentId: null, title: 'Damen', path: 'Damen' },
-      { id: 16, parentId: 5, title: 'Schuhe', path: 'Damen > Schuhe' },
-      { id: 17, parentId: 16, title: 'Sneaker', path: 'Damen > Schuhe > Sneaker' },
-    ]);
     f.component.form.patchValue({ categoryId: '16', connectionId: 'account-a' });
     expect(f.component.fieldErrors()['category']).toContain('Unterkategorie');
     expect(f.component.canSelectFields()).toBe(true);
@@ -1801,7 +1819,7 @@ describe('Vinted-Inserateditor', () => {
     await settle();
     const categories = component.categories();
     expect(categories.length).toBeGreaterThan(0);
-    const read = vi.mocked(TestBed.inject(VintedListingCategoryService).readSnapshot);
+    const read = vi.mocked(TestBed.inject(VintedListingCategoryService).readPublicationSnapshot);
     read.mockRejectedValueOnce(new Error('nicht erreichbar'));
     component.form.patchValue({ connectionId: null });
     await settle();

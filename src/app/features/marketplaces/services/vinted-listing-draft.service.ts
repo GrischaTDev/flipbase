@@ -38,13 +38,23 @@ export class VintedListingDraftService {
     workspaceId: string,
     query = '',
     cursor?: VintedListingDraftCursor,
+    connectionId?: string,
   ): Promise<VintedListingDraftPage> {
+    const cursorValue = cursor ? (JSON.parse(JSON.stringify(cursor)) as Json) : null;
     const result = listingResponse(
-      await this.client.rpc('marketplace_list_listing_drafts', {
-        p_workspace_id: workspaceId,
-        p_query: query,
-        ...(cursor ? { p_cursor: JSON.parse(JSON.stringify(cursor)) as Json } : {}),
-      }),
+      connectionId
+        ? await this.client.rpc('marketplace_list_listing_drafts_scoped', {
+            p_workspace_id: workspaceId,
+            p_query: query,
+            p_cursor: cursorValue,
+            p_limit: 50,
+            p_connection_id: connectionId,
+          })
+        : await this.client.rpc('marketplace_list_listing_drafts', {
+            p_workspace_id: workspaceId,
+            p_query: query,
+            ...(cursor ? { p_cursor: cursorValue } : {}),
+          }),
     );
     if (!result || typeof result !== 'object' || Array.isArray(result))
       throw new Error('Die Entwurfsübersicht konnte nicht gelesen werden.');

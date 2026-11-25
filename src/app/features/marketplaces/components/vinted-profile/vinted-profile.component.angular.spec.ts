@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { vintedProfileEditorRendering } from '../../../../../../e2e/support/vinted-profile-editor-rendering';
 import { SummaryMetricComponent } from '../../../../shared/components/summary-metric/summary-metric.component';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, provideRouter } from '@angular/router';
+import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import axe from 'axe-core';
 import { BehaviorSubject } from 'rxjs';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -16,13 +16,17 @@ import { TextFieldComponent } from '../../../../shared/components/text-field/tex
 import type { MarketplaceSnapshot } from '../../models/marketplace-read.models';
 import { parseMarketplaceSnapshot } from '../../models/marketplace-response';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { VintedAccountPreviewsStore } from '../../services/vinted-account-previews.store';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
 import { createMarketplaceFixtures } from '../../testing/marketplace-fixtures';
+import { VintedAccountSummariesComponent } from '../vinted-account-summaries/vinted-account-summaries.component';
 import { VintedFeedbackListComponent } from '../vinted-feedback-list/vinted-feedback-list.component';
 import { VintedProfileEditorComponent } from '../vinted-profile-editor/vinted-profile-editor.component';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedProfileComponent } from './vinted-profile.component';
 
-const connection = createMarketplaceFixtures().connections[0];
+const connections = createMarketplaceFixtures().connections;
+const connection = connections[0];
 const scope = { workspaceId: connection.workspaceId, connectionId: connection.connectionId };
 const emptyPage = { items: [], total: 0, nextCursor: null };
 function snapshot(profile: Record<string, unknown> | null = {}) {
@@ -57,8 +61,10 @@ describe('VintedProfileComponent', () => {
   let fixture: ComponentFixture<VintedProfileComponent>;
   let resetBindings: (() => void) | undefined;
   let fragment: BehaviorSubject<string | null>;
+  let queryParamMap: BehaviorSubject<ReturnType<typeof convertToParamMap>>;
   const accountSnapshot = signal<MarketplaceSnapshot | null>(null);
   const selectedConnection = signal(connection);
+  const showAllAccounts = signal(false);
 
   beforeAll(async () => {
     resetBindings = await prepareMarketplaceRendering([
@@ -87,6 +93,10 @@ describe('VintedProfileComponent', () => {
         path: 'src/app/features/marketplaces/components/vinted-feedback-list/vinted-feedback-list.component.ts',
       },
       {
+        type: VintedAccountSummariesComponent,
+        path: 'src/app/features/marketplaces/components/vinted-account-summaries/vinted-account-summaries.component.ts',
+      },
+      {
         type: VintedProfileEditorComponent,
         path: 'src/app/features/marketplaces/components/vinted-profile-editor/vinted-profile-editor.component.ts',
       },
@@ -102,26 +112,56 @@ describe('VintedProfileComponent', () => {
   });
   afterAll(() => resetBindings?.());
   afterEach(() => {
-    fixture.destroy();
-    (fixture.nativeElement as HTMLElement).remove();
+    const element = fixture?.nativeElement as HTMLElement | undefined;
+    fixture?.destroy();
+    element?.remove();
   });
 
   beforeEach(async () => {
     TestBed.resetTestingModule();
     accountSnapshot.set(snapshot());
     selectedConnection.set({ ...connection, status: 'connected' });
+    showAllAccounts.set(false);
     fragment = new BehaviorSubject<string | null>(null);
+    queryParamMap = new BehaviorSubject(convertToParamMap({}));
     await TestBed.configureTestingModule({
       imports: [VintedProfileComponent],
       providers: [
         provideRouter([]),
-        { provide: ActivatedRoute, useValue: { fragment, snapshot: { fragment: null } } },
+        {
+          provide: ActivatedRoute,
+          useValue: {
+            fragment,
+            queryParamMap,
+            snapshot: { fragment: null, queryParamMap: queryParamMap.value },
+          },
+        },
+        { provide: VintedAccountViewService, useValue: { showAllAccounts } },
         {
           provide: MarketplaceAccountStore,
-          useValue: { snapshot: accountSnapshot, selectedConnection, selectionVersion: signal(0) },
+          useValue: {
+            snapshot: accountSnapshot,
+            selectedConnection,
+            selectionVersion: signal(0),
+            canManage: signal(true),
+            connections: signal(connections),
+          },
         },
       ],
-    }).compileComponents();
+    })
+      .overrideProvider(VintedAccountPreviewsStore, {
+        useValue: {
+          tiles: signal(
+            connections.map((account) => ({
+              connection: account,
+              preview: { profile: snapshot().profile, publicationCount: 0, saleCount: 0 },
+              error: false,
+              loading: false,
+            })),
+          ),
+        },
+      })
+      .compileComponents();
     fixture = TestBed.createComponent(VintedProfileComponent);
     document.body.appendChild(fixture.nativeElement as HTMLElement);
   });
@@ -160,6 +200,19 @@ describe('VintedProfileComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(document.activeElement?.id).toBe('reviews');
+  });
+
+  it('fokussiert in der gemeinsamen Ansicht nur die Bewertungen des verlinkten Kontos', async () => {
+    const secondAccount = connections[1];
+    showAllAccounts.set(true);
+    queryParamMap.next(convertToParamMap({ connectionId: secondAccount.connectionId }));
+    fragment.next('reviews');
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const element = fixture.nativeElement as HTMLElement;
+    expect(element.querySelectorAll('app-vinted-feedback-list')).toHaveLength(connections.length);
+    expect(document.activeElement?.id).toBe('reviews-' + secondAccount.connectionId);
+    expect(element.querySelector('app-vinted-profile-editor')).toBeNull();
   });
 
   it('behält die Profilbearbeitung ausschließlich für das verbundene Konto', () => {

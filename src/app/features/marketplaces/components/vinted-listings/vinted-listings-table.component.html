@@ -36,13 +36,15 @@
         </tr>
       </thead>
       <tbody class="bg-fb-surface">
-        @for (row of rows(); track row.entry.id) {
+        @for (row of rows(); track entryKey(row.entry)) {
           @let entry = row.entry;
           <tr
             [attr.data-listing-row]="row.plan ? null : ''"
             [attr.data-relisting-plan]="row.plan ? '' : null"
-            [attr.aria-label]="row.plan ? entry.title : null"
-            [class.opacity-60]="row.running || !!row.plan"
+            [attr.aria-label]="
+              row.plan ? entry.title + (row.accountLabel ? ' · ' + row.accountLabel : '') : null
+            "
+            [class.opacity-60]="!row.accountLabel && (row.running || !!row.plan)"
             [attr.aria-busy]="row.running ? 'true' : null"
             class="border-t border-fb-border-subtle"
           >
@@ -66,6 +68,11 @@
                     {{ entry.title }}
                   </h2>
                   <span class="sr-only"> öffnen</span>
+                  @if (row.accountLabel) {
+                    <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
+                      {{ row.accountLabel }}
+                    </app-badge>
+                  }
                   <p
                     [attr.role]="row.running || row.plan ? 'status' : null"
                     class="mt-1 flex min-h-5 min-w-0 items-center gap-2 text-xs leading-5 text-fb-text-secondary"

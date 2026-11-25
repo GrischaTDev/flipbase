@@ -308,11 +308,16 @@ test('direkt geänderte unmarkierte Browserdatei läuft vollständig', async () 
 test('direkt geänderte Galerie behält alle Fotoanzahlen und unterschiedliche Bedienfälle', async () => {
   const { selected } = await listPlan(['e2e/vinted-listing-edge-cases.spec.ts']);
   const complete = await listTests('playwright.config.ts', ['vinted-listing-edge-cases.spec.ts']);
-  assert.equal(complete.selected.length, 40);
-  assert.equal(selected.length, 21);
+  assert.equal(complete.selected.length, 41);
+  assert.equal(selected.length, 22);
   const completeKeys = new Set(keys(complete.selected));
   assert.ok(keys(selected).every((key) => completeKeys.has(key)));
   assert.ok(selected.some(([, title]) => title.includes('Großansicht behält den Tastaturfokus')));
+  assert.ok(
+    selected.some(([, title]) =>
+      title.includes('neu veröffentlichtes Inserat aus dem gespeicherten Kontoabgleich'),
+    ),
+  );
   assert.ok(selected.some(([, title]) => title.includes('Bildfehlerrahmen')));
   for (const title of [
     'Relisting übernimmt Karte und Alter vor genau einem Erfolgstoast',
@@ -631,9 +636,12 @@ test('Relist-Fix bleibt begrenzt und seine echten CI-Teilgruppen verlieren oder 
     coreBrowserTests.length,
   );
   // Archivkopien, importierte Verkäufe, der Sprung zum gespeicherten Versandschein und die Kopie
-  // eines bereits veröffentlichten Entwurfs sowie der Veröffentlichungsstand in der Übersicht
-  // bleiben enthalten.
-  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 73);
+  // eines bereits veröffentlichten Entwurfs bleiben enthalten. Dazu kommen die automatische
+  // Übernahme ins Konto und der Wechsel zwischen verbundenen Konten.
+  assert.equal(complete.selected.filter(([file]) => !coreFiles.has(file)).length, 75);
+  assert.ok(
+    complete.selected.some(([, title]) => title.includes('behält Alle Konten beim Wechsel')),
+  );
   for (const layout of ['1440px light', '390px dark'])
     assert.equal(
       complete.selected.filter(

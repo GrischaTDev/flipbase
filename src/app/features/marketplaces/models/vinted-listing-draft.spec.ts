@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parseVintedListingDraft, parseVintedListingTemplate } from './vinted-listing-draft';
+import {
+  listingResponse,
+  parseVintedListingDraft,
+  parseVintedListingTemplate,
+  VintedListingCatalogError,
+  VintedListingStorageError,
+} from './vinted-listing-draft';
 
 const draft = {
   id: '9007199254740999',
@@ -13,6 +19,25 @@ const draft = {
   images: [],
 };
 describe('Gespeicherte Vinted-Entwürfe', () => {
+  it('unterscheidet bestätigte Katalogablehnungen von fehlenden Auftragsantworten', () => {
+    const categoryMessage = 'Wähle im Entwurf eine aktuelle Vinted-Kategorie.';
+    const packageMessage = 'Wähle im Entwurf einen gültigen Wert für „Paketgröße“.';
+    for (const [message, field] of [
+      [categoryMessage, 'category'],
+      [packageMessage, 'package'],
+    ]) {
+      const response = () => listingResponse({ data: null, error: { code: 'PV001', message } });
+      expect(response).toThrow(VintedListingCatalogError);
+      expect(response).toThrow(expect.objectContaining({ field, message }));
+    }
+    const transportError = () =>
+      listingResponse({
+        data: null,
+        error: { message: categoryMessage },
+      });
+    expect(transportError).toThrow(VintedListingStorageError);
+    expect(transportError).not.toThrow(VintedListingCatalogError);
+  });
   it('keeps large database IDs as strings without rounding', () => {
     expect(parseVintedListingDraft(draft, 'workspace-a').id).toBe('9007199254740999');
   });

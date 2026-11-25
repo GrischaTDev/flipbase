@@ -82,6 +82,49 @@
       }
     </app-notice-banner>
   }
+  @if (activePublicationCorrections().length) {
+    <div data-publication-correction tabindex="-1">
+      <app-notice-banner announcement="alert">
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          @for (correction of activePublicationCorrections(); track $index) {
+            <p>{{ correction.message }}</p>
+            @if (correction.field) {
+              <app-button
+                variant="secondary"
+                size="slim"
+                (clicked)="focusPublicationField(correction.field)"
+                >{{
+                  correction.field === 'category' ? 'Kategorie ändern' : 'Zur Angabe'
+                }}</app-button
+              >
+            }
+          }
+        </div>
+      </app-notice-banner>
+    </div>
+  }
+  @if (publication(); as opened) {
+    <app-vinted-listing-publication-preview
+      [direct]="true"
+      [scopeKey]="opened.scopeKey"
+      [userId]="opened.userId"
+      [draft]="opened.draft"
+      [account]="opened.account"
+      [images]="opened.images"
+      [initialSchedule]="publicationSchedule()"
+      [replacesJob]="waitingPlan()"
+      [relistDelaySeconds]="relisting() && relistTiming() === 'delay' ? relistMinutes() * 60 : 0"
+      (scheduleChange)="publicationSchedule.set($event)"
+      (busyChange)="publicationBusy.set($event)"
+      (intentLockedChange)="publicationIntentLocked.set($event)"
+      [disabled]="!canPreparePublication()"
+      (accepted)="publicationAccepted($event)"
+      (correctionRequired)="correctPublication($event, true)"
+      (closed)="returnToEditor()"
+      [canCopy]="!source() && !plannedJob()"
+      (copyRequested)="copyAsNewDraft()"
+    />
+  }
   @if (!store.canManage()) {
     <app-notice-banner
       >Du hast keinen Zugriff auf die Inseratentwürfe dieses Arbeitsbereichs.</app-notice-banner
@@ -379,13 +422,23 @@
       >
         <app-two-column-layout ratio="2-1">
           <div main class="space-y-4">
-            <app-card title="Fotos">
+            <app-card>
+              <app-form-field
+                card-header
+                label="Fotos"
+                [required]="true"
+                controlId="vinted-draft-photos"
+              />
+              <span id="vinted-draft-photos-required" class="sr-only">Pflichtfeld</span>
               <p class="mb-3 text-xs text-fb-text-secondary">{{ images().length }} von 20 Fotos</p>
               <app-vinted-listing-media
                 role="group"
-                aria-label="Fotos"
+                aria-labelledby="vinted-draft-photos-label"
+                data-publication-field="photos"
                 [attr.aria-describedby]="
-                  visibleFieldErrors()['photos'] ? 'vinted-draft-photos-error' : null
+                  visibleFieldErrors()['photos']
+                    ? 'vinted-draft-photos-required vinted-draft-photos-error'
+                    : 'vinted-draft-photos-required'
                 "
                 [attr.data-listing-issue]="visibleFieldErrors()['photos'] ? '' : null"
                 [images]="images()"
@@ -412,6 +465,8 @@
               <div class="space-y-4">
                 <app-text-field
                   label="Titel"
+                  [requiredIndicator]="true"
+                  data-publication-field="title"
                   placeholder="Zum Beispiel: Jeansjacke in Größe M"
                   [error]="visibleFieldErrors()['title'] ?? null"
                   [helpText]="textLimitHelp('title')"
@@ -420,6 +475,8 @@
                 />
                 <app-text-field
                   label="Beschreibung"
+                  [requiredIndicator]="true"
+                  data-publication-field="description"
                   placeholder="Beschreibe Deinen Artikel und seinen Zustand."
                   [multiline]="12"
                   [error]="visibleFieldErrors()['description'] ?? null"
@@ -440,6 +497,8 @@
               <div class="space-y-4">
                 <app-text-field
                   label="Verkaufspreis"
+                  [requiredIndicator]="true"
+                  data-publication-field="price"
                   suffix="€"
                   placeholder="Noch nicht festgelegt"
                   [error]="
@@ -473,6 +532,8 @@
                 <app-custom-select
                   triggerId="vinted-draft-account"
                   label="Zielkonto"
+                  [requiredIndicator]="true"
+                  data-publication-field="account"
                   ariaLabel="Zielkonto für diesen Entwurf"
                   [error]="publicationAttempted() ? accountIssue() : null"
                   [options]="accountOptions()"
@@ -483,11 +544,13 @@
                     >Vinted-Konten verwalten</app-button
                   >
                 }
-                <div [attr.data-listing-issue]="visibleFieldErrors()['category'] ? '' : null">
+                <div data-publication-field="category">
                   @if (categorySource(); as source) {
                     <app-category-picker
                       label="Kategorie"
-                      helpText="Suche die passende Vinted-Kategorie."
+                      [requiredIndicator]="true"
+                      [error]="visibleFieldErrors()['category'] ?? null"
+                      [unavailableLabel]="content().categoryLabel"
                       [source]="source"
                       formControlName="categoryId"
                     />
@@ -505,23 +568,29 @@
                       >Kategorien erneut laden</app-button
                     >
                   }
+                  @if (needsFreshCategoryList()) {
+                    <app-button variant="secondary" (clicked)="reloadCategories(true)"
+                      >Kategorien für dieses Konto aktualisieren</app-button
+                    >
+                  }
                   @if (categoryLoading()) {
                     <p role="status" class="text-sm text-fb-text-secondary">
                       Kategorien werden geladen …
                     </p>
                   }
-                  @if (visibleFieldErrors()['category']; as message) {
-                    <p class="text-xs text-fb-critical">{{ message }}</p>
-                  }
                 </div>
                 @if (brandAvailable() && workspaceId(); as workspaceId) {
-                  <div [attr.data-listing-issue]="visibleFieldErrors()['brand'] ? '' : null">
+                  <div
+                    data-publication-field="brand"
+                    [attr.data-listing-issue]="visibleFieldErrors()['brand'] ? '' : null"
+                  >
                     <app-vinted-listing-brand-dialog
                       [inline]="true"
                       [scopeKey]="brandScope()"
                       [workspaceId]="workspaceId"
                       [initialLabel]="form.controls.brand.value"
                       [fieldError]="visibleFieldErrors()['brand'] ?? null"
+                      [requiredIndicator]="categorySchema() !== null && brandAvailable()"
                       [disabled]="!canSelectBrand()"
                       (edited)="editBrand($event)"
                       (selected)="selectInlineBrand($event)"
@@ -571,26 +640,6 @@
         </app-two-column-layout>
       </div>
     }
-  }
-  @if (publication(); as opened) {
-    <app-vinted-listing-publication-preview
-      [direct]="true"
-      [scopeKey]="opened.scopeKey"
-      [userId]="opened.userId"
-      [draft]="opened.draft"
-      [account]="opened.account"
-      [images]="opened.images"
-      [initialSchedule]="publicationSchedule()"
-      [replacesJob]="waitingPlan()"
-      [relistDelaySeconds]="relisting() && relistTiming() === 'delay' ? relistMinutes() * 60 : 0"
-      (scheduleChange)="publicationSchedule.set($event)"
-      (busyChange)="publicationBusy.set($event)"
-      [disabled]="!canPreparePublication()"
-      (accepted)="publicationAccepted($event)"
-      (closed)="returnToEditor()"
-      [canCopy]="!source() && !plannedJob()"
-      (copyRequested)="copyAsNewDraft()"
-    />
   }
 </ng-template>
 @if (planningPublication()) {

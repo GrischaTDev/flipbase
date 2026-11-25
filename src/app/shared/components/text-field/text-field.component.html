@@ -2,7 +2,7 @@
   [controlId]="fieldId()"
   [label]="label()"
   [labelHidden]="labelHidden()"
-  [required]="required()"
+  [required]="required() || requiredIndicator()"
   [helpText]="helpText()"
   [error]="error()"
 >
@@ -29,7 +29,7 @@
         [attr.maxlength]="maxLength()"
         [class]="inputClasses()"
         [attr.aria-label]="ariaLabel() || null"
-        [attr.aria-required]="ariaRequired() ?? (required() ? 'true' : null)"
+        [attr.aria-required]="ariaRequired() ?? (required() || requiredIndicator() ? 'true' : null)"
         [attr.aria-invalid]="(ariaInvalid() ? 'true' : null) ?? (error() ? 'true' : null)"
         [attr.aria-describedby]="
           ariaDescribedby() ||
@@ -50,7 +50,7 @@
         [attr.maxlength]="maxLength()"
         [class]="inputClasses()"
         [attr.aria-label]="ariaLabel() || null"
-        [attr.aria-required]="ariaRequired() ?? (required() ? 'true' : null)"
+        [attr.aria-required]="ariaRequired() ?? (required() || requiredIndicator() ? 'true' : null)"
         [attr.aria-invalid]="(ariaInvalid() ? 'true' : null) ?? (error() ? 'true' : null)"
         [attr.aria-describedby]="
           ariaDescribedby() ||

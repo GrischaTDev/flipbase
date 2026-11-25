@@ -1,0 +1,8 @@
+@if (busy()) {
+  <app-loading-indicator />
+}
+@if (countdownSeconds(); as seconds) {
+  <span class="tabular-nums"><span class="sr-only">Relist in </span>{{ seconds }} s</span>
+} @else {
+  {{ label() }}
+}

@@ -146,8 +146,12 @@ export class MarketplaceSyncRunner {
         (await this.imports.conversationVersions?.(scope, currentSessionId)) ?? [];
       const previousPublications =
         (await this.imports.publicationVersions?.(scope, currentSessionId)) ?? [];
+      // Ein ausdrücklich angestoßener Abgleich soll auch einen veralteten Verkaufsbaum erneuern.
       const cachedSellingTreeAccountId =
-        (await this.imports.freshSellingTreeAccountId?.(scope, currentSessionId)) ?? undefined;
+        scope.syncRead?.authorizationKind === 'manual_read'
+          ? undefined
+          : ((await this.imports.freshSellingTreeAccountId?.(scope, currentSessionId)) ??
+            undefined);
       const snapshot = await this.broker.run(scope, currentSessionId, async (browser) => {
         if (!browser.importAccount) throw new Error('Vinted-Import fehlt');
         try {

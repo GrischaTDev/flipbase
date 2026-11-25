@@ -6,6 +6,7 @@ import { vintedPublicationBadge } from '../../models/vinted-publication-state';
 import { DataTableComponent } from '../../../../shared/components/data-table/data-table.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
+import { vintedAccountEntryKey } from '../../models/vinted-account-list';
 import type { VintedListingMetricChange } from '../../models/vinted-listing-metric-change';
 import type { VintedRelistingPlan } from '../../services/vinted-relisting-plan.store';
 import { VintedListingAgeComponent } from '../vinted-listing-age/vinted-listing-age.component';
@@ -14,6 +15,7 @@ import { LoadingIndicatorComponent } from '../../../../shared/components/loading
 
 export interface VintedWardrobeTableRow {
   readonly entry: MarketplaceEntry;
+  readonly accountLabel?: string;
   readonly change: VintedListingMetricChange | null;
   readonly comparisonLabel: string | null;
   readonly highlighted: boolean;
@@ -47,4 +49,5 @@ export class VintedListingsTableComponent {
   readonly actionsTemplate =
     input.required<TemplateRef<{ $implicit: MarketplaceEntry; plan?: VintedRelistingPlan }>>();
   readonly publicationBadge = vintedPublicationBadge;
+  readonly entryKey = vintedAccountEntryKey;
 }

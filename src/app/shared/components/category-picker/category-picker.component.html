@@ -2,8 +2,13 @@
   [controlId]="fieldId()"
   [label]="label()"
   [labelHidden]="labelHidden()"
+  [required]="requiredIndicator()"
   [helpText]="helpText()"
+  [error]="error()"
 >
+  @if (requiredIndicator()) {
+    <span class="sr-only" [id]="fieldId() + '-required'">Pflichtfeld</span>
+  }
   <div class="relative">
     <button
       #trigger
@@ -12,7 +17,13 @@
       aria-haspopup="dialog"
       [attr.aria-expanded]="isOpen()"
       [attr.aria-labelledby]="(label() ? fieldId() + '-label ' : '') + fieldId() + '-value'"
-      [attr.aria-describedby]="helpText() ? fieldId() + '-help' : null"
+      [attr.aria-invalid]="error() ? 'true' : null"
+      [attr.aria-describedby]="
+        (
+          (requiredIndicator() ? fieldId() + '-required ' : '') +
+          (error() ? fieldId() + '-error' : helpText() ? fieldId() + '-help' : '')
+        ).trim() || null
+      "
       [disabled]="isDisabled()"
       (click)="toggle()"
       (keydown)="onTriggerKeydown($event)"
@@ -21,6 +32,8 @@
       <span [id]="fieldId() + '-value'" class="min-w-0 flex-1 truncate">
         @if (selected()) {
           {{ selectedPath() }}
+        } @else if (value() && unavailableLabel()) {
+          {{ unavailableLabel() }}
         } @else if (value()) {
           <span class="text-fb-text-muted">Kategorie wird geladen …</span>
         } @else {

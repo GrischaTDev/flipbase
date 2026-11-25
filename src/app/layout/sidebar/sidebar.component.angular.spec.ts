@@ -381,7 +381,12 @@ describe('SidebarComponent', () => {
         ?.getAttribute('aria-current'),
     ).toBe('page');
     expect(element.querySelector('a[href="/purchases"]')).toBeNull();
-    expect(element.querySelector('a[href="/settings"]')).toBeNull();
+    expect(
+      element.querySelector('[data-sidebar-lower] a[href="/settings"]')?.getAttribute('aria-label'),
+    ).toBe('Allgemeine Einstellungen');
+    expect(
+      element.querySelector('a[href="/marketplaces/vinted/settings"]')?.getAttribute('aria-label'),
+    ).toBe('Vinted-Einstellungen');
     expect(element.querySelector('a[href="/marketplaces/vinted/manage"]')).toBeNull();
     const result = await axe.run(element, { rules: { 'color-contrast': { enabled: false } } });
     expect(result.violations).toEqual([]);
@@ -402,6 +407,21 @@ describe('SidebarComponent', () => {
       ),
     ).toEqual([]);
   });
+  it.each(['vinted', 'ebay', 'kleinanzeigen'])(
+    'behält in %s den unteren Bereich für Nicht-Betreiber',
+    async (platform) => {
+      const { element } = await renderAt(`/marketplaces/${platform}`, false);
+      const lower = element.querySelector('[data-sidebar-lower]');
+      expect(element.querySelectorAll('[data-sidebar-lower]')).toHaveLength(1);
+      expect(lower?.querySelector('button[aria-controls="sidebar-ideas"]')).not.toBeNull();
+      expect(
+        [...(lower?.querySelectorAll('[data-sidebar-divider] a') ?? [])].map((link) =>
+          link.getAttribute('href'),
+        ),
+      ).toEqual(['/master-data', '/settings']);
+      expect(lower?.querySelector('a[href="/admin"]')).toBeNull();
+    },
+  );
   it('zeigt im eBay-Editor das eBay-Menü und stellt beim Verlassen Flipbase wieder her', async () => {
     const { element, fixture } = await renderAt(
       '/marketplaces/ebay/listings/123/edit?connection=a',
@@ -464,15 +484,18 @@ describe('SidebarComponent', () => {
       expect(label?.querySelector('a, button')).toBeNull();
       expect(label?.getAttribute('tabindex')).toBeNull();
     }
-    const links = [...element.querySelectorAll<HTMLAnchorElement>('nav a')];
+    const links = [
+      ...element.querySelectorAll<HTMLAnchorElement>('nav a[href^="/marketplaces/vinted/"]'),
+    ];
     expect(element.querySelector('a[href="/marketplaces/overview"]')).toBeNull();
     expect(element.querySelector('a[aria-label="Zurück zu Flipbase"]')).not.toBeNull();
     expect(links[0].textContent?.trim()).toBe('Konten');
+    expect(links[1].textContent?.trim()).toBe('Einstellungen');
     expect(links.at(-1)?.textContent?.trim()).toBe('Favoritennachrichten');
     expect(links.filter((link) => link.getAttribute('aria-current') === 'page')).toHaveLength(1);
     links[1].click();
     expect(closed).toHaveBeenCalledOnce();
     await fixture.whenStable();
-    expect(TestBed.inject(Router).url).toBe('/marketplaces/vinted/overview');
+    expect(TestBed.inject(Router).url).toBe('/marketplaces/vinted/settings');
   });
 });

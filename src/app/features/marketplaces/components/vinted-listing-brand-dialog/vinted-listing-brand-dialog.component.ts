@@ -39,6 +39,7 @@ import {
 })
 export class VintedListingBrandDialogComponent {
   readonly fieldError = input<string | null>(null);
+  readonly requiredIndicator = input(false);
   readonly inline = input(false);
   readonly edited = output<string>();
   readonly labelControl = new FormControl('', { nonNullable: true });
@@ -157,6 +158,7 @@ export class VintedListingBrandDialogComponent {
     )
       return;
     this.selected.emit({ brandId: brand.id, brandLabel: brand.name });
+    if (this.inline()) this.finishInlineSelection();
   }
   chooseNoBrand(): void {
     if (
@@ -165,8 +167,10 @@ export class VintedListingBrandDialogComponent {
         !this.disabled() &&
         !this.destroyRef.destroyed &&
         this.loadedBinding === this.binding())
-    )
+    ) {
       this.selected.emit({ brandId: null, brandLabel: 'Keine Marke' });
+      if (this.inline()) this.finishInlineSelection();
+    }
   }
   close(): void {
     if (this.closing) return;
@@ -182,6 +186,11 @@ export class VintedListingBrandDialogComponent {
       !this.loading() &&
       this.loadedBinding === this.binding()
     );
+  }
+  private finishInlineSelection(): void {
+    if (this.searchTimer) clearTimeout(this.searchTimer);
+    this.searchTimer = null;
+    this.invalidate();
   }
   private current(generation: number, binding: string): boolean {
     return (

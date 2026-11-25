@@ -129,12 +129,14 @@
         <app-marketplace-platform-identity platform="vinted" />
       </p>
       <ul class="space-y-0.5">
-        <li>
-          <ng-container
-            [ngTemplateOutlet]="marketplaceNavigationItem"
-            [ngTemplateOutletContext]="{ $implicit: vintedAccountsItem }"
-          />
-        </li>
+        @for (item of vintedMainLinks; track item.path) {
+          <li>
+            <ng-container
+              [ngTemplateOutlet]="marketplaceNavigationItem"
+              [ngTemplateOutletContext]="{ $implicit: item }"
+            />
+          </li>
+        }
       </ul>
       @for (group of vintedNavigationGroups; track group.id) {
         <div
@@ -195,9 +197,10 @@
           }
         }
       </div>
-
+    }
+    @if (!adminContext()) {
       <div data-sidebar-lower class="mt-auto shrink-0 pt-2">
-        @if (pwaService.showInstallationOffer()) {
+        @if (!marketplaceContext() && pwaService.showInstallationOffer()) {
           <button
             type="button"
             (click)="startAppInstallation($event)"
@@ -267,6 +270,7 @@
   <ng-template #marketplaceNavigationItem let-item let-hasChildren="hasChildren">
     <a
       [routerLink]="item.path"
+      [attr.aria-label]="item.ariaLabel ?? null"
       [attr.aria-current]="!hasChildren && isMarketplaceItemActive(item.path) ? 'page' : null"
       [class.font-semibold]="isMarketplaceItemActive(item.path)"
       (click)="closed.emit()"
@@ -286,6 +290,9 @@
     @let itemLabel = item.labelKey | translate;
     <a
       [routerLink]="item.path"
+      [attr.aria-label]="
+        vintedContext() && item.path === settingsItem.path ? 'Allgemeine Einstellungen' : null
+      "
       [attr.aria-current]="!item.children && isItemActive(item) ? 'page' : null"
       [class.font-semibold]="isItemActive(item)"
       [class.pl-8]="indented"

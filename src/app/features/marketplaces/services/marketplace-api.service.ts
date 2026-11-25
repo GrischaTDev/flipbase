@@ -9,6 +9,12 @@ import { Injectable, inject } from '@angular/core';
 import { SupabaseService } from '../../../core/services/supabase.service';
 import type { AccountScope, MarketplaceConnection } from '../models/marketplace.models';
 import {
+  parseVintedAccountListPage,
+  vintedAccountEntryKey,
+  type VintedAccountListPage,
+  type VintedAccountListRequest,
+} from '../models/vinted-account-list';
+import {
   parseVintedListingStatistics,
   type VintedListingStatistics,
   type VintedStatisticsPeriod,
@@ -445,6 +451,47 @@ export class MarketplaceApiService {
     return kind === 'publication'
       ? { ...page, items: await this.originals.entries(scope, page.items) }
       : page;
+  }
+
+  /** Kontenübergreifende Vinted-Lesekopie mit einem gemeinsamen Seitencursor. */
+  async readVintedList(request: VintedAccountListRequest): Promise<VintedAccountListPage> {
+    const page = parseVintedAccountListPage(
+      dataOf(
+        await this.client.rpc('marketplace_read_vinted_list', {
+          p_workspace_id: request.workspaceId,
+          p_kind: request.kind,
+          p_cursor: request.cursor,
+          p_query: request.query,
+          p_filter: request.filter,
+          p_oldest_first: request.oldestFirst,
+          p_connection_id: request.connectionId,
+          p_entry_id: request.entryId,
+        }),
+      ),
+      request.workspaceId,
+      request.connectionId,
+    );
+    if (request.kind !== 'publication' && request.kind !== 'provider_draft') return page;
+    const groups = new Map<string, MarketplaceEntry[]>();
+    for (const entry of page.items) {
+      const entries = groups.get(entry.connectionId);
+      if (entries) entries.push(entry);
+      else groups.set(entry.connectionId, [entry]);
+    }
+    const originals = await Promise.all(
+      [...groups].map(([connectionId, entries]) =>
+        this.originals
+          .entries({ workspaceId: request.workspaceId, connectionId }, entries)
+          .catch(() => entries),
+      ),
+    );
+    const enriched = new Map(
+      originals.flat().map((entry) => [vintedAccountEntryKey(entry), entry]),
+    );
+    return {
+      ...page,
+      items: page.items.map((entry) => enriched.get(vintedAccountEntryKey(entry)) ?? entry),
+    };
   }
 
   /** Eigene Inserate mit vollständiger Kennung und Filtern über die ganze Lesekopie. */

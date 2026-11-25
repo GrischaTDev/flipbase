@@ -171,6 +171,7 @@ export class SupabaseMarketplaceSyncDispatchStore implements MarketplaceSyncDisp
       userAccessToken: '',
       syncRead: Object.freeze({
         operationId: result['operationId'],
+        authorizationKind: result['authorizationKind'],
         runnerId,
         workerEpoch,
         sessionId: result['sessionId'],

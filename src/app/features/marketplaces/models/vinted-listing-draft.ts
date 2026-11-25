@@ -173,10 +173,36 @@ export class VintedListingStorageError extends Error {
     );
   }
 }
+const catalogCorrectionFields: Readonly<Record<string, string>> = {
+  'Wähle im Entwurf eine aktuelle Vinted-Kategorie.': 'category',
+  'Wähle im Entwurf eine Vinted-Unterkategorie.': 'category',
+  'Wähle eine Vinted-Größe für diese Kategorie.': 'size',
+  'Die gewählte Größe passt nicht zur Vinted-Kategorie.': 'size',
+  'Wähle im Entwurf einen gültigen Wert für „Zustand“.': 'condition',
+  'Wähle im Entwurf einen gültigen Wert für „Paketgröße“.': 'package',
+  'Wähle im Entwurf einen gültigen Wert für „Zielgruppe“.': 'accessory_department',
+  'Wähle die Marke im Entwurf erneut aus.': 'brand',
+};
+
+/** Die Datenbank hat den Auftrag vor der Annahme zurückgewiesen. */
+export class VintedListingCatalogError extends VintedListingStorageError {
+  readonly field: string | null;
+
+  constructor(message: string | undefined) {
+    const field = message ? catalogCorrectionFields[message] : undefined;
+    super(
+      'request_failed',
+      field ? message : 'Prüfe die Angaben im Entwurf anhand der aktuellen Vinted-Auswahl.',
+    );
+    this.field = field ?? null;
+  }
+}
+
 export function listingResponse(result: {
   data: unknown;
   error: { code?: string; message?: string } | null;
 }): unknown {
+  if (result.error?.code === 'PV001') throw new VintedListingCatalogError(result.error.message);
   if (result.error)
     throw new VintedListingStorageError(
       result.error.code === '40001'
@@ -188,9 +214,7 @@ export function listingResponse(result: {
             : 'request_failed',
       result.error.code === '23505'
         ? 'Eine Vorlage mit diesem Namen gibt es bereits. Wähle einen anderen Namen.'
-        : result.error.code === 'PV001'
-          ? result.error.message
-          : undefined,
+        : undefined,
     );
   return result.data;
 }

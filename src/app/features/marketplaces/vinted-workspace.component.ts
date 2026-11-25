@@ -10,7 +10,8 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, NavigationEnd, Router, RouterOutlet } from '@angular/router';
-import { LucideLogIn, LucideStore, LucideMessagesSquare } from '@lucide/angular';
+import { NgTemplateOutlet } from '@angular/common';
+import { LucideLogIn, LucideStore, LucideMessagesSquare, LucideSettings } from '@lucide/angular';
 import { ButtonComponent } from '../../shared/components/button/button.component';
 import { presentVintedLocalReadiness } from './models/vinted-local-readiness';
 import { NoticeBannerComponent } from '../../shared/components/notice-banner/notice-banner.component';
@@ -27,11 +28,28 @@ import { VintedLocalExtensionBridge } from './services/vinted-local-extension-br
 import { VintedLocalExtensionStore } from './services/vinted-local-extension.store';
 import { VintedMessagingStore } from './services/vinted-messaging.store';
 import { VintedLocalRuntimeStore } from './services/vinted-local-runtime.store';
+import {
+  VINTED_ALL_ACCOUNTS_OPTION,
+  VintedAccountViewService,
+} from './services/vinted-account-view.service';
+
+const vintedAccountViewRoutes = new Set([
+  '/marketplaces/vinted/overview',
+  '/marketplaces/vinted/listings',
+  '/marketplaces/vinted/messages',
+  '/marketplaces/vinted/sales',
+  '/marketplaces/vinted/activity',
+  '/marketplaces/vinted/profile',
+  '/marketplaces/vinted/statistics',
+  '/marketplaces/vinted/listing-drafts',
+  '/marketplaces/vinted/shipping-labels',
+]);
 
 @Component({
   selector: 'app-vinted-workspace',
   imports: [
     RouterOutlet,
+    NgTemplateOutlet,
     ButtonComponent,
     VintedSetupComponent,
     NoticeBannerComponent,
@@ -57,8 +75,10 @@ export class VintedWorkspaceComponent {
   readonly local = inject(VintedLocalExtensionStore);
   readonly runtime = inject(VintedLocalRuntimeStore);
   private readonly extension = inject(VintedLocalExtensionBridge);
+  private readonly accountView = inject(VintedAccountViewService);
   private readonly router = inject(Router);
   private readonly currentUrl = signal(this.router.url);
+  private readonly currentPath = computed(() => this.currentUrl().split(/[?#]/)[0]);
   private readonly route = inject(ActivatedRoute);
   private readonly queryParams = toSignal(this.route.queryParamMap, {
     initialValue: this.route.snapshot.queryParamMap,
@@ -83,7 +103,16 @@ export class VintedWorkspaceComponent {
   readonly showingShippingLabels = computed(
     () => this.currentUrl().split(/[?#]/)[0] === '/marketplaces/vinted/shipping-labels',
   );
+  readonly showingSettings = computed(() => this.currentPath() === '/marketplaces/vinted/settings');
+  readonly showingDraftList = computed(
+    () => this.currentPath() === '/marketplaces/vinted/listing-drafts',
+  );
+  readonly allowsAllAccounts = computed(() => vintedAccountViewRoutes.has(this.currentPath()));
+  readonly viewingAllAccounts = computed(
+    () => this.allowsAllAccounts() && this.store.canManage() && this.accountView.showAllAccounts(),
+  );
   readonly pageTitle = computed(() => {
+    if (this.showingSettings()) return 'Vinted-Einstellungen';
     if (this.showingShippingLabels()) return 'Versandscheine';
     if (this.showingMessages()) return 'Nachrichten';
     if (this.showingListings()) return 'Kleiderschrank';
@@ -104,7 +133,23 @@ export class VintedWorkspaceComponent {
   readonly showingCloudConnection = computed(() =>
     this.currentUrl().split(/[?#]/)[0].startsWith('/marketplaces/vinted/connect/'),
   );
-  readonly pageIcon = computed(() => (this.showingMessages() ? LucideMessagesSquare : LucideStore));
+  readonly accountIndependentPage = computed(
+    () =>
+      this.showingAccounts() ||
+      this.showingSettings() ||
+      this.showingSetup() ||
+      this.showingLocalConnection() ||
+      this.showingCloudConnection() ||
+      this.showingDraftWorkspace() ||
+      this.showingShippingLabels(),
+  );
+  readonly pageIcon = computed(() =>
+    this.showingSettings()
+      ? LucideSettings
+      : this.showingMessages()
+        ? LucideMessagesSquare
+        : LucideStore,
+  );
   readonly loginIcon = LucideLogIn;
   readonly syncModalOpen = signal(false);
   readonly cloudHeaderState = signal<VintedSyncHeaderState | null>(null);
@@ -226,13 +271,16 @@ export class VintedWorkspaceComponent {
         if (account?.executionMode === 'local') this.extension.checkInstallation();
       }
     });
-    // Konto-Kacheln adressieren ihr Konto ausdrücklich; Bereichslinks nutzen danach die gespeicherte Auswahl.
+    // Konto-Kacheln und Bewertungslinks adressieren ihr Konto ausdrücklich.
     effect(() => {
-      const url = this.currentUrl().split(/[?#]/)[0];
+      const path = this.currentPath();
       const id = this.queryParams().get('connectionId');
       const connections = this.store.connections();
+      const selectsLinkedAccount =
+        path === '/marketplaces/vinted/overview' ||
+        (path === '/marketplaces/vinted/profile' && !this.viewingAllAccounts());
       if (
-        url !== '/marketplaces/vinted/overview' ||
+        !selectsLinkedAccount ||
         !id ||
         !connections.some((account) => account.connectionId === id)
       )
@@ -254,20 +302,42 @@ export class VintedWorkspaceComponent {
   }
 
   async selectAccount(connectionId: string | null): Promise<void> {
-    if (connectionId === null) return;
+    if (!connectionId) return;
+    const allAccounts = connectionId === VINTED_ALL_ACCOUNTS_OPTION;
+    const selectedWorkspaceId = this.store.selectedConnection()?.workspaceId;
+    if (
+      allAccounts
+        ? !this.allowsAllAccounts()
+        : !this.store.connections().some((account) => account.connectionId === connectionId)
+    )
+      return;
     const currentUrl = this.currentUrl();
+    const path = this.currentPath();
     const params = this.queryParams();
-    if (currentUrl.split(/[?#]/)[0] === '/marketplaces/vinted/sales' && params.has('saleId')) {
+    if (
+      (path === '/marketplaces/vinted/sales' && params.has('saleId')) ||
+      (path === '/marketplaces/vinted/messages' && params.has('conversationId')) ||
+      (path === '/marketplaces/vinted/profile' && params.has('connectionId'))
+    ) {
       const destination = this.router.parseUrl(currentUrl);
       delete destination.queryParams['saleId'];
+      delete destination.queryParams['conversationId'];
       delete destination.queryParams['connectionId'];
       delete destination.queryParams['workspaceId'];
       if (!(await this.router.navigateByUrl(destination, { replaceUrl: true }))) return;
     }
+    if (
+      this.currentPath() !== path ||
+      this.store.selectedConnection()?.workspaceId !== selectedWorkspaceId
+    )
+      return;
+    if (this.allowsAllAccounts()) this.accountView.selectAccountView(allAccounts);
+    if (allAccounts) return;
     await this.store.selectConnection(connectionId);
   }
 
   async sync(): Promise<void> {
+    if (this.viewingAllAccounts()) return;
     const account = this.store.selectedConnection();
     if (account?.executionMode === 'local') {
       if (this.local.busy()) return;

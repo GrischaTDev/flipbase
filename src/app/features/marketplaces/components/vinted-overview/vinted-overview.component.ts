@@ -14,6 +14,9 @@ import { ProductThumbnailComponent } from '../../../../shared/components/product
 import type { MarketplaceEntry } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
+import { VintedAccountSummariesComponent } from '../vinted-account-summaries/vinted-account-summaries.component';
+import { createVintedAccountList } from '../../services/vinted-addressed-list';
+import { vintedAccountEntryKey } from '../../models/vinted-account-list';
 
 function latestEntries(entries: readonly MarketplaceEntry[]): readonly MarketplaceEntry[] {
   return [...entries]
@@ -39,6 +42,7 @@ function latestEntries(entries: readonly MarketplaceEntry[]): readonly Marketpla
     CardComponent,
     ProductThumbnailComponent,
     VintedRatingComponent,
+    VintedAccountSummariesComponent,
   ],
   templateUrl: './vinted-overview.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -46,6 +50,11 @@ function latestEntries(entries: readonly MarketplaceEntry[]): readonly Marketpla
 })
 export class VintedOverviewComponent {
   readonly store = inject(MarketplaceAccountStore);
+  readonly inbox = createVintedAccountList(() => ({ kind: 'conversation' }));
+  readonly salesList = createVintedAccountList(() => ({ kind: 'sale' }));
+  readonly combinedConversations = computed(() => this.inbox.page()?.items.slice(0, 3) ?? []);
+  readonly combinedSales = computed(() => this.salesList.page()?.items.slice(0, 3) ?? []);
+  readonly entryKey = vintedAccountEntryKey;
   readonly userIcon = LucideUser;
   readonly messageCircleIcon = LucideMessageCircle;
   readonly shoppingBagIcon = LucideShoppingBag;

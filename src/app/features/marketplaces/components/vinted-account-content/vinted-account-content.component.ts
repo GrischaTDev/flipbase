@@ -12,13 +12,19 @@ import { VintedMessagesComponent } from '../vinted-messages/vinted-messages.comp
 import { VintedListingsComponent } from '../vinted-listings/vinted-listings.component';
 import type { MarketplaceEntryKind } from '../../models/marketplace-read.models';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { createVintedAccountList } from '../../services/vinted-addressed-list';
+import { vintedAccountEntryKey } from '../../models/vinted-account-list';
+import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
+import { NoticeBannerComponent } from '../../../../shared/components/notice-banner/notice-banner.component';
 
 @Component({
   selector: 'app-vinted-account-content',
   imports: [
     DatePipe,
     ButtonComponent,
+    BadgeComponent,
     CardComponent,
+    NoticeBannerComponent,
     DataTableComponent,
     VintedSalesComponent,
     VintedOverviewComponent,
@@ -35,6 +41,10 @@ export class VintedAccountContentComponent {
   private readonly route = inject(ActivatedRoute);
   private readonly data = toSignal(this.route.data, { initialValue: this.route.snapshot.data });
   readonly section = computed(() => this.data()['section'] as string);
+  readonly accountList = createVintedAccountList(() =>
+    this.section() === 'activity' ? { kind: 'activity' } : null,
+  );
+  readonly entryKey = vintedAccountEntryKey;
   readonly pageKind = computed<MarketplaceEntryKind>(() =>
     this.section() === 'listings'
       ? 'publication'
@@ -43,6 +53,7 @@ export class VintedAccountContentComponent {
         : 'activity',
   );
   readonly page = computed(() => {
+    if (this.accountList.showAllAccounts()) return this.accountList.page();
     const snapshot = this.store.snapshot();
     return this.section() === 'listings'
       ? snapshot?.publications
@@ -50,6 +61,10 @@ export class VintedAccountContentComponent {
         ? snapshot?.sales
         : snapshot?.activity;
   });
+  readonly loadMore = () =>
+    this.accountList.showAllAccounts()
+      ? this.accountList.loadMore()
+      : this.store.loadMore('activity');
   readonly pageTitle = computed(() =>
     this.section() === 'listings'
       ? 'Kleiderschrank'

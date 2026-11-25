@@ -30,6 +30,8 @@ import { ModalShellComponent } from '../../../../shared/components/modal-shell/m
 import { VintedMessageSettingsComponent } from '../vinted-message-settings/vinted-message-settings.component';
 import { VintedFavoriteSettingsComponent } from '../vinted-favorite-settings/vinted-favorite-settings.component';
 import { VintedListingClockService } from '../../services/vinted-listing-clock.service';
+import { VINTED_ALL_ACCOUNTS_OPTION } from '../../services/vinted-account-view.service';
+import { vintedAccountLabels } from '../../models/vinted-account-labels';
 
 @Component({
   selector: 'app-vinted-account-controls',
@@ -53,6 +55,9 @@ export class VintedAccountControlsComponent {
   readonly connections = input.required<readonly MarketplaceConnection[]>();
   readonly account = input.required<MarketplaceConnection>();
   readonly canManage = input(false);
+  readonly allowAllAccounts = input(false);
+  readonly allAccountsSelected = input(false);
+  readonly chooserOnly = input(false);
   readonly refreshing = input(false);
   readonly loading = input(false);
   readonly refreshLabel = input('Kontodaten aktualisieren');
@@ -60,11 +65,16 @@ export class VintedAccountControlsComponent {
   readonly inboxSyncedAt = input<string | null>(null);
   readonly profile = input<MarketplaceProfile | null>(null);
   readonly runtimeStatus = input<{ label: string; tone: BadgeTone } | null>(null);
+  readonly showAccountTools = computed(() => !this.allAccountsSelected() && !this.chooserOnly());
+  readonly selectedOption = computed(() =>
+    this.allAccountsSelected() ? VINTED_ALL_ACCOUNTS_OPTION : this.account().connectionId,
+  );
   readonly cloudHeaderState = signal<VintedSyncHeaderState | null>(null);
   readonly currentCloudHeaderState = computed(() => {
     const account = this.account();
     const state = this.cloudHeaderState();
-    return account.executionMode === 'cloud' &&
+    return this.showAccountTools() &&
+      account.executionMode === 'cloud' &&
       state?.workspaceId === account.workspaceId &&
       state.connectionId === account.connectionId
       ? state
@@ -94,13 +104,20 @@ export class VintedAccountControlsComponent {
   readonly settingsIcon = LucideSettings;
   readonly localSettingsOpen = signal(false);
   private settingsAccountKey: string | null = null;
-  readonly accountOptions = computed(() =>
-    this.connections().map((account) => ({
-      value: account.connectionId,
-      label: account.displayName,
-      description: MARKETPLACE_CONNECTION_LABELS[account.status],
-    })),
-  );
+  readonly accountOptions = computed(() => {
+    const connections = this.connections();
+    const labels = vintedAccountLabels(connections);
+    return [
+      ...(this.allowAllAccounts()
+        ? [{ value: VINTED_ALL_ACCOUNTS_OPTION, label: 'Alle Konten' }]
+        : []),
+      ...connections.map((account) => ({
+        value: account.connectionId,
+        label: labels.get(account.connectionId) ?? account.displayName,
+        description: MARKETPLACE_CONNECTION_LABELS[account.status],
+      })),
+    ];
+  });
 
   constructor() {
     effect(() => {
@@ -115,7 +132,8 @@ export class VintedAccountControlsComponent {
         account.connectionId,
         account.executionMode,
       ]);
-      if (key !== this.settingsAccountKey || !canManage) this.localSettingsOpen.set(false);
+      if (key !== this.settingsAccountKey || !canManage || !this.showAccountTools())
+        this.localSettingsOpen.set(false);
       this.settingsAccountKey = key;
     });
   }
