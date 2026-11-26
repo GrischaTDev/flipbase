@@ -801,7 +801,9 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
     page,
   }) => {
     await mockMarketplace(page, false, false, false, false, []);
-    await page.addInitScript(() => localStorage.setItem('flipbase_theme', 'dark'));
+    await page.addInitScript(() => {
+      if (!localStorage.getItem('flipbase_theme')) localStorage.setItem('flipbase_theme', 'dark');
+    });
     const accountEntries = accountIds.map((connectionId, index) => {
       const scope = { workspaceId, connectionId };
       return {
@@ -864,6 +866,33 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
       return route.fulfill({
         json: publication ? [{ id: publication.id, body: publication }] : [],
       });
+    });
+    await page.route('**/rest/v1/marketplace_visible_account_entries?*', (route) => {
+      const params = new URL(route.request().url()).searchParams;
+      const kind = params.get('kind');
+      const accountIndex = accountIds.findIndex((id) => params.get('connection_id') === `eq.${id}`);
+      if (accountIndex < 0) return route.fallback();
+      if (kind === 'eq.profile') {
+        return route.fulfill({
+          json: {
+            body: {
+              username: `shop-${accountIndex + 1}`,
+              feedbackCount: accountIndex + 2,
+              feedbackReputation: 1,
+            },
+          },
+        });
+      }
+      if (
+        route.request().method() === 'HEAD' &&
+        ['eq.publication', 'eq.sale'].includes(kind ?? '')
+      ) {
+        return route.fulfill({
+          status: 200,
+          headers: { 'content-range': '0-0/1', 'access-control-expose-headers': 'Content-Range' },
+        });
+      }
+      return route.fallback();
     });
     const combinedReads = new Set<string>();
     await page.route('**/rest/v1/rpc/marketplace_read_vinted_list', (route) => {
@@ -942,6 +971,41 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
     await page.reload();
     await expect(view).toHaveText('Alle Konten');
     await expect(sales).toHaveCount(2);
+
+    await openVintedSection(page, 'Übersicht', 390);
+    const overview = page.locator('app-vinted-overview');
+    const totals = overview.locator('[data-overview-total]');
+    await expect(totals).toHaveText(['2', '2', '2']);
+    await expect(overview.getByText('@shop-1')).toBeVisible();
+    await expect(overview.getByText('@shop-2')).toBeVisible();
+    const newestListing = overview
+      .locator('[data-listing-preview]')
+      .filter({ hasText: 'Testkonto B' });
+    await expect(newestListing.locator('[data-overview-account]')).toContainText('Testkonto B');
+    await expect(newestListing.getByRole('link')).toHaveAttribute(
+      'href',
+      `/marketplaces/vinted/listings/${accountIds[1]}/${accountEntries[1].publication.id}`,
+    );
+    const recentSale = overview.locator('[data-sale-preview]').filter({ hasText: 'Testkonto B' });
+    await expect(recentSale.locator('[data-overview-account]')).toContainText('Testkonto B');
+    await expect(recentSale.getByRole('link')).toHaveAttribute(
+      'href',
+      `/marketplaces/vinted/sales?connectionId=${accountIds[1]}&saleId=${accountEntries[1].sale.id}`,
+    );
+    await checkSurface(page, 'app-vinted-overview');
+    await screenshot(page, 'vinted-uebersicht-alle-konten-mobil');
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.evaluate(() => localStorage.setItem('flipbase_theme', 'light'));
+    await page.reload();
+    await expect(totals).toHaveText(['2', '2', '2']);
+    await expect(overview.getByText('@shop-2')).toBeVisible();
+    await checkSurface(page, 'app-vinted-overview');
+    await screenshot(page, 'vinted-uebersicht-alle-konten-desktop');
+    await page.setViewportSize({ width: 390, height: 650 });
+    await view.click();
+    await page.getByRole('option', { name: 'Testkonto A', exact: true }).click();
+    await expect(totals).toHaveText(['1', '1', '1']);
+    await expect(overview.locator('[data-overview-account]')).toHaveCount(0);
     expect(combinedReads).toEqual(new Set(['publication', 'conversation', 'sale']));
   });
 });

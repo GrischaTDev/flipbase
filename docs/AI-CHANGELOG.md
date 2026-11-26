@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-26 - Juna - Gemeinsame Vinted-Übersicht an die Einzelkontoansicht angleichen
+
+Die Vinted-Übersicht verwendet für beide Kontoansichten dieselben Kennzahlen und Vorschauen. „Alle Konten“ zeigt die gespeicherten Profile mit Bewertung und Kontozahlen. Vorschauen für Inserate, Gespräche und Verkäufe zeigen das zugehörige Konto und öffnen den passenden Eintrag.
+
 ## 2026-11-25 - Juna - Vinted-Konten, Entwürfe und laufende Aktionen
 
 Die Vinted-Kontoauswahl bietet eine gemeinsame Ansicht mit erkennbarer Kontozuordnung. Benachrichtigungen lassen sich in den Vinted-Einstellungen je Konto verwalten. Die allgemeinen Menüpunkte bleiben auch in den Marktplätzen erreichbar.

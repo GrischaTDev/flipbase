@@ -2,19 +2,24 @@ import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import axe from 'axe-core';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { prepareMarketplaceRendering } from '../../../../../../e2e/support/marketplace-rendering';
+import { AuthService } from '../../../../core/services/auth.service';
+import { WorkspaceService } from '../../../../core/services/workspace.service';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { ProductThumbnailComponent } from '../../../../shared/components/product-thumbnail/product-thumbnail.component';
 import type { MarketplaceSnapshot } from '../../models/marketplace-read.models';
-import { parseMarketplaceSnapshot } from '../../models/marketplace-response';
+import { parseMarketplacePage, parseMarketplaceSnapshot } from '../../models/marketplace-response';
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
+import { MarketplaceApiService } from '../../services/marketplace-api.service';
+import { VintedAccountViewService } from '../../services/vinted-account-view.service';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedOverviewComponent } from './vinted-overview.component';
 
 const scope = { workspaceId: 'workspace-1', connectionId: 'connection-1' };
+const otherScope = { ...scope, connectionId: 'connection-2' };
 const emptyPage = { items: [], total: 0, nextCursor: null };
 const entry = (id: string, occurredAt: string | null = null) => ({
   ...scope,
@@ -46,6 +51,13 @@ describe('VintedOverviewComponent', () => {
   const accountSnapshot = signal<MarketplaceSnapshot | null>(null);
   const localInboxUnavailable = signal(false);
   const localSalesUnavailable = signal(false);
+  const showAllAccounts = signal(false);
+  const readVintedList = vi.fn<MarketplaceApiService['readVintedList']>();
+  const readAccountPreview = vi.fn<MarketplaceApiService['readAccountPreview']>();
+  const connections = signal([
+    { ...scope, displayName: 'Konto A' },
+    { ...otherScope, displayName: 'Konto B' },
+  ]);
 
   beforeAll(async () => {
     resetBindings = await prepareMarketplaceRendering([
@@ -73,21 +85,82 @@ describe('VintedOverviewComponent', () => {
     accountSnapshot.set(snapshot());
     localInboxUnavailable.set(false);
     localSalesUnavailable.set(false);
+    showAllAccounts.set(false);
+    readVintedList.mockReset();
+    readAccountPreview.mockReset().mockImplementation(async (accountScope) => ({
+      workspaceId: accountScope.workspaceId,
+      connectionId: accountScope.connectionId,
+      profile: null,
+      publicationCount: 0,
+      saleCount: 0,
+    }));
     await TestBed.configureTestingModule({
       imports: [VintedOverviewComponent],
       providers: [
         provideRouter([]),
+        { provide: AuthService, useValue: { currentUser: signal({ id: 'user-1' }) } },
+        {
+          provide: WorkspaceService,
+          useValue: { currentWorkspace: signal({ id: scope.workspaceId }) },
+        },
+        { provide: VintedAccountViewService, useValue: { showAllAccounts } },
+        { provide: MarketplaceApiService, useValue: { readVintedList, readAccountPreview } },
         {
           provide: MarketplaceAccountStore,
           useValue: {
             snapshot: accountSnapshot,
             localInboxUnavailable,
             localSalesUnavailable,
+            canManage: signal(true),
+            connections,
+            observeCombinedImports: () => () => undefined,
           },
         },
       ],
     }).compileComponents();
     fixture = TestBed.createComponent(VintedOverviewComponent);
+  });
+
+  it('zeigt die Kontogesamtsummen und verlinkt Inserate und Verkäufe mit ihrem Namensbadge', async () => {
+    const totals = { publication: 81, conversation: 27, sale: 12, provider_draft: 0, activity: 0 };
+    readVintedList.mockImplementation(async ({ kind }) => {
+      const title =
+        kind === 'publication' ? 'Neues Inserat' : kind === 'sale' ? 'Letzter Verkauf' : 'Frage';
+      return {
+        ...parseMarketplacePage(
+          {
+            total: totals[kind],
+            nextCursor: 'next',
+            items: [{ ...entry(title), ...otherScope, id: kind, publicationState: 'active' }],
+          },
+          otherScope,
+        ),
+        filterCounts: {},
+      };
+    });
+    showAllAccounts.set(true);
+    fixture.detectChanges();
+    const element = fixture.nativeElement as HTMLElement;
+    const values = () =>
+      [...element.querySelectorAll('[data-overview-total]')].map((node) =>
+        node.textContent?.trim(),
+      );
+    expect(values()).toEqual(['–', '–', '–']);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(values()).toEqual(['81', '27', '12']);
+    expect(
+      element.querySelector('[data-listing-preview] [data-overview-account]')?.textContent,
+    ).toContain('Konto B');
+    expect(element.querySelector('[data-listing-preview] a')?.getAttribute('href')).toBe(
+      '/marketplaces/vinted/listings/connection-2/publication',
+    );
+    expect(
+      element.querySelector('[data-sale-preview] [data-overview-account]')?.textContent,
+    ).toContain('Konto B');
+    expect(element.querySelector('[data-sale-preview] a')?.getAttribute('href')).toBe(
+      '/marketplaces/vinted/sales?connectionId=connection-2&saleId=sale',
+    );
   });
 
   it('zeigt fehlende lokale Datenquellen als unbekannt und erhält gespeicherte Daten', () => {
