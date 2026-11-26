@@ -1,5 +1,9 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-26 - Juna - Vinted-Vorschaubilder und Listenstart verbessern
+
+Kleine Produktbilder in der Vinted-Übersicht füllen ihren Rahmen. Postfach und Kleiderschrank können gerade gelesene Einstiegsseiten in „Alle Konten“ sofort anzeigen und gleichen sie im Hintergrund ab. Ein neuer Kleiderschrank zeigt gespeicherte Inserate, während die Originalfotos nachgeladen werden. Beim Einzelkonto laufen die Foto- und Verkaufsabfragen des ersten Abrufs parallel.
+
 ## 2026-11-26 - Juna - Gemeinsame Vinted-Übersicht an die Einzelkontoansicht angleichen
 
 Die Vinted-Übersicht verwendet für beide Kontoansichten dieselben Kennzahlen und Vorschauen. „Alle Konten“ zeigt die gespeicherten Profile mit Bewertung und Kontozahlen. Vorschauen für Inserate, Gespräche und Verkäufe zeigen das zugehörige Konto und öffnen den passenden Eintrag.

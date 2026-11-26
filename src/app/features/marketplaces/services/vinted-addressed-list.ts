@@ -35,7 +35,11 @@ export function createVintedAccountList(options: () => ListOptions | null) {
       const input = { ...filters, workspaceId };
       const key = JSON.stringify([
         userId,
-        input,
+        workspaceId,
+        input.kind,
+        input.query ?? '',
+        input.filter ?? 'all',
+        input.oldestFirst ?? false,
         connections.map((account) => [account.connectionId, account.externalAccountId]),
       ]);
       const freshness = JSON.stringify(connections.map((account) => account.lastSyncedAt));
@@ -70,11 +74,24 @@ export function createVintedAccountList(options: () => ListOptions | null) {
       request()?.key === target.key &&
       request()?.freshness === target.freshness &&
       revision === activeRevision;
-    const previousPage = previous?.page ?? null;
+    const firstPages =
+      target.input.kind === 'publication' || target.input.kind === 'conversation'
+        ? accounts.vintedListFirstPages
+        : null;
+    const previousPage = previous?.page ?? firstPages?.get(target) ?? null;
     state.set({ key: target.key, page: previousPage, loading: true, error: null });
     try {
       const cursor = append ? (previousPage?.nextCursor ?? undefined) : undefined;
-      let page = await api.readVintedList({ ...target.input, cursor });
+      const firstPage = await api.readVintedList(
+        { ...target.input, cursor },
+        !previousPage && target.input.kind === 'publication'
+          ? (storedPage) => {
+              if (isCurrent())
+                state.set({ key: target.key, page: storedPage, loading: true, error: null });
+            }
+          : undefined,
+      );
+      let page = firstPage;
       const entries = new Map(
         (append ? (previousPage?.items ?? []) : []).map((entry) => [
           vintedAccountEntryKey(entry),
@@ -90,6 +107,7 @@ export function createVintedAccountList(options: () => ListOptions | null) {
         seen.add(page.nextCursor);
         page = await api.readVintedList({ ...target.input, cursor: page.nextCursor });
       }
+      if (!append) firstPages?.remember(target, firstPage);
       state.set({
         key: target.key,
         page: { ...page, items: [...entries.values()] },
@@ -99,6 +117,7 @@ export function createVintedAccountList(options: () => ListOptions | null) {
     } catch (error) {
       if (!isCurrent()) return;
       const forbidden = error instanceof MarketplaceApiError && error.code === 'forbidden';
+      if (forbidden) accounts.vintedListFirstPages.clear();
       state.set({
         key: target.key,
         page: forbidden ? null : previousPage,
@@ -119,6 +138,10 @@ export function createVintedAccountList(options: () => ListOptions | null) {
     loading: computed(() => !!request() && (current()?.loading ?? true)),
     error: computed(() => current()?.error ?? null),
     loadMore: () => load(true),
-    refresh: () => load(),
+    refresh: () => {
+      const target = request();
+      if (target) accounts.vintedListFirstPages.forget(target.key);
+      return load();
+    },
   };
 }
