@@ -319,13 +319,14 @@ export class MarketplaceApiService {
       ),
       scope,
     );
+    const [sales, publicationItems] = await Promise.all([
+      this.readVisibleSalesPage(scope, snapshot.sales),
+      this.originals.entries(scope, snapshot.publications.items),
+    ]);
     return {
       ...snapshot,
-      sales: await this.readVisibleSalesPage(scope, snapshot.sales),
-      publications: {
-        ...snapshot.publications,
-        items: await this.originals.entries(scope, snapshot.publications.items),
-      },
+      sales,
+      publications: { ...snapshot.publications, items: publicationItems },
     };
   }
   async readPublication(scope: AccountScope, entryId: string): Promise<MarketplaceEntry | null> {
@@ -454,7 +455,10 @@ export class MarketplaceApiService {
   }
 
   /** Kontenübergreifende Vinted-Lesekopie mit einem gemeinsamen Seitencursor. */
-  async readVintedList(request: VintedAccountListRequest): Promise<VintedAccountListPage> {
+  async readVintedList(
+    request: VintedAccountListRequest,
+    onStoredPage?: (page: VintedAccountListPage) => void,
+  ): Promise<VintedAccountListPage> {
     const page = parseVintedAccountListPage(
       dataOf(
         await this.client.rpc('marketplace_read_vinted_list', {
@@ -472,6 +476,7 @@ export class MarketplaceApiService {
       request.connectionId,
     );
     if (request.kind !== 'publication' && request.kind !== 'provider_draft') return page;
+    onStoredPage?.(page);
     const groups = new Map<string, MarketplaceEntry[]>();
     for (const entry of page.items) {
       const entries = groups.get(entry.connectionId);

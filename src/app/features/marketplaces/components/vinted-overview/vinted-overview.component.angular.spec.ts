@@ -15,6 +15,7 @@ import { parseMarketplacePage, parseMarketplaceSnapshot } from '../../models/mar
 import { MarketplaceAccountStore } from '../../services/marketplace-account.store';
 import { MarketplaceApiService } from '../../services/marketplace-api.service';
 import { VintedAccountViewService } from '../../services/vinted-account-view.service';
+import { VintedListFirstPages } from '../../services/vinted-list-first-pages';
 import { VintedRatingComponent } from '../vinted-rating/vinted-rating.component';
 import { VintedOverviewComponent } from './vinted-overview.component';
 
@@ -113,6 +114,7 @@ describe('VintedOverviewComponent', () => {
             localSalesUnavailable,
             canManage: signal(true),
             connections,
+            vintedListFirstPages: new VintedListFirstPages(),
             observeCombinedImports: () => () => undefined,
           },
         },

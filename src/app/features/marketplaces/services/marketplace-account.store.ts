@@ -28,6 +28,7 @@ import type {
   MarketplaceSnapshot,
 } from '../models/marketplace-read.models';
 import { VintedListingClockService } from './vinted-listing-clock.service';
+import { VintedListFirstPages } from './vinted-list-first-pages';
 import { MarketplaceResponseError } from '../models/marketplace-response';
 import { MarketplaceApiError, MarketplaceApiService } from './marketplace-api.service';
 import {
@@ -86,6 +87,7 @@ export class MarketplaceAccountStore {
   private readonly conversationId = signal<string | null>(null);
   private readonly messagePage = signal<MarketplacePage<MarketplaceEntry> | null>(null);
   private readonly conversationPages = new Map<string, MarketplacePage<MarketplaceEntry>>();
+  readonly vintedListFirstPages = new VintedListFirstPages();
   private readonly access = signal(false);
   private readonly fetching = signal(false);
   private readonly fetchingSnapshot = signal(false);
@@ -328,6 +330,7 @@ export class MarketplaceAccountStore {
     this.selectionRevision++;
     this.clearDescriptions();
     this.conversationPages.clear();
+    this.vintedListFirstPages.clear();
     this.selectionEpoch.update((value) => value + 1);
     this.conversationRevision++;
     this.accountList.set([]);
@@ -1628,6 +1631,7 @@ export class MarketplaceAccountStore {
     this.hasExplicitConnectionSelection.set(false);
     this.clearDescriptions();
     this.conversationPages.clear();
+    this.vintedListFirstPages.clear();
     this.addressedConversation.set(null);
     this.addressedConversationRevision++;
     this.clearListingMetrics();

@@ -804,6 +804,23 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
     await page.addInitScript(() => {
       if (!localStorage.getItem('flipbase_theme')) localStorage.setItem('flipbase_theme', 'dark');
     });
+    const thumbnailUrl = 'https://images.example.test/overview-portrait.svg';
+    await page.route(thumbnailUrl, (route) =>
+      route.fulfill({
+        contentType: 'image/svg+xml',
+        body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="80"><path fill="teal" d="M0 0h40v80H0z"/></svg>',
+      }),
+    );
+    let photoSourcesPending = false;
+    const photoSourcesRequested = Promise.withResolvers<void>();
+    const releasePhotoSources = Promise.withResolvers<void>();
+    await page.route('**/rest/v1/rpc/marketplace_read_listing_photo_sources', async (route) => {
+      if (photoSourcesPending) {
+        photoSourcesRequested.resolve();
+        await releasePhotoSources.promise;
+      }
+      await route.fulfill({ json: { items: [] } });
+    });
     const accountEntries = accountIds.map((connectionId, index) => {
       const scope = { workspaceId, connectionId };
       return {
@@ -814,6 +831,7 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
           externalId: '123',
           title: 'Vintage-Pullover',
           publicationState: 'active',
+          imageUrl: thumbnailUrl,
           text: `Gespeicherte Beschreibung aus Konto ${index + 1}.`,
           textState: 'loaded',
           price: 30,
@@ -832,6 +850,7 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
           externalId: '456',
           title: 'Verkaufter Pullover',
           saleState: 'sold',
+          imageUrl: thumbnailUrl,
           price: 30,
           currency: 'EUR',
         },
@@ -895,20 +914,33 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
       return route.fallback();
     });
     const combinedReads = new Set<string>();
-    await page.route('**/rest/v1/rpc/marketplace_read_vinted_list', (route) => {
+    const blockedReads = new Set<string>();
+    const pendingCombinedReads = new Set<string>();
+    const releaseCombinedReads = Promise.withResolvers<void>();
+    await page.route('**/rest/v1/rpc/marketplace_read_vinted_list', async (route) => {
       const body = route.request().postDataJSON() as Record<string, unknown>;
       expect(body['p_workspace_id']).toBe(workspaceId);
       const kind = body['p_kind'];
       if (kind !== 'publication' && kind !== 'conversation' && kind !== 'sale')
         return route.fulfill({ json: { ...pageOf([]), filterCounts: {} } });
       if (body['p_connection_id'] == null) combinedReads.add(kind);
+      const delayedRead = body['p_connection_id'] == null && blockedReads.has(kind);
+      if (delayedRead) {
+        pendingCombinedReads.add(kind);
+        await releaseCombinedReads.promise;
+      }
       const items = accountEntries
         .filter(
           ({ scope }) =>
             body['p_connection_id'] == null || scope.connectionId === body['p_connection_id'],
         )
         .map((account) => account[kind])
-        .filter(({ id }) => body['p_entry_id'] == null || id === body['p_entry_id']);
+        .filter(({ id }) => body['p_entry_id'] == null || id === body['p_entry_id'])
+        .map((entry) =>
+          delayedRead && kind === 'publication'
+            ? { ...entry, title: 'Aktualisierter Vintage-Pullover' }
+            : entry,
+        );
       return route.fulfill({ json: { ...pageOf(items), filterCounts: {} } });
     });
 
@@ -916,9 +948,17 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
     const view = page.getByRole('combobox', { name: 'Vinted-Konto auswählen', exact: true });
     await expect(view).toHaveText('Testkonto A');
     await view.click();
+    photoSourcesPending = true;
     await page.getByRole('option', { name: 'Alle Konten', exact: true }).click();
     await expect(view).toHaveText('Alle Konten');
     const listings = page.locator('app-vinted-listings [data-listing-row]');
+    try {
+      await photoSourcesRequested.promise;
+      await expect.soft(listings).toHaveCount(2, { timeout: 1800 });
+    } finally {
+      photoSourcesPending = false;
+      releasePhotoSources.resolve();
+    }
     await expect(listings).toHaveCount(2);
     const listingA = listings.filter({ hasText: 'Testkonto A' });
     await expect(listingA.getByText('Testkonto A', { exact: true })).toBeVisible();
@@ -987,6 +1027,9 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
       `/marketplaces/vinted/listings/${accountIds[1]}/${accountEntries[1].publication.id}`,
     );
     const recentSale = overview.locator('[data-sale-preview]').filter({ hasText: 'Testkonto B' });
+    for (const preview of [newestListing, recentSale]) {
+      await expect.soft(preview.locator('img')).toHaveCSS('object-fit', 'cover', { timeout: 1800 });
+    }
     await expect(recentSale.locator('[data-overview-account]')).toContainText('Testkonto B');
     await expect(recentSale.getByRole('link')).toHaveAttribute(
       'href',
@@ -1002,6 +1045,21 @@ test.describe('Gemeinsame Vinted-Kontoansicht auf Mobilgeräten', () => {
     await checkSurface(page, 'app-vinted-overview');
     await screenshot(page, 'vinted-uebersicht-alle-konten-desktop');
     await page.setViewportSize({ width: 390, height: 650 });
+    blockedReads.add('publication');
+    blockedReads.add('conversation');
+    try {
+      await openVintedSection(page, 'Postfach', 390);
+      await expect.poll(() => pendingCombinedReads.has('conversation')).toBe(true);
+      await expect.soft(conversations).toHaveCount(2, { timeout: 1800 });
+      await openVintedSection(page, 'Kleiderschrank', 390);
+      await expect.poll(() => pendingCombinedReads.has('publication')).toBe(true);
+      await expect.soft(listings).toHaveCount(2, { timeout: 1800 });
+    } finally {
+      blockedReads.clear();
+      releaseCombinedReads.resolve();
+    }
+    await expect(listings.first()).toContainText('Aktualisierter Vintage-Pullover');
+    await openVintedSection(page, 'Übersicht', 390);
     await view.click();
     await page.getByRole('option', { name: 'Testkonto A', exact: true }).click();
     await expect(totals).toHaveText(['1', '1', '1']);
