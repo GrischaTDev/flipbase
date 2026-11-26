@@ -1,56 +1,86 @@
 <div class="grid min-w-0 gap-4" [class.lg:grid-cols-2]="!showReviews()">
   @for (tile of previews.tiles(); track tile.connection.connectionId) {
-    @let accountLabel = labels().get(tile.connection.connectionId);
+    @let accountLabel = labels().get(tile.connection.connectionId) ?? tile.connection.displayName;
+    @let profile = tile.preview?.profile;
     <app-card
       class="min-w-0"
-      [title]="accountLabel ?? tile.connection.displayName"
-      [attr.id]="'reviews-' + tile.connection.connectionId"
-      tabindex="-1"
+      [rounded]="showReviews() ? 'lg' : 'xl'"
+      [title]="showReviews() ? accountLabel : ''"
+      [attr.id]="showReviews() ? 'reviews-' + tile.connection.connectionId : null"
+      [attr.tabindex]="showReviews() ? -1 : null"
     >
-      @if (tile.preview; as preview) {
-        @if (preview.profile; as profile) {
-          <div class="mb-3 flex min-w-0 items-center gap-3">
-            <app-product-thumbnail [src]="profile.imageUrl" alt="" size="avatar" />
-            <div class="min-w-0 text-sm text-fb-text-secondary">
-              @if (profile.username) {
-                <p class="break-words">&#64;{{ profile.username }}</p>
-              }
-              @if (profile.location) {
-                <p class="break-words">{{ profile.location }}</p>
-              }
+      @if (showReviews()) {
+        @if (tile.preview) {
+          @if (profile) {
+            <div class="mb-3 flex min-w-0 items-center gap-3">
+              <app-product-thumbnail [src]="profile.imageUrl" alt="" size="avatar" />
+              <div class="min-w-0 text-sm text-fb-text-secondary">
+                @if (profile.username) {
+                  <p class="break-words">&#64;{{ profile.username }}</p>
+                }
+                @if (profile.location) {
+                  <p class="break-words">{{ profile.location }}</p>
+                }
+              </div>
             </div>
-          </div>
-        }
-        @if (showReviews()) {
-          @if (preview.profile?.bio; as bio) {
+          }
+          @if (profile?.bio; as bio) {
             <p class="mb-4 whitespace-pre-wrap break-words text-sm text-fb-text-primary">
               {{ bio }}
             </p>
           }
           <app-vinted-feedback-list
-            [profile]="preview.profile"
+            [profile]="profile ?? null"
             [isConnected]="tile.connection.status === 'connected'"
           />
-        } @else {
-          <div class="flex flex-wrap items-center gap-2">
-            <app-badge tone="neutral">{{ preview.publicationCount }} Inserate</app-badge>
-            <app-badge tone="neutral">{{ preview.saleCount }} Verkäufe</app-badge>
-            <app-button
-              variant="plain"
-              link="/marketplaces/vinted/profile"
-              [queryParams]="{ connectionId: tile.connection.connectionId }"
-              fragment="reviews"
-              >Profil ansehen</app-button
-            >
-          </div>
         }
+      } @else {
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div class="flex min-w-0 items-center gap-3.5">
+            <app-product-thumbnail [src]="profile?.imageUrl ?? null" alt="" size="avatar" />
+            <div class="min-w-0">
+              <h2 class="break-words text-base font-bold text-fb-text-primary">
+                {{ accountLabel }}
+              </h2>
+              @if (profile?.username; as username) {
+                <p class="break-words text-xs text-fb-text-secondary">&#64;{{ username }}</p>
+              }
+              @if (profile) {
+                <app-vinted-rating
+                  class="mt-1 block"
+                  [count]="profile.feedbackCount"
+                  [reputation]="profile.feedbackReputation"
+                />
+              }
+              @if (tile.preview; as preview) {
+                <p class="mt-1 text-xs tabular-nums text-fb-text-secondary">
+                  {{ preview.publicationCount }}
+                  {{ preview.publicationCount === 1 ? 'Inserat' : 'Inserate' }}
+                  <span aria-hidden="true"> · </span>
+                  {{ preview.saleCount }} {{ preview.saleCount === 1 ? 'Verkauf' : 'Verkäufe' }}
+                </p>
+              }
+            </div>
+          </div>
+          <app-button
+            variant="secondary"
+            size="md"
+            link="/marketplaces/vinted/profile"
+            [ariaLabel]="'Profil ansehen – ' + accountLabel"
+            [icon]="userIcon"
+            [queryParams]="{ connectionId: tile.connection.connectionId }"
+            fragment="reviews"
+          >
+            Profil ansehen
+          </app-button>
+        </div>
       }
       @if (tile.error) {
         <p role="status" class="mt-2 text-sm text-fb-text-secondary">
           Kontodaten konnten nicht aktualisiert werden.
         </p>
       } @else if (tile.loading && !tile.preview) {
-        <p role="status" class="text-sm text-fb-text-secondary">Kontodaten werden geladen …</p>
+        <p role="status" class="mt-2 text-sm text-fb-text-secondary">Kontodaten werden geladen …</p>
       }
     </app-card>
   }

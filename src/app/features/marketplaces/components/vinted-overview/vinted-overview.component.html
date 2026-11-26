@@ -1,68 +1,12 @@
-@if (inbox.showAllAccounts()) {
+@if (showAllAccounts() || store.snapshot()) {
   <div class="space-y-4">
-    <app-vinted-account-summaries />
-    <div class="grid gap-4 lg:grid-cols-2">
-      <app-card title="Letzte Gespräche">
-        <ul class="space-y-2">
-          @for (entry of combinedConversations(); track entryKey(entry)) {
-            <li class="min-w-0">
-              <a
-                class="block rounded-md py-1 focus-visible:outline-2 focus-visible:outline-fb-primary"
-                routerLink="/marketplaces/vinted/messages"
-                [queryParams]="{ connectionId: entry.connectionId, conversationId: entry.id }"
-              >
-                <span class="block break-words text-sm font-medium">{{ entry.title }}</span>
-                <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
-                  {{ inbox.labels().get(entry.connectionId) }}
-                </app-badge>
-              </a>
-            </li>
-          }
-        </ul>
-        @if (inbox.error(); as error) {
-          <p role="alert" class="text-sm">{{ error }}</p>
-          <app-button (clicked)="inbox.refresh()">Erneut versuchen</app-button>
-        } @else if (inbox.loading()) {
-          <p role="status" class="text-sm">Gespräche werden geladen …</p>
-        }
-      </app-card>
-      <app-card title="Letzte Verkäufe">
-        <ul class="space-y-2">
-          @for (entry of combinedSales(); track entryKey(entry)) {
-            <li class="min-w-0">
-              <a
-                class="block rounded-md py-1 focus-visible:outline-2 focus-visible:outline-fb-primary"
-                routerLink="/marketplaces/vinted/sales"
-                [queryParams]="{ connectionId: entry.connectionId, saleId: entry.id }"
-              >
-                <span class="block break-words text-sm font-medium">{{ entry.title }}</span>
-                <app-badge tone="neutral" class="mt-1 max-w-full [overflow-wrap:anywhere]">
-                  {{ salesList.labels().get(entry.connectionId) }}
-                </app-badge>
-              </a>
-            </li>
-          }
-        </ul>
-        @if (salesList.error(); as error) {
-          <p role="alert" class="text-sm">{{ error }}</p>
-          <app-button (clicked)="salesList.refresh()">Erneut versuchen</app-button>
-        } @else if (salesList.loading()) {
-          <p role="status" class="text-sm">Verkäufe werden geladen …</p>
-        }
-      </app-card>
-    </div>
-  </div>
-} @else if (store.snapshot(); as snapshot) {
-  <div class="space-y-4">
-    @if (snapshot.profile; as profile) {
+    @if (showAllAccounts()) {
+      <app-vinted-account-summaries class="block" />
+    } @else if (store.snapshot()?.profile; as profile) {
       <app-card padding="md" rounded="xl">
-        <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex flex-wrap items-center justify-between gap-4">
           <div class="flex min-w-0 items-center gap-3.5">
-            <app-product-thumbnail
-              [src]="profile.imageUrl"
-              [alt]="profile.username ?? 'Profilbild'"
-              size="avatar"
-            />
+            <app-product-thumbnail [src]="profile.imageUrl" alt="" size="avatar" />
             <div class="min-w-0">
               <p class="truncate text-base font-bold text-fb-text-primary">
                 {{ profile.displayName ?? profile.username ?? 'Vinted-Konto' }}
@@ -78,270 +22,174 @@
               </div>
             </div>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
-            <app-button
-              variant="secondary"
-              size="md"
-              link="/marketplaces/vinted/profile"
-              [icon]="userIcon"
-            >
-              Profil ansehen
-            </app-button>
-          </div>
+          <app-button
+            variant="secondary"
+            size="md"
+            link="/marketplaces/vinted/profile"
+            [icon]="userIcon"
+          >
+            Profil ansehen
+          </app-button>
         </div>
       </app-card>
     }
 
     <div class="grid gap-3 sm:grid-cols-3">
-      <app-card padding="md" rounded="xl">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-fb-text-primary">Inserate</h2>
-          <svg
-            class="size-5 text-fb-text-muted"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.75"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 9L2.5 16.5C1.8 17 2.2 18 3 18h18c.8 0 1.2-1 .5-1.5L12 9z" />
-            <path d="M12 9V6a2.5 2.5 0 0 1 4.5-1.5" />
-          </svg>
-        </div>
-        <div class="mt-3 flex items-baseline gap-2">
-          <p data-overview-total class="text-3xl font-bold tabular-nums text-fb-text-primary">
-            {{ snapshot.publications.total }}
+      @for (section of sections(); track section.kind) {
+        <app-card padding="md" rounded="xl">
+          <div class="flex items-center justify-between gap-2">
+            <h2 class="text-sm font-semibold text-fb-text-primary">{{ section.title }}</h2>
+            <svg
+              [lucideIcon]="section.icon"
+              class="size-5 text-fb-text-muted"
+              stroke-width="1.75"
+              aria-hidden="true"
+            ></svg>
+          </div>
+          <p data-overview-total class="mt-3 text-3xl font-bold tabular-nums text-fb-text-primary">
+            {{ section.total ?? '–' }}
           </p>
-          <span
-            class="inline-flex items-center rounded-full bg-fb-subtle px-2 py-0.5 text-xs font-semibold text-fb-text-secondary"
-          >
-            +0%
-          </span>
-        </div>
-        <div class="mt-4">
-          <app-button variant="plain" link="/marketplaces/vinted/listings">
-            Kleiderschrank ansehen &rarr;
-          </app-button>
-        </div>
-      </app-card>
-
-      <app-card padding="md" rounded="xl">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-fb-text-primary">Gespräche</h2>
-          <svg
-            [lucideIcon]="messageCircleIcon"
-            class="size-5 text-fb-text-muted"
-            stroke-width="1.75"
-            aria-hidden="true"
-          ></svg>
-        </div>
-        <div class="mt-3">
-          <p data-overview-total class="text-3xl font-bold tabular-nums text-fb-text-primary">
-            {{
-              store.localInboxUnavailable() && !snapshot.conversations.total
-                ? '–'
-                : snapshot.conversations.total
-            }}
-          </p>
-          @if (store.localInboxUnavailable()) {
+          @if (section.unavailable) {
             <p class="mt-1 text-xs text-fb-text-secondary">Noch nicht lokal synchronisiert</p>
           }
-        </div>
-        <div class="mt-4">
-          <app-button variant="plain" link="/marketplaces/vinted/messages">
-            Nachrichten ansehen &rarr;
+          <app-button class="mt-4" variant="plain" [link]="section.link">
+            {{ section.action }} &rarr;
           </app-button>
-        </div>
-      </app-card>
-
-      <app-card padding="md" rounded="xl">
-        <div class="flex items-center justify-between">
-          <h2 class="text-sm font-semibold text-fb-text-primary">Verkäufe</h2>
-          <svg
-            [lucideIcon]="shoppingBagIcon"
-            class="size-5 text-fb-text-muted"
-            stroke-width="1.75"
-            aria-hidden="true"
-          ></svg>
-        </div>
-        <div class="mt-3">
-          <p data-overview-total class="text-3xl font-bold tabular-nums text-fb-text-primary">
-            {{
-              store.localSalesUnavailable() && !snapshot.sales.total ? '–' : snapshot.sales.total
-            }}
-          </p>
-          @if (store.localSalesUnavailable()) {
-            <p class="mt-1 text-xs text-fb-text-secondary">Noch nicht lokal synchronisiert</p>
-          }
-        </div>
-        <div class="mt-4">
-          <app-button variant="plain" link="/marketplaces/vinted/sales">
-            Verkäufe ansehen &rarr;
-          </app-button>
-        </div>
-      </app-card>
+        </app-card>
+      }
     </div>
 
-    <div class="grid min-w-0 gap-4 lg:grid-cols-2">
-      <app-card rounded="xl" padding="none">
-        <div class="flex items-center justify-between border-b border-fb-line px-5 py-4">
-          <h2 class="text-sm font-bold text-fb-text-primary">Letzte Gespräche</h2>
-          <app-button
-            variant="plain"
-            link="/marketplaces/vinted/messages"
-            ariaLabel="Alle ansehen – gespeicherte Gespräche"
-          >
-            Alle ansehen
-          </app-button>
-        </div>
-        <ul class="divide-y divide-fb-line">
-          @for (entry of conversations(); track entry.id) {
-            <li data-conversation-preview class="min-w-0">
-              <app-button
-                variant="list-row"
-                [fullWidth]="true"
-                contentAlign="start"
-                link="/marketplaces/vinted/messages"
-                [queryParams]="{ connectionId: snapshot.connectionId, conversationId: entry.id }"
+    <div class="grid min-w-0 gap-4 lg:grid-cols-2 xl:grid-cols-3">
+      @for (section of sections(); track section.kind) {
+        <app-card rounded="xl" padding="none" contentLayout="fill" class="min-w-0">
+          <div class="flex items-center justify-between gap-2 border-b border-fb-line px-4 py-3">
+            <h2 class="text-sm font-bold text-fb-text-primary">{{ section.previewTitle }}</h2>
+            <app-button
+              variant="plain"
+              [link]="section.link"
+              [ariaLabel]="'Alle ansehen – ' + section.title"
+            >
+              Alle ansehen
+            </app-button>
+          </div>
+          @if (section.error; as error) {
+            <div class="space-y-2 border-b border-fb-line px-4 py-3">
+              <p role="alert" class="text-xs text-fb-text-secondary">{{ error }}</p>
+              <app-button variant="secondary" size="slim" (clicked)="section.refresh()">
+                Erneut versuchen
+              </app-button>
+            </div>
+          }
+          <ul class="divide-y divide-fb-line">
+            @for (entry of section.items; track entryKey(entry)) {
+              @let isConversation = section.kind === 'conversation';
+              @let isSale = section.kind === 'sale';
+              @let accountLabel =
+                showAllAccounts() ? accountLabels().get(entry.connectionId) : null;
+              <li
+                class="min-w-0"
+                [attr.data-conversation-preview]="isConversation ? '' : null"
+                [attr.data-sale-preview]="isSale ? '' : null"
+                [attr.data-listing-preview]="section.kind === 'publication' ? '' : null"
               >
-                <div class="flex w-full min-w-0 items-center justify-between gap-3 py-1">
-                  <div class="flex min-w-0 items-center gap-3">
+                <app-button
+                  variant="list-row"
+                  [fullWidth]="true"
+                  contentAlign="start"
+                  [link]="section.kind === 'publication' ? listingLink(entry) : section.link"
+                  [queryParams]="
+                    isConversation
+                      ? { connectionId: entry.connectionId, conversationId: entry.id }
+                      : isSale
+                        ? { connectionId: entry.connectionId, saleId: entry.id }
+                        : null
+                  "
+                >
+                  <div class="flex w-full min-w-0 items-center gap-3 py-1">
                     <app-product-thumbnail
+                      class="shrink-0"
                       [src]="entry.imageUrl"
-                      [alt]="entry.title"
-                      size="avatar"
+                      alt=""
+                      [size]="isConversation ? 'avatar' : 'sm'"
                     />
-                    <div class="min-w-0">
+                    <div class="min-w-0 flex-1">
                       <span
                         data-preview-title
                         class="block truncate text-[13px] font-semibold text-fb-text-primary"
+                        [attr.title]="entry.title"
                       >
                         {{ entry.title }}
                       </span>
-                      <span class="mt-0.5 block truncate text-xs text-fb-text-secondary">
-                        {{ entry.text ?? 'Gespeichertes Gespräch öffnen' }}
-                      </span>
+                      @if (isConversation && entry.text) {
+                        <span class="mt-0.5 block truncate text-xs text-fb-text-secondary">
+                          {{ entry.text }}
+                        </span>
+                      }
+                      <div class="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                        @if (accountLabel) {
+                          <app-badge
+                            data-overview-account
+                            tone="neutral"
+                            class="max-w-full [overflow-wrap:anywhere]"
+                          >
+                            <span class="sr-only">Konto </span>{{ accountLabel }}
+                          </app-badge>
+                        }
+                        @if (isConversation && entry.unread === true) {
+                          <app-badge tone="brand">Neu</app-badge>
+                        }
+                        @if (isSale && entry.status) {
+                          <span class="text-xs text-fb-text-secondary">{{ entry.status }}</span>
+                        }
+                        @if (section.kind === 'publication') {
+                          @if (publicationBadge(entry.publicationState); as badge) {
+                            <app-badge [tone]="badge.tone">{{ badge.label }}</app-badge>
+                          }
+                        }
+                        @if (section.kind !== 'publication') {
+                          <span class="text-xs tabular-nums text-fb-text-secondary">
+                            {{
+                              entry.occurredAt
+                                ? (entry.occurredAt | date: 'dd.MM., HH:mm')
+                                : 'Zeitpunkt unbekannt'
+                            }}
+                          </span>
+                        } @else if (entry.publishedAt; as publicationDate) {
+                          <span class="text-xs tabular-nums text-fb-text-secondary">
+                            {{ publicationDate | date: 'dd.MM.yyyy' }}
+                          </span>
+                        }
+                      </div>
                     </div>
-                  </div>
-                  <div class="flex shrink-0 items-center gap-2">
-                    @if (entry.unread === true) {
-                      <app-badge tone="brand">Neu</app-badge>
+                    @if (!isConversation) {
+                      <span
+                        data-price
+                        class="shrink-0 text-[13px] font-semibold tabular-nums text-fb-text-primary"
+                      >
+                        {{ entry.price === null ? '—' : (entry.price | currency: entry.currency) }}
+                      </span>
                     }
-                    <span
-                      class="inline-flex items-center rounded-full bg-fb-subtle px-2.5 py-1 text-xs tabular-nums text-fb-text-secondary"
-                    >
-                      {{
-                        entry.occurredAt
-                          ? (entry.occurredAt | date: 'dd.MM., HH:mm')
-                          : 'Zeitpunkt unbekannt'
-                      }}
-                    </span>
                   </div>
-                </div>
-              </app-button>
-            </li>
-          } @empty {
-            <li class="py-10 text-center text-xs text-fb-text-secondary">
-              {{
-                store.localInboxUnavailable()
-                  ? 'Nachrichten noch nicht lokal synchronisiert.'
-                  : 'Noch keine Vinted-Gespräche gespeichert.'
-              }}
-            </li>
-          }
-        </ul>
-      </app-card>
-
-      <app-card rounded="xl" padding="none">
-        <div class="flex items-center justify-between border-b border-fb-line px-5 py-4">
-          <h2 class="text-sm font-bold text-fb-text-primary">Letzte Verkäufe</h2>
-          <app-button
-            variant="plain"
-            link="/marketplaces/vinted/sales"
-            ariaLabel="Alle ansehen – Verkäufe"
-          >
-            Alle ansehen
-          </app-button>
-        </div>
-        <ul class="divide-y divide-fb-line">
-          @for (entry of sales(); track entry.id) {
-            <li
-              data-sale-preview
-              class="flex min-w-0 items-center justify-between gap-3 px-5 py-3.5"
-            >
-              <div class="flex min-w-0 items-center gap-3">
-                <app-product-thumbnail [src]="entry.imageUrl" [alt]="entry.title" size="avatar" />
-                <div class="min-w-0">
-                  <p
-                    data-preview-title
-                    class="truncate text-[13px] font-semibold text-fb-text-primary"
-                  >
-                    {{ entry.title }}
-                  </p>
-                  @if (entry.status) {
-                    <p class="mt-0.5 truncate text-xs text-fb-text-secondary">{{ entry.status }}</p>
+                </app-button>
+              </li>
+            } @empty {
+              @if (!section.error) {
+                <li class="px-4 py-8 text-center text-xs text-fb-text-secondary">
+                  @if (section.loading) {
+                    <span role="status">{{ section.title }} werden geladen …</span>
+                  } @else {
+                    {{
+                      section.unavailable
+                        ? section.title + ' noch nicht lokal synchronisiert.'
+                        : section.emptyMessage
+                    }}
                   }
-                </div>
-              </div>
-              <div class="flex shrink-0 items-center gap-3">
-                <span
-                  class="inline-flex items-center rounded-full bg-fb-subtle px-2.5 py-1 text-xs tabular-nums text-fb-text-secondary"
-                >
-                  {{
-                    entry.occurredAt
-                      ? (entry.occurredAt | date: 'dd.MM., HH:mm')
-                      : 'Zeitpunkt unbekannt'
-                  }}
-                </span>
-                <span
-                  data-price
-                  class="text-[13px] font-semibold tabular-nums text-fb-text-primary"
-                >
-                  {{ entry.price === null ? '—' : (entry.price | currency: entry.currency) }}
-                </span>
-              </div>
-            </li>
-          } @empty {
-            <li class="flex flex-col items-center justify-center px-4 py-10 text-center">
-              <svg
-                class="h-16 w-24 text-fb-text-muted/60"
-                viewBox="0 0 96 72"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.25"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <!-- Background shopping bag -->
-                <path d="M28 26 L22 64 H52 L46 26 Z" />
-                <path d="M31 26 C31 16 43 16 43 26" />
-                <path d="M22 64 L26 62 L48 62 L52 64" stroke-dasharray="2 2" />
-
-                <!-- Foreground parcel box (isometric) -->
-                <path d="M66 32 L84 41 L66 50 L48 41 Z" />
-                <path d="M57 36.5 L75 45.5" stroke-width="1.5" />
-                <path d="M48 41 V61 L66 70 V50 Z" />
-                <path d="M66 50 V70 L84 61 V41 Z" />
-
-                <!-- Subtle accent lines -->
-                <line x1="16" y1="36" x2="19" y2="36" />
-                <line x1="78" y1="22" x2="81" y2="22" />
-                <line x1="12" y1="64" x2="88" y2="64" stroke-dasharray="1 3" stroke-opacity="0.4" />
-              </svg>
-              <p class="mt-3 text-xs text-fb-text-secondary">
-                {{
-                  store.localSalesUnavailable()
-                    ? 'Verkäufe noch nicht lokal synchronisiert.'
-                    : 'Noch keine Vinted-Verkäufe gespeichert.'
-                }}
-              </p>
-            </li>
-          }
-        </ul>
-      </app-card>
+                </li>
+              }
+            }
+          </ul>
+        </app-card>
+      }
     </div>
   </div>
 }
