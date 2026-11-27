@@ -12,7 +12,12 @@ import { LucideExternalLink, LucideHeart } from '@lucide/angular';
 import { CardComponent } from '../../../../shared/components/card/card.component';
 import { BadgeComponent } from '../../../../shared/components/badge/badge.component';
 import { ButtonComponent } from '../../../../shared/components/button/button.component';
-import { FeedItem, safeVintedImage, safeVintedLink } from '../../models/deal-monitor.model';
+import {
+  FRESH_ARTICLE_MS,
+  FeedItem,
+  safeVintedImage,
+  safeVintedLink,
+} from '../../models/deal-monitor.model';
 import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { FeedClockService } from '../../services/feed-clock.service';
 import { discoveryAge } from '../../utils/discovery-date';
@@ -46,6 +51,12 @@ export class DealCardComponent {
   readonly discoveredLabel = computed(() =>
     discoveryAge(this.item().first_seen_at, this.clock.now()),
   );
+  readonly isFresh = computed(() => {
+    const discoveredAt = Date.parse(this.item().first_seen_at);
+    return (
+      !Number.isNaN(discoveredAt) && this.clock.now().getTime() - discoveredAt < FRESH_ARTICLE_MS
+    );
+  });
   readonly link = computed(() => safeVintedLink(this.item().url));
 
   imageFailed(url: string): void {

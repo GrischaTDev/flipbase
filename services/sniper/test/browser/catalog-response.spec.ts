@@ -102,7 +102,11 @@ describe('catalog response inside the existing browser page', () => {
     });
     await expect(
       readCatalogResponse(page, url, new AbortController().signal),
-    ).rejects.toMatchObject({ kind: 'network_error', message: 'Browserabruf fehlgeschlagen.' });
+    ).rejects.toMatchObject({
+      kind: 'network_error',
+      message: 'Browserabruf fehlgeschlagen.',
+      transportReason: 'TypeError',
+    });
   });
 
   it('stops and cancels a body exceeding eight MiB', async () => {

@@ -25,7 +25,7 @@ interface BrowserSessionDependencies {
   originState: OriginStateStoreLike;
   queries: {
     activeQueries(): Promise<SniperQuery[]>;
-    /** Hauptquelle für die Prüfung, auch wenn gerade kein Feed läuft. */
+    /** Zuletzt genutzte Feed-Quelle für die Prüfung, auch wenn gerade kein Feed läuft. */
     accessCheckQuery?(): Promise<SniperQuery | null>;
   };
   collector: {
@@ -131,7 +131,7 @@ export class BrowserSessionController implements BrowserSession {
             (left.lastPolledAt ?? '').localeCompare(right.lastPolledAt ?? '') ||
             left.id.localeCompare(right.id),
         )[0];
-    // Ohne laufenden Feed prüft der Dienst den Zugriff über eine Hauptquelle.
+    // Ohne laufenden Feed prüft der Dienst den Zugriff über eine zuletzt genutzte Quelle.
     if (!query?.isActive && this.deps.queries.accessCheckQuery) {
       const fallback = await this.deps.queries.accessCheckQuery();
       if (fallback && (!queryId || fallback.id === queryId)) query = fallback;

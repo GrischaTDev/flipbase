@@ -113,14 +113,14 @@ select throws_ok($$select * from public.sniper_query_matches$$,'42501',null,'Ano
 select throws_ok($$select public.sniper_notify_feed_updates(null)$$,'42501',null,'Anonyme dürfen keine Hinweise senden');
 reset role;
 
-insert into public.sniper_queries(query_key,title,catalog_id,filter_format_version)
-    values ('vinted-source|main|1904','Vinted-Hauptquelle',1904,1);
-insert into public.sniper_watchlists(workspace_id,user_id,title,is_active,started_at,audience,brand)
+insert into public.sniper_queries(query_key,title,brand_id,brand_ids,brand_names,filter_format_version)
+    values ('vinted-source|brand|53','Vinted-Markenquelle',53,array[53],array['Nike'],1);
+insert into public.sniper_watchlists(workspace_id,user_id,title,is_active,started_at,audience,brand,brand_id)
     values ('e2000000-0000-4000-8000-000000000004','e2000000-0000-4000-8000-000000000002',
-        'Aktiver Feed',true,now(),'women','Nike');
+        'Aktiver Feed',true,now(),'women','Nike',53);
 
 set local role service_role;
-select lives_ok($$select public.sniper_notify_feed_updates((select id from public.sniper_queries where query_key='vinted-source|main|1904'))$$,'Dienst benachrichtigt die Feeds einer Quelle');
+select lives_ok($$select public.sniper_notify_feed_updates((select id from public.sniper_queries where query_key='vinted-source|brand|53'))$$,'Dienst benachrichtigt die Feeds einer Quelle');
 select lives_ok($$select public.sniper_notify_feed_updates((select id from public.sniper_queries where title='MATCH broad'))$$,'Eine Quelle ohne Feed sendet keinen Hinweis');
 reset role;
 select is((select count(*) from realtime.messages where event='feed_updated' and topic='workspace:e2000000-0000-4000-8000-000000000004:sniper_feed'),1::bigint,'Genau ein Hinweis je Workspace');

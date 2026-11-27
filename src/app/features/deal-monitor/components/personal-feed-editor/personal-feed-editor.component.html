@@ -127,7 +127,9 @@
       />
     </div>
 
-    @if (submitAttempted() && form.invalid && !form.hasError('priceRange')) {
+    @if (submitAttempted() && form.hasError('missingSource')) {
+      <p role="alert" class="text-sm text-fb-text-danger">{{ missingFeedSourceError }}</p>
+    } @else if (submitAttempted() && form.invalid && !form.hasError('priceRange')) {
       <p role="alert" class="text-sm text-fb-text-danger">Bitte prüfe deine Angaben.</p>
     }
   </fieldset>

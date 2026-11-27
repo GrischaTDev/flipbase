@@ -798,4 +798,58 @@ describe('bounded shared search scheduling', () => {
       source_pages: 2,
     });
   });
+
+  it('polls independent source plans concurrently up to configured concurrency', async () => {
+    let active = 0;
+    let peakActive = 0;
+    const resolvers: (() => void)[] = [];
+    const first = searchFilter({ id: 'cat-a', catalogId: 1858, seededRequests: [0] });
+    const second = searchFilter({ id: 'cat-b', catalogId: 2050, seededRequests: [0] });
+    const third = searchFilter({
+      id: 'brand-c',
+      catalogId: null,
+      brandId: 88,
+      brandIds: [88],
+      seededRequests: [0],
+    });
+    const collectSource = vi.fn<NonNullable<CollectorLike['collectSource']>>(async () => {
+      active += 1;
+      peakActive = Math.max(peakActive, active);
+      await new Promise<void>((resolve) => {
+        resolvers.push(resolve);
+      });
+      active -= 1;
+      return [catalogListing('5001')];
+    });
+    const completeRun = vi.fn<NonNullable<ListingStoreLike['completeRun']>>(async () => ({
+      accepted: true,
+      created: 1,
+      seeded: false,
+    }));
+    const scheduler = new QueryScheduler({
+      queries: {
+        dueQueries: async () => [first, second, third],
+        markSeeded: async () => undefined,
+      },
+      collector: { collect: vi.fn(), collectSource },
+      listings: { saveNew: vi.fn(), completeRun },
+      budget: new RequestBudget(40),
+      log,
+      now: () => NOW,
+      maxRequestsPerCycle: 3,
+      concurrency: 2,
+    });
+
+    const cycle = scheduler.runOnce(NOW);
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
+    expect(peakActive).toBe(2);
+    resolvers[0]!();
+    await vi.waitFor(() => expect(resolvers).toHaveLength(3));
+    resolvers[1]!();
+    resolvers[2]!();
+    const report = await cycle;
+    expect(report.polled).toBe(3);
+    expect(report.failed).toBe(0);
+    expect(collectSource).toHaveBeenCalledTimes(3);
+  });
 });

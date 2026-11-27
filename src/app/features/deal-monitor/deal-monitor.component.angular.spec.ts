@@ -145,7 +145,7 @@ describe('Persönliche Vinted-Feeds', () => {
     expect(page.selectedFeed()).toBeUndefined();
   });
 
-  it('merkt sich den zuletzt gewählten Feed und zeigt im Widescreen aktive Feeds als Spalten', async () => {
+  it('merkt sich den zuletzt gewählten Feed und behält die Spaltenansicht auch beim Pausieren stabil', async () => {
     const second: PersonalFeed = {
       ...pausedFeed,
       id: 'feed-2',
@@ -165,6 +165,12 @@ describe('Persönliche Vinted-Feeds', () => {
     await Promise.resolve();
     expect(page.selectedFeed()?.id).toBe('feed-2');
     expect(page.showColumns()).toBe(true);
+
+    // Beim Pausieren eines Feeds bleibt die Nebeneinander-Ansicht erhalten.
+    api.personalFeeds.mockResolvedValueOnce([pausedFeed, second]);
+    await page.toggle(firstActive);
+    expect(page.showColumns()).toBe(true);
+
     page.selectFeed(firstActive);
     expect(localStorage.getItem('flipbase:vinted-feed:selected:workspace-1')).toBe('feed-1');
   });

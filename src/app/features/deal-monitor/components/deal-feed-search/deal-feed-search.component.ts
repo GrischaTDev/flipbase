@@ -49,7 +49,7 @@ const RECONCILE_INTERVAL_MS = 15_000;
     NumberInputComponent,
   ],
   templateUrl: './deal-feed-search.component.html',
-  host: { class: '@container block min-w-0' },
+  host: { class: '@container flex min-h-0 min-w-0 flex-col' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DealFeedSearchComponent {

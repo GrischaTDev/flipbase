@@ -219,9 +219,13 @@ describe('DealFeedState', () => {
 });
 
 describe('Zeitfenster persönlicher Feeds', () => {
-  it('entfernt abgelaufene Karten unabhängig von einem neuen Fund und begrenzt die Zahl', () => {
+  it('behält ältere Karten ruhiger Feeds bis zum 3-Tage-Limit und begrenzt die Zahl pro Feed', () => {
     const now = Date.parse('2026-09-12T12:10:00Z');
-    const rows = [seenAt('newest', 10), seenAt('previous', 9), seenAt('expired', 0)];
+    const expired: FeedItem = {
+      ...item('expired'),
+      first_seen_at: new Date(now - FEED_WINDOW_MS).toISOString(),
+    };
+    const rows = [seenAt('newest', 10), seenAt('previous', 0), expired];
     expect(ids(recentFeedItems(rows, now))).toEqual(['newest', 'previous']);
     expect(recentFeedItems(rows, now + FEED_WINDOW_MS)).toEqual([]);
     expect(

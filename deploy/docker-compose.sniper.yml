@@ -22,7 +22,8 @@ services:
       - ${SNIPER_BROWSER_PROFILE_PATH:-/opt/flipbase-sniper/browser}:/var/lib/flipbase-sniper/browser
     tmpfs:
       - /tmp:size=384m,mode=1777
-    shm_size: 128m
+    # Genug Shared Memory für Vinted-Katalogseiten und parallele Chrome-Tabs.
+    shm_size: 512m
     read_only: true
     cap_drop:
       - ALL
@@ -31,7 +32,7 @@ services:
     security_opt:
       - no-new-privileges:true
       - seccomp:${SNIPER_SECCOMP_FILE:-/opt/flipbase-sniper/chromium-seccomp.json}
-    pids_limit: 256
+    pids_limit: 512
     # Vollständige Katalogseiten samt Sitzungsskripten benötigen mehr als 1 GiB.
     mem_limit: 2g
     memswap_limit: 3g

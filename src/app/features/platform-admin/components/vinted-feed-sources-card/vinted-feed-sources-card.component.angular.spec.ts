@@ -23,10 +23,10 @@ const capacityResponse = {
   reported_at: recent,
   sources: [
     {
-      key: 'main',
-      kind: 'main',
+      key: 'vinted-source|brand|88',
+      kind: 'brand',
       catalog_id: null,
-      category_path: null,
+      category_path: 'Ralph Lauren',
       feed_count: 3,
       last_success_at: recent,
       coverage_status: 'caught_up',
@@ -89,7 +89,8 @@ describe('VintedFeedSourcesCardComponent', () => {
     expect(metric('requests')).toBe('30 / 120');
     const rows = element.querySelectorAll('[data-vinted-feed-sources-table] tbody tr');
     expect(rows).toHaveLength(2);
-    expect(rows[0].textContent).toContain('Hauptquelle');
+    expect(rows[0].textContent).toContain('Marke');
+    expect(rows[0].textContent).toContain('Ralph Lauren');
     expect(rows[0].textContent).toContain('Aktuell');
     expect(rows[1].textContent).toContain('Herren > Jacken');
     expect(rows[1].textContent).toContain('Kommt nicht hinterher');

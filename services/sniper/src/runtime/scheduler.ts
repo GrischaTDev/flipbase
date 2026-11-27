@@ -145,6 +145,8 @@ export interface SchedulerDeps {
   origin?: string;
   now?: () => Date;
   maxRequestsPerCycle?: number;
+  /** Höchstzahl gleichzeitiger unabhängiger Quellabrufe je Zyklus (Standard 1). */
+  concurrency?: number;
   sharePriceRanges?: boolean;
   onOriginPause?: () => void;
 }
@@ -262,26 +264,51 @@ export class QueryScheduler {
       const plans = planSearchRequests(queriesToRun);
       if (isProbeCycle && plans.length === 0) await this.originStore.releaseProbe(origin, false);
       const limit = this.deps.maxRequestsPerCycle ?? 1;
-      let requests = 0;
-      const reusable = new Map<string, SharedPriceWindow>();
-      for (const [index, plan] of plans.entries()) {
-        const cached = reusable.get(plan.key);
-        if (!cached && requests >= limit) continue;
-        if (!cached && !this.deps.budget.hasCapacity()) {
-          report.skippedForBudget += plan.consumers.length;
-          if (isProbeCycle) await this.originStore.releaseProbe(origin, false);
-          break;
-        }
-        if (!cached) requests++;
-        const later =
-          !isProbeCycle && !cached && this.deps.sharePriceRanges !== false
-            ? plans.slice(index + 1).filter((target) => coversPriceRange(plan, target))
-            : [];
-        await this.pollShared(plan, report, isProbeCycle, cached, (listings) =>
-          this.sharePriceWindows(later, listings, reusable, plan.consumers.length),
+      const concurrency = isProbeCycle ? 1 : Math.max(1, this.deps.concurrency ?? 1);
+      const hasPriceSharing =
+        !isProbeCycle &&
+        this.deps.sharePriceRanges !== false &&
+        plans.some((plan, index) =>
+          plans.slice(index + 1).some((target) => coversPriceRange(plan, target)),
         );
-        if (report.originPause) break;
+      if (concurrency <= 1 || plans.length <= 1 || hasPriceSharing) {
+        let requests = 0;
+        const reusable = new Map<string, SharedPriceWindow>();
+        for (const [index, plan] of plans.entries()) {
+          const cached = reusable.get(plan.key);
+          if (!cached && requests >= limit) continue;
+          if (!cached && !this.deps.budget.hasCapacity()) {
+            report.skippedForBudget += plan.consumers.length;
+            if (isProbeCycle) await this.originStore.releaseProbe(origin, false);
+            break;
+          }
+          if (!cached) requests++;
+          const later =
+            !isProbeCycle && !cached && this.deps.sharePriceRanges !== false
+              ? plans.slice(index + 1).filter((target) => coversPriceRange(plan, target))
+              : [];
+          await this.pollShared(plan, report, isProbeCycle, cached, (listings) =>
+            this.sharePriceWindows(later, listings, reusable, plan.consumers.length),
+          );
+          if (report.originPause) break;
+        }
+        return report;
       }
+
+      const selected = plans.slice(0, limit);
+      let cursor = 0;
+      const workers = Array.from({ length: Math.min(concurrency, selected.length) }, async () => {
+        while (cursor < selected.length) {
+          if (report.originPause) return;
+          const plan = selected[cursor++]!;
+          if (!this.deps.budget.hasCapacity()) {
+            report.skippedForBudget += plan.consumers.length;
+            return;
+          }
+          await this.pollShared(plan, report, false, undefined, () => plan.consumers.length);
+        }
+      });
+      await Promise.all(workers);
       return report;
     }
 
@@ -728,6 +755,7 @@ export class QueryScheduler {
       skipped: report.skippedForBudget,
       sharedFilters: filterCount,
       sourcePages: page,
+      durationMs: Math.max(0, this.currentTime().getTime() - started),
       coverage: [...new Set([...windows.values()].map((window) => window.coverage))].join(','),
     });
   }

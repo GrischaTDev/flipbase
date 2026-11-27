@@ -168,6 +168,19 @@ describe('DealCardComponent', () => {
     expect(card.textContent).toContain('Kein Artikelbild');
   });
 
+  it('hebt Artikel unter einer Minute grün hervor und färbt ältere neutral grau', () => {
+    const clock = TestBed.inject(FeedClockService);
+    clock.now.set(new Date('2026-09-27T12:00:35Z'));
+    const fixture = TestBed.createComponent(DealCardComponent);
+    fixture.componentRef.setInput('item', item);
+    fixture.detectChanges();
+    expect(fixture.componentInstance.isFresh()).toBe(true);
+
+    clock.now.set(new Date('2026-09-27T12:01:00Z'));
+    fixture.detectChanges();
+    expect(fixture.componentInstance.isFresh()).toBe(false);
+  });
+
   it('zeigt den Hinweis auf nicht kaufbare Artikel ohne unsicheren Link', () => {
     const fixture = TestBed.createComponent(DealCardComponent);
     fixture.componentRef.setInput('item', { ...item, is_hidden: true, url: 'javascript:alert(1)' });

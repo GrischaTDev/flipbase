@@ -117,4 +117,27 @@ describe('Vinted-Linkimport in einen persönlichen Feed', () => {
     editor.form.controls.price_from.setValue(5);
     expect(editor.form.hasError('priceRange')).toBe(false);
   });
+
+  it('verlangt mindestens eine Unterkategorie oder eine Marke', () => {
+    const editor = createEditor({});
+    const saved = vi.fn();
+    editor.saved.subscribe(saved);
+
+    editor.form.patchValue({ title: 'Nur Stichwort', search_text: 'Lederjacke' });
+    editor.submit();
+    expect(editor.form.hasError('missingSource')).toBe(true);
+    expect(saved).not.toHaveBeenCalled();
+
+    // Reine Wurzelkategorie Damen/Herren ohne Marke reicht nicht
+    editor.form.controls.catalog_id.setValue('5');
+    editor.submit();
+    expect(editor.form.hasError('missingSource')).toBe(true);
+    expect(saved).not.toHaveBeenCalled();
+
+    // Konkrete Unterkategorie erlaubt das Speichern
+    editor.form.controls.catalog_id.setValue('1858');
+    expect(editor.form.hasError('missingSource')).toBe(false);
+    editor.submit();
+    expect(saved).toHaveBeenCalledWith(expect.objectContaining({ catalog_id: 1858 }));
+  });
 });

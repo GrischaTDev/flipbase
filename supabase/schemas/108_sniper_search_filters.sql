@@ -396,7 +396,9 @@ begin
         return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false);
     end if;
     if v_query.filter_format_version <> 1 then raise exception 'Ungültiges Suchfilterformat.' using errcode = '22023'; end if;
-    if v_query.catalog_id is not null and not exists (select 1 from public.vinted_categories where id = v_query.catalog_id) then
+    if v_query.catalog_id is not null
+       and not exists (select 1 from public.vinted_listing_categories where id = v_query.catalog_id)
+       and not exists (select 1 from public.vinted_categories where id = v_query.catalog_id) then
         update public.sniper_queries set is_active = false, run_state = 'invalid',
             last_error_kind = 'invalid_category', last_error_message = 'Die Kategorie ist nicht mehr verfügbar.', updated_at = now() where id = p_query_id;
         return jsonb_build_object('accepted', false, 'created', 0, 'seeded', false);
@@ -485,7 +487,8 @@ begin
         where listing.id = any(v_new_matches) and listing.is_initial_stock;
     end if;
     -- Eine Oberkategorie ist keine bekannte Blattkategorie für Preisvergleiche.
-    if exists (select 1 from public.vinted_categories where id = v_query.catalog_id and is_leaf) then
+    if exists (select 1 from public.vinted_listing_categories where id = v_query.catalog_id and is_leaf)
+       or exists (select 1 from public.vinted_categories where id = v_query.catalog_id and is_leaf) then
         perform public.record_sniper_listing_category(p_query_id, v_external_ids);
     end if;
     if v_seed then v_query.seeded_requests := array_append(v_query.seeded_requests, v_index); end if;

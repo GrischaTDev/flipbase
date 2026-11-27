@@ -76,7 +76,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
   readonly selectedFeed = computed(() => this.feeds().find(({ id }) => id === this.selectedId()));
   readonly activeFeeds = computed(() => this.feeds().filter(({ is_active }) => is_active));
   readonly viewMode = signal<'columns' | 'single'>('columns');
-  readonly canShowColumns = computed(() => this.widescreen() && this.activeFeeds().length >= 2);
+  readonly canShowColumns = computed(() => this.widescreen() && this.feeds().length >= 2);
   readonly showColumns = computed(() => this.canShowColumns() && this.viewMode() === 'columns');
   readonly loadingFeeds = signal(false);
   readonly editorOpen = signal(false);
@@ -126,7 +126,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     this.selectedId.set(feed.id);
     const workspaceId = this.workspaceId();
     if (workspaceId) this.storeSelectedFeedId(workspaceId, feed.id);
-    if (!feed.is_active && this.showColumns()) this.viewMode.set('single');
+    if (this.showColumns()) this.viewMode.set('single');
   }
 
   hasOutdatedCategory(feed: PersonalFeed): boolean {

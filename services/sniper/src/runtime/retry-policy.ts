@@ -4,6 +4,7 @@ import {
   RateLimitedError,
   UnauthorizedError,
   VintedCollectorError,
+  VintedNetworkError,
   VintedParserError,
   VintedTimeoutError,
   validRetryAfterSeconds,
@@ -25,6 +26,9 @@ export interface RetryDecision {
 }
 
 const SERVER_ERROR_DELAYS_MS = [30_000, 60_000, 120_000, 300_000, 600_000, 900_000] as const;
+
+// Ein einzelner Netzwerkaussetzer soll bei 5-Sekunden-Feeds keine 30-Sekunden-Lücke reißen.
+const NETWORK_ERROR_DELAYS_MS = [5_000, 30_000, 120_000, 300_000, 600_000] as const;
 
 // Eine 403 ohne bestaetigten Pruefseitenhinweis behaelt die steigende Pause.
 const FORBIDDEN_DELAYS_MS = [300_000, 600_000, 1_200_000, 2_400_000, 3_600_000] as const;
@@ -126,8 +130,10 @@ export function evaluateFailure(
   }
 
   // Timeout, 5xx, Netzwerk- und allgemeine Fehler
-  const delayIndex = Math.min(failures - 1, SERVER_ERROR_DELAYS_MS.length - 1);
-  const waitMs = SERVER_ERROR_DELAYS_MS[Math.max(0, delayIndex)]!;
+  const delays =
+    error instanceof VintedNetworkError ? NETWORK_ERROR_DELAYS_MS : SERVER_ERROR_DELAYS_MS;
+  const delayIndex = Math.min(failures - 1, delays.length - 1);
+  const waitMs = delays[Math.max(0, delayIndex)]!;
   const nextAttemptAt = new Date(now.getTime() + waitMs);
 
   let kind = 'server_error';

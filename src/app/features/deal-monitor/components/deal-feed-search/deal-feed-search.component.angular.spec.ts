@@ -80,11 +80,15 @@ describe('Artikel eines persönlichen Vinted-Feeds', () => {
     return fixture;
   }
 
-  it('lädt nur den ausgewählten aktiven Feed und lässt seine Karten nach zehn Minuten altern', async () => {
+  it('lädt nur den ausgewählten aktiven Feed und behält ruhige Treffer über zehn Minuten hinaus bis zum Feed-Limit', async () => {
     const fixture = open(running);
     await Promise.resolve();
     expect(api.feed).toHaveBeenCalledWith({ workspace: 'workspace-1', watchlist: 'feed-1' });
     expect(fixture.componentInstance.feedItems()).toEqual([item]);
+    // Nach 30 Minuten bleiben Treffer eines ruhigen Feeds sichtbar.
+    now.set(new Date(sampleTime.getTime() + 30 * 60_000));
+    expect(fixture.componentInstance.feedItems()).toEqual([item]);
+    // Erst nach Ablauf des 3-Tage-Fensters werden sie ausgeblendet.
     now.set(new Date(sampleTime.getTime() + FEED_WINDOW_MS));
     expect(fixture.componentInstance.feedItems()).toEqual([]);
     fixture.destroy();

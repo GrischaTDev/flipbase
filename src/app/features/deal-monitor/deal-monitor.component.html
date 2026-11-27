@@ -73,28 +73,29 @@
         <div
           class="grid gap-4"
           [class]="
-            activeFeeds().length === 2
+            feeds().length === 2
               ? 'grid-cols-2'
-              : activeFeeds().length === 3
+              : feeds().length === 3
                 ? 'grid-cols-3'
                 : 'grid-flow-col auto-cols-[minmax(34rem,1fr)] overflow-x-auto pb-2'
           "
         >
-          @for (columnFeed of activeFeeds(); track columnFeed.id) {
+          @for (columnFeed of feeds(); track columnFeed.id) {
             <section
-              class="flex min-w-0 flex-col gap-3 rounded-xl border border-fb-border bg-fb-surface/40 p-3.5"
+              class="flex h-[calc(100dvh-13rem)] min-h-[26rem] min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-fb-border bg-fb-surface/40 p-3.5"
               [attr.aria-label]="'Feed ' + columnFeed.title"
             >
-              <div class="flex items-start justify-between gap-2 border-b border-fb-border pb-2.5">
+              <div
+                class="flex shrink-0 items-start justify-between gap-2 border-b border-fb-border pb-2.5"
+              >
                 <div class="min-w-0">
                   <div class="flex items-center gap-2">
-                    <span
-                      class="h-2 w-2 shrink-0 rounded-full bg-emerald-500"
-                      aria-hidden="true"
-                    ></span>
                     <h2 class="truncate text-sm font-semibold text-fb-text-primary">
                       {{ columnFeed.title }}
                     </h2>
+                    @if (!columnFeed.is_active) {
+                      <app-badge tone="neutral" size="sm">Pausiert</app-badge>
+                    }
                   </div>
                   @let badges = feedBadges(columnFeed);
                   @if (badges.length || hasOutdatedCategory(columnFeed)) {
@@ -111,11 +112,11 @@
                 <div class="flex shrink-0 items-center gap-1">
                   <app-button
                     size="slim"
-                    variant="secondary"
-                    [icon]="icons.stop"
+                    [variant]="columnFeed.is_active ? 'secondary' : 'primary'"
+                    [icon]="columnFeed.is_active ? icons.stop : icons.start"
                     [iconOnly]="true"
-                    ariaLabel="Feed stoppen"
-                    title="Feed stoppen"
+                    [ariaLabel]="columnFeed.is_active ? 'Feed stoppen' : 'Feed starten'"
+                    [title]="columnFeed.is_active ? 'Feed stoppen' : 'Feed starten'"
                     [loading]="pending() === 'toggle' && pendingFeedId() === columnFeed.id"
                     [disabled]="isSaving()"
                     (clicked)="toggle(columnFeed)"
@@ -142,11 +143,24 @@
                   />
                 </div>
               </div>
-              <app-deal-feed-search
-                [workspaceId]="workspace"
-                [feed]="columnFeed"
-                [compact]="true"
-              />
+              @if (columnFeed.is_active) {
+                <app-deal-feed-search
+                  class="min-h-0 flex-1"
+                  [workspaceId]="workspace"
+                  [feed]="columnFeed"
+                  [compact]="true"
+                />
+              } @else {
+                <div
+                  class="flex flex-1 flex-col items-start justify-center rounded-lg border border-dashed border-fb-border bg-fb-surface/60 p-4"
+                >
+                  <h3 class="text-sm font-semibold text-fb-text-primary">Feed pausiert</h3>
+                  <p class="mt-1 text-xs text-fb-text-secondary">
+                    Starte diesen Feed über das Play-Symbol oben rechts, um wieder Artikel live zu
+                    empfangen.
+                  </p>
+                </div>
+              }
             </section>
           }
         </div>
@@ -155,12 +169,10 @@
           class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-surface px-4 py-3"
         >
           <div class="flex min-w-0 flex-wrap items-center gap-2">
-            <span
-              class="h-2.5 w-2.5 shrink-0 rounded-full"
-              [class]="feed.is_active ? 'bg-emerald-500' : 'bg-fb-text-muted/40'"
-              aria-hidden="true"
-            ></span>
             <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ feed.title }}</h2>
+            @if (!feed.is_active) {
+              <app-badge tone="neutral" size="sm">Pausiert</app-badge>
+            }
             @if (hasOutdatedCategory(feed)) {
               <app-badge tone="caution" size="sm">Kategorie prüfen</app-badge>
             }
@@ -242,7 +254,8 @@
     @if (editorOpen()) {
       <app-modal-shell
         [title]="editing() ? 'Feed bearbeiten' : 'Neuer Feed'"
-        size="lg"
+        presentation="drawer"
+        drawerWidth="wide"
         (closed)="closeEditor()"
       >
         <app-personal-feed-editor

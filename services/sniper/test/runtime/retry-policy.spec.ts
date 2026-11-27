@@ -5,6 +5,7 @@ import {
   ForbiddenError,
   RateLimitedError,
   UnauthorizedError,
+  VintedNetworkError,
   VintedParserError,
   VintedServerError,
   VintedTimeoutError,
@@ -165,6 +166,19 @@ describe('evaluateFailure', () => {
 
     const d2 = evaluateFailure(error, makeQuery({ consecutiveFailures: 1 }), NOW);
     expect(d2.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:01:00.000Z'); // 60s
+
+    const d3 = evaluateFailure(error, makeQuery({ consecutiveFailures: 2 }), NOW);
+    expect(d3.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:02:00.000Z'); // 120s
+  });
+
+  it('uses a short first cooldown on transient network errors before escalating', () => {
+    const error = new VintedNetworkError('Browserabruf fehlgeschlagen.');
+    const d1 = evaluateFailure(error, makeQuery({ consecutiveFailures: 0 }), NOW);
+    expect(d1.errorKind).toBe('network_error');
+    expect(d1.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:00:05.000Z'); // 5s
+
+    const d2 = evaluateFailure(error, makeQuery({ consecutiveFailures: 1 }), NOW);
+    expect(d2.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:00:30.000Z'); // 30s
 
     const d3 = evaluateFailure(error, makeQuery({ consecutiveFailures: 2 }), NOW);
     expect(d3.nextAttemptAt?.toISOString()).toBe('2026-09-15T12:02:00.000Z'); // 120s
