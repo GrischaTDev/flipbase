@@ -29,7 +29,10 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { UnsavedEntryPage } from '../../shared/guards/unsaved-entry.guard';
-import { DealFeedSearchComponent } from './components/deal-feed-search/deal-feed-search.component';
+import {
+  DealFeedSearchComponent,
+  liveFilterStorageKey,
+} from './components/deal-feed-search/deal-feed-search.component';
 import { PersonalFeedEditorComponent } from './components/personal-feed-editor/personal-feed-editor.component';
 import { PersonalFeed, PersonalFeedDraft, feedSizeLabels } from './models/deal-monitor.model';
 import { DealMonitorService } from './services/deal-monitor.service';
@@ -269,6 +272,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     try {
       await this.api.delete(workspaceId, feed.id);
       if (!this.isCurrent(generation)) return;
+      this.clearStoredLiveFilters(workspaceId, feed.id);
       this.feeds.update((rows) => rows.filter(({ id }) => id !== feed.id));
       await this.loadFeeds(workspaceId);
       if (this.isCurrent(generation) && !this.error()) this.message.set('Feed gelöscht.');
@@ -314,6 +318,14 @@ export class DealMonitorComponent implements UnsavedEntryPage {
       );
     } catch {
       // Ohne Browserspeicher gilt die Auswahl nur für die laufende Sitzung.
+    }
+  }
+
+  private clearStoredLiveFilters(workspaceId: string, feedId: string): void {
+    try {
+      this.document.defaultView?.localStorage.removeItem(liveFilterStorageKey(workspaceId, feedId));
+    } catch {
+      // Ignorieren, falls kein Browserspeicher verfügbar ist.
     }
   }
 

@@ -109,10 +109,15 @@ describe('Persönliche Vinted-Feeds', () => {
     await page.remove(pausedFeed);
     expect(api.delete).not.toHaveBeenCalled();
     api.personalFeeds.mockResolvedValueOnce([]);
+    localStorage.setItem(
+      'flipbase:vinted-feed:live-filters:workspace-1:feed-1',
+      JSON.stringify({ query: 'Polo', sizes: ['m'], minPrice: 10, maxPrice: null }),
+    );
     await page.remove(pausedFeed);
     expect(api.delete).toHaveBeenCalledOnce();
     expect(api.delete).toHaveBeenCalledWith('workspace-1', pausedFeed.id);
     expect(page.selectedFeed()).toBeUndefined();
+    expect(localStorage.getItem('flipbase:vinted-feed:live-filters:workspace-1:feed-1')).toBeNull();
   });
 
   it('verwirft die verspätete Feed-Liste des vorherigen Arbeitsbereichs', async () => {

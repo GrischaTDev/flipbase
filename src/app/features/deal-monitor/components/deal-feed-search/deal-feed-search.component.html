@@ -88,7 +88,8 @@
           [id]="'live-query-' + feed().id"
           ariaLabel="Im Feed suchen"
           placeholder="Titel oder Marke …"
-          [(value)]="liveQuery"
+          [value]="liveQuery()"
+          (valueChange)="setLiveQuery($event)"
         />
       </app-form-field>
 
@@ -100,7 +101,7 @@
           [max]="priceBounds().max"
           [value]="liveMinPrice()"
           [placeholder]="feed().price_from !== null ? '' + feed().price_from : '0'"
-          (valueChange)="liveMinPrice.set($event !== null && $event >= 0 ? $event : null)"
+          (valueChange)="setLiveMinPrice($event)"
         />
         <app-number-input
           class="block w-24"
@@ -109,7 +110,7 @@
           [max]="priceBounds().max"
           [value]="liveMaxPrice()"
           [placeholder]="feed().price_to !== null ? '' + feed().price_to : '∞'"
-          (valueChange)="liveMaxPrice.set($event !== null && $event >= 0 ? $event : null)"
+          (valueChange)="setLiveMaxPrice($event)"
         />
       </div>
 
