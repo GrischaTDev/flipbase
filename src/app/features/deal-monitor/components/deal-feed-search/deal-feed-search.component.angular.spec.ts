@@ -156,4 +156,39 @@ describe('Artikel eines persönlichen Vinted-Feeds', () => {
     expect(recovered.componentInstance.hasLiveFilters()).toBe(false);
     recovered.destroy();
   });
+
+  it('fragt Live-Filter wie XXL serverseitig ab, damit bis zu 100 passende Treffer geladen werden', async () => {
+    const fixture = open(running);
+    await Promise.resolve();
+    expect(api.feed).toHaveBeenLastCalledWith({ workspace: 'workspace-1', watchlist: 'feed-1' });
+
+    fixture.componentInstance.toggleLiveSize('xxl');
+    await Promise.resolve();
+    expect(api.feed).toHaveBeenLastCalledWith({
+      workspace: 'workspace-1',
+      watchlist: 'feed-1',
+      sizes: ['xxl'],
+    });
+
+    fixture.componentInstance.setLiveMinPrice(20);
+    fixture.componentInstance.setLiveMaxPrice(10);
+    await Promise.resolve();
+    // Umgekehrte Preisgrenzen werden nicht als ungültiger Server-Filter verschickt.
+    expect(api.feed).toHaveBeenLastCalledWith({
+      workspace: 'workspace-1',
+      watchlist: 'feed-1',
+      sizes: ['xxl'],
+    });
+    fixture.destroy();
+
+    // Nach Seitenwechsel startet der Abruf sofort mit dem gespeicherten XXL-Filter.
+    const reopened = open(running);
+    await Promise.resolve();
+    expect(api.feed).toHaveBeenLastCalledWith({
+      workspace: 'workspace-1',
+      watchlist: 'feed-1',
+      sizes: ['xxl'],
+    });
+    reopened.destroy();
+  });
 });

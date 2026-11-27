@@ -28,6 +28,14 @@ export class DealFeedState {
     if (request) void this.refresh();
   }
 
+  /** Aktualisiert Live-Filter im selben Feed ohne hartes Leeren bis die Serverantwort eintrifft. */
+  updateRequest(request: FeedRequest): void {
+    this.generation++;
+    this.pendingUpdate = null;
+    this.request = request;
+    void this.refresh(false);
+  }
+
   notifyUpdate(delta: boolean): void {
     if (!this.request) return;
     if (this.busyGeneration === this.generation) {

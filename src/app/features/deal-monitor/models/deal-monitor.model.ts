@@ -53,6 +53,10 @@ export interface FeedRequest {
   workspace: string;
   watchlist: string;
   afterTime?: string;
+  titleQuery?: string;
+  sizes?: string[];
+  minPrice?: number | null;
+  maxPrice?: number | null;
 }
 export const FEED_ITEM_LIMIT = 100;
 export const FEED_WINDOW_MS = 3 * 24 * 60 * 60_000;
