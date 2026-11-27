@@ -216,6 +216,35 @@ describe('DealFeedState', () => {
     expect(state.error()).toBeNull();
     expect(state.items()[0].id).toBe('b');
   });
+
+  it('aktualisiert Live-Filter ohne Zwischenleeren und verwirft verspätete alte Antworten', async () => {
+    let finishOld!: (result: FeedPage) => void;
+    const fetch = vi
+      .fn()
+      .mockResolvedValueOnce(page([item('initial')]))
+      .mockImplementationOnce(
+        () =>
+          new Promise<FeedPage>((resolve) => {
+            finishOld = resolve;
+          }),
+      )
+      .mockResolvedValueOnce(page([item('xxl-1'), item('xxl-2')]));
+    const state = new DealFeedState(fetch);
+    state.setContext(context);
+    await settle();
+    expect(ids(state.items())).toEqual(['initial']);
+
+    state.updateRequest({ ...context, sizes: ['l'] });
+    expect(ids(state.items())).toEqual(['initial']);
+    state.updateRequest({ ...context, sizes: ['xxl'] });
+    await settle();
+    expect(ids(state.items())).toEqual(['xxl-1', 'xxl-2']);
+
+    finishOld(page([item('stale-l')]));
+    await settle();
+    expect(ids(state.items())).toEqual(['xxl-1', 'xxl-2']);
+    state.destroy();
+  });
 });
 
 describe('Zeitfenster persönlicher Feeds', () => {

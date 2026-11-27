@@ -15,10 +15,17 @@ export function pageContentMaxWidth(width: PageWidth): string | null {
 export class PageLayoutService {
   private readonly selectedWidth = signal<PageWidth>(this.readWidth());
   private readonly widescreenEnabled = signal(this.readWidescreen());
+  private readonly viewportLockedState = signal(false);
   readonly width = this.selectedWidth.asReadonly();
   /** Für sehr breite Bildschirme: volle Breite und mehrere Bereiche nebeneinander. */
   readonly widescreen = this.widescreenEnabled.asReadonly();
+  /** Hält die äußere Seite auf Desktop im Browser-Viewport, wenn Bereiche intern scrollen. */
+  readonly viewportLocked = this.viewportLockedState.asReadonly();
   readonly options = ['narrow', 'medium', 'full'] as const;
+
+  setViewportLocked(locked: boolean): void {
+    this.viewportLockedState.set(locked);
+  }
 
   setWidth(width: PageWidth): void {
     this.selectedWidth.set(width);

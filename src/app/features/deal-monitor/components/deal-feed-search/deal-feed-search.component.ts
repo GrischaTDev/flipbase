@@ -19,6 +19,7 @@ import { FormFieldComponent } from '../../../../shared/components/form-field/for
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   FeedItem,
+  FeedRequest,
   LiveFeedFilter,
   PersonalFeed,
   availableLiveSizes,
@@ -36,6 +37,7 @@ import { DealCardComponent } from '../deal-card/deal-card.component';
 import { DealDetailModalComponent } from '../deal-detail-modal/deal-detail-modal.component';
 
 const RECONCILE_INTERVAL_MS = 15_000;
+const LIVE_QUERY_DEBOUNCE_MS = 250;
 const LIVE_FILTER_STORAGE_PREFIX = 'flipbase:vinted-feed:live-filters:';
 
 export function liveFilterStorageKey(workspaceId: string, feedId: string): string {
@@ -87,6 +89,7 @@ export class DealFeedSearchComponent {
   readonly liveMinPrice = signal<number | null>(null);
   readonly liveMaxPrice = signal<number | null>(null);
   readonly compactFiltersOpen = signal(false);
+  private querySyncTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly priceBounds = computed(() => effectiveFeedPriceBounds(this.feed()));
   readonly sizeChoices = computed(() => availableLiveSizes(this.feed()));
@@ -155,9 +158,12 @@ export class DealFeedSearchComponent {
       const active = this.active();
       const startedAt = this.startedAt();
       untracked(() => {
+        this.clearQuerySyncTimer();
         this.selectedDeal.set(null);
         this.restoreLiveFilters(workspace, watchlist);
-        this.state.setContext(active && startedAt ? { workspace, watchlist } : null);
+        this.state.setContext(
+          active && startedAt ? this.buildServerRequest(workspace, watchlist) : null,
+        );
       });
       if (!active || !startedAt) return;
       const refresh = (delta: boolean) => {
@@ -173,22 +179,28 @@ export class DealFeedSearchComponent {
         this.document.removeEventListener('visibilitychange', onVisibilityChange);
       });
     });
-    destroyRef.onDestroy(() => this.state.destroy());
+    destroyRef.onDestroy(() => {
+      this.clearQuerySyncTimer();
+      this.state.destroy();
+    });
   }
 
   setLiveQuery(query: string): void {
     this.liveQuery.set(query);
     this.persistLiveFilters();
+    this.scheduleServerFilterSync();
   }
 
   setLiveMinPrice(value: number | null): void {
     this.liveMinPrice.set(normalizePrice(value));
     this.persistLiveFilters();
+    this.syncServerFilter();
   }
 
   setLiveMaxPrice(value: number | null): void {
     this.liveMaxPrice.set(normalizePrice(value));
     this.persistLiveFilters();
+    this.syncServerFilter();
   }
 
   toggleLiveSize(size: string): void {
@@ -196,14 +208,53 @@ export class DealFeedSearchComponent {
       current.includes(size) ? current.filter((entry) => entry !== size) : [...current, size],
     );
     this.persistLiveFilters();
+    this.syncServerFilter();
   }
 
   resetLiveFilters(): void {
+    this.clearQuerySyncTimer();
     this.liveQuery.set('');
     this.liveSizes.set([]);
     this.liveMinPrice.set(null);
     this.liveMaxPrice.set(null);
     this.persistLiveFilters();
+    this.syncServerFilter();
+  }
+
+  private buildServerRequest(workspace: string, watchlist: string): FeedRequest {
+    const query = this.liveQuery().trim();
+    const sizes = this.liveSizes();
+    const minPrice = this.liveMinPrice();
+    const maxPrice = this.liveMaxPrice();
+    const validPriceRange = minPrice === null || maxPrice === null || minPrice <= maxPrice;
+    const request: FeedRequest = { workspace, watchlist };
+    if (query) request.titleQuery = query;
+    if (sizes.length > 0) request.sizes = [...sizes];
+    if (validPriceRange && minPrice !== null) request.minPrice = minPrice;
+    if (validPriceRange && maxPrice !== null) request.maxPrice = maxPrice;
+    return request;
+  }
+
+  private syncServerFilter(): void {
+    this.clearQuerySyncTimer();
+    if (!this.active() || !this.startedAt()) return;
+    this.state.updateRequest(this.buildServerRequest(this.workspaceId(), this.feedId()));
+  }
+
+  private scheduleServerFilterSync(): void {
+    this.clearQuerySyncTimer();
+    if (!this.active() || !this.startedAt()) return;
+    this.querySyncTimer = setTimeout(() => {
+      this.querySyncTimer = null;
+      this.syncServerFilter();
+    }, LIVE_QUERY_DEBOUNCE_MS);
+  }
+
+  private clearQuerySyncTimer(): void {
+    if (this.querySyncTimer !== null) {
+      clearTimeout(this.querySyncTimer);
+      this.querySyncTimer = null;
+    }
   }
 
   private restoreLiveFilters(workspaceId: string, feedId: string): void {

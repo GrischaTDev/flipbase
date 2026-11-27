@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-27 - Juna - Vinted-Feed: Start ungültiger Quellen, Live-Filter-Limit, Viewport-Sperre und Pausenansicht korrigieren
+
+**Befund aus Live-Prüfung:**
+
+1. Pausierte Kategoriequellen mit altem `run_state = 'invalid'` (z. B. Kategorie `5555` / Burberry) scheiterten beim Start über `set_sniper_watchlist_active` mit `55000` („Dieser Suchfilter benötigt den aktualisierten Abrufdienst.“), weil `ensure_sniper_feed_sources` `run_state = 'ready'` in einem zweiten separaten `UPDATE` setzte, das vom Trigger `stamp_sniper_filter_revision` abgewiesen wurde.
+2. Live-Filter (wie Größe `XXL` auf einem breiten Herrenkleidung-Feed) wirkten nur clientseitig auf den 100 ungefilterten neuesten Artikeln, weil `sniper_feed_search` vor der Filterung auf 100 kappte und das Frontend die Live-Filter nicht an den Server schickte.
+3. Im Widescreen-Spaltenmodus erlaubte die feste `calc`-Höhe weiterhin äußeres Seiten-Scrollen, und der Zustand „Feed pausiert“ stand linksbündig ohne Symbol.
+
+**Änderungen:**
+
+- **Quellen-Reaktivierung (`403_sniper_personal_feeds.sql`, Migration `20261127151500_vinted_feed_live_filter_and_source_recovery.sql`):** `ensure_sniper_feed_sources` setzt `run_state = 'ready'` zusammen mit der Aktivierung bzw. geschützt über `flipbase.sniper_run` zurück; bestehende fälschlich auf `invalid` stehende Kategoriequellen (auch pausierte) werden per Migration freigegeben.
+- **Serverseitige Live-Filter bis 100 Treffer (`403_sniper_personal_feeds.sql`, `deal-monitor.model.ts`, `deal-monitor.service.ts`, `deal-feed-state.ts`, `deal-feed-search.component.ts`):** `sniper_feed_search` wendet Live-Filter (inkl. Suche auf Titel und Marke sowie Größen und Preis) vor `limit p_limit` an; das Frontend übergibt aktive Live-Filter an den Server und aktualisiert Treffer ohne Zwischenleeren.
+- **Viewport-Sperre & Pausenansicht (`page-layout.service.ts`, `shell.component`, `deal-monitor.component`):** Die Vinted-Feed-Seite füllt auf Desktop über `viewportLocked` exakt die Browser-Höhe ohne äußeres Seiten-Scrollen, sodass nur die einzelnen Feeds scrollen. Pausierte Feeds werden mittig mit einem kreisförmigen Pausensymbol dargestellt.
+
 ## 2026-11-27 - Juna - Vinted-Feed stabilisieren, parallel abrufen und pauschale Hauptquellen entfernen
 
 **Befund aus den Produktions-Logs (72 h, rein lesend):** 69.482 abgerufene Katalogseiten und 880.007 Funde ohne eine einzige 403-, 429- oder Challenge-Ablehnung, aber 59 Container-Neustarts (`browserContext.newPage: Target crashed` bei `shm_size: 128m`) sowie 446× `network_error` („Browserabruf fehlgeschlagen.“) mit je 30 s Cooldown und anschließendem Tab-Wechsel.

@@ -80,6 +80,16 @@ describe('ShellComponent', () => {
     TestBed.inject(PageLayoutService).setWidescreen(false);
     fixture.detectChanges();
     expect(content.style.maxWidth).toBe('80rem');
+
+    const root = (fixture.nativeElement as HTMLElement).querySelector<HTMLElement>('div')!;
+    expect(root.className).not.toContain('md:overflow-hidden');
+    TestBed.inject(PageLayoutService).setViewportLocked(true);
+    fixture.detectChanges();
+    expect(root.className).toContain('md:h-dvh');
+    expect(root.className).toContain('md:overflow-hidden');
+    TestBed.inject(PageLayoutService).setViewportLocked(false);
+    fixture.detectChanges();
+    expect(root.className).not.toContain('md:overflow-hidden');
   });
 
   it('rendert eindeutige Druckhaken für alle Teile des Admin-Rahmens', () => {

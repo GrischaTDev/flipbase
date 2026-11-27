@@ -13,6 +13,7 @@ import {
 import {
   LucideBot,
   LucideColumns3,
+  LucideDynamicIcon,
   LucideEdit2,
   LucideLayoutGrid,
   LucidePause,
@@ -45,11 +46,13 @@ const SELECTED_FEED_STORAGE_PREFIX = 'flipbase:vinted-feed:selected:';
     BadgeComponent,
     ButtonComponent,
     DealFeedSearchComponent,
+    LucideDynamicIcon,
     ModalShellComponent,
     PageHeaderComponent,
     PersonalFeedEditorComponent,
   ],
   templateUrl: './deal-monitor.component.html',
+  host: { class: 'flex min-h-0 flex-1 flex-col' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DealMonitorComponent implements UnsavedEntryPage {
@@ -93,6 +96,8 @@ export class DealMonitorComponent implements UnsavedEntryPage {
   private workspaceGeneration = 0;
 
   constructor() {
+    this.layout.setViewportLocked?.(true);
+    this.destroyRef.onDestroy(() => this.layout.setViewportLocked?.(false));
     effect(() => {
       const workspaceId = this.workspaceId();
       const user = this.currentUser()?.id;

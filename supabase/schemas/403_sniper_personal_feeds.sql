@@ -176,6 +176,8 @@ declare
     v_target_id integer;
     v_brand_name text;
     v_interval integer;
+    v_invalid_id uuid;
+    v_invalid_revision integer;
 begin
     select category_poll_interval_seconds * 1000 into v_interval
     from public.sniper_feed_settings where id = 1;
@@ -207,17 +209,39 @@ begin
             coalesce(v_interval, 5000),
             true, now()
         ) on conflict (query_key) do nothing;
+        -- Reaktivierung und Rücksetzung aus run_state = 'invalid' in einem Zug, damit
+        -- stamp_sniper_filter_revision die Formularänderung (is_active/deleted_at) sieht.
         update public.sniper_queries
-        set is_active = true, deleted_at = null, next_attempt_at = coalesce(next_attempt_at, now()),
+        set is_active = true,
+            deleted_at = null,
+            run_state = case when run_state = 'invalid' then 'ready' else run_state end,
+            next_attempt_at = case
+                when run_state = 'invalid' then now()
+                else coalesce(next_attempt_at, now())
+            end,
+            last_error_kind = case when run_state = 'invalid' then null else last_error_kind end,
+            last_error_message = case when run_state = 'invalid' then null else last_error_message end,
             poll_interval_ms = coalesce(v_interval, 5000),
             brand_names = case
                 when v_kind = 'brand' and cardinality(brand_ids) = 1 then array[v_brand_name]
                 else brand_names
             end,
             updated_at = now()
-        where query_key = v_key and (not is_active or deleted_at is not null or run_state = 'invalid');
-        update public.sniper_queries set run_state = 'ready', next_attempt_at = now()
+        where query_key = v_key and (not is_active or deleted_at is not null);
+        -- Falls eine Quelle bereits aktiv war und dennoch auf invalid stand, gezielt freigeben.
+        select id, filter_revision into v_invalid_id, v_invalid_revision
+        from public.sniper_queries
         where query_key = v_key and run_state = 'invalid';
+        if found then
+            perform set_config('flipbase.sniper_run', v_invalid_id::text || ':' || v_invalid_revision::text, true);
+            update public.sniper_queries
+            set run_state = 'ready',
+                next_attempt_at = now(),
+                last_error_kind = null,
+                last_error_message = null,
+                updated_at = now()
+            where id = v_invalid_id;
+        end if;
     end loop;
 end;
 $$;
@@ -523,7 +547,7 @@ begin
           and matched.first_matched_at >= v_window_start
           and not matched.is_seed
         group by matched.listing_id
-    ), live as materialized (
+    ), page as (
         select listing.id, listing.title, listing.url, listing.image_urls, listing.item_price,
             listing.total_price, listing.currency, listing.brand, listing.size, listing.condition,
             listing.is_hidden, listing.first_seen_at, listing.catalog_id, listing.country_code,
@@ -531,13 +555,14 @@ begin
                 when category.id is null then null
                 when category.path = '' then category.title
                 else category.path || ' > ' || category.title
-            end as category_path,
-            coalesce(listing.catalog_id, matched.source_catalog_id) as effective_catalog_id
+            end as category_path
         from matched
         join public.sniper_listings as listing on listing.id = matched.listing_id
         left join public.vinted_listing_categories as category on category.id = listing.catalog_id
         where listing.first_seen_at >= v_window_start
           and not listing.is_initial_stock
+          and (p_after_time is null or listing.first_seen_at >= p_after_time)
+          and (p_before_time is null or (listing.first_seen_at, listing.id) < (p_before_time, p_before_id))
           and (v_feed.brand is null or lower(btrim(listing.brand)) = lower(btrim(v_feed.brand)))
           and (v_feed_query is null or to_tsvector('simple', listing.title) @@ v_feed_query)
           and (v_feed.condition is null or lower(replace(v_feed.condition, ',', '')) = lower(replace(listing.condition, ',', '')))
@@ -557,30 +582,22 @@ begin
                     and id = coalesce(listing.catalog_id, matched.source_catalog_id)
               )
           )
-        order by listing.first_seen_at desc, listing.id desc
-        limit 100
-    ), page as (
-        select id, title, url, image_urls, item_price, total_price, currency, brand, size, condition,
-            is_hidden, first_seen_at, catalog_id, country_code, category_path
-        from live
-        where (p_after_time is null or first_seen_at >= p_after_time)
-          and (p_before_time is null or (first_seen_at, id) < (p_before_time, p_before_id))
-          and (nullif(btrim(p_title_query), '') is null or to_tsvector('simple', title) @@ v_title_query)
-          and (p_brand is null or lower(btrim(brand)) = lower(btrim(p_brand)))
-          and (p_size is null or public.sniper_feed_matches_size(size, p_size))
+          and (v_title_query is null or to_tsvector('simple', listing.title || ' ' || coalesce(listing.brand, '')) @@ v_title_query)
+          and (p_brand is null or lower(btrim(listing.brand)) = lower(btrim(p_brand)))
+          and (p_size is null or public.sniper_feed_matches_size(listing.size, p_size))
           and (cardinality(p_sizes) = 0 or exists (
-              select 1 from unnest(p_sizes) as requested_size where public.sniper_feed_matches_size(size, requested_size)
+              select 1 from unnest(p_sizes) as requested_size where public.sniper_feed_matches_size(listing.size, requested_size)
           ))
-          and (p_min_price is null or item_price >= p_min_price)
-          and (p_max_price is null or item_price <= p_max_price)
-          and ((p_min_price is null and p_max_price is null) or currency = 'EUR')
+          and (p_min_price is null or listing.item_price >= p_min_price)
+          and (p_max_price is null or listing.item_price <= p_max_price)
+          and ((p_min_price is null and p_max_price is null) or listing.currency = 'EUR')
           and (p_catalog_id is null or exists (
-              select 1 from category_tree where root_id = p_catalog_id and id = live.effective_catalog_id
+              select 1 from category_tree where root_id = p_catalog_id and id = coalesce(listing.catalog_id, matched.source_catalog_id)
           ))
           and (v_audience is null or exists (
-              select 1 from category_tree where root_id = any(v_audience) and id = live.effective_catalog_id
+              select 1 from category_tree where root_id = any(v_audience) and id = coalesce(listing.catalog_id, matched.source_catalog_id)
           ))
-        order by first_seen_at desc, id desc
+        order by listing.first_seen_at desc, listing.id desc
         limit p_limit
     )
     select coalesce(jsonb_agg(to_jsonb(page) order by first_seen_at desc, id desc), '[]'::jsonb) into v_rows from page;

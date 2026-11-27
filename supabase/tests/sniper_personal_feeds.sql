@@ -199,8 +199,11 @@ where query.id=pg_temp.source_id('vinted-source|category|904030001')
   and listing.external_id between '40500001' and '40500105';
 set local role authenticated;
 select is(jsonb_array_length(pg_temp.feed_page(pg_temp.feed_id('Meine Jacken'))->'items'),100,'Der Feed hält höchstens 100 Karten');
-select is(jsonb_array_length(pg_temp.feed_page(pg_temp.feed_id('Meine Jacken'),'Ralph')->'items'),2,
-  'Die Titelsuche bleibt innerhalb der 100 neuesten Karten');
+select is(jsonb_array_length(pg_temp.feed_page(pg_temp.feed_id('Meine Jacken'),'Vintage')->'items'),1,
+  'Live-Suche findet passende Artikel auch jenseits der 100 allerneuesten ungefilterten Karten');
+select is(jsonb_array_length(public.sniper_feed_search(pg_temp.feed_workspace(),pg_temp.feed_id('Meine Jacken'),
+  null,null,15,25,null,null,100,'',null,null,'{}',null,null)->'items'),1,
+  'Live-Preisfilter liefert passende Artikel auch hinter über 100 neueren Karten');
 select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Meine Jacken'),false)$$,
   'Erster Feed stoppt');
 reset role;
@@ -282,6 +285,28 @@ select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspa
   'Nach dem Anheben startet die neue Kategorie');
 select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Mäntel'),false)$$,
   'Der Kategorie-Feed stoppt');
+reset role;
+do $$
+declare
+    v_id uuid := pg_temp.source_id('vinted-source|category|904030002');
+    v_rev integer;
+begin
+    select filter_revision into v_rev from public.sniper_queries where id = v_id;
+    perform set_config('flipbase.sniper_run', v_id::text || ':' || v_rev::text, true);
+    update public.sniper_queries
+    set run_state = 'invalid', last_error_kind = 'invalid_category', last_error_message = 'Alt'
+    where id = v_id;
+end;
+$$;
+set local role authenticated;
+select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Mäntel'),true)$$,
+  'Eine zuvor als invalid markierte pausierte Kategoriequelle lässt sich sauber neu starten');
+reset role;
+select is((select run_state from public.sniper_queries where query_key='vinted-source|category|904030002'),
+  'ready','Die reaktivierte Quelle steht wieder auf ready');
+set local role authenticated;
+select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Mäntel'),false)$$,
+  'Der reaktivierte Kategorie-Feed stoppt wieder');
 select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Herren ohne Kategorie'),false)$$,
   'Der Herren-Feed stoppt');
 reset role;

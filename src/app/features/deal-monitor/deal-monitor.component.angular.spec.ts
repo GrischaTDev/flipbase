@@ -34,6 +34,7 @@ describe('Persönliche Vinted-Feeds', () => {
   const workspace = signal<{ id: string } | null>(null);
   const currentUser = signal({ id: 'user-1' });
   const widescreen = signal(false);
+  const setViewportLocked = vi.fn();
   const api = {
     personalFeeds: vi.fn(),
     save: vi.fn(),
@@ -54,7 +55,7 @@ describe('Persönliche Vinted-Feeds', () => {
         DealMonitorComponent,
         { provide: AuthService, useValue: { currentUser } },
         { provide: WorkspaceService, useValue: { currentWorkspace: workspace } },
-        { provide: PageLayoutService, useValue: { widescreen } },
+        { provide: PageLayoutService, useValue: { widescreen, setViewportLocked } },
         { provide: DealMonitorService, useValue: api },
         { provide: ConfirmDialogService, useValue: { frage: confirm } },
       ],
@@ -197,6 +198,7 @@ describe('Persönliche Vinted-Feeds', () => {
     expect(page.hasOutdatedCategory(outdated)).toBe(true);
     expect(page.hasOutdatedCategory(valid)).toBe(false);
     expect(page.feedBadges(valid)).toContain('Herren > Kleidung');
+    expect(setViewportLocked).toHaveBeenCalledWith(true);
   });
 });
 
@@ -217,21 +219,25 @@ describe('Live-Abruf eines persönlichen Feeds', () => {
       workspace: 'workspace-1',
       watchlist: 'feed-1',
       afterTime,
+      titleQuery: 'Polo',
+      sizes: ['xxl'],
+      minPrice: 10,
+      maxPrice: 40,
     });
     expect(rpc).toHaveBeenCalledWith('sniper_feed_search', {
       p_workspace_id: 'workspace-1',
       p_watchlist_id: 'feed-1',
       p_brand: null,
       p_size: null,
-      p_min_price: null,
-      p_max_price: null,
+      p_min_price: 10,
+      p_max_price: 40,
       p_before_time: null,
       p_before_id: null,
       p_limit: 100,
-      p_title_query: '',
+      p_title_query: 'Polo',
       p_catalog_id: null,
       p_audience: null,
-      p_sizes: [],
+      p_sizes: ['xxl'],
       p_query_id: null,
       p_after_time: afterTime,
     });

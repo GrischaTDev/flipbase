@@ -1,5 +1,5 @@
-<section class="mx-auto flex w-full min-w-0 flex-col gap-4">
-  <app-page-header title="Vinted Feed" [icon]="icons.feed">
+<section class="mx-auto flex w-full min-h-0 min-w-0 flex-1 flex-col gap-4">
+  <app-page-header class="shrink-0" title="Vinted Feed" [icon]="icons.feed">
     <div header-actions class="flex flex-wrap items-center gap-2">
       @if (canShowColumns()) {
         <app-button
@@ -20,7 +20,7 @@
   </app-page-header>
 
   @if ((loadingFeeds() && feeds().length === 0) || message() || error()) {
-    <div class="flex flex-wrap items-center gap-2 text-sm">
+    <div class="flex shrink-0 flex-wrap items-center gap-2 text-sm">
       @if (loadingFeeds() && feeds().length === 0) {
         <p role="status" class="text-fb-text-secondary">Feeds werden geladen …</p>
       } @else if (message(); as statusText) {
@@ -40,7 +40,7 @@
       <div
         role="tablist"
         aria-label="Persönliche Feeds"
-        class="flex items-center gap-1.5 overflow-x-auto border-b border-fb-border pb-2"
+        class="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-fb-border pb-2"
       >
         @for (item of feeds(); track item.id) {
           @let isSelected = !showColumns() && item.id === selectedId();
@@ -71,7 +71,7 @@
 
       @if (showColumns()) {
         <div
-          class="grid gap-4"
+          class="grid min-h-0 flex-1 gap-4"
           [class]="
             feeds().length === 2
               ? 'grid-cols-2'
@@ -82,7 +82,7 @@
         >
           @for (columnFeed of feeds(); track columnFeed.id) {
             <section
-              class="flex h-[calc(100dvh-13rem)] min-h-[26rem] min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-fb-border bg-fb-surface/40 p-3.5"
+              class="flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-xl border border-fb-border bg-fb-surface/40 p-3.5"
               [attr.aria-label]="'Feed ' + columnFeed.title"
             >
               <div
@@ -152,10 +152,16 @@
                 />
               } @else {
                 <div
-                  class="flex flex-1 flex-col items-start justify-center rounded-lg border border-dashed border-fb-border bg-fb-surface/60 p-4"
+                  class="flex flex-1 flex-col items-center justify-center rounded-lg border border-dashed border-fb-border bg-fb-surface/60 p-6 text-center"
                 >
+                  <div
+                    class="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-fb-border bg-fb-bg text-fb-text-secondary shadow-xs"
+                    aria-hidden="true"
+                  >
+                    <svg [lucideIcon]="icons.stop" class="h-5 w-5"></svg>
+                  </div>
                   <h3 class="text-sm font-semibold text-fb-text-primary">Feed pausiert</h3>
-                  <p class="mt-1 text-xs text-fb-text-secondary">
+                  <p class="mt-1 max-w-xs text-xs text-fb-text-secondary">
                     Starte diesen Feed über das Play-Symbol oben rechts, um wieder Artikel live zu
                     empfangen.
                   </p>
@@ -166,7 +172,7 @@
         </div>
       } @else if (selectedFeed(); as feed) {
         <div
-          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-surface px-4 py-3"
+          class="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-fb-border bg-fb-surface px-4 py-3"
         >
           <div class="flex min-w-0 flex-wrap items-center gap-2">
             <h2 class="truncate text-sm font-semibold text-fb-text-primary">{{ feed.title }}</h2>
@@ -214,7 +220,7 @@
         @if (hasOutdatedCategory(feed)) {
           <div
             role="status"
-            class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-fb-text-primary"
+            class="flex shrink-0 flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-2.5 text-sm text-fb-text-primary"
           >
             <span>
               Bitte prüfe die Kategorie dieses Feeds – bei Vinted gab es Änderungen im
@@ -231,11 +237,19 @@
         }
 
         @if (feed.is_active) {
-          <app-deal-feed-search [workspaceId]="workspace" [feed]="feed" />
+          <app-deal-feed-search class="min-h-0 flex-1" [workspaceId]="workspace" [feed]="feed" />
         } @else {
-          <div class="rounded-xl border border-fb-border bg-fb-surface p-5">
-            <h2 class="text-base font-semibold text-fb-text-primary">Feed gestoppt</h2>
-            <p class="mt-1 text-sm text-fb-text-secondary">
+          <div
+            class="flex flex-1 flex-col items-center justify-center rounded-xl border border-dashed border-fb-border bg-fb-surface p-8 text-center"
+          >
+            <div
+              class="mb-3 flex h-12 w-12 items-center justify-center rounded-full border border-fb-border bg-fb-bg text-fb-text-secondary shadow-xs"
+              aria-hidden="true"
+            >
+              <svg [lucideIcon]="icons.stop" class="h-5 w-5"></svg>
+            </div>
+            <h2 class="text-base font-semibold text-fb-text-primary">Feed pausiert</h2>
+            <p class="mt-1 max-w-sm text-sm text-fb-text-secondary">
               Starte diesen Feed oben über „Feed starten“, um passende Vinted-Artikel live zu
               empfangen.
             </p>
