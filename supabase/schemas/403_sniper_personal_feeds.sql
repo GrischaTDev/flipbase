@@ -1,9 +1,11 @@
 -- Persönliche Feeds melden Bedarf an, gemeinsame Quellen erfüllen ihn.
--- Ein Feed ohne Unterkategorie liest aus der Hauptquelle seiner Zielgruppe und bei
--- gesetzter Marken-ID zusätzlich aus der gemeinsamen Markenquelle; ein Feed mit
--- Unterkategorie liest aus der Kategoriequelle. Marke, Suchtext, Größe, Zustand und
--- Preis filtert die Datenbank. Die Zahl der Vinted-Abfragen hängt so von der
--- Zahl der Quellen ab, nicht von der Zahl der Nutzer oder Filter.
+-- Jeder Feed benötigt mindestens eine konkrete Unterkategorie oder eine Marke:
+-- Ein Feed mit Unterkategorie liest aus der gemeinsamen Kategoriequelle; ein Feed
+-- ohne Unterkategorie (oder mit Wurzelkategorie Damen/Herren) liest bei gesetzter
+-- Marken-ID aus der gemeinsamen Markenquelle. Pauschale Hauptquellen entfallen.
+-- Marke, Suchtext, Größe, Zustand und Preis filtert die Datenbank. Die Zahl der
+-- Vinted-Abfragen hängt so von der Zahl der Quellen ab, nicht von der Zahl der
+-- Nutzer oder Filter.
 alter table public.sniper_watchlists
     add column user_id uuid references auth.users(id) on delete cascade,
     add column brand_id integer check (brand_id > 0),
@@ -15,7 +17,7 @@ alter table public.sniper_watchlists
     ),
     add constraint sniper_watchlist_brand_named check (brand_id is null or brand is not null);
 
-comment on table public.sniper_watchlists is 'Persönliche Vinted-Feeds je Benutzer und Arbeitsbereich. Aktive Feeds lesen aus gemeinsamen Haupt-, Marken- oder Kategoriequellen.';
+comment on table public.sniper_watchlists is 'Persönliche Vinted-Feeds je Benutzer und Arbeitsbereich. Aktive Feeds lesen aus gemeinsamen Kategorie- oder Markenquellen.';
 create index sniper_watchlists_personal_idx on public.sniper_watchlists(user_id, workspace_id, created_at);
 create index sniper_watchlists_active_source_idx on public.sniper_watchlists(catalog_id, audience, brand_id)
     where is_active;
@@ -58,9 +60,8 @@ revoke execute on function public.sniper_feed_bots(uuid), public.sniper_feed_cat
     public.sniper_supported_brands(uuid), public.sniper_search_feed_brands(uuid,text)
     from authenticated;
 
--- Quellschlüssel eines Feeds. Damen und Herren sind die Wurzelkategorien 1904 und 5.
--- Feeds ohne Unterkategorie mit Marken-ID nutzen zusätzlich die gemeinsame Markenquelle,
--- damit Markenfunde und frühe Vinted-Vorschauen nicht im Hauptstrom untergehen.
+-- Quellschlüssel eines Feeds. Damen (1904) und Herren (5) sind reine Wurzelkategorien
+-- ohne eigene Hauptquelle: Ein Feed benötigt eine Unterkategorie oder eine Marken-ID.
 create function public.sniper_watchlist_source_keys(
     p_catalog_id integer, p_audience text, p_brand_id integer
 )
@@ -68,11 +69,7 @@ returns text[] language sql immutable security invoker set search_path = '' as $
     select case
         when p_catalog_id is not null and p_catalog_id not in (1904, 5)
             then array['vinted-source|category|' || p_catalog_id::text]
-        when p_catalog_id = 1904 or p_audience = 'women' then array['vinted-source|main|1904']
-        when p_catalog_id = 5 or p_audience = 'men' then array['vinted-source|main|5']
-        else array['vinted-source|main|1904', 'vinted-source|main|5']
-    end || case
-        when (p_catalog_id is null or p_catalog_id in (1904, 5)) and p_brand_id is not null
+        when p_brand_id is not null
             then array['vinted-source|brand|' || p_brand_id::text]
         else '{}'::text[]
     end;
@@ -199,7 +196,6 @@ begin
         ) values (
             v_key,
             case
-                when v_kind = 'main' then 'Vinted-Hauptquelle'
                 when v_kind = 'brand' then 'Vinted-Markenquelle'
                 else 'Vinted-Kategoriequelle'
             end,
@@ -208,12 +204,12 @@ begin
             case when v_kind = 'brand' then array[v_target_id] else '{}'::integer[] end,
             case when v_kind = 'brand' then array[v_brand_name] else '{}'::text[] end,
             1,
-            case when v_kind = 'main' then 5000 else coalesce(v_interval, 5000) end,
+            coalesce(v_interval, 5000),
             true, now()
         ) on conflict (query_key) do nothing;
         update public.sniper_queries
         set is_active = true, deleted_at = null, next_attempt_at = coalesce(next_attempt_at, now()),
-            poll_interval_ms = case when v_kind = 'main' then 5000 else coalesce(v_interval, 5000) end,
+            poll_interval_ms = coalesce(v_interval, 5000),
             brand_names = case
                 when v_kind = 'brand' and cardinality(brand_ids) = 1 then array[v_brand_name]
                 else brand_names
@@ -233,7 +229,6 @@ declare
     v_user uuid := (select auth.uid());
     v_feed public.sniper_watchlists;
     v_keys text[];
-    v_search text;
     v_new_categories integer;
     v_running_categories integer;
     v_limit integer;
@@ -256,21 +251,20 @@ begin
         return;
     end if;
 
-    v_search := nullif(btrim(regexp_replace(lower(v_feed.search_text), '[[:space:]]+', ' ', 'g')), '');
     if v_feed.catalog_id is not null and not exists (
         select 1 from public.vinted_listing_categories where id = v_feed.catalog_id
     ) then
         raise exception 'Bitte wähle eine verfügbare Vinted-Kategorie.' using errcode = '22023';
     end if;
-    if v_feed.catalog_id is null and v_feed.brand is null and (v_search is null or length(v_search) < 3) then
-        raise exception 'Bitte wähle eine Marke, eine Kategorie oder einen Suchbegriff mit mindestens drei Zeichen.'
+    v_keys := public.sniper_watchlist_source_keys(v_feed.catalog_id, v_feed.audience, v_feed.brand_id);
+    if cardinality(v_keys) = 0 then
+        raise exception 'Bitte wähle mindestens eine Unterkategorie oder eine Marke aus.'
             using errcode = '22023';
     end if;
     if (select count(*) from public.sniper_watchlists where user_id = v_user and is_active) >= 12 then
         raise exception 'Du kannst höchstens zwölf Vinted-Feeds gleichzeitig starten.' using errcode = '54000';
     end if;
 
-    v_keys := public.sniper_watchlist_source_keys(v_feed.catalog_id, v_feed.audience, v_feed.brand_id);
     select count(*) into v_new_categories from unnest(v_keys) as wanted(source_key)
     where wanted.source_key like 'vinted-source|category|%'
       and not exists (
@@ -281,7 +275,7 @@ begin
         select count(*) into v_running_categories from public.sniper_needed_feed_sources
         where key like 'vinted-source|category|%';
         if v_running_categories + v_new_categories > coalesce(v_limit, 10) then
-            raise exception 'Diese Kategorie ist gerade ausgelastet. Starte einen Feed ohne Kategorie oder versuche es später.'
+            raise exception 'Diese Kategorie ist gerade ausgelastet. Wähle eine Marke oder versuche es später.'
                 using errcode = '54000';
         end if;
     end if;
@@ -336,6 +330,9 @@ begin
     from (select distinct unnest(p_sizes) as size) as normalized;
     perform public.lock_sniper_feed_changes();
     if p_id is null then
+        if cardinality(public.sniper_watchlist_source_keys(p_catalog_id, p_audience, p_brand_id)) = 0 then
+            raise exception 'Bitte wähle mindestens eine Unterkategorie oder eine Marke aus.' using errcode = '22023';
+        end if;
         insert into public.sniper_watchlists(workspace_id, user_id, title, catalog_id, brand, brand_id,
             search_text, price_from, price_to, condition, audience, sizes)
         values (p_workspace_id, v_user, p_title, p_catalog_id, p_brand, p_brand_id,
@@ -350,6 +347,9 @@ begin
     end if;
     if p_brand_id is null and p_brand is not distinct from v_existing.brand then
         p_brand_id := v_existing.brand_id;
+    end if;
+    if cardinality(public.sniper_watchlist_source_keys(p_catalog_id, p_audience, p_brand_id)) = 0 then
+        raise exception 'Bitte wähle mindestens eine Unterkategorie oder eine Marke aus.' using errcode = '22023';
     end if;
     v_restart := v_existing.is_active and
         (v_existing.catalog_id, v_existing.brand, v_existing.brand_id, v_existing.search_text,
@@ -506,7 +506,8 @@ begin
         when 'both' then array[1904, 5] end;
     v_saved_audience := case v_feed.audience when 'women' then array[1904] when 'men' then array[5]
         when 'both' then array[1904, 5] end;
-    v_window_start := now() - interval '10 minutes';
+    -- Die 100-Artikel-Grenze gilt pro Feed; keine pauschale 10-Minuten-Löschung für ruhige Nischen-Feeds.
+    v_window_start := now() - interval '3 days';
 
     with recursive category_tree(root_id, id) as (
         select root, root from unnest(array_remove(
@@ -616,9 +617,97 @@ revoke all on function public.ignore_expired_sniper_listing() from public, anon,
 create trigger ignore_expired_sniper_listing before insert on public.sniper_listings
     for each row execute function public.ignore_expired_sniper_listing();
 
+-- Schützt pro aktivem, zugangsberechtigtem Feed die bis zu 100 neuesten passenden Treffer
+-- (bis maximal 3 Tage alt), damit kleine Nischen-Feeds nicht nach 15 Minuten geleert werden.
+create function public.sniper_protected_feed_listing_ids()
+returns table (listing_id uuid)
+language plpgsql stable security invoker set search_path = '' as $$
+declare
+    v_feed public.sniper_watchlists;
+    v_source_ids uuid[];
+    v_feed_query tsquery;
+    v_saved_audience integer[];
+    v_window_start timestamptz := now() - interval '3 days';
+begin
+    for v_feed in
+        select feed.*
+        from public.sniper_watchlists as feed
+        join public.workspace_members as member
+          on member.workspace_id = feed.workspace_id and member.user_id = feed.user_id
+        join public.workspaces as workspace on workspace.id = feed.workspace_id
+        where feed.is_active
+          and workspace.archived_at is null
+          and public.workspace_access_is_valid(workspace.id)
+    loop
+        select array_agg(query.id) into v_source_ids
+        from public.sniper_queries as query
+        where query.query_key = any(public.sniper_watchlist_source_keys(v_feed.catalog_id, v_feed.audience, v_feed.brand_id))
+          and query.deleted_at is null;
+        if v_source_ids is null or cardinality(v_source_ids) = 0 then
+            continue;
+        end if;
+        v_feed_query := null;
+        if nullif(btrim(v_feed.search_text), '') is not null then
+            select string_agg(quote_literal(lexeme) || ':*', ' & ')::tsquery
+            into v_feed_query
+            from unnest(tsvector_to_array(to_tsvector('simple', v_feed.search_text))) as lexeme;
+        end if;
+        v_saved_audience := case v_feed.audience when 'women' then array[1904] when 'men' then array[5]
+            when 'both' then array[1904, 5] end;
+
+        return query
+        with recursive category_tree(root_id, id) as (
+            select root, root from unnest(array_remove(
+                array[v_feed.catalog_id] || v_saved_audience, null)) as root
+            union
+            select tree.root_id, child.id from category_tree as tree
+            join public.vinted_listing_categories as child on child.parent_id = tree.id
+        ), matched as (
+            select matched.listing_id, min(source.catalog_id) as source_catalog_id
+            from public.sniper_query_matches as matched
+            join public.sniper_queries as source on source.id = matched.query_id
+            where matched.query_id = any(v_source_ids)
+              and matched.first_matched_at >= v_window_start
+              and not matched.is_seed
+            group by matched.listing_id
+        )
+        select listing.id
+        from matched
+        join public.sniper_listings as listing on listing.id = matched.listing_id
+        where listing.first_seen_at >= v_window_start
+          and not listing.is_initial_stock
+          and (v_feed.brand is null or lower(btrim(listing.brand)) = lower(btrim(v_feed.brand)))
+          and (v_feed_query is null or to_tsvector('simple', listing.title) @@ v_feed_query)
+          and (v_feed.condition is null or lower(replace(v_feed.condition, ',', '')) = lower(replace(listing.condition, ',', '')))
+          and (cardinality(v_feed.sizes) = 0 or exists (
+              select 1 from unnest(v_feed.sizes) as size where public.sniper_feed_matches_size(listing.size, size)
+          ))
+          and (v_feed.price_from is null or listing.item_price >= v_feed.price_from)
+          and (v_feed.price_to is null or listing.item_price <= v_feed.price_to)
+          and ((v_feed.price_from is null and v_feed.price_to is null) or listing.currency = 'EUR')
+          and (
+              (v_feed.catalog_id is not null and v_feed.catalog_id not in (1904, 5))
+              or (v_feed.catalog_id is null and v_saved_audience is null)
+              or coalesce(listing.catalog_id, matched.source_catalog_id) is null
+              or exists (
+                  select 1 from category_tree
+                  where root_id = any(coalesce(v_saved_audience, array[v_feed.catalog_id]))
+                    and id = coalesce(listing.catalog_id, matched.source_catalog_id)
+              )
+          )
+        order by listing.first_seen_at desc, listing.id desc
+        limit 100;
+    end loop;
+end;
+$$;
+revoke all on function public.sniper_protected_feed_listing_ids() from public, anon, authenticated;
+grant execute on function public.sniper_protected_feed_listing_ids() to service_role;
+
 create or replace function public.sniper_purge_expired_listings(p_batch_size integer default 1000)
 returns integer language plpgsql security invoker set search_path = '' as $$
-declare v_deleted integer;
+declare
+    v_deleted integer;
+    v_protected uuid[];
 begin
     if p_batch_size is null or p_batch_size not between 1 and 5000 then
         raise exception 'Die Paketgroesse muss zwischen 1 und 5000 liegen.' using errcode = '22023';
@@ -639,18 +728,21 @@ begin
         ) as expired_workspaces
         where feed.workspace_id = expired_workspaces.workspace_id and feed.is_active;
     end if;
-    -- Ruhende Kategorie- und Markenquellen ohne Bedarf verschwinden nach einem Tag samt Zuordnungen.
+    -- Ruhende Quellen ohne Bedarf verschwinden nach einem Tag samt Zuordnungen.
     delete from public.sniper_queries
     where id in (
         select id from public.sniper_queries
-        where (query_key like 'vinted-source|category|%' or query_key like 'vinted-source|brand|%')
+        where query_key like 'vinted-source|%'
           and not is_active
           and updated_at < now() - interval '1 day'
         limit 100
     );
+    select coalesce(array_agg(distinct listing_id), '{}') into v_protected
+    from public.sniper_protected_feed_listing_ids();
     with expired as (
         select id from public.sniper_listings
-        where first_seen_at < now() - interval '15 minutes'
+        where first_seen_at < now() - interval '3 days'
+           or (first_seen_at < now() - interval '15 minutes' and not (id = any(v_protected)))
         order by first_seen_at, id
         limit p_batch_size
         for update skip locked
@@ -676,7 +768,7 @@ begin
 end;
 $$;
 comment on function public.sniper_purge_expired_listings(integer) is
-    'Entfernt vollständige Feed-Karten paketweise nach 15 Minuten, behält kompakte Kennungen drei Tage und räumt ruhende Kategoriequellen auf.';
+    'Entfernt nicht geschützte Feed-Karten nach 15 Minuten (und alle Karten nach 3 Tagen), behält pro aktivem Feed bis zu 100 Treffer sowie kompakte Kennungen drei Tage.';
 
 -- Nur Arbeitsbereiche, deren aktive Feeds an der Quelle mit neuen Treffern hängen,
 -- bekommen den Hinweis. Die frühere Fassung ohne Quelle benachrichtigte alle.
@@ -749,7 +841,7 @@ select query.*
 from public.sniper_queries as query
 join public.sniper_needed_feed_sources as needed on needed.key = query.query_key
 where query.marketplace = 'vinted' and query.is_active and query.deleted_at is null;
-comment on view public.sniper_active_feed_sources is 'Haupt-, Marken- und Kategoriequellen mit mindestens einem aktiven und zugangsberechtigten Feed. Nur der Sammeldienst darf sie lesen.';
+comment on view public.sniper_active_feed_sources is 'Kategorie- und Markenquellen mit mindestens einem aktiven und zugangsberechtigten Feed. Nur der Sammeldienst darf sie lesen.';
 revoke all on public.sniper_active_feed_sources from public, anon, authenticated, service_role;
 grant select on public.sniper_active_feed_sources to service_role;
 

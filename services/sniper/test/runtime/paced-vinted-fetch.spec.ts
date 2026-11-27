@@ -98,4 +98,46 @@ describe('pacedVintedFetch', () => {
     );
     expect(fetchFn).not.toHaveBeenCalled();
   });
+
+  it('overlaps in-flight requests up to maxConcurrency while preserving start spacing', async () => {
+    let clock = 0;
+    let active = 0;
+    let peakActive = 0;
+    const started: number[] = [];
+    const resolvers: (() => void)[] = [];
+    const fetchFn: FetchLike = async () => {
+      started.push(clock);
+      active += 1;
+      peakActive = Math.max(peakActive, active);
+      await new Promise<void>((resolve) => {
+        resolvers.push(resolve);
+      });
+      active -= 1;
+      return new Response('ok');
+    };
+    const fetch = pacedVintedFetch(fetchFn, {
+      minimumIntervalMs: 1000,
+      requestTimeoutMs: 20_000,
+      maxConcurrency: 2,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+    });
+    const pending = [
+      fetch('https://www.vinted.de/catalog?catalog_ids=1'),
+      fetch('https://www.vinted.de/catalog?catalog_ids=2'),
+      fetch('https://www.vinted.de/catalog?catalog_ids=3'),
+    ];
+    await vi.waitFor(() => expect(resolvers).toHaveLength(2));
+    expect(peakActive).toBe(2);
+    expect(started).toEqual([0, 1000]);
+    resolvers[0]!();
+    await vi.waitFor(() => expect(resolvers).toHaveLength(3));
+    expect(started).toEqual([0, 1000, 2000]);
+    resolvers[1]!();
+    resolvers[2]!();
+    const responses = await Promise.all(pending);
+    expect(responses.every((response) => response.ok)).toBe(true);
+  });
 });

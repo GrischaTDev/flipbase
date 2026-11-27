@@ -29,7 +29,10 @@ import { ConfirmDialogService } from '../../shared/components/confirm-dialog/con
 import { ModalShellComponent } from '../../shared/components/modal-shell/modal-shell.component';
 import { PageHeaderComponent } from '../../shared/components/page-header/page-header.component';
 import { UnsavedEntryPage } from '../../shared/guards/unsaved-entry.guard';
-import { DealFeedSearchComponent } from './components/deal-feed-search/deal-feed-search.component';
+import {
+  DealFeedSearchComponent,
+  liveFilterStorageKey,
+} from './components/deal-feed-search/deal-feed-search.component';
 import { PersonalFeedEditorComponent } from './components/personal-feed-editor/personal-feed-editor.component';
 import { PersonalFeed, PersonalFeedDraft, feedSizeLabels } from './models/deal-monitor.model';
 import { DealMonitorService } from './services/deal-monitor.service';
@@ -76,7 +79,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
   readonly selectedFeed = computed(() => this.feeds().find(({ id }) => id === this.selectedId()));
   readonly activeFeeds = computed(() => this.feeds().filter(({ is_active }) => is_active));
   readonly viewMode = signal<'columns' | 'single'>('columns');
-  readonly canShowColumns = computed(() => this.widescreen() && this.activeFeeds().length >= 2);
+  readonly canShowColumns = computed(() => this.widescreen() && this.feeds().length >= 2);
   readonly showColumns = computed(() => this.canShowColumns() && this.viewMode() === 'columns');
   readonly loadingFeeds = signal(false);
   readonly editorOpen = signal(false);
@@ -126,7 +129,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     this.selectedId.set(feed.id);
     const workspaceId = this.workspaceId();
     if (workspaceId) this.storeSelectedFeedId(workspaceId, feed.id);
-    if (!feed.is_active && this.showColumns()) this.viewMode.set('single');
+    if (this.showColumns()) this.viewMode.set('single');
   }
 
   hasOutdatedCategory(feed: PersonalFeed): boolean {
@@ -269,6 +272,7 @@ export class DealMonitorComponent implements UnsavedEntryPage {
     try {
       await this.api.delete(workspaceId, feed.id);
       if (!this.isCurrent(generation)) return;
+      this.clearStoredLiveFilters(workspaceId, feed.id);
       this.feeds.update((rows) => rows.filter(({ id }) => id !== feed.id));
       await this.loadFeeds(workspaceId);
       if (this.isCurrent(generation) && !this.error()) this.message.set('Feed gelöscht.');
@@ -314,6 +318,14 @@ export class DealMonitorComponent implements UnsavedEntryPage {
       );
     } catch {
       // Ohne Browserspeicher gilt die Auswahl nur für die laufende Sitzung.
+    }
+  }
+
+  private clearStoredLiveFilters(workspaceId: string, feedId: string): void {
+    try {
+      this.document.defaultView?.localStorage.removeItem(liveFilterStorageKey(workspaceId, feedId));
+    } catch {
+      // Ignorieren, falls kein Browserspeicher verfügbar ist.
     }
   }
 

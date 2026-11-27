@@ -4,11 +4,22 @@ import { VintedNetworkError } from '../vinted/errors.js';
 import { BrowserCleanup } from './browser-cleanup.js';
 import { abortableBrowserOperation } from './request-abort.js';
 
+/** In-Page-Transportfehler beim schlanken fetch(); erlaubt sicheren Rückfall auf Dokumentabruf. */
+export class CatalogTransportError extends VintedNetworkError {
+  readonly transportReason: string;
+
+  constructor(transportReason = 'unknown') {
+    super('Browserabruf fehlgeschlagen.');
+    this.name = 'CatalogTransportError';
+    this.transportReason = transportReason;
+  }
+}
+
 type CatalogResult =
   | { kind: 'response'; status: number; headers: [string, string][]; body: string }
   | { kind: 'document-required' }
   | { kind: 'service-worker' }
-  | { kind: 'network' }
+  | { kind: 'network'; errorName?: string }
   | { kind: 'too-large' };
 
 /** null verlangt genau den bisherigen, streng begrenzten Navigationsweg. */
@@ -72,9 +83,11 @@ export async function readCatalogResponse(
               ),
               body: new TextDecoder().decode(bytes),
             };
-          } catch {
-            // Browserfehler können die Zieladresse enthalten; nur die Fehlerart übertragen.
-            return { kind: 'network' };
+          } catch (error) {
+            // Browserfehler können die Zieladresse enthalten; nur einen geprüften Fehlernamen übertragen.
+            const rawName = error instanceof Error ? error.name : '';
+            const errorName = /^[A-Za-z]{1,40}$/.test(rawName) ? rawName : undefined;
+            return errorName ? { kind: 'network', errorName } : { kind: 'network' };
           } finally {
             controller.abort();
             if (reader) void reader.cancel().catch(() => undefined);
@@ -89,7 +102,7 @@ export async function readCatalogResponse(
     if (result.kind === 'document-required') return null;
     if (result.kind === 'service-worker')
       throw new VintedNetworkError('Ein Service Worker verhindert den direkten Katalogabruf.');
-    if (result.kind === 'network') throw new VintedNetworkError('Browserabruf fehlgeschlagen.');
+    if (result.kind === 'network') throw new CatalogTransportError(result.errorName ?? 'unknown');
     if (result.kind === 'too-large') throw new Error('Vinted-Katalogantwort ist zu groß.');
     return new Response([204, 205, 304].includes(result.status) ? null : result.body, {
       status: result.status,

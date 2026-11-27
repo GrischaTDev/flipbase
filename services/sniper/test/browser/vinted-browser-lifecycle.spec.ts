@@ -227,18 +227,83 @@ describe('ChromeVintedBrowser lifecycle', () => {
     );
   });
 
-  it('rewarms the replacement tab after a transport failure and then resumes slim reads', async () => {
-    const { browser, page, context } = setup(200);
+  it('falls back to guarded document navigation on a transient in-page transport failure and resumes slim reads', async () => {
+    const { browser, page, context, session } = setup(200);
+    await browser.fetch('https://www.vinted.de/catalog');
+    page.evaluate.mockResolvedValueOnce({ kind: 'network', errorName: 'TypeError' } as never);
+    expect((await browser.fetch('https://www.vinted.de/catalog')).ok).toBe(true);
+    expect((await browser.fetch('https://www.vinted.de/catalog')).ok).toBe(true);
+    expect(session.send.mock.calls.filter(([method]) => method === 'Page.navigate')).toHaveLength(
+      2,
+    );
+    expect(context.newPage).not.toHaveBeenCalled();
+    expect(browser.needsRestart).toBe(false);
+  });
+
+  it('rewarms a replacement tab after both in-page and guarded document reads fail', async () => {
+    const { browser, page, context, session } = setup(200);
     context.newPage.mockResolvedValue(page as never);
     await browser.fetch('https://www.vinted.de/catalog');
     page.evaluate.mockResolvedValueOnce({ kind: 'network' } as never);
-    await expect(browser.fetch('https://www.vinted.de/catalog')).rejects.toMatchObject({
-      kind: 'network_error',
-    });
-    expect((await browser.fetch('https://www.vinted.de/catalog')).ok).toBe(true);
+    const originalSend = session.send.getMockImplementation()!;
+    session.send.mockImplementationOnce(async (method: string, params?: Record<string, unknown>) =>
+      method === 'Page.enable'
+        ? Promise.reject(new Error('transport lost'))
+        : originalSend(method, params),
+    );
+    await expect(browser.fetch('https://www.vinted.de/catalog')).rejects.toThrow('transport lost');
     expect((await browser.fetch('https://www.vinted.de/catalog')).ok).toBe(true);
     expect(context.newPage).toHaveBeenCalledTimes(1);
     expect(browser.needsRestart).toBe(false);
+  });
+
+  it('runs warmed catalog reads concurrently across dedicated browser tabs when configured', async () => {
+    const { context, page, disconnect } = setup(200);
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const secondPage = {
+      url: () => 'https://www.vinted.de/catalog',
+      evaluate: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            releaseSecond = () =>
+              resolve({ kind: 'response', status: 200, headers: [], body: 'b' });
+          }),
+      ),
+      close: vi.fn(async () => undefined),
+    };
+    const pages = [page];
+    context.pages.mockImplementation(() => pages);
+    context.newPage.mockImplementation(async () => {
+      pages.push(secondPage as never);
+      return secondPage as never;
+    });
+    const browser = new ChromeVintedBrowser('https://www.vinted.de', {
+      profileDir: '/unused',
+      cdpPort: 9228,
+      concurrency: 2,
+    });
+
+    // Erstes Warmup seriell auf Slot 0
+    expect((await browser.fetch('https://www.vinted.de/catalog')).ok).toBe(true);
+    // Zweiten Tab einmal einwärmen
+    page.evaluate.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          releaseFirst = () => resolve({ kind: 'response', status: 200, headers: [], body: 'a' });
+        }),
+    );
+    const first = browser.fetch('https://www.vinted.de/catalog?catalog_ids=1858');
+    await vi.waitFor(() => expect(page.evaluate).toHaveBeenCalledTimes(1));
+    const second = browser.fetch('https://www.vinted.de/catalog?catalog_ids=2050');
+    // Slot 1 startet parallel auf eigenem Tab, während Slot 0 noch auf Antwort wartet
+    await vi.waitFor(() => expect(context.newPage).toHaveBeenCalledTimes(1));
+    expect((await second).status).toBe(200);
+    releaseFirst();
+    expect((await first).status).toBe(200);
+    expect(disconnect).toHaveBeenCalledTimes(2);
+    expect(browser.needsRestart).toBe(false);
+    expect(releaseSecond).toBeUndefined();
   });
 
   it('starts no document when cancelled during CDP connection and disconnects a late client', async () => {

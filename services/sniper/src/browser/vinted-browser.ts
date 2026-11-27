@@ -1,10 +1,16 @@
-import { chromium, type CDPSession } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type CDPSession,
+  type Page,
+} from 'playwright';
 import type { BrowserInput } from './browser-types.js';
 import { BrowserCleanup } from './browser-cleanup.js';
 import { BrowserDesktop } from './browser-desktop.js';
 import { ChromeProcess, type ChromeProcessOptions } from './chrome-process.js';
 import { VintedNetworkError, VintedTimeoutError } from '../vinted/errors.js';
-import { readCatalogResponse } from './catalog-response.js';
+import { CatalogTransportError, readCatalogResponse } from './catalog-response.js';
 import { abortableBrowserOperation } from './request-abort.js';
 
 interface PausedRequest {
@@ -289,18 +295,35 @@ export interface VintedBrowser {
   close(): Promise<void>;
 }
 
+interface TabSlot {
+  index: number;
+  requestsSinceTabChange: number;
+  recycleAfterFailure: boolean;
+  catalogReady: boolean;
+  busy: boolean;
+}
+
 export class ChromeVintedBrowser implements VintedBrowser {
   private readonly runtime: ChromeProcess;
   private readonly desktop: BrowserDesktop;
   private manual = false;
-  private requestsSinceTabChange = 0;
-  private recycleAfterFailure = false;
   private unresponsive = false;
   private closing: Promise<void> | undefined;
   private previousRequest: Promise<void> = Promise.resolve();
-  private catalogReady = false;
   private readonly requestTimeoutMs: number;
   private readonly maxRequestsPerTab: number;
+  private readonly concurrency: number;
+  private readonly slots: TabSlot[];
+  private readonly slotWaiters: (() => void)[] = [];
+  private readonly drainWaiters: (() => void)[] = [];
+  private warmedUp = false;
+  private warmupGate: Promise<void> = Promise.resolve();
+  private activeRequests = 0;
+  private activeConnections = 0;
+  private sharedConnection: Browser | undefined;
+  private sharedPages = new Map<number, Page>();
+  private connectionPromise: Promise<Browser> | undefined;
+  private tabMutationChain: Promise<void> = Promise.resolve();
 
   get needsRestart(): boolean {
     return this.unresponsive || this.runtime.hasFailed;
@@ -308,11 +331,23 @@ export class ChromeVintedBrowser implements VintedBrowser {
 
   constructor(
     private readonly baseUrl: string,
-    options: ChromeProcessOptions & { requestTimeoutMs?: number; maxRequestsPerTab?: number },
+    options: ChromeProcessOptions & {
+      requestTimeoutMs?: number;
+      maxRequestsPerTab?: number;
+      concurrency?: number;
+    },
   ) {
     this.runtime = new ChromeProcess(options);
     this.requestTimeoutMs = options.requestTimeoutMs ?? 20_000;
     this.maxRequestsPerTab = options.maxRequestsPerTab ?? 15;
+    this.concurrency = Math.max(1, options.concurrency ?? 1);
+    this.slots = Array.from({ length: this.concurrency }, (_, index) => ({
+      index,
+      requestsSinceTabChange: 0,
+      recycleAfterFailure: false,
+      catalogReady: false,
+      busy: false,
+    }));
     this.desktop = new BrowserDesktop((args, input) => this.runtime.execute(args, input));
   }
 
@@ -336,15 +371,204 @@ export class ChromeVintedBrowser implements VintedBrowser {
   }
 
   async fetch(input: string | URL, init?: RequestInit): Promise<Response> {
-    const request = this.previousRequest.then(() => this.fetchSerial(input, init));
-    this.previousRequest = request.then(
+    if (this.concurrency === 1) {
+      const request = this.previousRequest.then(() =>
+        this.fetchWithSlot(this.slots[0]!, input, init),
+      );
+      this.previousRequest = request.then(
+        () => undefined,
+        () => undefined,
+      );
+      return request;
+    }
+
+    // Der erste Katalog-Warmup läuft seriell, damit Cookies und Sitzung einmalig sauber stehen.
+    if (!this.warmedUp) {
+      const request = this.warmupGate.then(async () => {
+        if (this.warmedUp) return this.fetchConcurrent(input, init);
+        const slot = await this.acquireSlot(init?.signal ?? undefined);
+        try {
+          const response = await this.fetchWithSlot(slot, input, init);
+          if (slot.catalogReady) this.warmedUp = true;
+          return response;
+        } finally {
+          this.releaseSlot(slot);
+        }
+      });
+      this.warmupGate = request.then(
+        () => undefined,
+        () => undefined,
+      );
+      return request;
+    }
+
+    return this.fetchConcurrent(input, init);
+  }
+
+  private async fetchConcurrent(input: string | URL, init?: RequestInit): Promise<Response> {
+    const slot = await this.acquireSlot(init?.signal ?? undefined);
+    try {
+      return await this.fetchWithSlot(slot, input, init);
+    } finally {
+      this.releaseSlot(slot);
+    }
+  }
+
+  private acquireSlot(signal?: AbortSignal): Promise<TabSlot> {
+    const free = this.slots.find((candidate) => !candidate.busy);
+    if (free) {
+      free.busy = true;
+      return Promise.resolve(free);
+    }
+    return new Promise<TabSlot>((resolve, reject) => {
+      const onFree = () => {
+        signal?.removeEventListener('abort', onAbort);
+        const next = this.slots.find((candidate) => !candidate.busy);
+        if (next) {
+          next.busy = true;
+          resolve(next);
+        } else {
+          this.slotWaiters.push(onFree);
+        }
+      };
+      const onAbort = () => {
+        const index = this.slotWaiters.indexOf(onFree);
+        if (index >= 0) this.slotWaiters.splice(index, 1);
+        reject(signal?.reason);
+      };
+      if (signal?.aborted) {
+        reject(signal.reason);
+        return;
+      }
+      signal?.addEventListener('abort', onAbort, { once: true });
+      this.slotWaiters.push(onFree);
+    });
+  }
+
+  private releaseSlot(slot: TabSlot): void {
+    slot.busy = false;
+    const waiter = this.slotWaiters.shift();
+    if (waiter) waiter();
+  }
+
+  private drainActiveRequests(): Promise<void> {
+    if (this.activeRequests === 0) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      this.drainWaiters.push(resolve);
+    });
+  }
+
+  private runTabMutation<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.tabMutationChain.then(operation);
+    this.tabMutationChain = next.then(
       () => undefined,
       () => undefined,
     );
-    return request;
+    return next;
   }
 
-  private async fetchSerial(input: string | URL, init?: RequestInit): Promise<Response> {
+  private async acquireConnection(signal: AbortSignal): Promise<Browser> {
+    if (this.sharedConnection) {
+      this.activeConnections += 1;
+      return this.sharedConnection;
+    }
+    if (!this.connectionPromise) {
+      this.connectionPromise = chromium
+        .connectOverCDP(this.runtime.endpoint, {
+          noDefaults: true,
+          timeout: 5000,
+        })
+        .then((connection) => {
+          this.connectionPromise = undefined;
+          this.sharedConnection = connection;
+          this.sharedPages = new Map();
+          return connection;
+        })
+        .catch((error) => {
+          this.connectionPromise = undefined;
+          throw error;
+        });
+    }
+    const connection = await abortableBrowserOperation(
+      this.connectionPromise,
+      signal,
+      async (late) => {
+        if (this.activeConnections === 0) {
+          if (this.sharedConnection === late) {
+            this.sharedConnection = undefined;
+            this.sharedPages.clear();
+          }
+          await new BrowserCleanup().run(() => late.close());
+        }
+      },
+    );
+    this.activeConnections += 1;
+    return connection;
+  }
+
+  private async releaseConnection(connection: Browser, cleanup: BrowserCleanup): Promise<void> {
+    this.activeConnections = Math.max(0, this.activeConnections - 1);
+    if (this.activeConnections === 0 && this.sharedConnection === connection) {
+      this.sharedConnection = undefined;
+      this.sharedPages.clear();
+      await cleanup.run(() => connection.close());
+    }
+  }
+
+  private async prepareSlotPage(
+    context: BrowserContext,
+    slot: TabSlot,
+    signal: AbortSignal,
+  ): Promise<Page> {
+    return this.runTabMutation(async () => {
+      const assignedPages = new Set(this.sharedPages.values());
+      let page = this.sharedPages.get(slot.index);
+      if (!page) {
+        const pages = context.pages();
+        page =
+          pages[slot.index] && !assignedPages.has(pages[slot.index]!)
+            ? pages[slot.index]
+            : pages.find((candidate) => !assignedPages.has(candidate));
+      }
+      const shouldRecycle =
+        slot.requestsSinceTabChange >= this.maxRequestsPerTab || slot.recycleAfterFailure;
+      if (!page || shouldRecycle) {
+        try {
+          // Alten Vinted-Renderer vor newPage() nach Möglichkeit entlasten, damit
+          // nicht zwei volle Katalogseiten gleichzeitig Shared Memory beanspruchen.
+          if (page && typeof page.goto === 'function') {
+            await page.goto('about:blank', { timeout: 2000 }).catch(() => undefined);
+          }
+          // Erst Ersatz öffnen, damit Chrome beim letzten geschlossenen Tab weiterläuft.
+          const replacement = await abortableBrowserOperation(context.newPage(), signal, (late) =>
+            new BrowserCleanup().run(() => late.close()),
+          );
+          if (this.concurrency === 1) {
+            for (const previous of context.pages().filter((candidate) => candidate !== replacement))
+              await abortableBrowserOperation(previous.close(), signal);
+          } else if (page && page !== replacement) {
+            await abortableBrowserOperation(page.close(), signal);
+          }
+          page = replacement;
+          slot.requestsSinceTabChange = 0;
+          slot.recycleAfterFailure = false;
+          slot.catalogReady = false;
+        } catch (error) {
+          // Ungeklärte alte Tabs nicht durch immer neue Ersatz-Tabs vermehren.
+          this.unresponsive = true;
+          throw error;
+        }
+      }
+      this.sharedPages.set(slot.index, page);
+      return page;
+    });
+  }
+
+  private async fetchWithSlot(
+    slot: TabSlot,
+    input: string | URL,
+    init?: RequestInit,
+  ): Promise<Response> {
     if (this.manual) throw new Error('Die Prüfsitzung wird gerade manuell bedient.');
     if (this.needsRestart) throw new Error('Der Feed-Browser muss neu gestartet werden.');
     const url = this.validateUrl(input, true);
@@ -354,55 +578,38 @@ export class ChromeVintedBrowser implements VintedBrowser {
     const timeout = AbortSignal.timeout(this.requestTimeoutMs);
     const signal = init?.signal ? AbortSignal.any([init.signal, timeout]) : timeout;
     const cleanup = new BrowserCleanup();
-    let browser: Awaited<ReturnType<typeof chromium.connectOverCDP>> | undefined;
+    let browser: Browser | undefined;
+    this.activeRequests += 1;
     try {
       await abortableBrowserOperation(this.runtime.start(), signal);
       if (this.needsRestart) throw new Error('Der Feed-Browser wird bereits beendet.');
-      browser = await abortableBrowserOperation(
-        chromium.connectOverCDP(this.runtime.endpoint, {
-          noDefaults: true,
-          timeout: 5000,
-        }),
-        signal,
-        (late) => new BrowserCleanup().run(() => late.close()),
-      );
+      browser = await this.acquireConnection(signal);
       signal.throwIfAborted();
       if (this.needsRestart) throw new Error('Der Feed-Browser wird bereits beendet.');
       const context = browser.contexts()[0];
       if (!context) throw new Error('Browserkontext fehlt.');
-      let page = context.pages()[0];
-      if (
-        !page ||
-        this.requestsSinceTabChange >= this.maxRequestsPerTab ||
-        this.recycleAfterFailure
-      ) {
-        try {
-          // Erst Ersatz öffnen, damit Chrome beim letzten geschlossenen Tab weiterläuft.
-          const replacement = await abortableBrowserOperation(context.newPage(), signal, (late) =>
-            new BrowserCleanup().run(() => late.close()),
-          );
-          for (const previous of context.pages().filter((candidate) => candidate !== replacement))
-            await abortableBrowserOperation(previous.close(), signal);
-          page = replacement;
-          this.requestsSinceTabChange = 0;
-          this.recycleAfterFailure = false;
-          this.catalogReady = false;
-        } catch (error) {
-          // Ungeklärte alte Tabs nicht durch immer neue Ersatz-Tabs vermehren.
-          this.unresponsive = true;
-          throw error;
-        }
-      }
+      const page = await this.prepareSlotPage(context, slot, signal);
       signal.throwIfAborted();
-      if (url.pathname === '/catalog' && this.catalogReady) {
-        const response = await readCatalogResponse(page, url, signal, cleanup);
-        if (response) {
-          this.catalogReady = await this.validCatalogResponse(response);
-          signal.throwIfAborted();
-          this.requestsSinceTabChange++;
-          return response;
+      if (url.pathname === '/catalog' && slot.catalogReady) {
+        try {
+          const response = await readCatalogResponse(page, url, signal, cleanup);
+          if (response) {
+            slot.catalogReady = await this.validCatalogResponse(response);
+            signal.throwIfAborted();
+            slot.requestsSinceTabChange++;
+            return response;
+          }
+          slot.catalogReady = false;
+        } catch (error) {
+          // Kurze In-Page-Transportfehler (z. B. abgebrochene HTTP/2-Verbindung) fallen
+          // direkt einmalig auf den regulären Dokumentabruf zurück, statt sofort 30 s Pause
+          // und einen Tab-Wechsel zu erzwingen.
+          if (error instanceof CatalogTransportError && !signal.aborted) {
+            slot.catalogReady = false;
+          } else {
+            throw error;
+          }
         }
-        this.catalogReady = false;
       }
       const session = await abortableBrowserOperation(context.newCDPSession(page), signal, (late) =>
         new BrowserCleanup().run(() => late.detach()),
@@ -420,7 +627,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
           (await this.validCatalogResponse(response));
         // Auch eine geprüfte Artikelseite kann Katalog-GETs derselben Herkunft
         // ausführen. Ein Detailabruf erzwingt deshalb keinen neuen Dokument-Warmup.
-        this.catalogReady = readable;
+        slot.catalogReady = readable;
         if (readable) {
           const control = await abortableBrowserOperation(
             session.send('Runtime.evaluate', {
@@ -439,23 +646,26 @@ export class ChromeVintedBrowser implements VintedBrowser {
             );
         }
         signal.throwIfAborted();
-        this.requestsSinceTabChange++;
+        slot.requestsSinceTabChange++;
         return response;
       } finally {
         await cleanup.run(() => session.detach());
       }
     } catch (error) {
-      this.recycleAfterFailure = true;
-      this.catalogReady = false;
+      slot.recycleAfterFailure = true;
+      slot.catalogReady = false;
       if (!browser && !signal.aborted) this.unresponsive = true;
       if (timeout.aborted && !init?.signal?.aborted) throw new VintedTimeoutError();
       throw error;
     } finally {
       if (browser) {
-        const connection = browser;
-        await cleanup.run(() => connection.close());
+        await this.releaseConnection(browser, cleanup);
       }
       if (cleanup.expired) this.unresponsive = true;
+      this.activeRequests = Math.max(0, this.activeRequests - 1);
+      if (this.activeRequests === 0) {
+        for (const resolve of this.drainWaiters.splice(0)) resolve();
+      }
     }
   }
 
@@ -465,12 +675,22 @@ export class ChromeVintedBrowser implements VintedBrowser {
     return !body.includes('challenge-running') && !body.includes('<title>Just a moment...</title>');
   }
 
+  private resetAllSlots(): void {
+    this.warmedUp = false;
+    this.sharedPages.clear();
+    for (const slot of this.slots) {
+      slot.requestsSinceTabChange = 0;
+      slot.catalogReady = false;
+      slot.recycleAfterFailure = false;
+    }
+  }
+
   async openManual(url: URL): Promise<void> {
     this.validateUrl(url);
     await this.runtime.start();
     await this.stopManual();
     this.manual = true;
-    this.catalogReady = false;
+    this.resetAllSlots();
     await this.runtime.execute([
       '/usr/bin/google-chrome-stable',
       `--user-data-dir=${this.runtime.options.profileDir}`,
@@ -480,6 +700,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
 
   async stopManual(): Promise<void> {
     await this.runtime.start();
+    await this.drainActiveRequests();
     const browser = await chromium.connectOverCDP(this.runtime.endpoint, {
       noDefaults: true,
       timeout: 5000,
@@ -498,9 +719,7 @@ export class ChromeVintedBrowser implements VintedBrowser {
       } finally {
         await session.detach();
       }
-      this.requestsSinceTabChange = 0;
-      this.catalogReady = false;
-      this.recycleAfterFailure = false;
+      this.resetAllSlots();
       this.manual = false;
     } finally {
       await browser.close();

@@ -19,6 +19,7 @@ import { FormFieldComponent } from '../../../../shared/components/form-field/for
 import { NumberInputComponent } from '../../../../shared/components/number-input/number-input.component';
 import {
   FeedItem,
+  LiveFeedFilter,
   PersonalFeed,
   availableLiveSizes,
   effectiveFeedPriceBounds,
@@ -35,6 +36,15 @@ import { DealCardComponent } from '../deal-card/deal-card.component';
 import { DealDetailModalComponent } from '../deal-detail-modal/deal-detail-modal.component';
 
 const RECONCILE_INTERVAL_MS = 15_000;
+const LIVE_FILTER_STORAGE_PREFIX = 'flipbase:vinted-feed:live-filters:';
+
+export function liveFilterStorageKey(workspaceId: string, feedId: string): string {
+  return `${LIVE_FILTER_STORAGE_PREFIX}${workspaceId}:${feedId}`;
+}
+
+function normalizePrice(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+}
 
 @Component({
   selector: 'app-deal-feed-search',
@@ -49,7 +59,7 @@ const RECONCILE_INTERVAL_MS = 15_000;
     NumberInputComponent,
   ],
   templateUrl: './deal-feed-search.component.html',
-  host: { class: '@container block min-w-0' },
+  host: { class: '@container flex min-h-0 min-w-0 flex-col' },
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DealFeedSearchComponent {
@@ -146,7 +156,7 @@ export class DealFeedSearchComponent {
       const startedAt = this.startedAt();
       untracked(() => {
         this.selectedDeal.set(null);
-        this.resetLiveFilters();
+        this.restoreLiveFilters(workspace, watchlist);
         this.state.setContext(active && startedAt ? { workspace, watchlist } : null);
       });
       if (!active || !startedAt) return;
@@ -166,10 +176,26 @@ export class DealFeedSearchComponent {
     destroyRef.onDestroy(() => this.state.destroy());
   }
 
+  setLiveQuery(query: string): void {
+    this.liveQuery.set(query);
+    this.persistLiveFilters();
+  }
+
+  setLiveMinPrice(value: number | null): void {
+    this.liveMinPrice.set(normalizePrice(value));
+    this.persistLiveFilters();
+  }
+
+  setLiveMaxPrice(value: number | null): void {
+    this.liveMaxPrice.set(normalizePrice(value));
+    this.persistLiveFilters();
+  }
+
   toggleLiveSize(size: string): void {
     this.liveSizes.update((current) =>
       current.includes(size) ? current.filter((entry) => entry !== size) : [...current, size],
     );
+    this.persistLiveFilters();
   }
 
   resetLiveFilters(): void {
@@ -177,5 +203,66 @@ export class DealFeedSearchComponent {
     this.liveSizes.set([]);
     this.liveMinPrice.set(null);
     this.liveMaxPrice.set(null);
+    this.persistLiveFilters();
+  }
+
+  private restoreLiveFilters(workspaceId: string, feedId: string): void {
+    const allowedSizes = new Set(this.sizeChoices().map((option) => option.value));
+    const stored = this.readStoredLiveFilters(workspaceId, feedId);
+    this.liveQuery.set(stored?.query ?? '');
+    this.liveSizes.set((stored?.sizes ?? []).filter((size) => allowedSizes.has(size)));
+    this.liveMinPrice.set(stored?.minPrice ?? null);
+    this.liveMaxPrice.set(stored?.maxPrice ?? null);
+  }
+
+  private readStoredLiveFilters(workspaceId: string, feedId: string): LiveFeedFilter | null {
+    try {
+      const raw = this.document.defaultView?.localStorage.getItem(
+        liveFilterStorageKey(workspaceId, feedId),
+      );
+      if (!raw) return null;
+      const parsed: unknown = JSON.parse(raw);
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+      const record = parsed as Record<string, unknown>;
+      const sizes = Array.isArray(record['sizes'])
+        ? Array.from(
+            new Set(record['sizes'].filter((entry): entry is string => typeof entry === 'string')),
+          )
+        : [];
+      return {
+        query: typeof record['query'] === 'string' ? record['query'] : '',
+        sizes,
+        minPrice: normalizePrice(record['minPrice']),
+        maxPrice: normalizePrice(record['maxPrice']),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private persistLiveFilters(): void {
+    const key = liveFilterStorageKey(this.workspaceId(), this.feedId());
+    try {
+      const storage = this.document.defaultView?.localStorage;
+      if (!storage) return;
+      const filter: LiveFeedFilter = {
+        query: this.liveQuery(),
+        sizes: this.liveSizes(),
+        minPrice: this.liveMinPrice(),
+        maxPrice: this.liveMaxPrice(),
+      };
+      if (
+        !filter.query.trim() &&
+        filter.sizes.length === 0 &&
+        filter.minPrice === null &&
+        filter.maxPrice === null
+      ) {
+        storage.removeItem(key);
+        return;
+      }
+      storage.setItem(key, JSON.stringify(filter));
+    } catch {
+      // Ohne Browserspeicher gelten Live-Filter nur für die aktuelle Ansicht.
+    }
   }
 }

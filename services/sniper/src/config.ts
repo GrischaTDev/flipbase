@@ -20,6 +20,7 @@ const EnvSchema = z.object({
   SNIPER_REQUEST_MIN_INTERVAL_MS: z.coerce.number().int().min(250).max(60_000).default(1500),
   SNIPER_REQUEST_TIMEOUT_MS: z.coerce.number().int().min(1000).max(60_000).default(20_000),
   SNIPER_BROWSER_MAX_REQUESTS_PER_TAB: z.coerce.number().int().min(5).max(1000).default(150),
+  SNIPER_BROWSER_CONCURRENCY: z.coerce.number().int().min(1).max(4).default(2),
   SNIPER_MAX_REQUESTS_PER_CYCLE: z.coerce.number().int().min(1).max(20).default(4),
   SNIPER_USER_AGENT: z
     .string()
@@ -48,6 +49,7 @@ export interface SnipeConfig {
   requestMinIntervalMs: number;
   requestTimeoutMs: number;
   browserMaxRequestsPerTab: number;
+  browserConcurrency: number;
   maxRequestsPerCycle: number;
   userAgent: string;
   healthPort: number;
@@ -73,6 +75,7 @@ export function loadConfig(env: NodeJS.ProcessEnv): SnipeConfig {
     requestMinIntervalMs: parsed.SNIPER_REQUEST_MIN_INTERVAL_MS,
     requestTimeoutMs: parsed.SNIPER_REQUEST_TIMEOUT_MS,
     browserMaxRequestsPerTab: parsed.SNIPER_BROWSER_MAX_REQUESTS_PER_TAB,
+    browserConcurrency: parsed.SNIPER_BROWSER_CONCURRENCY,
     maxRequestsPerCycle: parsed.SNIPER_MAX_REQUESTS_PER_CYCLE,
     userAgent: parsed.SNIPER_USER_AGENT,
     healthPort: parsed.SNIPER_HEALTH_PORT,

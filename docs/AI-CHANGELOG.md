@@ -1,5 +1,19 @@
 # 🤖 KI-Änderungsprotokoll
 
+## 2026-11-27 - Juna - Vinted-Feed stabilisieren, parallel abrufen und pauschale Hauptquellen entfernen
+
+**Befund aus den Produktions-Logs (72 h, rein lesend):** 69.482 abgerufene Katalogseiten und 880.007 Funde ohne eine einzige 403-, 429- oder Challenge-Ablehnung, aber 59 Container-Neustarts (`browserContext.newPage: Target crashed` bei `shm_size: 128m`) sowie 446× `network_error` („Browserabruf fehlgeschlagen.“) mit je 30 s Cooldown und anschließendem Tab-Wechsel.
+
+**Änderungen:**
+
+- **Sniper-Stabilität & parallele Tabs (`deploy/docker-compose.sniper.yml`, `services/sniper`):** `shm_size` auf `512m` und `pids_limit` auf `512` angehoben; vor einem Tab-Wechsel entlastet der Browser den alten Tab über `about:blank`. Ein kurzzeitiger In-Page-`fetch()`-Transportfehler fällt einmalig direkt auf den geschützten Dokumentabruf zurück statt sofort 30 s Pause und Tab-Wechsel auszulösen; der Erstfehler-Cooldown für `network_error` liegt bei 5 s (403/429 unverändert). Neue konfigurierbare Option `SNIPER_BROWSER_CONCURRENCY` (Standard `2`, Bereich `1..4`) führt unabhängige Quellen parallel über eigene Chrome-Tabs aus, bei gemeinsamem Start-Abstand und Anfragebudget. `cycle`-Protokolle enthalten jetzt `durationMs`.
+- **Hauptquellen entfernen & Pflichtfilter (Option A) (`403_sniper_personal_feeds.sql`, `108_sniper_search_filters.sql`, Migration `20261127123000_vinted_feed_require_category_or_brand.sql`, `personal-feed-editor`, `query.store.ts`):** Jeder persönliche Feed verlangt mindestens eine konkrete Unterkategorie oder eine Marke. Die pauschalen Hauptquellen Damen (`1904`) und Herren (`5`) entfallen; bestehende Hauptquellen werden per Migration deaktiviert. Die manuelle Zugriffsprüfung nutzt als Rückfall die zuletzt abgerufene Feed-Quelle. Zudem prüft `complete_sniper_search_filter_run` nun gegen den zentralen Katalog `vinted_listing_categories` (behob den `invalid_category`-Stopp neuerer Kategorien wie `5555`) und reaktiviert betroffene Quellen.
+- **100-Artikel-Grenze pro Feed statt pauschalem 10-Minuten-Ausblenden (`403_sniper_personal_feeds.sql`, `deal-monitor.model.ts`):** Jeder aktive Feed behält seine bis zu 100 neuesten Treffer (bis 3 Tage alt) unabhängig von der Geschwindigkeit anderer Feeds; `sniper_purge_expired_listings` bereinigt irrelevante Karten weiter nach 15 Minuten, schützt aber die Top-100-Treffer jedes aktiven Feeds.
+- **Feed-Oberfläche beruhigt (`deal-monitor`, `deal-feed-search`, `deal-card`):** Doppelte grüne Statuspunkte im Spaltenkopf und vor „Live“ entfernt; pausierte Feeds bleiben in der Nebeneinander-Ansicht stabil als Spalte stehen; jede Feed-Spalte scrollt unabhängig in sich selbst; Artikel unter 1 Minute zeigen ein grünes Frische-Badge (`success`), ab 1 Minute grau (`neutral`); Feed-Erstellung/-Bearbeitung öffnet als Drawer von rechts; Live-Filter (Suche, Größen, Min-/Max-Preis) werden pro Arbeitsbereich und Feed im Browserspeicher behalten, damit sie beim Seiten- oder Feedwechsel nicht zurückgesetzt werden.
+- **Messberichte gesichert:** `docs/research/2026-11-22-vinted-release-timing-live-check.md` und `docs/research/2026-11-23-vinted-feed-capacity-and-proxies.md` ins Repository übernommen.
+
+**Prüfung:** `npm run preflight` (Format, Lint, Typen, Suite-Audit, Skriptverträge, betroffene Node- und Angular-Tests sowie Anwendungsbau mit Vorlagen) und Sniper-Tests/Build lokal grün; PR #741 durchläuft die vollständigen GitHub-CI-Pflichtprüfungen.
+
 ## 2026-11-26 - Juna - Vinted-Vorschaubilder und Listenstart verbessern
 
 Kleine Produktbilder in der Vinted-Übersicht füllen ihren Rahmen. Postfach und Kleiderschrank können gerade gelesene Einstiegsseiten in „Alle Konten“ sofort anzeigen und gleichen sie im Hintergrund ab. Ein neuer Kleiderschrank zeigt gespeicherte Inserate, während die Originalfotos nachgeladen werden. Beim Einzelkonto laufen die Foto- und Verkaufsabfragen des ersten Abrufs parallel.

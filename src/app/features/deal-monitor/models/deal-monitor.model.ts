@@ -55,7 +55,8 @@ export interface FeedRequest {
   afterTime?: string;
 }
 export const FEED_ITEM_LIMIT = 100;
-export const FEED_WINDOW_MS = 10 * 60_000;
+export const FEED_WINDOW_MS = 3 * 24 * 60 * 60_000;
+export const FRESH_ARTICLE_MS = 60_000;
 
 export function recentFeedItems(items: readonly FeedItem[], now: number): FeedItem[] {
   return items

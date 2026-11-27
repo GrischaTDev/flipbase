@@ -152,12 +152,12 @@ export class QueryStore {
       .sort(compareDueQueries);
   }
 
-  /** Zuletzt genutzte Hauptquelle, unabhängig davon, ob gerade ein Feed läuft. */
+  /** Zuletzt genutzte Feed-Quelle für die Zugriffsprüfung, auch wenn gerade kein Feed läuft. */
   async accessCheckQuery(): Promise<SniperQuery | null> {
     const { data, error } = await this.client
       .from('sniper_queries')
       .select(COLUMNS)
-      .like('query_key', 'vinted-source|main|%')
+      .like('query_key', 'vinted-source|%')
       .is('deleted_at', null)
       .neq('run_state', 'invalid')
       .order('last_polled_at', { ascending: false, nullsFirst: false })

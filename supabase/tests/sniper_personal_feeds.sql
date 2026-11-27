@@ -42,17 +42,17 @@ $$;
 
 -- Quellschlüssel
 select is(public.sniper_watchlist_source_keys(904030001,'women'),array['vinted-source|category|904030001'],
-  'Mit Kategorie liest ein Feed aus der Kategoriequelle');
-select is(public.sniper_watchlist_source_keys(1904,null,88),array['vinted-source|main|1904','vinted-source|brand|88'],
-  'Wurzelkategorie Damen mit Marke nutzt Haupt- und Markenquelle');
-select is(public.sniper_watchlist_source_keys(null,'men'),array['vinted-source|main|5'],
-  'Ohne Kategorie liest ein Herren-Feed aus der Hauptquelle Herren');
-select is(public.sniper_watchlist_source_keys(null,'men',88),array['vinted-source|main|5','vinted-source|brand|88'],
-  'Ohne Kategorie mit Marke liest ein Herren-Feed zusätzlich aus der Markenquelle');
-select is(public.sniper_watchlist_source_keys(null,'both'),array['vinted-source|main|1904','vinted-source|main|5'],
-  'Ohne Kategorie und für beide liest ein Feed aus beiden Hauptquellen');
-select is(public.sniper_watchlist_source_keys(null,'both',88),array['vinted-source|main|1904','vinted-source|main|5','vinted-source|brand|88'],
-  'Ohne Kategorie und für beide mit Marke nutzt zusätzlich die gemeinsame Markenquelle');
+  'Mit Unterkategorie liest ein Feed aus der Kategoriequelle');
+select is(public.sniper_watchlist_source_keys(1904,null,88),array['vinted-source|brand|88'],
+  'Wurzelkategorie Damen mit Marke nutzt ausschließlich die gemeinsame Markenquelle');
+select is(public.sniper_watchlist_source_keys(null,'men'),array[]::text[],
+  'Ohne Unterkategorie und ohne Marke entsteht keine pauschale Hauptquelle');
+select is(public.sniper_watchlist_source_keys(null,'men',88),array['vinted-source|brand|88'],
+  'Ohne Unterkategorie mit Marke liest ein Feed ausschließlich aus der Markenquelle');
+select is(public.sniper_watchlist_source_keys(null,'both'),array[]::text[],
+  'Ohne Unterkategorie und ohne Marke entstehen für beide Zielgruppen keine Hauptquellen');
+select is(public.sniper_watchlist_source_keys(null,'both',88),array['vinted-source|brand|88'],
+  'Ohne Unterkategorie und für beide mit Marke nutzt ausschließlich die gemeinsame Markenquelle');
 
 select set_config('request.jwt.claim.sub','c4030000-0000-4000-8000-000000000001',true);
 set local role authenticated;
@@ -67,6 +67,12 @@ select is(public.sniper_feed_import_brand(pg_temp.feed_workspace(),88),'Ralph La
 select throws_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),null,'Ohne Markenname',
   null,null,'Jacke',null,null,null,null,'{}',77)$$,'22023','Bitte wähle die Marke aus.',
   'Eine Marken-ID ohne Namen wird abgelehnt, weil der Katalog nur Namen liefert');
+select throws_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),null,'Ohne Quelle',
+  null,null,'Jacke',null,null,null,'men','{}',null)$$,'22023','Bitte wähle mindestens eine Unterkategorie oder eine Marke aus.',
+  'Ein Feed ohne Unterkategorie und ohne Marke wird abgelehnt');
+select throws_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),null,'Nur Wurzel',
+  5,null,'Jacke',null,null,null,'men','{}',null)$$,'22023',null,
+  'Eine Wurzelkategorie ohne Marke reicht ohne Hauptquellen nicht aus');
 select throws_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),null,'Preis',
   null,null,'Jacke',20,8,null,null,'{}',null)$$,'22023',null,'Umgekehrte Preisgrenze wird abgelehnt');
 select throws_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),null,'Unbekannt',
@@ -129,13 +135,13 @@ select external_id,title,'https://www.vinted.de/items/'||external_id,price,price
 from (values
  ('40400001','Ralph Lauren Vintage Jacke','Ralph Lauren',10,'38 / M','Gut',interval '30 seconds',false),
  ('40400002','Ralph Lauren Jacke Rot','Ralph Lauren',20,'M','Gut',interval '1 minute',false),
- ('40400003','Zu alter Fund Jacke','Ralph Lauren',10,'M','Gut',interval '11 minutes',false),
+ ('40400003','Zu alter Fund Jacke','Ralph Lauren',10,'M','Gut',interval '4 days',false),
  ('40400004','Paketbestand Jacke','Ralph Lauren',10,'M','Gut',interval '1 second',true),
  ('40400005','Falscher Preis Jacke','Ralph Lauren',21,'M','Gut',interval '2 seconds',false),
  ('40400006','Falsche Größe Jacke','Ralph Lauren',10,'XXL / 54','Gut',interval '3 seconds',false),
  ('40400007','Polo Jacke','Polo Club',10,'S','Sehr gut',interval '4 seconds',false),
  ('40400008','Fremde Sammlung Jacke','Ralph Lauren',10,'M','Gut',interval '5 seconds',false),
- ('40400009','Vor Aktivierung erkannt Jacke','Ralph Lauren',10,'M','Gut',interval '21 minutes',false),
+ ('40400009','Vor Aktivierung erkannt Jacke','Ralph Lauren',10,'M','Gut',interval '4 days',false),
  ('40400010','Ralph Lauren Hemd','Ralph Lauren',10,'M','Gut',interval '6 seconds',false)
 ) as data(external_id,title,brand,price,size,condition,age,seed);
 insert into public.sniper_query_matches(query_id,listing_id,filter_revision,first_matched_at,is_seed)
@@ -204,6 +210,28 @@ select set_config('request.jwt.claim.sub','c4030000-0000-4000-8000-000000000002'
 set local role authenticated;
 select is(pg_temp.feed_page(pg_temp.feed_id('Andere Marke'))->'items'->0->>'title','Polo Jacke',
   'Gemeinsame Quelle bildet je Feed eigene Marke, Größe und Zustand ab');
+reset role;
+
+-- 100-Artikel-Schutz pro Feed & zentrale Kategorieprüfung (vinted_listing_categories)
+insert into public.sniper_listings(external_id,title,url,item_price,total_price,brand,size,condition,first_seen_at)
+values
+ ('40550001','Polo Jacke 30 Min alt','https://www.vinted.de/items/40550001',12,14,'Polo Club','S','Sehr gut',now()-interval '30 minutes'),
+ ('40550002','Fremde Marke 30 Min alt','https://www.vinted.de/items/40550002',12,14,'Unbekannt','S','Sehr gut',now()-interval '30 minutes');
+insert into public.sniper_query_matches(query_id,listing_id,filter_revision,first_matched_at,is_seed)
+select query.id, listing.id, query.filter_revision, listing.first_seen_at, false
+from public.sniper_queries query cross join public.sniper_listings listing
+where query.id=pg_temp.source_id('vinted-source|category|904030001')
+  and listing.external_id in ('40550001','40550002');
+set local role service_role;
+select lives_ok('select public.sniper_purge_expired_listings()','Bereinigung schützt die Top-100-Treffer aktiver Feeds');
+select is((public.complete_sniper_search_filter_run(pg_temp.source_id('vinted-source|category|904030001'),1,0,'[]')->>'accepted')::boolean,true,
+  'Zentrale Katalog-Kategorie (vinted_listing_categories) wird im Sammler-Abschluss akzeptiert');
+reset role;
+select ok(exists(select 1 from public.sniper_listings where external_id='40550001'),
+  'Ein 30 Minuten alter Treffer eines ruhigen Feeds überlebt die 15-Minuten-Bereinigung');
+select ok(not exists(select 1 from public.sniper_listings where external_id='40550002'),
+  'Ein nicht passender 30 Minuten alter Artikel wird nach 15 Minuten weiterhin bereinigt');
+set local role authenticated;
 
 -- Grenze für gleichzeitig laufende Kategoriequellen
 select lives_ok($$select public.set_sniper_feed_settings(1,60)$$,'Administration setzt die Grenze auf eine Kategorie');
@@ -222,15 +250,15 @@ set local role authenticated;
 select lives_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),pg_temp.feed_id('Andere Marke'),'Andere Marke',
   904030001,'Polo Club','Jacke',8,20,'Sehr gut',null,array['s'],99)$$,'Der Feed wechselt zurück');
 select lives_ok($$select public.save_sniper_watchlist(pg_temp.feed_workspace(),null,'Herren ohne Kategorie',
-  null,'Polo Club',null,null,null,null,'men','{}',99)$$,'Feed ohne Kategorie wird gespeichert');
+  null,'Polo Club',null,null,null,null,'men','{}',99)$$,'Marken-Feed ohne Unterkategorie wird gespeichert');
 select lives_ok($$select public.set_sniper_watchlist_active(pg_temp.feed_workspace(),pg_temp.feed_id('Herren ohne Kategorie'),true)$$,
-  'Feed ohne Kategorie zählt nicht gegen die Kategoriegrenze');
+  'Marken-Feed zählt nicht gegen die Kategoriegrenze');
 reset role;
-select ok(exists(select 1 from public.sniper_queries where query_key='vinted-source|main|5' and is_active
-  and catalog_id=5 and poll_interval_ms=5000),'Feed ohne Kategorie startet die Hauptquelle seiner Zielgruppe');
+select ok(not exists(select 1 from public.sniper_queries where query_key='vinted-source|main|5' and is_active),
+  'Marken-Feed ohne Unterkategorie startet keine pauschale Hauptquelle mehr');
 select ok(exists(select 1 from public.sniper_queries where query_key='vinted-source|brand|99' and is_active
   and catalog_id is null and brand_id=99 and brand_ids=array[99] and brand_names=array['Polo Club']
-  and poll_interval_ms=60000),'Feed ohne Kategorie mit Marke startet zusätzlich die gemeinsame Markenquelle');
+  and poll_interval_ms=60000),'Marken-Feed ohne Unterkategorie startet ausschließlich die gemeinsame Markenquelle');
 set local role authenticated;
 select is((public.sniper_feed_capacity()->>'active_brand_sources')::integer,1,
   'Die Administration sieht eine laufende Markenquelle');

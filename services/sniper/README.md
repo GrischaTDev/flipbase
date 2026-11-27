@@ -150,29 +150,29 @@ Nutzer legen ihre Feeds unter **Werkzeuge → Vinted Feed** (`/vinted-bot`) an.
 Ein Feed erzeugt keine eigene Vinted-Abfrage. Er liest aus einer gemeinsamen
 Quelle (Schlüssel in `sniper_queries.query_key`):
 
-| Quelle             | Schlüssel                       | Abfrage                | Takt                                                  |
-| ------------------ | ------------------------------- | ---------------------- | ----------------------------------------------------- |
-| Hauptquelle Damen  | `vinted-source\|main\|1904`     | nur `catalog_ids=1904` | 5 s, durch das Budget gebremst                        |
-| Hauptquelle Herren | `vinted-source\|main\|5`        | nur `catalog_ids=5`    | 5 s, durch das Budget gebremst                        |
-| Markenquelle       | `vinted-source\|brand\|<id>`    | nur `brand_ids=<id>`   | `sniper_feed_settings.category_poll_interval_seconds` |
-| Kategoriequelle    | `vinted-source\|category\|<id>` | nur `catalog_ids=<id>` | `sniper_feed_settings.category_poll_interval_seconds` |
+| Quelle          | Schlüssel                       | Abfrage                | Takt                                                  |
+| --------------- | ------------------------------- | ---------------------- | ----------------------------------------------------- |
+| Markenquelle    | `vinted-source\|brand\|<id>`    | nur `brand_ids=<id>`   | `sniper_feed_settings.category_poll_interval_seconds` |
+| Kategoriequelle | `vinted-source\|category\|<id>` | nur `catalog_ids=<id>` | `sniper_feed_settings.category_poll_interval_seconds` |
 
-Feeds ohne Unterkategorie (einschließlich der Wurzelkategorien Damen `1904` und
-Herren `5`) lesen aus der Hauptquelle ihrer Zielgruppe und bei gesetzter
-Marken-ID zusätzlich aus der gemeinsamen Markenquelle (`vinted-source|brand|<id>`),
-damit Markenfunde und frühe Vinted-Vorschauen nicht im Hauptstrom untergehen.
-Feeds mit Unterkategorie lesen aus der Kategoriequelle. Marke, Suchtext, Größe,
-Zustand und Preis filtert `sniper_feed_search` in der Datenbank. Die
-Katalogliste liefert keine Kategorie und nur den Markennamen; ein Feed mit
-Marken-ID speichert deshalb immer auch den Namen.
+Jeder persönliche Feed benötigt mindestens eine konkrete Unterkategorie oder
+eine ausgewählte Marke. Feeds mit Unterkategorie lesen aus der gemeinsamen
+Kategoriequelle; Feeds ohne Unterkategorie (oder mit Wurzelkategorie Damen `1904`
+bzw. Herren `5`) lesen über ihre Marken-ID ausschließlich aus der gemeinsamen
+Markenquelle (`vinted-source|brand|<id>`). Pauschale Hauptquellen für „alle Damen“
+oder „alle Herren“ entfallen. Marke, Suchtext, Größe, Zustand und Preis filtert
+`sniper_feed_search` in der Datenbank. Die Katalogliste liefert keine Kategorie
+und nur den Markennamen; ein Feed mit Marken-ID speichert deshalb immer auch den
+Namen.
 
 Der Dienst liest die Sicht `sniper_active_feed_sources`: nur Quellen, die
 mindestens ein aktiver, zugangsberechtigter Feed braucht. Wer zuerst fällig ist,
-wird zuerst abgerufen. Kategoriequellen werden nach ihrem Takt fällig, die
-Hauptquellen nutzen die übrigen Abrufe. Eine neue Quelle reiht sich als fällig
-hinter bereits überfällige ein. Eine Quelle ohne Bedarf wird beendet, behält aber
-Fehlerzähler und Wartezeit; ein Neustart umgeht keine Vinted-Pause. Ruhende
-Kategoriequellen löscht die Bereinigung nach einem Tag.
+wird zuerst abgerufen; bei gesetzter `SNIPER_BROWSER_CONCURRENCY` (Standard 2,
+erlaubt 1 bis 4) verarbeitet der Dienst unabhängige Quellen parallel über eigene
+Chrome-Tabs bei gemeinsamem Startabstand und Anfragebudget. Eine neue Quelle
+reiht sich als fällig hinter bereits überfällige ein. Eine Quelle ohne Bedarf
+wird beendet, behält aber Fehlerzähler und Wartezeit; ein Neustart umgeht keine
+Vinted-Pause. Ruhende Quellen löscht die Bereinigung nach einem Tag.
 
 Die Zahl gleichzeitig laufender Kategoriequellen begrenzt
 `sniper_feed_settings.max_category_sources` (Standard 10). Ein Feed, der eine
@@ -335,7 +335,7 @@ dabei beginnt gegebenenfalls deren Fehlerzähler.
 Ein längeres `Retry-After` des Anbieters wird auch bei 403 eingehalten.
 Erst ein erfolgreicher Katalogabruf gibt den gemeinsamen Zugang wieder frei.
 Ohne aktive fällige Quelle bleibt die gemeinsame Pause erhalten. Die manuelle
-Zugriffsprüfung nutzt ohne laufenden Feed die zuletzt abgerufene Hauptquelle.
+Zugriffsprüfung nutzt ohne laufenden Feed die zuletzt abgerufene Feed-Quelle.
 
 Der Betriebsstatus nennt die Pause und die früheste Wiederprüfung durchgehend.
 In `query_failed` stehen zusätzlich HTTP-Status, Phase, erkannter

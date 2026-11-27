@@ -42,6 +42,9 @@ import { DealMonitorService } from '../../services/deal-monitor.service';
 
 export const UNRECOGNIZED_LINK_BRAND_ERROR =
   'Marke aus dem Link nicht erkannt. Bitte wähle sie aus.';
+export const MISSING_FEED_SOURCE_ERROR =
+  'Bitte wähle mindestens eine Unterkategorie oder eine Marke aus.';
+const ROOT_CATEGORY_IDS = new Set(['1904', '5']);
 
 function priceRangeValidator(group: AbstractControl): ValidationErrors | null {
   const from = group.get('price_from')?.value as number | null | undefined;
@@ -86,6 +89,19 @@ export class PersonalFeedEditorComponent {
   private readonly brands = new Map<string, VintedBrand>();
   readonly brandQueries = new Subject<string>();
   readonly sizeOptions = FEED_CLOTHING_SIZES.map((size) => size.label);
+  readonly missingFeedSourceError = MISSING_FEED_SOURCE_ERROR;
+
+  private readonly sourceSelectionValidator = (group: AbstractControl): ValidationErrors | null => {
+    const catalogId = group.get('catalog_id')?.value as string | null | undefined;
+    if (catalogId && !ROOT_CATEGORY_IDS.has(catalogId)) return null;
+    const brandValue = ((group.get('brand')?.value as string | null | undefined) ?? '').trim();
+    if (!brandValue) return { missingSource: true };
+    if (this.brands.has(brandValue)) return null;
+    const existing = this.feed();
+    return existing?.brand_id != null && existing.brand === brandValue
+      ? null
+      : { missingSource: true };
+  };
 
   readonly form = new FormGroup(
     {
@@ -110,7 +126,7 @@ export class PersonalFeedEditorComponent {
         Validators.max(9999999999.99),
       ]),
     },
-    { validators: priceRangeValidator },
+    { validators: [priceRangeValidator, this.sourceSelectionValidator] },
   );
   private readonly initialFilter = signal('');
   private readonly currentFilter = toSignal(

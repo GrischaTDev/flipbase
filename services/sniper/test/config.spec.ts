@@ -38,20 +38,25 @@ describe('loadConfig', () => {
     expect(config.tickIntervalMs).toBe(1000);
     expect(config.requestMinIntervalMs).toBe(1500);
     expect(config.browserMaxRequestsPerTab).toBe(150);
+    expect(config.browserConcurrency).toBe(2);
     expect(config.maxRequestsPerCycle).toBe(4);
     expect(config.categoryMaxAgeMs).toBe(86_400_000);
     expect(config.freshCatalogRequests).toBe(true);
   });
 
-  it('loads configurable tab reuse and cycle batch limits', () => {
+  it('loads configurable tab reuse, concurrency and cycle batch limits', () => {
     const config = loadConfig({
       ...validEnv,
       SNIPER_BROWSER_MAX_REQUESTS_PER_TAB: '200',
+      SNIPER_BROWSER_CONCURRENCY: '3',
       SNIPER_MAX_REQUESTS_PER_CYCLE: '6',
     });
     expect(config.browserMaxRequestsPerTab).toBe(200);
+    expect(config.browserConcurrency).toBe(3);
     expect(config.maxRequestsPerCycle).toBe(6);
     expect(() => loadConfig({ ...validEnv, SNIPER_BROWSER_MAX_REQUESTS_PER_TAB: '4' })).toThrow();
+    expect(() => loadConfig({ ...validEnv, SNIPER_BROWSER_CONCURRENCY: '0' })).toThrow();
+    expect(() => loadConfig({ ...validEnv, SNIPER_BROWSER_CONCURRENCY: '5' })).toThrow();
     expect(() => loadConfig({ ...validEnv, SNIPER_MAX_REQUESTS_PER_CYCLE: '0' })).toThrow();
   });
 

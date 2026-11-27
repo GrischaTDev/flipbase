@@ -49,6 +49,7 @@ const browser = new ChromeVintedBrowser(config.vintedBaseUrl, {
   cdpPort: config.browserCdpPort,
   requestTimeoutMs: config.requestTimeoutMs,
   maxRequestsPerTab: config.browserMaxRequestsPerTab,
+  concurrency: config.browserConcurrency,
 });
 const counted = pacedVintedFetch(
   metrics.wrap(async (input, init) => {
@@ -69,6 +70,7 @@ const counted = pacedVintedFetch(
   {
     minimumIntervalMs: config.requestMinIntervalMs,
     requestTimeoutMs: config.requestTimeoutMs,
+    maxConcurrency: config.browserConcurrency,
     assertCanStart: () => requestGuard.assertCanStart(),
     recordStart: () => budget.record(),
   },
@@ -97,6 +99,7 @@ const retention = new ListingRetention(() => listings.purgeExpired(), log);
 const scheduler = new QueryScheduler({
   now: () => new Date(),
   maxRequestsPerCycle: config.maxRequestsPerCycle,
+  concurrency: config.browserConcurrency,
   sharePriceRanges: config.sharePriceRanges,
   onOriginPause: () => requestGuard.pause(),
   queries: {
@@ -168,6 +171,9 @@ log.info('started', {
   tickIntervalMs: config.tickIntervalMs,
   requestMinIntervalMs: config.requestMinIntervalMs,
   requestTimeoutMs: config.requestTimeoutMs,
+  browserConcurrency: config.browserConcurrency,
+  browserMaxRequestsPerTab: config.browserMaxRequestsPerTab,
+  maxRequestsPerCycle: config.maxRequestsPerCycle,
   healthPort: config.healthPort,
 });
 

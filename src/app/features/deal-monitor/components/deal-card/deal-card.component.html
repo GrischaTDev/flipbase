@@ -27,7 +27,7 @@
       <div
         class="pointer-events-none absolute top-3 right-3 left-3 flex flex-col items-start gap-1"
       >
-        <app-badge>
+        <app-badge [tone]="isFresh() ? 'success' : 'neutral'">
           <time
             class="whitespace-nowrap tabular-nums"
             [attr.datetime]="item().first_seen_at"

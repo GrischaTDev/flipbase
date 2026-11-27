@@ -8,7 +8,7 @@ import { DealFavoritesService } from '../../services/deal-favorites.service';
 import { DealFeedUpdatesService } from '../../services/deal-feed-updates.service';
 import { DealMonitorService } from '../../services/deal-monitor.service';
 import { FeedClockService } from '../../services/feed-clock.service';
-import { DealFeedSearchComponent } from './deal-feed-search.component';
+import { DealFeedSearchComponent, liveFilterStorageKey } from './deal-feed-search.component';
 
 const sampleTime = new Date('2026-11-22T21:31:00Z');
 const running: PersonalFeed = {
@@ -52,6 +52,7 @@ describe('Artikel eines persönlichen Vinted-Feeds', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    localStorage.clear();
     now.set(sampleTime);
     api.feed.mockResolvedValue({ items: [item], covered: true, reported_at: item.first_seen_at });
     updates.watch.mockReturnValue(cleanup);
@@ -80,11 +81,15 @@ describe('Artikel eines persönlichen Vinted-Feeds', () => {
     return fixture;
   }
 
-  it('lädt nur den ausgewählten aktiven Feed und lässt seine Karten nach zehn Minuten altern', async () => {
+  it('lädt nur den ausgewählten aktiven Feed und behält ruhige Treffer über zehn Minuten hinaus bis zum Feed-Limit', async () => {
     const fixture = open(running);
     await Promise.resolve();
     expect(api.feed).toHaveBeenCalledWith({ workspace: 'workspace-1', watchlist: 'feed-1' });
     expect(fixture.componentInstance.feedItems()).toEqual([item]);
+    // Nach 30 Minuten bleiben Treffer eines ruhigen Feeds sichtbar.
+    now.set(new Date(sampleTime.getTime() + 30 * 60_000));
+    expect(fixture.componentInstance.feedItems()).toEqual([item]);
+    // Erst nach Ablauf des 3-Tage-Fensters werden sie ausgeblendet.
     now.set(new Date(sampleTime.getTime() + FEED_WINDOW_MS));
     expect(fixture.componentInstance.feedItems()).toEqual([]);
     fixture.destroy();
@@ -107,5 +112,48 @@ describe('Artikel eines persönlichen Vinted-Feeds', () => {
     fixture.detectChanges();
     expect(fixture.componentInstance.gridColumns()).toContain('grid-cols-3');
     expect(fixture.componentInstance.gridColumns()).toContain('repeat(auto-fill');
+  });
+
+  it('behält gesetzte Live-Filter beim Seiten- und Feedwechsel je Feed und räumt sie beim Zurücksetzen auf', () => {
+    const first = open(running);
+    first.componentInstance.setLiveQuery('Polo');
+    first.componentInstance.toggleLiveSize('m');
+    first.componentInstance.setLiveMinPrice(15);
+    first.componentInstance.setLiveMaxPrice(40);
+    first.destroy();
+
+    const reopened = open(running);
+    expect(reopened.componentInstance.liveQuery()).toBe('Polo');
+    expect(reopened.componentInstance.liveSizes()).toEqual(['m']);
+    expect(reopened.componentInstance.liveMinPrice()).toBe(15);
+    expect(reopened.componentInstance.liveMaxPrice()).toBe(40);
+    expect(reopened.componentInstance.hasLiveFilters()).toBe(true);
+
+    const otherFeed: PersonalFeed = { ...running, id: 'feed-2', title: 'Carhartt', sizes: ['l'] };
+    const second = open(otherFeed);
+    expect(second.componentInstance.hasLiveFilters()).toBe(false);
+    second.destroy();
+
+    reopened.componentInstance.resetLiveFilters();
+    expect(localStorage.getItem(liveFilterStorageKey('workspace-1', 'feed-1'))).toBeNull();
+    reopened.destroy();
+  });
+
+  it('filtert gespeicherte Größen gegen die aktuell erlaubten Feed-Größen und übersteht defekten Speicher', () => {
+    localStorage.setItem(
+      liveFilterStorageKey('workspace-1', 'feed-1'),
+      JSON.stringify({ query: 'Jacke', sizes: ['s', 'l'], minPrice: 10, maxPrice: -5 }),
+    );
+    const restricted = open({ ...running, sizes: ['l'] });
+    expect(restricted.componentInstance.liveQuery()).toBe('Jacke');
+    expect(restricted.componentInstance.liveSizes()).toEqual(['l']);
+    expect(restricted.componentInstance.liveMinPrice()).toBe(10);
+    expect(restricted.componentInstance.liveMaxPrice()).toBeNull();
+    restricted.destroy();
+
+    localStorage.setItem(liveFilterStorageKey('workspace-1', 'feed-1'), '{kein-json');
+    const recovered = open(running);
+    expect(recovered.componentInstance.hasLiveFilters()).toBe(false);
+    recovered.destroy();
   });
 });
