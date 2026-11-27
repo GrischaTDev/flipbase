@@ -449,7 +449,7 @@ for (const theme of ['light', 'dark'] as const) {
           await save.click();
           await expect(dialog).toHaveCount(0);
           await expect(
-            page.getByRole('heading', { name: 'Feed gestoppt', exact: true }),
+            page.getByRole('heading', { name: 'Feed pausiert', exact: true }),
           ).toBeVisible();
           expect(
             mock.calls.filter(({ name }) => name === 'save_sniper_watchlist').at(-1)?.body,
@@ -503,7 +503,7 @@ for (const theme of ['light', 'dark'] as const) {
 
           await page.getByRole('button', { name: 'Feed stoppen', exact: true }).click();
           await expect(
-            page.getByRole('heading', { name: 'Feed gestoppt', exact: true }),
+            page.getByRole('heading', { name: 'Feed pausiert', exact: true }),
           ).toBeVisible();
           await expect(items).toHaveCount(0);
           expect(
